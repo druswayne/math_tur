@@ -308,6 +308,23 @@ footer {
 /* Стили для таймера обратного отсчёта */
 .countdown-timer {
     margin: 2rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.countdown-text {
+    font-size: 1.2rem;
+    color: #495057;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.countdown-items {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .countdown-item {
@@ -372,4 +389,144 @@ footer {
 .btn-action.configure:hover {
     background-color: #5a32a3;
     color: white;
+}
+
+/* Адаптивные стили для главной страницы */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 2rem 1rem;
+    }
+
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+
+    .hero-section .lead {
+        font-size: 1.2rem;
+    }
+
+    .hero-section .btn-primary {
+        padding: 10px 20px;
+        font-size: 1rem;
+    }
+
+    .home-tournament-title {
+        font-size: 2.5rem;
+    }
+
+    .home-tournament-text {
+        font-size: 1.4rem;
+    }
+
+    .countdown-timer {
+        margin: 1rem 0;
+    }
+
+    .countdown-text {
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .countdown-items {
+        gap: 0.5rem;
+    }
+
+    .countdown-item {
+        min-width: 60px;
+        padding: 0.5rem;
+    }
+
+    .countdown-number {
+        font-size: 1.2rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .countdown-label {
+        font-size: 0.7rem;
+    }
+}
+
+/* Адаптивные стили для админ-панели */
+@media (max-width: 768px) {
+    .table-admin {
+        font-size: 0.9rem;
+    }
+
+    .btn-action {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
+        margin: 0 0.1rem;
+    }
+
+    .admin-card {
+        margin-bottom: 1rem;
+    }
+
+    .admin-card .card-title {
+        font-size: 1.1rem;
+    }
+
+    .admin-card .card-text {
+        font-size: 0.9rem;
+    }
+
+    .modal-lg {
+        max-width: 95%;
+        margin: 0.5rem;
+    }
+
+    .tournaments-list {
+        padding: 0.5rem;
+    }
+}
+
+/* Адаптивные стили для форм */
+@media (max-width: 768px) {
+    .admin-form {
+        padding: 1rem;
+    }
+
+    .form-label {
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        font-size: 0.9rem;
+    }
+}
+
+/* Адаптивные стили для футера */
+@media (max-width: 768px) {
+    footer {
+        text-align: center;
+    }
+
+    footer .text-md-end {
+        text-align: center !important;
+        margin-top: 1rem;
+    }
+
+    footer h5 {
+        font-size: 1.1rem;
+    }
+
+    footer p {
+        font-size: 0.9rem;
+    }
+}
+
+/* Адаптивные стили для навигации */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
+    .nav-link {
+        font-size: 0.9rem;
+    }
+
+    .btn-outline-light {
+        font-size: 0.9rem;
+        padding: 0.4rem 0.8rem;
+    }
 } 
