@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">Панель администратора</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('home') }}">На сайт</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Выйти</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container mt-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card admin-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-people-fill fs-1 mb-3"></i>
+                            <h3 class="card-title">Пользователи</h3>
+                            <p class="card-text">Управление пользователями системы</p>
+                            <a href="{{ url_for('admin_users') }}" class="btn btn-primary">Перейти</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card admin-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-trophy-fill fs-1 mb-3"></i>
+                            <h3 class="card-title">Турниры</h3>
+                            <p class="card-text">Управление турнирами и задачами</p>
+                            <a href="{{ url_for('admin_tournaments') }}" class="btn btn-primary">Перейти</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card admin-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-shop fs-1 mb-3"></i>
+                            <h3 class="card-title">Магазин</h3>
+                            <p class="card-text">Управление призами и товарами</p>
+                            <a href="{{ url_for('admin_shop') }}" class="btn btn-primary">Перейти</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-dark text-light">
+        <div class="container py-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Панель администратора</h5>
+                    <p>Управление платформой школьных турниров</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h5>Статистика</h5>
+                    <p>Пользователей: {{ users_count }}</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

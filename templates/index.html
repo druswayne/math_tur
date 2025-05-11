@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if next_tournament %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row justify-content-center">
+                <div class="col-md-8 text-center">
+                    <h2 class="home-tournament-title">{{ next_tournament.title }}</h2>
+                    <p class="home-tournament-text">{{ next_tournament.description }}</p>
+                    <div class="countdown-timer mb-3">
+                        <h4>До начала турнира осталось:</h4>
+                        <div id="countdown" class="d-flex justify-content-center gap-3">
+                            <div class="countdown-item">
+                                <span id="days" class="countdown-number">00</span>
+                                <span class="countdown-label">дней</span>
+                            </div>
+                            <div class="countdown-item">
+                                <span id="hours" class="countdown-number">00</span>
+                                <span class="countdown-label">часов</span>
+                            </div>
+                            <div class="countdown-item">
+                                <span id="minutes" class="countdown-number">00</span>
+                                <span class="countdown-label">минут</span>
+                            </div>
+                            <div class="countdown-item">
+                                <span id="seconds" class="countdown-number">00</span>
+                                <span class="countdown-label">секунд</span>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="#" class="btn btn-primary">Участвовать</a>
+                </div>
+                {% if next_tournament.image %}
+                <div class="col-md-8 mt-4">
+                    <img src="{{ url_for('static', filename='uploads/' + next_tournament.image) }}" 
+                         alt="{{ next_tournament.title }}" 
+                         class="img-fluid rounded">
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <h4 class="alert-heading">Нет активных турниров</h4>
+        <p>В данный момент нет запланированных турниров. Следите за обновлениями!</p>
+    </div>
+    {% endif %}
+
+   
+</div>
+
+{% if next_tournament %}
+<script>
+function updateCountdown() {
+    const tournamentDate = new Date("{{ next_tournament.start_date.strftime('%Y-%m-%dT%H:%M:%S') }}");
+    const now = new Date();
+    const diff = tournamentDate - now;
+
+    if (diff <= 0) {
+        document.getElementById('countdown').innerHTML = '<div class="alert alert-success">Турнир начался!</div>';
+        return;
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    document.getElementById('days').textContent = String(days).padStart(2, '0');
+    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+    document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+    document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+}
+
+// Обновляем каждую секунду
+setInterval(updateCountdown, 1000);
+updateCountdown();
+</script>
+{% endif %}
+{% endblock %} 

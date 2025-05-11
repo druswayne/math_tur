@@ -1,0 +1,349 @@
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    display: flex;
+}
+
+.hero-section {
+    background: linear-gradient(135deg, #6B73FF 0%, #000DFF 100%);
+    color: white;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.auth-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background-color: #f8f9fa;
+}
+
+.auth-section .card {
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.auth-section .card-body {
+    padding: 2rem;
+}
+
+.auth-section .btn-primary {
+    background: linear-gradient(135deg, #6B73FF 0%, #000DFF 100%);
+    border: none;
+    padding: 0.8rem;
+}
+
+.auth-section .btn-primary:hover {
+    background: linear-gradient(135deg, #5A62FF 0%, #0009FF 100%);
+
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.hero-section h1 {
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    margin-bottom: 1.5rem;
+}
+
+.hero-section .lead {
+    font-size: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.hero-section .btn-primary {
+    background-color: white;
+    color: #000DFF;
+    border: none;
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.hero-section .btn-primary:hover {
+
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    background-color: #f8f9fa;
+}
+
+.card {
+    transition: transform 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.badge {
+    font-size: 0.9em;
+    padding: 0.5em 1em;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+footer {
+    margin-top: auto;
+}
+
+/* Стили для админ-панели */
+.admin-card {
+    transition: transform 0.3s ease;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.admin-card:hover {
+
+}
+
+.admin-card .bi {
+    color: #0d6efd;
+}
+
+.admin-card .card-title {
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.admin-card .card-text {
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+.admin-card .btn-primary {
+    background: linear-gradient(45deg, #0d6efd, #0a58ca);
+    border: none;
+    padding: 0.5rem 2rem;
+    transition: all 0.3s ease;
+}
+
+.admin-card .btn-primary:hover {
+    background: linear-gradient(45deg, #0a58ca, #084298);
+    transform: scale(1.05);
+}
+
+/* Стили для таблиц в админ-панели */
+.table-admin {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table-admin thead {
+    background: #f8f9fa;
+}
+
+.table-admin th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.table-admin td {
+    vertical-align: middle;
+}
+
+/* Стили для форм в админ-панели */
+.admin-form {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.admin-form .form-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+.admin-form .form-control {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+}
+
+.admin-form .form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Стили для кнопок действий */
+.btn-action {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 4px;
+    margin: 0 0.25rem;
+}
+
+.btn-action.edit {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.btn-action.delete {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-action:hover {
+    opacity: 0.9;
+    color: white;
+}
+
+/* Стили для уведомлений */
+.alert {
+    border: none;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.alert-info {
+    background-color: #cff4fc;
+    color: #055160;
+}
+
+/* Стили для кнопок действий в турнирах */
+.btn-action.activate {
+    background-color: #198754;
+    color: white;
+}
+
+.btn-action.deactivate {
+    background-color: #ffc107;
+    color: white;
+}
+
+.btn-action.stats {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-action.activate:hover,
+.btn-action.deactivate:hover,
+.btn-action.stats:hover {
+    opacity: 0.9;
+    color: white;
+}
+
+/* Стили для списка турниров */
+.tournaments-list {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+}
+
+.tournaments-list .table {
+    margin-bottom: 0;
+}
+
+.tournaments-list thead.sticky-top {
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для модальных окон турниров */
+.modal-lg {
+    max-width: 800px;
+}
+
+.modal-body img {
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для таймера обратного отсчёта */
+.countdown-timer {
+    margin: 2rem 0;
+}
+
+.countdown-item {
+    text-align: center;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    min-width: 100px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.countdown-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #0d6efd;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.countdown-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+/* Стили для главной страницы */
+.home-tournament-title {
+    font-size: 3.75rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: #0d6efd;
+}
+
+.home-tournament-text {
+    font-size: 1.8rem;
+    line-height: 1.1;
+    color: #495057;
+    margin-bottom: 0.75rem;
+}
+
+/* Возвращаем стандартные стили для карточек */
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #212529;
+}
+
+.card-text {
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+/* Стили для кнопок действий в турнирах */
+.btn-action.configure {
+    background-color: #6f42c1;
+    color: white;
+}
+
+.btn-action.configure:hover {
+    background-color: #5a32a3;
+    color: white;
+} 

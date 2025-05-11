@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_tournaments') }}">Турниры</a></li>
+            <li class="breadcrumb-item active">Статистика турнира</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="mb-0">Статистика турнира: {{ tournament.title }}</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Основная информация</h4>
+                            <table class="table">
+                                <tr>
+                                    <th>Дата начала:</th>
+                                    <td>{{ tournament.start_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Длительность:</th>
+                                    <td>{{ tournament.duration }} минут</td>
+                                </tr>
+                                <tr>
+                                    <th>Статус:</th>
+                                    <td>
+                                        {% if tournament.is_active %}
+                                        <span class="badge bg-success">Активен</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Неактивен</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Создан:</th>
+                                    <td>{{ tournament.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Последнее обновление:</th>
+                                    <td>{{ tournament.updated_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Описание</h4>
+                            <p>{{ tournament.description }}</p>
+                            {% if tournament.image %}
+                            <img src="{{ url_for('static', filename='uploads/' + tournament.image) }}" 
+                                 alt="{{ tournament.title }}" 
+                                 class="img-fluid rounded mt-3">
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h4>Статистика участия</h4>
+                            <div class="alert alert-info">
+                                Статистика участия будет доступна после реализации функционала регистрации участников.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <h4>Результаты</h4>
+                            <div class="alert alert-info">
+                                Результаты турнира будут доступны после его завершения.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

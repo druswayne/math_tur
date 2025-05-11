@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_tournaments') }}">Турниры</a></li>
+            <li class="breadcrumb-item active">Настройка турнира</li>
+        </ol>
+    </nav>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Настройка турнира: {{ tournament.title }}</h2>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h4>Информация о турнире</h4>
+                    <p><strong>Дата начала:</strong> {{ tournament.start_date.strftime('%d.%m.%Y %H:%M') }}</p>
+                    <p><strong>Длительность:</strong> {{ tournament.duration }} минут</p>
+                    <p><strong>Статус:</strong> {% if tournament.is_active %}Активен{% else %}Неактивен{% endif %}</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>Задачи турнира</h4>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                            <i class="bi bi-plus-lg"></i> Добавить задачу
+                        </button>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Название</th>
+                                    <th>Описание</th>
+                                    <th>Изображение</th>
+                                    <th>Баллы</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for task in tournament.tasks %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ task.title }}</td>
+                                    <td>{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</td>
+                                    <td>
+                                        {% if task.image %}
+                                        <img src="{{ url_for('static', filename='uploads/tasks/' + task.image) }}" 
+                                             alt="{{ task.title }}" 
+                                             style="max-width: 100px; max-height: 100px; object-fit: contain;">
+                                        {% else %}
+                                        <span class="text-muted">Нет изображения</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.points }}</td>
+                                    <td>
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-action edit" data-bs-toggle="modal" data-bs-target="#editTaskModal" 
+                                                    data-id="{{ task.id }}" data-title="{{ task.title }}" 
+                                                    data-description="{{ task.description }}" data-points="{{ task.points }}"
+                                                    data-image="{{ task.image }}" data-correct-answer="{{ task.correct_answer }}">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-action delete" data-bs-toggle="modal" data-bs-target="#deleteTaskModal" 
+                                                    data-id="{{ task.id }}" data-title="{{ task.title }}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления задачи -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить задачу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_tournament_task', tournament_id=tournament.id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Название задачи</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание задачи</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image" class="form-label">Изображение</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                    </div>
+                    <div class="mb-3">
+                        <label for="points" class="form-label">Баллы за решение</label>
+                        <input type="number" class="form-control" id="points" name="points" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="correct_answer" class="form-label">Правильный ответ</label>
+                        <input type="text" class="form-control" id="correct_answer" name="correct_answer" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования задачи -->
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать задачу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editTaskForm" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_title" class="form-label">Название задачи</label>
+                        <input type="text" class="form-control" id="edit_title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Описание задачи</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="5" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_image" class="form-label">Изображение</label>
+                        <input type="file" class="form-control" id="edit_image" name="image" accept="image/*">
+                        <div id="current_image" class="mt-2"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_points" class="form-label">Баллы за решение</label>
+                        <input type="number" class="form-control" id="edit_points" name="points" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_correct_answer" class="form-label">Правильный ответ</label>
+                        <input type="text" class="form-control" id="edit_correct_answer" name="correct_answer" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно удаления задачи -->
+<div class="modal fade" id="deleteTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Удалить задачу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить задачу "<span id="deleteTaskTitle"></span>"?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form id="deleteTaskForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработка редактирования задачи
+    const editTaskModal = document.getElementById('editTaskModal');
+    editTaskModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const taskId = button.getAttribute('data-id');
+        const title = button.getAttribute('data-title');
+        const description = button.getAttribute('data-description');
+        const points = button.getAttribute('data-points');
+        const image = button.getAttribute('data-image');
+        const correctAnswer = button.getAttribute('data-correct-answer');
+
+        const form = this.querySelector('#editTaskForm');
+        form.action = `/admin/tournaments/{{ tournament.id }}/tasks/${taskId}/edit`;
+        form.querySelector('#edit_title').value = title;
+        form.querySelector('#edit_description').value = description;
+        form.querySelector('#edit_points').value = points;
+        form.querySelector('#edit_correct_answer').value = correctAnswer;
+
+        const currentImageDiv = form.querySelector('#current_image');
+        if (image) {
+            currentImageDiv.innerHTML = `
+                <p>Текущее изображение:</p>
+                <img src="/static/uploads/tasks/${image}" 
+                     alt="${title}" 
+                     style="max-width: 200px; max-height: 200px; object-fit: contain;">
+            `;
+        } else {
+            currentImageDiv.innerHTML = '<p class="text-muted">Нет изображения</p>';
+        }
+    });
+
+    // Обработка удаления задачи
+    const deleteTaskModal = document.getElementById('deleteTaskModal');
+    deleteTaskModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const taskId = button.getAttribute('data-id');
+        const title = button.getAttribute('data-title');
+
+        this.querySelector('#deleteTaskTitle').textContent = title;
+        this.querySelector('#deleteTaskForm').action = `/admin/tournaments/{{ tournament.id }}/tasks/${taskId}/delete`;
+    });
+});
+</script>
+{% endblock %} 

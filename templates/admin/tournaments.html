@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">Панель администратора</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('home') }}">На сайт</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Выйти</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container mt-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Управление турнирами</h2>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTournamentModal">
+                    <i class="bi bi-plus-lg"></i> Добавить турнир
+                </button>
+            </div>
+
+            <div class="tournaments-list" style="max-height: 600px; overflow-y: auto;">
+                <div class="table-responsive">
+                    <table class="table table-admin">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th>ID</th>
+                                <th>Название</th>
+                                <th>Дата начала</th>
+                                <th>Длительность</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tournament in tournaments %}
+                            <tr>
+                                <td>{{ tournament.id }}</td>
+                                <td>{{ tournament.title }}</td>
+                                <td>{{ tournament.start_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                                <td>{{ tournament.duration }} мин.</td>
+                                <td>
+                                    {% if tournament.is_active %}
+                                        <span class="badge bg-success">Активен</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Неактивен</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-action edit" data-bs-toggle="modal" data-bs-target="#editTournamentModal" 
+                                                data-id="{{ tournament.id }}" data-title="{{ tournament.title }}" 
+                                                data-description="{{ tournament.description }}" data-start-date="{{ tournament.start_date.strftime('%Y-%m-%dT%H:%M') }}"
+                                                data-duration="{{ tournament.duration }}">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        {% if tournament.is_active %}
+                                        <button type="button" class="btn btn-action deactivate" data-bs-toggle="modal" data-bs-target="#deactivateTournamentModal" 
+                                                data-id="{{ tournament.id }}" data-title="{{ tournament.title }}">
+                                            <i class="bi bi-pause-fill"></i>
+                                        </button>
+                                        {% else %}
+                                        <button type="button" class="btn btn-action activate" data-bs-toggle="modal" data-bs-target="#activateTournamentModal" 
+                                                data-id="{{ tournament.id }}" data-title="{{ tournament.title }}">
+                                            <i class="bi bi-play-fill"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button type="button" class="btn btn-action stats" data-bs-toggle="modal" data-bs-target="#tournamentStatsModal" 
+                                                data-id="{{ tournament.id }}" data-title="{{ tournament.title }}">
+                                            <i class="bi bi-graph-up"></i>
+                                        </button>
+                                        <a href="{{ url_for('configure_tournament', tournament_id=tournament.id) }}" class="btn btn-action configure">
+                                            <i class="bi bi-gear"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-action delete" data-bs-toggle="modal" data-bs-target="#deleteTournamentModal" 
+                                                data-id="{{ tournament.id }}" data-title="{{ tournament.title }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно добавления турнира -->
+    <div class="modal fade" id="addTournamentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить турнир</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('admin_add_tournament') }}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Название турнира</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="image" class="form-label">Изображение</label>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="start_date" class="form-label">Дата начала</label>
+                                    <input type="datetime-local" class="form-control" id="start_date" name="start_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="duration" class="form-label">Длительность (минуты)</label>
+                                    <input type="number" class="form-control" id="duration" name="duration" min="1" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальные окна для каждого турнира -->
+    {% for tournament in tournaments %}
+    <!-- Редактирование турнира -->
+    <div class="modal fade" id="editTournamentModal{{ tournament.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать турнир</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('admin_edit_tournament', tournament_id=tournament.id) }}" method="POST" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="edit_title{{ tournament.id }}" class="form-label">Название турнира</label>
+                            <input type="text" class="form-control" id="edit_title{{ tournament.id }}" name="title" value="{{ tournament.title }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description{{ tournament.id }}" class="form-label">Описание</label>
+                            <textarea class="form-control" id="edit_description{{ tournament.id }}" name="description" rows="3" required>{{ tournament.description }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_image{{ tournament.id }}" class="form-label">Изображение</label>
+                            <input type="file" class="form-control" id="edit_image{{ tournament.id }}" name="image" accept="image/*">
+                            {% if tournament.image %}
+                                <div class="mt-2">
+                                    <img src="{{ url_for('static', filename='uploads/' + tournament.image) }}" alt="Текущее изображение" style="max-width: 200px;">
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_start_date{{ tournament.id }}" class="form-label">Дата начала</label>
+                                    <input type="datetime-local" class="form-control" id="edit_start_date{{ tournament.id }}" name="start_date" value="{{ tournament.start_date.strftime('%Y-%m-%dT%H:%M') }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_duration{{ tournament.id }}" class="form-label">Длительность (минуты)</label>
+                                    <input type="number" class="form-control" id="edit_duration{{ tournament.id }}" name="duration" value="{{ tournament.duration }}" min="1" required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Активация турнира -->
+    <div class="modal fade" id="activateTournamentModal{{ tournament.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Активация турнира</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите активировать турнир "{{ tournament.title }}"?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <form action="{{ url_for('admin_activate_tournament', tournament_id=tournament.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-success">Активировать</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Деактивация турнира -->
+    <div class="modal fade" id="deactivateTournamentModal{{ tournament.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Деактивация турнира</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите деактивировать турнир "{{ tournament.title }}"?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <form action="{{ url_for('admin_deactivate_tournament', tournament_id=tournament.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-warning">Деактивировать</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Удаление турнира -->
+    <div class="modal fade" id="deleteTournamentModal{{ tournament.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Удаление турнира</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите удалить турнир "{{ tournament.title }}"?</p>
+                    <p class="text-danger">Это действие нельзя отменить!</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <form action="{{ url_for('admin_delete_tournament', tournament_id=tournament.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <footer class="bg-dark text-light">
+        <div class="container py-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Панель администратора</h5>
+                    <p>Управление турнирами</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h5>Статистика</h5>
+                    <p>Всего турниров: {{ tournaments|length }}</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
