@@ -63,6 +63,7 @@ class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
+    rules = db.Column(db.Text, nullable=False)  # Добавляем поле для правил
     image = db.Column(db.String(200))
     start_date = db.Column(db.DateTime, nullable=False)
     duration = db.Column(db.Integer, nullable=False)  # в минутах
@@ -362,6 +363,7 @@ def admin_add_tournament():
     
     title = request.form.get('title')
     description = request.form.get('description')
+    rules = request.form.get('rules')  # Получаем правила из формы
     start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     duration = int(request.form.get('duration'))
     
@@ -377,6 +379,7 @@ def admin_add_tournament():
     tournament = Tournament(
         title=title,
         description=description,
+        rules=rules,  # Добавляем правила в создание турнира
         image=image_filename,
         start_date=start_date,
         duration=duration
@@ -399,6 +402,7 @@ def admin_edit_tournament(tournament_id):
     
     tournament.title = request.form.get('title')
     tournament.description = request.form.get('description')
+    tournament.rules = request.form.get('rules')  # Обновляем правила
     tournament.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     tournament.duration = int(request.form.get('duration'))
     

@@ -75,9 +75,13 @@
                                 <td>
                                     <div class="btn-group">
                                         <button type="button" class="btn btn-action edit" data-bs-toggle="modal" data-bs-target="#editTournamentModal" 
-                                                data-id="{{ tournament.id }}" data-title="{{ tournament.title }}" 
-                                                data-description="{{ tournament.description }}" data-start-date="{{ tournament.start_date.strftime('%Y-%m-%dT%H:%M') }}"
-                                                data-duration="{{ tournament.duration }}" data-image="{{ tournament.image }}">
+                                                data-id="{{ tournament.id }}" 
+                                                data-title="{{ tournament.title }}" 
+                                                data-description="{{ tournament.description }}"
+                                                data-rules="{{ tournament.rules }}"
+                                                data-start-date="{{ tournament.start_date.strftime('%Y-%m-%dT%H:%M') }}"
+                                                data-duration="{{ tournament.duration }}" 
+                                                data-image="{{ tournament.image }}">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         {% if tournament.is_active %}
@@ -132,6 +136,11 @@
                             <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                         </div>
                         <div class="mb-3">
+                            <label for="rules" class="form-label">Правила турнира</label>
+                            <textarea class="form-control" id="rules" name="rules" rows="5" required></textarea>
+                            <div class="form-text">Используйте HTML для форматирования текста. Например: &lt;ul&gt;&lt;li&gt;Правило 1&lt;/li&gt;&lt;/ul&gt;</div>
+                        </div>
+                        <div class="mb-3">
                             <label for="image" class="form-label">Изображение</label>
                             <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         </div>
@@ -176,6 +185,11 @@
                         <div class="mb-3">
                             <label for="edit_description" class="form-label">Описание</label>
                             <textarea class="form-control" id="edit_description" name="description" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_rules" class="form-label">Правила турнира</label>
+                            <textarea class="form-control" id="edit_rules" name="rules" rows="5" required></textarea>
+                            <div class="form-text">Используйте HTML для форматирования текста. Например: &lt;ul&gt;&lt;li&gt;Правило 1&lt;/li&gt;&lt;/ul&gt;</div>
                         </div>
                         <div class="mb-3">
                             <label for="edit_image" class="form-label">Изображение</label>
@@ -289,34 +303,32 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Обработка редактирования турнира
-        const editTournamentModal = document.getElementById('editTournamentModal');
-        editTournamentModal.addEventListener('show.bs.modal', function(event) {
-            const button = event.relatedTarget;
-            const tournamentId = button.getAttribute('data-id');
-            const title = button.getAttribute('data-title');
-            const description = button.getAttribute('data-description');
-            const startDate = button.getAttribute('data-start-date');
-            const duration = button.getAttribute('data-duration');
-            const image = button.getAttribute('data-image');
-
-            const form = this.querySelector('#editTournamentForm');
-            form.action = `/admin/tournaments/${tournamentId}/edit`;
-            form.querySelector('#edit_title').value = title;
-            form.querySelector('#edit_description').value = description;
-            form.querySelector('#edit_start_date').value = startDate;
-            form.querySelector('#edit_duration').value = duration;
-
-            const currentImageDiv = form.querySelector('#current_image');
-            if (image) {
-                currentImageDiv.innerHTML = `
-                    <p>Текущее изображение:</p>
-                    <img src="/static/uploads/${image}" 
-                         alt="${title}" 
-                         style="max-width: 200px; max-height: 200px; object-fit: contain;">
-                `;
-            } else {
-                currentImageDiv.innerHTML = '<p class="text-muted">Нет изображения</p>';
-            }
+        const editButtons = document.querySelectorAll('.edit');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const title = this.dataset.title;
+                const description = this.dataset.description;
+                const rules = this.dataset.rules;
+                const startDate = this.dataset.startDate;
+                const duration = this.dataset.duration;
+                const image = this.dataset.image;
+                
+                document.getElementById('edit_title').value = title;
+                document.getElementById('edit_description').value = description;
+                document.getElementById('edit_rules').value = rules;
+                document.getElementById('edit_start_date').value = startDate;
+                document.getElementById('edit_duration').value = duration;
+                
+                const currentImage = document.getElementById('current_image');
+                if (image) {
+                    currentImage.innerHTML = `<img src="{{ url_for('static', filename='uploads/') }}${image}" class="img-thumbnail" style="max-height: 100px;">`;
+                } else {
+                    currentImage.innerHTML = '';
+                }
+                
+                document.getElementById('editTournamentForm').action = `/admin/tournaments/${id}/edit`;
+            });
         });
 
         // Обработка активации турнира
