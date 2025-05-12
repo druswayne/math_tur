@@ -27,16 +27,29 @@
                         <a class="nav-link" href="{{ url_for('about') }}">О нас</a>
                     </li>
                 </ul>
-                <div class="d-flex">
+                <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
                         {% if current_user.is_admin %}
-                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline-light me-2">Панель администратора</a>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Панель администратора</a>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('profile') }}">Личный кабинет</a>
+                            </li>
                         {% endif %}
-                        <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Выйти</a>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('logout') }}">Выйти</a>
+                        </li>
                     {% else %}
-                        <a href="{{ url_for('login') }}" class="btn btn-outline-light">Войти</a>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">Войти</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('register') }}">Регистрация</a>
+                        </li>
                     {% endif %}
-                </div>
+                </ul>
             </div>
         </div>
     </nav>

@@ -37,6 +37,8 @@ class User(UserMixin, db.Model):
     email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
+    balance = db.Column(db.Integer, default=0)  # Общий счет
+    tickets = db.Column(db.Integer, default=0)  # Количество билетов
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -140,7 +142,8 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        user = User.query.filter_by(username=username).first()
+        # Ищем пользователя без учета регистра
+        user = User.query.filter(User.username.ilike(username)).first()
         
         if user and user.check_password(password):
             if not user.is_active:
@@ -642,6 +645,34 @@ def confirm_email(token):
     else:
         flash('Недействительная или устаревшая ссылка подтверждения.', 'danger')
     return redirect(url_for('login'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    return render_template('profile.html', title='Личный кабинет')
+
+@app.route('/buy-tickets')
+@login_required
+def buy_tickets():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    return render_template('buy_tickets.html', title='Покупка билетов')
+
+@app.route('/purchase-history')
+@login_required
+def purchase_history():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    return render_template('purchase_history.html', title='История покупок')
+
+@app.route('/completed-tournaments')
+@login_required
+def completed_tournaments():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    return render_template('completed_tournaments.html', title='Пройденные турниры')
 
 if __name__ == '__main__':
     with app.app_context():
