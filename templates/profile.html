@@ -2,6 +2,40 @@
 
 {% block content %}
 <div class="container mt-4">
+    {% if next_tournament %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="text-center">
+                <h3 class="card-title mb-4">{{ next_tournament.title }}</h3>
+                <p class="text-muted mb-3">До начала турнира осталось:</p>
+                <div class="countdown-timer mb-4" data-start="{{ next_tournament.start_date.isoformat() }}">
+                    <div class="countdown-items">
+                        <div class="countdown-item">
+                            <div class="countdown-number" id="days">00</div>
+                            <div class="countdown-label">дней</div>
+                        </div>
+                        <div class="countdown-item">
+                            <div class="countdown-number" id="hours">00</div>
+                            <div class="countdown-label">часов</div>
+                        </div>
+                        <div class="countdown-item">
+                            <div class="countdown-number" id="minutes">00</div>
+                            <div class="countdown-label">минут</div>
+                        </div>
+                        <div class="countdown-item">
+                            <div class="countdown-number" id="seconds">00</div>
+                            <div class="countdown-label">секунд</div>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" class="btn btn-primary btn-lg">
+                    Принять участие
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="row">
         <div class="col-md-4">
             <div class="card mb-4">
@@ -70,4 +104,28 @@
         </div>
     </div>
 </div>
+
+{% if next_tournament %}
+<script>
+function updateCountdown() {
+    const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
+    const now = new Date();
+    const diff = startDate - now;
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    document.getElementById('days').textContent = String(days).padStart(2, '0');
+    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+    document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+    document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+}
+
+// Обновляем таймер каждую секунду
+setInterval(updateCountdown, 1000);
+updateCountdown(); // Запускаем сразу
+</script>
+{% endif %}
 {% endblock %} 

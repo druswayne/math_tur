@@ -660,8 +660,19 @@ def get_user_rank(user_id):
 def profile():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
+    
+    # Получаем ближайший активный турнир
+    current_time = datetime.utcnow()
+    next_tournament = Tournament.query.filter(
+        Tournament.start_date > current_time,
+        Tournament.is_active == True
+    ).order_by(Tournament.start_date.asc()).first()
+    
     user_rank = get_user_rank(current_user.id)
-    return render_template('profile.html', title='Личный кабинет', user_rank=user_rank)
+    return render_template('profile.html', 
+                         title='Личный кабинет', 
+                         user_rank=user_rank,
+                         next_tournament=next_tournament)
 
 @app.route('/buy-tickets')
 @login_required
@@ -683,6 +694,27 @@ def completed_tournaments():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     return render_template('completed_tournaments.html', title='Пройденные турниры')
+
+@app.route('/tournament/<int:tournament_id>/join')
+@login_required
+def join_tournament(tournament_id):
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    tournament = Tournament.query.get_or_404(tournament_id)
+    
+    # Проверяем, есть ли у пользователя билеты
+    if current_user.tickets < 1:
+        flash('Для участия в турнире необходим билет', 'warning')
+        return redirect(url_for('buy_tickets'))
+    
+    # TODO: Добавить логику регистрации на турнир
+    # Пока просто списываем билет
+    current_user.tickets -= 1
+    db.session.commit()
+    
+    flash('Вы успешно зарегистрировались на турнир!', 'success')
+    return redirect(url_for('profile'))
 
 if __name__ == '__main__':
     with app.app_context():
