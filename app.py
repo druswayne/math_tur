@@ -1,16 +1,26 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from werkzeug.utils import secure_filename
+import secrets
+from flask_mail import Mail, Message
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///school_tournaments.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/school_tournaments.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Настройки для отправки email
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'  # Замените на ваш email
+app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'     # Замените на пароль приложения
+
+mail = Mail(app)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -22,6 +32,8 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=False)  # Для подтверждения email
+    email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
 
@@ -30,6 +42,12 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def generate_confirmation_token(self):
+        token = secrets.token_urlsafe(32)
+        self.email_confirmation_token = token
+        db.session.commit()
+        return token
 
 class Tournament(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,12 +83,39 @@ def create_admin_user():
         admin = User(
             username='admin',
             email='admin@school-tournaments.ru',
-            is_admin=True
+            is_admin=True,
+            is_active=True  # Устанавливаем is_active=True для администратора
         )
         admin.set_password('admin123')
         db.session.add(admin)
         db.session.commit()
         print("Администратор успешно создан")
+
+def send_confirmation_email(user):
+    token = user.generate_confirmation_token()
+    msg = Message('Подтверждение регистрации',
+                  sender=app.config['MAIL_USERNAME'],
+                  recipients=[user.email])
+    msg.body = f'''Для подтверждения вашей регистрации перейдите по следующей ссылке:
+{url_for('confirm_email', token=token, _external=True)}
+
+Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
+'''
+    mail.send(msg)
+
+def send_credentials_email(user, password):
+    msg = Message('Ваши учетные данные',
+                  sender=app.config['MAIL_USERNAME'],
+                  recipients=[user.email])
+    msg.body = f'''Ваш аккаунт успешно подтвержден!
+
+Ваши учетные данные:
+Логин: {user.username}
+Пароль: {password}
+
+Рекомендуем сменить пароль после первого входа в систему.
+'''
+    mail.send(msg)
 
 @app.route('/')
 def home():
@@ -94,20 +139,18 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        remember = request.form.get('remember', False)
-
         user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            login_user(user, remember=remember)
-            user.last_login = datetime.utcnow()
-            db.session.commit()
-            
-            if user.is_admin:
-                return redirect(url_for('admin_dashboard'))
-            return redirect(url_for('home'))
         
-        flash('Неверный логин или пароль', 'danger')
-    return render_template('login.html', title='Вход в систему')
+        if user and user.check_password(password):
+            if not user.is_active:
+                flash('Пожалуйста, подтвердите ваш email перед входом', 'warning')
+                return redirect(url_for('login'))
+            login_user(user)
+            return redirect(url_for('home'))
+        else:
+            flash('Неверный логин или пароль', 'danger')
+    
+    return render_template('login.html')
 
 @app.route('/logout')
 @login_required
@@ -167,7 +210,8 @@ def admin_add_user():
     db.session.add(user)
     db.session.commit()
     
-    flash('Пользователь успешно добавлен', 'success')
+    send_confirmation_email(user)
+    flash('Письмо с подтверждением отправлено на ваш email', 'success')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
@@ -515,6 +559,69 @@ def delete_tournament_task(tournament_id, task_id):
     
     flash('Задача успешно удалена', 'success')
     return redirect(url_for('configure_tournament', tournament_id=tournament_id))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        if password != confirm_password:
+            flash('Пароли не совпадают', 'danger')
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(username=username).first():
+            flash('Пользователь с таким логином уже существует', 'danger')
+            return redirect(url_for('register'))
+
+        if User.query.filter_by(email=email).first():
+            flash('Пользователь с таким email уже существует', 'danger')
+            return redirect(url_for('register'))
+
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        # Добавляем пароль в URL для подтверждения
+        token = user.generate_confirmation_token()
+        confirm_url = url_for('confirm_email', token=token, password=password, _external=True)
+        
+        msg = Message('Подтверждение регистрации',
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[user.email])
+        msg.body = f'''Для подтверждения вашей регистрации перейдите по следующей ссылке:
+{confirm_url}
+
+Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
+'''
+        mail.send(msg)
+        
+        flash('Письмо с подтверждением отправлено на ваш email', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+@app.route('/confirm/<token>')
+def confirm_email(token):
+    user = User.query.filter_by(email_confirmation_token=token).first()
+    if user:
+        user.is_active = True
+        user.email_confirmation_token = None
+        db.session.commit()
+        
+        # Отправляем письмо с учетными данными
+        # Получаем пароль из формы регистрации
+        password = request.args.get('password')
+        if password:
+            send_credentials_email(user, password)
+        
+        flash('Email успешно подтвержден! Теперь вы можете войти.', 'success')
+    else:
+        flash('Недействительная или устаревшая ссылка подтверждения.', 'danger')
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     with app.app_context():

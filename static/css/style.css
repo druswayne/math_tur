@@ -115,6 +115,7 @@ main {
 
 .navbar {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding-top: 1rem;
 }
 
 footer {
@@ -528,5 +529,9 @@ footer {
     .btn-outline-light {
         font-size: 0.9rem;
         padding: 0.4rem 0.8rem;
+    }
+
+    .navbar {
+        padding-top: 0.75rem;
     }
 } 
