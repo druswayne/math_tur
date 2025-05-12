@@ -646,12 +646,22 @@ def confirm_email(token):
         flash('Недействительная или устаревшая ссылка подтверждения.', 'danger')
     return redirect(url_for('login'))
 
+def get_user_rank(user_id):
+    # Получаем всех пользователей, отсортированных по балансу (по убыванию)
+    users = User.query.filter(User.is_admin == False).order_by(User.balance.desc()).all()
+    # Находим индекс пользователя в отсортированном списке
+    for index, user in enumerate(users, 1):
+        if user.id == user_id:
+            return index
+    return None
+
 @app.route('/profile')
 @login_required
 def profile():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
-    return render_template('profile.html', title='Личный кабинет')
+    user_rank = get_user_rank(current_user.id)
+    return render_template('profile.html', title='Личный кабинет', user_rank=user_rank)
 
 @app.route('/buy-tickets')
 @login_required
