@@ -7,6 +7,7 @@ import os
 from werkzeug.utils import secure_filename
 import secrets
 from flask_mail import Mail, Message
+import re
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
@@ -560,6 +561,21 @@ def delete_tournament_task(tournament_id, task_id):
     flash('Задача успешно удалена', 'success')
     return redirect(url_for('configure_tournament', tournament_id=tournament_id))
 
+def is_password_strong(password):
+    # Проверяем длину пароля (минимум 8 символов)
+    if len(password) < 8:
+        return False
+    
+    # Проверяем наличие цифр
+    if not re.search(r"\d", password):
+        return False
+    
+    # Проверяем наличие букв
+    if not re.search(r"[a-zA-Z]", password):
+        return False
+    
+    return True
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -567,6 +583,10 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
+
+        if not is_password_strong(password):
+            flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
+            return redirect(url_for('register'))
 
         if password != confirm_password:
             flash('Пароли не совпадают', 'danger')
