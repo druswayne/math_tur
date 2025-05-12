@@ -34,11 +34,18 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False)  # Для подтверждения email
+    is_blocked = db.Column(db.Boolean, default=False)  # Для блокировки пользователя
     email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
     balance = db.Column(db.Integer, default=0)  # Общий счет
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
+
+    # Добавляем связь с турнирами через TournamentParticipation
+    tournaments = db.relationship('Tournament', 
+                                secondary='tournament_participation',
+                                backref=db.backref('participants', lazy='dynamic'),
+                                lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -75,6 +82,26 @@ class Task(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     tournament = db.relationship('Tournament', backref=db.backref('tasks', lazy=True))
+
+class TicketPurchase(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('ticket_purchases', lazy=True))
+
+class TournamentParticipation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'), nullable=False)
+    score = db.Column(db.Integer, default=0)
+    place = db.Column(db.Integer)
+    participation_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('tournament_participations', lazy=True))
+    tournament = db.relationship('Tournament', backref=db.backref('participations', lazy=True))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -122,16 +149,34 @@ def send_credentials_email(user, password):
 
 @app.route('/')
 def home():
-    # Получаем ближайший активный турнир
+    # Получаем текущее время
     current_time = datetime.utcnow()
+    
+    # Сначала ищем будущие турниры
     next_tournament = Tournament.query.filter(
         Tournament.start_date > current_time,
         Tournament.is_active == True
     ).order_by(Tournament.start_date.asc()).first()
     
+    # Если нет будущих турниров, ищем текущий активный турнир
+    if not next_tournament:
+        # Получаем все активные турниры, которые уже начались
+        active_tournaments = Tournament.query.filter(
+            Tournament.start_date <= current_time,
+            Tournament.is_active == True
+        ).all()
+        
+        # Находим турнир, который еще не закончился
+        for tournament in active_tournaments:
+            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+            if end_time > current_time:
+                next_tournament = tournament
+                break
+    
     return render_template('index.html', 
                          title='Главная страница',
-                         next_tournament=next_tournament)
+                         next_tournament=next_tournament,
+                         now=current_time)
 
 @app.route('/about')
 def about():
@@ -146,6 +191,9 @@ def login():
         user = User.query.filter(User.username.ilike(username)).first()
         
         if user and user.check_password(password):
+            if user.is_blocked:
+                flash('Ваш аккаунт заблокирован администратором. Для разблокировки обратитесь к администратору по email: admin@school-tournaments.ru', 'danger')
+                return redirect(url_for('login'))
             if not user.is_active:
                 flash('Пожалуйста, подтвердите ваш email перед входом', 'warning')
                 return redirect(url_for('login'))
@@ -181,8 +229,8 @@ def admin_users():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    users = User.query.all()
-    return render_template('admin/users.html', title='Управление пользователями', users=users)
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('admin/users.html', users=users)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -194,28 +242,23 @@ def admin_add_user():
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
-    is_admin = request.form.get('is_admin') == 'on'
+    is_admin = 'is_admin' in request.form
     
     if User.query.filter_by(username=username).first():
-        flash('Пользователь с таким именем уже существует', 'danger')
+        flash('Пользователь с таким логином уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
     if User.query.filter_by(email=email).first():
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    user = User(
-        username=username,
-        email=email,
-        is_admin=is_admin
-    )
+    user = User(username=username, email=email, is_admin=is_admin, is_active=True)
     user.set_password(password)
     
     db.session.add(user)
     db.session.commit()
     
-    send_confirmation_email(user)
-    flash('Письмо с подтверждением отправлено на ваш email', 'success')
+    flash('Пользователь успешно добавлен', 'success')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/users/<int:user_id>/edit', methods=['POST'])
@@ -226,25 +269,32 @@ def admin_edit_user(user_id):
         return redirect(url_for('home'))
     
     user = User.query.get_or_404(user_id)
-    
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
-    is_admin = request.form.get('is_admin') == 'on'
+    is_admin = 'is_admin' in request.form
+    tickets = request.form.get('tickets')
     
-    existing_user = User.query.filter_by(username=username).first()
-    if existing_user and existing_user.id != user_id:
-        flash('Пользователь с таким именем уже существует', 'danger')
+    if username != user.username and User.query.filter_by(username=username).first():
+        flash('Пользователь с таким логином уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    existing_user = User.query.filter_by(email=email).first()
-    if existing_user and existing_user.id != user_id:
+    if email != user.email and User.query.filter_by(email=email).first():
         flash('Пользователь с таким email уже существует', 'danger')
+        return redirect(url_for('admin_users'))
+    
+    try:
+        tickets = int(tickets)
+        if tickets < 0:
+            raise ValueError
+    except ValueError:
+        flash('Количество билетов должно быть неотрицательным числом', 'danger')
         return redirect(url_for('admin_users'))
     
     user.username = username
     user.email = email
     user.is_admin = is_admin
+    user.tickets = tickets
     
     if password:
         user.set_password(password)
@@ -271,6 +321,26 @@ def admin_delete_user(user_id):
     db.session.commit()
     
     flash('Пользователь успешно удален', 'success')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/users/<int:user_id>/toggle-block', methods=['POST'])
+@login_required
+def admin_toggle_user_block(user_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    if user.id == current_user.id:
+        flash('Вы не можете заблокировать свой аккаунт', 'danger')
+        return redirect(url_for('admin_users'))
+    
+    user.is_blocked = not user.is_blocked
+    db.session.commit()
+    
+    action = "заблокирован" if user.is_blocked else "разблокирован"
+    flash(f'Пользователь {user.username} успешно {action}', 'success')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/tournaments')
@@ -661,18 +731,36 @@ def profile():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    # Получаем ближайший активный турнир
+    # Получаем текущее время
     current_time = datetime.utcnow()
+    
+    # Сначала ищем будущие турниры
     next_tournament = Tournament.query.filter(
         Tournament.start_date > current_time,
         Tournament.is_active == True
     ).order_by(Tournament.start_date.asc()).first()
     
+    # Если нет будущих турниров, ищем текущий активный турнир
+    if not next_tournament:
+        # Получаем все активные турниры, которые уже начались
+        active_tournaments = Tournament.query.filter(
+            Tournament.start_date <= current_time,
+            Tournament.is_active == True
+        ).all()
+        
+        # Находим турнир, который еще не закончился
+        for tournament in active_tournaments:
+            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+            if end_time > current_time:
+                next_tournament = tournament
+                break
+    
     user_rank = get_user_rank(current_user.id)
     return render_template('profile.html', 
                          title='Личный кабинет', 
                          user_rank=user_rank,
-                         next_tournament=next_tournament)
+                         next_tournament=next_tournament,
+                         now=current_time)
 
 @app.route('/buy-tickets')
 @login_required
@@ -698,23 +786,121 @@ def completed_tournaments():
 @app.route('/tournament/<int:tournament_id>/join')
 @login_required
 def join_tournament(tournament_id):
-    if current_user.is_admin:
-        return redirect(url_for('admin_dashboard'))
+    tournament = Tournament.query.get_or_404(tournament_id)
+    # Используем локальное время вместо UTC
+    current_time = datetime.now()
     
+    print(f"Tournament start time: {tournament.start_date}")
+    print(f"Current time (local): {current_time}")
+    print(f"Tournament duration: {tournament.duration} minutes")
+    
+    # Проверяем, не является ли пользователь администратором
+    if current_user.is_admin:
+        print("User is admin, redirecting to home")
+        flash('Администраторы не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('home'))
+    
+    # Проверяем, есть ли у пользователя билет
+    if current_user.tickets < 1:
+        print("User has no tickets, redirecting to profile")
+        flash('У вас недостаточно билетов для участия в турнире', 'warning')
+        return redirect(url_for('profile'))
+    
+    # Проверяем, начался ли турнир
+    if tournament.start_date <= current_time:
+        # Проверяем, не закончился ли турнир
+        end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+        print(f"Tournament end time: {end_time}")
+        if end_time > current_time:
+            print("Tournament is active, redirecting to menu")
+            # Если турнир идет, перенаправляем в меню турнира
+            return redirect(url_for('tournament_menu', tournament_id=tournament.id))
+        else:
+            print("Tournament has ended, redirecting to home")
+            flash('Турнир уже закончился', 'warning')
+            return redirect(url_for('home'))
+    else:
+        print("Tournament hasn't started yet, redirecting to home")
+        # Показываем время начала турнира в локальном времени
+        local_start_time = tournament.start_date.strftime('%H:%M')
+        flash(f'Турнир начнется в {local_start_time}', 'warning')
+        return redirect(url_for('home'))
+
+@app.route('/tournament/<int:tournament_id>/menu')
+@login_required
+def tournament_menu(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Проверяем, есть ли у пользователя билеты
+    # Проверяем, не является ли пользователь администратором
+    if current_user.is_admin:
+        flash('Администраторы не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('home'))
+    
+    # Проверяем, начался ли турнир
+    current_time = datetime.now()
+    if tournament.start_date > current_time:
+        flash('Турнир еще не начался', 'warning')
+        return redirect(url_for('home'))
+    
+    # Проверяем, не закончился ли турнир
+    end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+    if end_time <= current_time:
+        flash('Турнир уже закончился', 'warning')
+        return redirect(url_for('home'))
+    
+    # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-        flash('Для участия в турнире необходим билет', 'warning')
-        return redirect(url_for('buy_tickets'))
+        flash('У вас недостаточно билетов для участия в турнире', 'warning')
+        return redirect(url_for('profile'))
     
-    # TODO: Добавить логику регистрации на турнир
-    # Пока просто списываем билет
-    current_user.tickets -= 1
-    db.session.commit()
+    return render_template('tournament_menu.html', tournament=tournament)
+
+@app.route('/tournament/<int:tournament_id>/start')
+@login_required
+def start_tournament(tournament_id):
+    tournament = Tournament.query.get_or_404(tournament_id)
     
-    flash('Вы успешно зарегистрировались на турнир!', 'success')
-    return redirect(url_for('profile'))
+    # Проверяем, есть ли у пользователя билет
+    if current_user.tickets < 1:
+        flash('У вас недостаточно билетов для участия в турнире', 'warning')
+        return redirect(url_for('profile'))
+    
+    # Проверяем, не является ли пользователь администратором
+    if current_user.is_admin:
+        flash('Администраторы не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('home'))
+    
+    # Здесь будет логика начала турнира
+    # Пока просто перенаправляем на страницу турнира
+    return redirect(url_for('tournament', tournament_id=tournament.id))
+
+@app.route('/admin/users/<int:user_id>/details')
+@login_required
+def admin_user_details(user_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    user = User.query.get_or_404(user_id)
+    
+    # Получаем статистику
+    total_tickets_purchased = sum(purchase.quantity for purchase in user.ticket_purchases)
+    total_tournaments_participated = len(user.tournament_participations)
+    total_tournaments_won = sum(1 for p in user.tournament_participations if p.place == 1)
+    average_tournament_score = sum(p.score for p in user.tournament_participations) / total_tournaments_participated if total_tournaments_participated > 0 else 0
+    
+    # Получаем историю покупок и участия в турнирах
+    ticket_purchases = TicketPurchase.query.filter_by(user_id=user.id).order_by(TicketPurchase.purchase_date.desc()).all()
+    tournament_participations = TournamentParticipation.query.filter_by(user_id=user.id).order_by(TournamentParticipation.participation_date.desc()).all()
+    
+    return render_template('admin/user_details.html',
+                         user=user,
+                         total_tickets_purchased=total_tickets_purchased,
+                         total_tournaments_participated=total_tournaments_participated,
+                         total_tournaments_won=total_tournaments_won,
+                         average_tournament_score=round(average_tournament_score, 2),
+                         ticket_purchases=ticket_purchases,
+                         tournament_participations=tournament_participations)
 
 if __name__ == '__main__':
     with app.app_context():

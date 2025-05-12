@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Подробная информация о пользователе</h4>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Назад к списку
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h5>Основная информация</h5>
+                    <p><strong>ID:</strong> {{ user.id }}</p>
+                    <p><strong>Логин:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    <p><strong>Последний вход:</strong> {{ user.last_login.strftime('%d.%m.%Y %H:%M') if user.last_login else 'Нет' }}</p>
+                    <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Ожидает подтверждения{% endif %}</p>
+                    <p><strong>Общий счет:</strong> {{ user.balance }}</p>
+                    <p><strong>Билеты:</strong> {{ user.tickets }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5>Статистика</h5>
+                    <p><strong>Всего куплено билетов:</strong> {{ total_tickets_purchased }}</p>
+                    <p><strong>Участий в турнирах:</strong> {{ total_tournaments_participated }}</p>
+                    <p><strong>Побед в турнирах:</strong> {{ total_tournaments_won }}</p>
+                    <p><strong>Средний балл за турнир:</strong> {{ average_tournament_score }}</p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">История покупки билетов</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Дата</th>
+                                            <th>Количество</th>
+                                            <th>Сумма</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for purchase in ticket_purchases %}
+                                        <tr>
+                                            <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                                            <td>{{ purchase.quantity }}</td>
+                                            <td>{{ purchase.amount }} ₽</td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="3" class="text-center">История покупок пуста</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">История участия в турнирах</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Турнир</th>
+                                            <th>Дата</th>
+                                            <th>Результат</th>
+                                            <th>Место</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for participation in tournament_participations %}
+                                        <tr>
+                                            <td>{{ participation.tournament.title }}</td>
+                                            <td>{{ participation.tournament.start_date.strftime('%d.%m.%Y') }}</td>
+                                            <td>{{ participation.score }} баллов</td>
+                                            <td>{{ participation.place }}</td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center">История участия пуста</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

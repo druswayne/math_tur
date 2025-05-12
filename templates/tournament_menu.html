@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">{{ tournament.title }}</h2>
+                    
+                    <div class="mb-4">
+                        <h5>Описание турнира:</h5>
+                        <p>{{ tournament.description }}</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Правила турнира:</h5>
+                        <ul>
+                            <li>На решение всех задач отводится {{ tournament.duration }} минут</li>
+                            <li>Каждая задача имеет определенное количество баллов</li>
+                            <li>Победителем становится участник, набравший наибольшее количество баллов</li>
+                            <li>При равном количестве баллов побеждает участник, закончивший турнир раньше</li>
+                            <li>После начала турнира его нельзя будет прервать</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{{ url_for('start_tournament', tournament_id=tournament.id) }}" class="btn btn-primary btn-lg">
+                            Начать турнир
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

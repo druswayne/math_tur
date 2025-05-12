@@ -7,8 +7,16 @@
         <div class="card-body">
             <div class="text-center">
                 <h3 class="card-title mb-4">{{ next_tournament.title }}</h3>
-                <p class="text-muted mb-3">До начала турнира осталось:</p>
-                <div class="countdown-timer mb-4" data-start="{{ next_tournament.start_date.isoformat() }}">
+                <p class="text-muted mb-3">
+                    {% if next_tournament.start_date > now %}
+                        До начала турнира осталось:
+                    {% else %}
+                        До окончания турнира осталось:
+                    {% endif %}
+                </p>
+                <div class="countdown-timer mb-4" 
+                     data-start="{{ next_tournament.start_date.isoformat() }}"
+                     data-duration="{{ next_tournament.duration }}">
                     <div class="countdown-items">
                         <div class="countdown-item">
                             <div class="countdown-number" id="days">00</div>
@@ -28,9 +36,11 @@
                         </div>
                     </div>
                 </div>
-                <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" class="btn btn-primary btn-lg">
-                    Принять участие
-                </a>
+                <div class="text-center">
+                    <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" class="btn btn-primary btn-lg">
+                        Участвовать
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -109,8 +119,32 @@
 <script>
 function updateCountdown() {
     const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
+    const duration = {{ next_tournament.duration }}; // длительность в минутах
     const now = new Date();
-    const diff = startDate - now;
+    
+    let targetDate;
+    let isStarted = startDate <= now;
+    
+    if (!isStarted) {
+        // Если турнир еще не начался, показываем время до начала
+        targetDate = startDate;
+        document.querySelector('.text-muted.mb-3').textContent = 'До начала турнира осталось:';
+    } else {
+        // Если турнир уже начался, показываем время до окончания
+        targetDate = new Date(startDate.getTime() + duration * 60000);
+        document.querySelector('.text-muted.mb-3').textContent = 'До окончания турнира осталось:';
+    }
+    
+    const diff = targetDate - now;
+    
+    // Если время истекло, показываем нули
+    if (diff <= 0) {
+        document.getElementById('days').textContent = '00';
+        document.getElementById('hours').textContent = '00';
+        document.getElementById('minutes').textContent = '00';
+        document.getElementById('seconds').textContent = '00';
+        return;
+    }
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
