@@ -312,7 +312,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Показываем стандартное предупреждение браузера
             e.preventDefault();
-            e.returnValue = '';
+            e.returnValue = 'Отправить ответ на задачу?';
+            return 'Отправить ответ на задачу?';
         }
     });
 
