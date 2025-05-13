@@ -246,8 +246,8 @@ def send_credentials_email(user, password):
 
 @app.route('/')
 def home():
-    # Получаем текущее время
-    current_time = datetime.utcnow()
+    # Получаем текущее время в UTC и добавляем 3 часа для московского времени
+    current_time = datetime.utcnow() + timedelta(hours=3)
     
     # Сначала ищем будущие турниры
     next_tournament = Tournament.query.filter(
@@ -270,10 +270,30 @@ def home():
                 next_tournament = tournament
                 break
     
+    # Проверяем, идет ли турнир
+    is_tournament_running = False
+    if next_tournament:
+        # Проверяем статус турнира и время
+        is_tournament_running = (
+            next_tournament.status == 'started' and
+            next_tournament.is_active and
+            next_tournament.start_date <= current_time and 
+            current_time <= next_tournament.start_date + timedelta(minutes=next_tournament.duration)
+        )
+        
+        # Если турнир должен идти, но статус не обновлен, обновляем его
+        if (next_tournament.start_date <= current_time and 
+            current_time <= next_tournament.start_date + timedelta(minutes=next_tournament.duration) and
+            next_tournament.status != 'started'):
+            next_tournament.status = 'started'
+            db.session.commit()
+            is_tournament_running = True
+    
     return render_template('index.html', 
                          title='Главная страница',
                          next_tournament=next_tournament,
-                         now=current_time)
+                         now=current_time,
+                         is_tournament_running=is_tournament_running)
 
 @app.route('/about')
 def about():
@@ -854,7 +874,7 @@ def profile():
         return redirect(url_for('admin_dashboard'))
     
     # Получаем текущее время
-    current_time = datetime.utcnow()
+    current_time = datetime.utcnow() + timedelta(hours=3)
     
     # Сначала ищем будущие турниры
     next_tournament = Tournament.query.filter(
@@ -1025,7 +1045,7 @@ def admin_user_details(user_id):
                          tournament_participations=tournament_participations)
 
 def update_tournament_status():
-    now = datetime.utcnow()
+    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
     tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
     
     for tournament in tournaments:
@@ -1044,13 +1064,13 @@ def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
     app.logger.info('='*50)
     app.logger.info('Начало восстановления задач планировщика')
-    app.logger.info(f'Текущее время сервера: {datetime.utcnow()}')
+    app.logger.info(f'Текущее время сервера: {datetime.utcnow() + timedelta(hours=3)}')
     
     # Получаем все активные турниры
     active_tournaments = Tournament.query.filter_by(is_active=True).all()
     app.logger.info(f'Найдено активных турниров: {len(active_tournaments)}')
     
-    now = datetime.utcnow()
+    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
     restored_jobs = 0
     
     for tournament in active_tournaments:

@@ -7,6 +7,13 @@
         <div class="card-body">
             <div class="text-center">
                 <h3 class="card-title mb-4">{{ next_tournament.title }}</h3>
+                <div class="alert alert-secondary">
+                    <p>Статус турнира: {{ next_tournament.status }}</p>
+                    <p>Время начала: {{ next_tournament.start_date }}</p>
+                    <p>Текущее время: {{ now }}</p>
+                    <p>Длительность: {{ next_tournament.duration }} минут</p>
+                    <p>Турнир идет: {{ is_tournament_running }}</p>
+                </div>
                 <p class="text-muted mb-3">
                     {% if next_tournament.start_date > now %}
                         До начала турнира осталось:
@@ -37,9 +44,19 @@
                     </div>
                 </div>
                 <div class="text-center">
-                    <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" class="btn btn-primary btn-lg">
-                        Участвовать
-                    </a>
+                    {% if is_tournament_running %}
+                        <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" class="btn btn-primary btn-lg">
+                            Участвовать
+                        </a>
+                    {% else %}
+                        <div class="alert alert-info">
+                            {% if next_tournament.start_date > now %}
+                                Турнир начнется в {{ next_tournament.start_date.strftime('%d.%m.%Y в %H:%M') }}
+                            {% else %}
+                                Турнир завершен
+                            {% endif %}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
