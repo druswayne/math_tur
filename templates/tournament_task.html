@@ -58,13 +58,33 @@
                                        autocomplete="off">
                             </div>
                             <div class="text-center">
-                                <button type="submit" class="btn btn-primary btn-lg">
+                                <button type="button" class="btn btn-primary btn-lg" id="submitBtn">
                                     Отправить ответ
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalLabel">Подтверждение отправки</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите отправить ответ?</p>
+                <p class="mb-0">Ваш ответ: <strong id="answerPreview"></strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="confirmSubmit">Отправить</button>
             </div>
         </div>
     </div>
@@ -175,6 +195,29 @@ document.addEventListener('DOMContentLoaded', function() {
     let isSubmitting = false;
     let isLeaving = false;
     
+    // Инициализация модального окна
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    const answerInput = document.getElementById('answer');
+    const answerPreview = document.getElementById('answerPreview');
+    const submitBtn = document.getElementById('submitBtn');
+    const confirmSubmitBtn = document.getElementById('confirmSubmit');
+    const answerForm = document.getElementById('answerForm');
+    
+    // Обработчик нажатия на кнопку отправки
+    submitBtn.addEventListener('click', function() {
+        if (answerInput.value.trim() === '') {
+            return;
+        }
+        answerPreview.textContent = answerInput.value;
+        confirmModal.show();
+    });
+    
+    // Обработчик подтверждения отправки
+    confirmSubmitBtn.addEventListener('click', function() {
+        isSubmitting = true;
+        answerForm.submit();
+    });
+    
     // Создаем оверлей для предупреждения
     const warningOverlay = document.createElement('div');
     warningOverlay.className = 'warning-overlay';
@@ -267,10 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function submitWrongAnswer() {
         if (!isSubmitting && !isLeaving) {
             isSubmitting = true;
-            const form = document.getElementById('answerForm');
             const input = document.getElementById('answer');
             input.value = 'wrong_answer_due_to_tab_switch';
-            form.submit();
+            answerForm.submit();
         }
     }
 
@@ -302,13 +344,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isSubmitting && !isLeaving) {
             isLeaving = true;
             // Отправляем неверный ответ перед уходом
-            const form = document.getElementById('answerForm');
             const input = document.getElementById('answer');
             input.value = 'wrong_answer_due_to_page_leave';
             
             // Используем sendBeacon для гарантированной отправки данных
-            const formData = new FormData(form);
-            navigator.sendBeacon(form.action, formData);
+            const formData = new FormData(answerForm);
+            navigator.sendBeacon(answerForm.action, formData);
             
             // Показываем стандартное предупреждение браузера
             e.preventDefault();
@@ -322,13 +363,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.tagName === 'A' && !e.target.classList.contains('btn')) {
             if (!isSubmitting && !isLeaving) {
                 isLeaving = true;
-                const form = document.getElementById('answerForm');
                 const input = document.getElementById('answer');
                 input.value = 'wrong_answer_due_to_page_leave';
                 
                 // Используем sendBeacon для гарантированной отправки данных
-                const formData = new FormData(form);
-                navigator.sendBeacon(form.action, formData);
+                const formData = new FormData(answerForm);
+                navigator.sendBeacon(answerForm.action, formData);
             }
         }
     });

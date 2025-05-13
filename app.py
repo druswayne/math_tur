@@ -128,6 +128,7 @@ class User(UserMixin, db.Model):
     # Добавляем связь с участиями в турнирах
     tournament_participations = db.relationship('TournamentParticipation',
                                              back_populates='user',
+                                             cascade='all, delete-orphan',
                                              overlaps="tournaments,participants")
 
     def set_password(self, password):
@@ -189,8 +190,8 @@ class TicketPurchase(db.Model):
 
 class TournamentParticipation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id', ondelete='CASCADE'), nullable=False)
     score = db.Column(db.Integer, default=0)
     place = db.Column(db.Integer)
     participation_date = db.Column(db.DateTime, default=datetime.utcnow)
@@ -204,13 +205,13 @@ class TournamentParticipation(db.Model):
 
 class SolvedTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
     solved_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_correct = db.Column(db.Boolean, default=False)
     
-    user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True))
-    task = db.relationship('Task', backref=db.backref('solutions', lazy=True))
+    user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
+    task = db.relationship('Task', backref=db.backref('solutions', lazy=True, cascade='all, delete-orphan'))
 
 @login_manager.user_loader
 def load_user(user_id):
