@@ -44,8 +44,14 @@ class User(UserMixin, db.Model):
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
                                 secondary='tournament_participation',
-                                backref=db.backref('participants', lazy='dynamic'),
-                                lazy='dynamic')
+                                back_populates='participants',
+                                lazy='dynamic',
+                                overlaps="tournament_participations")
+    
+    # Добавляем связь с участиями в турнирах
+    tournament_participations = db.relationship('TournamentParticipation',
+                                             back_populates='user',
+                                             overlaps="tournaments,participants")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -70,6 +76,16 @@ class Tournament(db.Model):
     is_active = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Добавляем отношения
+    participants = db.relationship('User',
+                                 secondary='tournament_participation',
+                                 back_populates='tournaments',
+                                 lazy='dynamic',
+                                 overlaps="tournament_participations")
+    participations = db.relationship('TournamentParticipation',
+                                   back_populates='tournament',
+                                   overlaps="participants,tournaments")
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -101,8 +117,12 @@ class TournamentParticipation(db.Model):
     place = db.Column(db.Integer)
     participation_date = db.Column(db.DateTime, default=datetime.utcnow)
     
-    user = db.relationship('User', backref=db.backref('tournament_participations', lazy=True))
-    tournament = db.relationship('Tournament', backref=db.backref('participations', lazy=True))
+    user = db.relationship('User', 
+                         back_populates='tournament_participations',
+                         overlaps="tournaments,participants")
+    tournament = db.relationship('Tournament', 
+                               back_populates='participations',
+                               overlaps="participants,tournaments")
 
 @login_manager.user_loader
 def load_user(user_id):
