@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h2 class="card-title mb-4">Результаты турнира "{{ tournament.title }}"</h2>
+                    
+                    <div class="results-stats mb-4">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Всего задач</h5>
+                                        <h2 class="text-primary">{{ total_tasks }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Решено задач</h5>
+                                        <h2 class="text-success">{{ solved_count }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Заработано баллов</h5>
+                                        <h2 class="text-warning">{{ earned_points }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="current-balance mb-4">
+                        <h4>Ваш общий счет: <span class="text-primary">{{ current_balance }}</span></h4>
+                    </div>
+                    
+                    <div class="actions">
+                        <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg">
+                            Вернуться на главную
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

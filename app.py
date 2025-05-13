@@ -200,6 +200,16 @@ class TournamentParticipation(db.Model):
                                back_populates='participations',
                                overlaps="participants,tournaments")
 
+class SolvedTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=False)
+    solved_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_correct = db.Column(db.Boolean, default=False)
+    
+    user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True))
+    task = db.relationship('Task', backref=db.backref('solutions', lazy=True))
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -1002,6 +1012,13 @@ def tournament_menu(tournament_id):
 def start_tournament(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
+    # Проверяем, идет ли турнир
+    current_time = datetime.utcnow() + timedelta(hours=3)
+    if not (tournament.start_date <= current_time and 
+            current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
+        flash('Турнир не активен', 'warning')
+        return redirect(url_for('home'))
+    
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
         flash('У вас недостаточно билетов для участия в турнире', 'warning')
@@ -1012,9 +1029,8 @@ def start_tournament(tournament_id):
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
     
-    # Здесь будет логика начала турнира
-    # Пока просто перенаправляем на страницу турнира
-    return redirect(url_for('tournament', tournament_id=tournament.id))
+    # Перенаправляем на страницу с задачами
+    return redirect(url_for('tournament_task', tournament_id=tournament.id))
 
 @app.route('/admin/users/<int:user_id>/details')
 @login_required
@@ -1115,6 +1131,114 @@ def cleanup_scheduler_jobs():
         app.logger.info('Все задачи успешно удалены')
     except Exception as e:
         app.logger.error(f'Ошибка при очистке задач: {str(e)}')
+
+@app.route('/tournament/<int:tournament_id>/task')
+@login_required
+def tournament_task(tournament_id):
+    tournament = Tournament.query.get_or_404(tournament_id)
+    
+    # Проверяем, идет ли турнир
+    current_time = datetime.utcnow() + timedelta(hours=3)
+    if not (tournament.start_date <= current_time and 
+            current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
+        flash('Турнир не активен', 'warning')
+        return redirect(url_for('home'))
+    
+    # Получаем все задачи турнира
+    all_tasks = Task.query.filter_by(tournament_id=tournament_id).all()
+    
+    # Получаем ID всех задач, которые пользователь уже пытался решить
+    solved_task_ids = [st.task_id for st in SolvedTask.query.filter_by(
+        user_id=current_user.id
+    ).all()]
+    
+    # Фильтруем задачи, которые пользователь еще не решал
+    unsolved_tasks = [task for task in all_tasks if task.id not in solved_task_ids]
+    
+    if not unsolved_tasks:
+        # Если все задачи решены, показываем результаты
+        return redirect(url_for('tournament_results', tournament_id=tournament_id))
+    
+    # Выбираем случайную задачу из нерешенных
+    import random
+    current_task = random.choice(unsolved_tasks)
+    
+    return render_template('tournament_task.html', 
+                         tournament=tournament,
+                         task=current_task)
+
+@app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
+@login_required
+def submit_task_answer(tournament_id, task_id):
+    tournament = Tournament.query.get_or_404(tournament_id)
+    task = Task.query.get_or_404(task_id)
+    
+    # Проверяем, идет ли турнир
+    current_time = datetime.utcnow() + timedelta(hours=3)
+    if not (tournament.start_date <= current_time and 
+            current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
+        flash('Турнир не активен', 'warning')
+        return redirect(url_for('home'))
+    
+    # Проверяем, не решена ли уже эта задача
+    if SolvedTask.query.filter_by(
+        user_id=current_user.id,
+        task_id=task_id,
+        is_correct=True
+    ).first():
+        flash('Вы уже решили эту задачу', 'warning')
+        return redirect(url_for('tournament_task', tournament_id=tournament_id))
+    
+    # Получаем ответ пользователя
+    user_answer = request.form.get('answer', '').strip()
+    
+    # Проверяем ответ
+    is_correct = user_answer.lower() == task.correct_answer.lower()
+    
+    # Сохраняем результат
+    solution = SolvedTask(
+        user_id=current_user.id,
+        task_id=task_id,
+        is_correct=is_correct
+    )
+    db.session.add(solution)
+    
+    if is_correct:
+        # Добавляем баллы к общему счету
+        current_user.balance += task.points
+        flash(f'Правильный ответ! +{task.points} баллов', 'success')
+    else:
+        flash('Неправильный ответ', 'danger')
+    
+    db.session.commit()
+    
+    return redirect(url_for('tournament_task', tournament_id=tournament_id))
+
+@app.route('/tournament/<int:tournament_id>/results')
+@login_required
+def tournament_results(tournament_id):
+    tournament = Tournament.query.get_or_404(tournament_id)
+    
+    # Получаем все задачи турнира
+    all_tasks = Task.query.filter_by(tournament_id=tournament_id).all()
+    total_tasks = len(all_tasks)
+    
+    # Получаем решенные задачи пользователя
+    solved_tasks = SolvedTask.query.filter_by(
+        user_id=current_user.id,
+        is_correct=True
+    ).join(Task).filter(Task.tournament_id == tournament_id).all()
+    
+    # Считаем статистику
+    solved_count = len(solved_tasks)
+    earned_points = sum(task.task.points for task in solved_tasks)
+    
+    return render_template('tournament_results.html',
+                         tournament=tournament,
+                         total_tasks=total_tasks,
+                         solved_count=solved_count,
+                         earned_points=earned_points,
+                         current_balance=current_user.balance)
 
 if __name__ == '__main__':
     with app.app_context():
