@@ -1042,39 +1042,64 @@ def before_request():
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
-    active_tournaments = Tournament.query.filter_by(is_active=True).all()
-    now = datetime.utcnow()
+    app.logger.info('='*50)
+    app.logger.info('Начало восстановления задач планировщика')
+    app.logger.info(f'Текущее время сервера: {datetime.utcnow()}')
     
-    app.logger.info(f'Начало восстановления задач планировщика. Текущее время: {now}')
+    # Получаем все активные турниры
+    active_tournaments = Tournament.query.filter_by(is_active=True).all()
+    app.logger.info(f'Найдено активных турниров: {len(active_tournaments)}')
+    
+    now = datetime.utcnow()
+    restored_jobs = 0
     
     for tournament in active_tournaments:
-        app.logger.info(f'Обработка турнира "{tournament.title}" (ID: {tournament.id})')
+        app.logger.info(f'\nОбработка турнира: "{tournament.title}" (ID: {tournament.id})')
+        app.logger.info(f'Дата начала: {tournament.start_date}')
+        app.logger.info(f'Длительность: {tournament.duration} минут')
+        app.logger.info(f'Текущий статус: {tournament.status}')
         
         # Если турнир еще не начался
         if tournament.start_date > now:
+            app.logger.info('Турнир еще не начался, создаем задачи на начало и окончание')
             add_scheduler_job(start_tournament_job, tournament.start_date, tournament.id, 'start')
             end_time = tournament.start_date + timedelta(minutes=tournament.duration)
             add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
+            restored_jobs += 2
             
         # Если турнир уже идет
         elif tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
+            app.logger.info('Турнир уже идет, создаем задачу на окончание')
             tournament.status = 'started'
             end_time = tournament.start_date + timedelta(minutes=tournament.duration)
             add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
-            app.logger.info(f'Турнир "{tournament.title}" (ID: {tournament.id}) уже идет')
+            restored_jobs += 1
             
         # Если турнир уже должен был закончиться
         else:
+            app.logger.info('Турнир уже должен был закончиться, деактивируем его')
             tournament.status = 'finished'
             tournament.is_active = False
-            app.logger.info(f'Турнир "{tournament.title}" (ID: {tournament.id}) уже должен был закончиться')
     
     db.session.commit()
-    app.logger.info('Восстановление задач планировщика завершено')
+    
+    app.logger.info(f'\nВосстановление задач завершено')
+    app.logger.info(f'Всего восстановлено задач: {restored_jobs}')
+    app.logger.info('='*50)
+
+def cleanup_scheduler_jobs():
+    """Очищает все задачи планировщика перед восстановлением"""
+    app.logger.info('Очистка всех задач планировщика')
+    try:
+        scheduler.remove_all_jobs()
+        app.logger.info('Все задачи успешно удалены')
+    except Exception as e:
+        app.logger.error(f'Ошибка при очистке задач: {str(e)}')
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         create_admin_user()
-        restore_scheduler_jobs()  # Восстанавливаем задачи планировщика
+        cleanup_scheduler_jobs()  # Сначала очищаем все задачи
+        restore_scheduler_jobs()  # Затем восстанавливаем нужные
     app.run(debug=True) 
