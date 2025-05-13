@@ -13,6 +13,7 @@ from apscheduler.triggers.date import DateTrigger
 import logging
 from logging.handlers import RotatingFileHandler
 import random
+from flask import session
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
@@ -478,7 +479,7 @@ def admin_tournaments():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    tournaments = Tournament.query.order_by(Tournament.start_date.desc()).all()
+    tournaments = Tournament.query.order_by(Tournament.id.desc()).all()
     return render_template('admin/tournaments.html', title='Управление турнирами', tournaments=tournaments)
 
 @app.route('/admin/tournaments/add', methods=['POST'])
@@ -1164,13 +1165,28 @@ def tournament_task(tournament_id):
         # Если все задачи решены, перенаправляем на страницу результатов
         return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
-    # Выбираем случайную нерешенную задачу
+    # Проверяем, есть ли сохраненная задача в сессии
+    current_task_id = session.get(f'current_task_{tournament_id}')
+    if current_task_id:
+        # Проверяем, что задача все еще не решена
+        if current_task_id not in solved_task_ids:
+            task = Task.query.get(current_task_id)
+            if task and task.tournament_id == tournament_id:
+                return render_template('tournament_task.html', 
+                                     tournament=tournament, 
+                                     task=task,
+                                     timedelta=timedelta)
+    
+    # Если нет сохраненной задачи или она уже решена, выбираем новую
     task = random.choice(unsolved_tasks)
+    
+    # Сохраняем ID задачи в сессии
+    session[f'current_task_{tournament_id}'] = task.id
     
     return render_template('tournament_task.html', 
                          tournament=tournament, 
                          task=task,
-                         timedelta=timedelta)  # Добавляем timedelta в контекст
+                         timedelta=timedelta)
 
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
@@ -1216,6 +1232,9 @@ def submit_task_answer(tournament_id, task_id):
         flash('Неправильный ответ', 'danger')
     
     db.session.commit()
+    
+    # Удаляем текущую задачу из сессии
+    session.pop(f'current_task_{tournament_id}', None)
     
     return redirect(url_for('tournament_task', tournament_id=tournament_id))
 

@@ -45,7 +45,7 @@
                         </div>
                         {% endif %}
                         
-                        <form action="{{ url_for('submit_task_answer', tournament_id=tournament.id, task_id=task.id) }}" 
+                        <form id="answerForm" action="{{ url_for('submit_task_answer', tournament_id=tournament.id, task_id=task.id) }}" 
                               method="POST" 
                               class="mt-4">
                             <div class="mb-3">
@@ -130,11 +130,61 @@
     display: none;
     z-index: 1000;
 }
+
+/* Стили для предупреждения о потере фокуса */
+.warning-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.warning-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    max-width: 400px;
+}
+
+.warning-content h3 {
+    color: #dc3545;
+    margin-bottom: 15px;
+}
+
+.warning-content p {
+    margin-bottom: 20px;
+}
+
+.warning-content .countdown {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #dc3545;
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const endTime = new Date(document.querySelector('.countdown-timer').dataset.end);
+    let isSubmitting = false;
+    let isLeaving = false;
+    
+    // Создаем оверлей для предупреждения
+    const warningOverlay = document.createElement('div');
+    warningOverlay.className = 'warning-overlay';
+    warningOverlay.innerHTML = `
+        <div class="warning-content">
+            <h3>Внимание!</h3>
+            <p>Вы покинули страницу с задачей. Вернитесь на страницу в течение <span class="countdown">5</span> секунд, иначе задача будет засчитана как нерешенная.</p>
+        </div>
+    `;
+    document.body.appendChild(warningOverlay);
     
     function updateTimer() {
         const now = new Date();
@@ -192,6 +242,95 @@ document.addEventListener('DOMContentLoaded', function() {
             warning.style.display = 'none';
         }, 2000);
     }
+
+    // Обработка потери фокуса
+    let warningTimeout;
+    let countdownInterval;
+    let countdown = 5;
+
+    function startCountdown() {
+        const countdownElement = warningOverlay.querySelector('.countdown');
+        countdown = 5;
+        countdownElement.textContent = countdown;
+        
+        countdownInterval = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+            
+            if (countdown <= 0) {
+                clearInterval(countdownInterval);
+                submitWrongAnswer();
+            }
+        }, 1000);
+    }
+
+    function submitWrongAnswer() {
+        if (!isSubmitting && !isLeaving) {
+            isSubmitting = true;
+            const form = document.getElementById('answerForm');
+            const input = document.getElementById('answer');
+            input.value = 'wrong_answer_due_to_tab_switch';
+            form.submit();
+        }
+    }
+
+    // Обработчики событий видимости страницы
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            warningOverlay.style.display = 'flex';
+            startCountdown();
+        } else {
+            warningOverlay.style.display = 'none';
+            clearInterval(countdownInterval);
+        }
+    });
+
+    // Обработчик потери фокуса окна
+    window.addEventListener('blur', function() {
+        warningOverlay.style.display = 'flex';
+        startCountdown();
+    });
+
+    // Обработчик получения фокуса окна
+    window.addEventListener('focus', function() {
+        warningOverlay.style.display = 'none';
+        clearInterval(countdownInterval);
+    });
+
+    // Обработчик выхода со страницы
+    window.addEventListener('beforeunload', function(e) {
+        if (!isSubmitting && !isLeaving) {
+            isLeaving = true;
+            // Отправляем неверный ответ перед уходом
+            const form = document.getElementById('answerForm');
+            const input = document.getElementById('answer');
+            input.value = 'wrong_answer_due_to_page_leave';
+            
+            // Используем sendBeacon для гарантированной отправки данных
+            const formData = new FormData(form);
+            navigator.sendBeacon(form.action, formData);
+            
+            // Показываем стандартное предупреждение браузера
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    // Обработчик клика по ссылкам
+    document.addEventListener('click', function(e) {
+        if (e.target.tagName === 'A' && !e.target.classList.contains('btn')) {
+            if (!isSubmitting && !isLeaving) {
+                isLeaving = true;
+                const form = document.getElementById('answerForm');
+                const input = document.getElementById('answer');
+                input.value = 'wrong_answer_due_to_page_leave';
+                
+                // Используем sendBeacon для гарантированной отправки данных
+                const formData = new FormData(form);
+                navigator.sendBeacon(form.action, formData);
+            }
+        }
+    });
 });
 </script>
 {% endblock %} 
