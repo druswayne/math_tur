@@ -1031,6 +1031,24 @@ def start_tournament(tournament_id):
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
     
+    # Проверяем, участвует ли уже пользователь в турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id
+    ).first()
+    
+    if not participation:
+        # Если пользователь еще не участвует, создаем запись об участии и списываем билет
+        participation = TournamentParticipation(
+            user_id=current_user.id,
+            tournament_id=tournament_id,
+            score=0
+        )
+        current_user.tickets -= 1
+        db.session.add(participation)
+        db.session.commit()
+        flash('Билет успешно списан. Удачи в турнире!', 'success')
+    
     # Перенаправляем на страницу с задачами
     return redirect(url_for('tournament_task', tournament_id=tournament.id))
 
