@@ -40,6 +40,18 @@
                                     </td>
                                 </tr>
                                 <tr>
+                                    <th>Состояние:</th>
+                                    <td>
+                                        {% if tournament.status == 'pending' %}
+                                            <span class="badge bg-warning">Ожидает</span>
+                                        {% elif tournament.status == 'started' %}
+                                            <span class="badge bg-primary">Идет</span>
+                                        {% elif tournament.status == 'finished' %}
+                                            <span class="badge bg-info">Завершен</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
                                     <th>Создан:</th>
                                     <td>{{ tournament.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                                 </tr>

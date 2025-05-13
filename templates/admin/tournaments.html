@@ -55,6 +55,7 @@
                                 <th>Дата начала</th>
                                 <th>Длительность</th>
                                 <th>Статус</th>
+                                <th>Состояние</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
@@ -70,6 +71,15 @@
                                         <span class="badge bg-success">Активен</span>
                                     {% else %}
                                         <span class="badge bg-secondary">Неактивен</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if tournament.status == 'pending' %}
+                                        <span class="badge bg-warning">Ожидает</span>
+                                    {% elif tournament.status == 'started' %}
+                                        <span class="badge bg-primary">Идет</span>
+                                    {% elif tournament.status == 'finished' %}
+                                        <span class="badge bg-info">Завершен</span>
                                     {% endif %}
                                 </td>
                                 <td>
