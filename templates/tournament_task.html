@@ -4,6 +4,31 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
+            <!-- Таймер турнира -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h4 class="card-title mb-3">До окончания турнира осталось:</h4>
+                    <div class="countdown-timer" 
+                         data-end="{{ (tournament.start_date + timedelta(minutes=tournament.duration)).isoformat() }}">
+                        <div class="countdown-items">
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="hours">00</div>
+                                <div class="countdown-label">часов</div>
+                            </div>
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="minutes">00</div>
+                                <div class="countdown-label">минут</div>
+                            </div>
+                            <div class="countdown-item">
+                                <div class="countdown-number" id="seconds">00</div>
+                                <div class="countdown-label">секунд</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Задача -->
             <div class="card">
                 <div class="card-body">
                     <h2 class="card-title text-center mb-4">{{ tournament.title }}</h2>
@@ -44,4 +69,69 @@
         </div>
     </div>
 </div>
+
+<style>
+.countdown-timer {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.countdown-items {
+    display: flex;
+    gap: 20px;
+}
+
+.countdown-item {
+    text-align: center;
+    min-width: 80px;
+}
+
+.countdown-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #0d6efd;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 5px;
+}
+
+.countdown-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const endTime = new Date(document.querySelector('.countdown-timer').dataset.end);
+    
+    function updateTimer() {
+        const now = new Date();
+        const timeLeft = endTime - now;
+        
+        if (timeLeft <= 0) {
+            // Если время вышло, перенаправляем на страницу результатов
+            window.location.href = "{{ url_for('tournament_results', tournament_id=tournament.id) }}";
+            return;
+        }
+        
+        // Вычисляем оставшееся время
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+        
+        // Обновляем отображение
+        document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
+        document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
+        document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
+    }
+    
+    // Обновляем таймер каждую секунду
+    updateTimer();
+    setInterval(updateTimer, 1000);
+});
+</script>
 {% endblock %} 
