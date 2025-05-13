@@ -12,6 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 import logging
 from logging.handlers import RotatingFileHandler
+import random
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
@@ -1137,35 +1138,39 @@ def cleanup_scheduler_jobs():
 def tournament_task(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Проверяем, идет ли турнир
-    current_time = datetime.utcnow() + timedelta(hours=3)
-    if not (tournament.start_date <= current_time and 
-            current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
-        flash('Турнир не активен', 'warning')
+    # Проверяем, активен ли турнир
+    current_time = datetime.utcnow() + timedelta(hours=3)  # Московское время
+    if current_time < tournament.start_date or current_time > tournament.start_date + timedelta(minutes=tournament.duration):
+        flash('Турнир не активен', 'danger')
         return redirect(url_for('home'))
     
     # Получаем все задачи турнира
-    all_tasks = Task.query.filter_by(tournament_id=tournament_id).all()
+    tasks = Task.query.filter_by(tournament_id=tournament_id).all()
+    if not tasks:
+        flash('В турнире нет задач', 'danger')
+        return redirect(url_for('home'))
     
-    # Получаем ID всех задач, которые пользователь уже пытался решить
-    solved_task_ids = [st.task_id for st in SolvedTask.query.filter_by(
-        user_id=current_user.id
-    ).all()]
+    # Получаем ID задач, которые пользователь уже решал в ЭТОМ турнире
+    solved_task_ids = db.session.query(SolvedTask.task_id)\
+        .filter(SolvedTask.user_id == current_user.id)\
+        .filter(SolvedTask.task_id.in_([task.id for task in tasks]))\
+        .all()
+    solved_task_ids = [task_id[0] for task_id in solved_task_ids]
     
-    # Фильтруем задачи, которые пользователь еще не решал
-    unsolved_tasks = [task for task in all_tasks if task.id not in solved_task_ids]
+    # Фильтруем задачи, которые пользователь еще не решал в этом турнире
+    unsolved_tasks = [task for task in tasks if task.id not in solved_task_ids]
     
     if not unsolved_tasks:
-        # Если все задачи решены, показываем результаты
+        # Если все задачи решены, перенаправляем на страницу результатов
         return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
-    # Выбираем случайную задачу из нерешенных
-    import random
-    current_task = random.choice(unsolved_tasks)
+    # Выбираем случайную нерешенную задачу
+    task = random.choice(unsolved_tasks)
     
     return render_template('tournament_task.html', 
-                         tournament=tournament,
-                         task=current_task)
+                         tournament=tournament, 
+                         task=task,
+                         timedelta=timedelta)  # Добавляем timedelta в контекст
 
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
