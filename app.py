@@ -1322,7 +1322,14 @@ def tournament_history():
 
 @app.route('/rating')
 def rating():
-    # Получаем всех пользователей, отсортированных по балансу
+    # Получаем номер страницы из параметров запроса
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Количество пользователей на странице
+    
+    # Получаем общее количество пользователей
+    total_users = db.session.query(User).filter(User.is_admin == False).count()
+    
+    # Получаем пользователей для текущей страницы
     users = db.session.query(
         User,
         func.count(SolvedTask.id).label('solved_tasks_count'),
@@ -1334,14 +1341,14 @@ def rating():
         TournamentParticipation,
         User.id == TournamentParticipation.user_id
     ).filter(
-        User.is_admin == False  # Исключаем администраторов
+        User.is_admin == False
     ).group_by(
         User.id
     ).order_by(
         User.balance.desc()
-    ).all()
+    ).offset((page - 1) * per_page).limit(per_page).all()
     
-    # Преобразуем результаты в список словарей для удобного доступа в шаблоне
+    # Преобразуем результаты в список словарей
     user_list = []
     for user, solved_tasks_count, tournaments_count in users:
         user_list.append({
@@ -1352,7 +1359,14 @@ def rating():
             'tournaments_count': tournaments_count
         })
     
-    return render_template('rating.html', users=user_list)
+    # Вычисляем общее количество страниц
+    total_pages = (total_users + per_page - 1) // per_page
+    
+    return render_template('rating.html', 
+                         users=user_list,
+                         current_page=page,
+                         total_pages=total_pages,
+                         per_page=per_page)
 
 if __name__ == '__main__':
     with app.app_context():

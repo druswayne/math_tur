@@ -4,9 +4,9 @@
 <div class="container mt-5">
     <h2 class="mb-4">Общий рейтинг участников</h2>
     
-    <div class="table-responsive">
+    <div class="table-responsive rating-table-container" id="ratingTable">
         <table class="table table-hover">
-            <thead class="table-light">
+            <thead class="table-light sticky-top">
                 <tr>
                     <th>Место</th>
                     <th>Пользователь</th>
@@ -15,10 +15,10 @@
                     <th>Участий в турнирах</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="ratingTableBody">
                 {% for user in users %}
                 <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
-                    <td>{{ loop.index }}</td>
+                    <td>{{ (current_page - 1) * per_page + loop.index }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.balance }}</td>
                     <td>{{ user.solved_tasks_count }}</td>
@@ -27,6 +27,108 @@
                 {% endfor %}
             </tbody>
         </table>
+        <div id="loadingSpinner" class="text-center d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.rating-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.rating-table-container thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #f8f9fa;
+}
+
+.rating-table-container thead th {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.rating-table-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Стилизация скроллбара */
+.rating-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.rating-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.rating-table-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.rating-table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#loadingSpinner {
+    padding: 1rem;
+}
+</style>
+
+<script>
+let currentPage = {{ current_page }};
+const totalPages = {{ total_pages }};
+let isLoading = false;
+
+function loadMoreUsers() {
+    if (isLoading || currentPage >= totalPages) return;
+    
+    isLoading = true;
+    document.getElementById('loadingSpinner').classList.remove('d-none');
+    
+    fetch(`/rating?page=${currentPage + 1}`)
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newRows = doc.querySelectorAll('#ratingTableBody tr');
+            
+            const tbody = document.getElementById('ratingTableBody');
+            newRows.forEach(row => {
+                tbody.appendChild(row.cloneNode(true));
+            });
+            
+            currentPage++;
+            isLoading = false;
+            document.getElementById('loadingSpinner').classList.add('d-none');
+        })
+        .catch(error => {
+            console.error('Ошибка при загрузке данных:', error);
+            isLoading = false;
+            document.getElementById('loadingSpinner').classList.add('d-none');
+        });
+}
+
+// Наблюдатель за прокруткой
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            loadMoreUsers();
+        }
+    });
+}, {
+    root: document.querySelector('.rating-table-container'),
+    threshold: 0.1
+});
+
+// Наблюдаем за спиннером загрузки
+observer.observe(document.getElementById('loadingSpinner'));
+</script>
 {% endblock %} 
