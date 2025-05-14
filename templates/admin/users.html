@@ -2,6 +2,39 @@
 
 {% block content %}
 <div class="container mt-4">
+    <h2>Управление пользователями</h2>
+    
+    <!-- Форма поиска -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin_users') }}" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" 
+                               class="form-control" 
+                               name="search" 
+                               placeholder="Поиск пользователей..." 
+                               value="{{ search_query }}">
+                        <select class="form-select" name="search_type" style="max-width: 150px;">
+                            <option value="username" {% if search_type == 'username' %}selected{% endif %}>По логину</option>
+                            <option value="email" {% if search_type == 'email' %}selected{% endif %}>По email</option>
+                            <option value="id" {% if search_type == 'id' %}selected{% endif %}>По ID</option>
+                        </select>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i> Поиск
+                        </button>
+                        {% if search_query %}
+                        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Сбросить
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Таблица пользователей -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">Управление пользователями</h4>

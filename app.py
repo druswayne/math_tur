@@ -360,8 +360,33 @@ def admin_users():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin/users.html', users=users)
+    # Получаем параметры поиска
+    search_query = request.args.get('search', '').strip()
+    search_type = request.args.get('search_type', 'username')
+    
+    # Базовый запрос
+    query = User.query
+    
+    # Применяем фильтры поиска
+    if search_query:
+        if search_type == 'username':
+            query = query.filter(User.username.ilike(f'%{search_query}%'))
+        elif search_type == 'email':
+            query = query.filter(User.email.ilike(f'%{search_query}%'))
+        elif search_type == 'id':
+            try:
+                user_id = int(search_query)
+                query = query.filter(User.id == user_id)
+            except ValueError:
+                flash('ID пользователя должен быть числом', 'warning')
+    
+    # Получаем пользователей с сортировкой по дате создания
+    users = query.order_by(User.created_at.desc()).all()
+    
+    return render_template('admin/users.html', 
+                         users=users,
+                         search_query=search_query,
+                         search_type=search_type)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
