@@ -9,9 +9,13 @@
         </a>
     </div>
 
-    {% if purchases %}
-    <div class="card">
+    <!-- Покупки билетов -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4 class="mb-0">История покупки билетов</h4>
+        </div>
         <div class="card-body">
+            {% if ticket_purchases %}
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
@@ -25,7 +29,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for purchase in purchases %}
+                        {% for purchase in ticket_purchases %}
                         <tr>
                             <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>{{ purchase.quantity }}</td>
@@ -42,12 +46,120 @@
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок билетов
+            </div>
+            {% endif %}
         </div>
     </div>
-    {% else %}
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок билетов
+
+    <!-- Покупки товаров -->
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">История покупки товаров</h4>
+        </div>
+        <div class="card-body">
+            {% if prize_purchases %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Дата покупки</th>
+                            <th>Товар</th>
+                            <th>Количество</th>
+                            <th>Стоимость</th>
+                            <th>Статус</th>
+                            <th>Детали доставки</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for purchase in prize_purchases %}
+                        <tr>
+                            <td>{{ purchase.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if purchase.prize.image %}
+                                    <img src="{{ url_for('static', filename='uploads/prizes/' + purchase.prize.image) }}" 
+                                         alt="{{ purchase.prize.name }}" 
+                                         class="img-thumbnail me-2" 
+                                         style="width: 40px; height: 40px; object-fit: cover;">
+                                    {% endif %}
+                                    <div>
+                                        <h6 class="mb-0">{{ purchase.prize.name }}</h6>
+                                        <small class="text-muted">{{ purchase.prize.description }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ purchase.quantity }}</td>
+                            <td>{{ purchase.points_cost }} баллов</td>
+                            <td>
+                                <span class="badge {% if purchase.status == 'completed' %}bg-success{% else %}bg-warning{% endif %}">
+                                    {{ 'Обработана' if purchase.status == 'completed' else 'В обработке' }}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" 
+                                        onclick="showDeliveryDetails({{ purchase.id }})">
+                                    <i class="fas fa-info-circle me-1"></i>Подробнее
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок товаров
+            </div>
+            {% endif %}
+        </div>
     </div>
-    {% endif %}
 </div>
+
+<!-- Модальное окно с деталями доставки -->
+<div class="modal fade" id="deliveryDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Детали доставки</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="deliveryDetailsContent">
+                    <!-- Здесь будет содержимое -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDeliveryDetails(purchaseId) {
+    fetch(`/purchase/${purchaseId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            const content = `
+                <div class="mb-3">
+                    <h6>Информация о заказе</h6>
+                    <p><strong>Дата:</strong> ${data.created_at}</p>
+                    <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработана' : 'В обработке'}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Информация о доставке</h6>
+                    <p><strong>ФИО:</strong> ${data.full_name}</p>
+                    <p><strong>Телефон:</strong> ${data.phone}</p>
+                    <p><strong>Адрес:</strong> ${data.address}</p>
+                </div>
+            `;
+            document.getElementById('deliveryDetailsContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('deliveryDetailsModal')).show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Произошла ошибка при загрузке деталей заказа', 'danger');
+        });
+}
+</script>
 {% endblock %} 

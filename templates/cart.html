@@ -138,7 +138,28 @@
     </div>
 </div>
 
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="deleteCartItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Удалить товар</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить этот товар из корзины?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteCartItem">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let cartItemToDelete = null;
+
 function updateCart(prizeId, action, value = null) {
     let quantity;
     const input = event.target.parentElement.querySelector('input');
@@ -227,15 +248,20 @@ function updateCart(prizeId, action, value = null) {
 }
 
 function removeFromCart(prizeId) {
-    if (!confirm('Вы уверены, что хотите удалить этот товар из корзины?')) return;
-    
+    cartItemToDelete = prizeId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteCartItemModal'));
+    modal.show();
+}
+
+document.getElementById('confirmDeleteCartItem').onclick = function() {
+    if (!cartItemToDelete) return;
     fetch('/remove-from-cart', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            prize_id: prizeId
+            prize_id: cartItemToDelete
         })
     })
     .then(response => response.json())
@@ -243,14 +269,32 @@ function removeFromCart(prizeId) {
         if (data.success) {
             location.reload();
         } else {
-            alert(data.message);
+            // Показываем сообщение об ошибке через модальное окно сообщений
+            const content = `
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    ${data.message}
+                </div>
+            `;
+            document.getElementById('cartMessageContent').innerHTML = content;
+            const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+            modal.show();
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Произошла ошибка при удалении товара');
+        const content = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Произошла ошибка при удалении товара
+            </div>
+        `;
+        document.getElementById('cartMessageContent').innerHTML = content;
+        const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+        modal.show();
     });
-}
+    cartItemToDelete = null;
+};
 
 document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -260,7 +304,7 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     const address = document.getElementById('address').value;
     
     if (!fullName || !phone || !address) {
-        alert('Пожалуйста, заполните все обязательные поля');
+        showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
         return;
     }
     
@@ -278,16 +322,54 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            window.location.href = '/profile';
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                window.location.href = '/profile';
+            }, 2000);
         } else {
-            alert(data.message);
+            showNotification(data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Произошла ошибка при оформлении заказа');
+        showNotification('Произошла ошибка при оформлении заказа', 'danger');
     });
 });
+
+function showNotification(message, type = 'info') {
+    const flashContainer = document.querySelector('.flash-messages');
+    if (!flashContainer) {
+        const container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+    }
+    
+    const icons = {
+        success: 'fa-check-circle',
+        danger: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash-message';
+    messageDiv.innerHTML = `
+        <div class="alert alert-${type}">
+            <div>
+                <i class="fas ${icons[type] || icons.info}"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
+        </div>
+    `;
+    
+    document.querySelector('.flash-messages').appendChild(messageDiv);
+    
+    // Автоматически удаляем уведомление через 5 секунд
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 5000);
+}
 </script>
 {% endblock %} 

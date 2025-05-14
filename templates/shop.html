@@ -168,36 +168,52 @@ function addToCart(prizeId) {
                 // Закрываем модальное окно
                 modal.hide();
                 // Показываем уведомление об успехе
-                const successContent = `
-                    <div class="alert alert-success mb-0">
-                        <i class="fas fa-check-circle me-2"></i>Товар успешно добавлен в корзину
-                    </div>
-                `;
-                document.getElementById('addToCartContent').innerHTML = successContent;
-                // Показываем модальное окно с сообщением об успехе
-                setTimeout(() => {
-                    modal.hide();
-                }, 1500);
+                showNotification(data.message, 'success');
             } else {
-                // Показываем сообщение об ошибке
-                const errorContent = `
-                    <div class="alert alert-danger mb-0">
-                        <i class="fas fa-exclamation-circle me-2"></i>${data.message}
-                    </div>
-                `;
-                document.getElementById('addToCartContent').innerHTML = errorContent;
+                showNotification(data.message, 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            const errorContent = `
-                <div class="alert alert-danger mb-0">
-                    <i class="fas fa-exclamation-circle me-2"></i>Произошла ошибка при добавлении товара в корзину
-                </div>
-            `;
-            document.getElementById('addToCartContent').innerHTML = errorContent;
+            showNotification('Произошла ошибка при добавлении товара в корзину', 'danger');
         });
     };
+}
+
+function showNotification(message, type = 'info') {
+    const flashContainer = document.querySelector('.flash-messages');
+    if (!flashContainer) {
+        const container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+    }
+    
+    const icons = {
+        success: 'fa-check-circle',
+        danger: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash-message';
+    messageDiv.innerHTML = `
+        <div class="alert alert-${type}">
+            <div>
+                <i class="fas ${icons[type] || icons.info}"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
+        </div>
+    `;
+    
+    document.querySelector('.flash-messages').appendChild(messageDiv);
+    
+    // Автоматически удаляем уведомление через 5 секунд
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 5000);
 }
 </script>
 {% endblock %} 

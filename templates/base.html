@@ -10,6 +10,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         .flash-messages {
             position: fixed;
@@ -21,15 +22,50 @@
         .flash-message {
             margin-bottom: 10px;
             animation: slideIn 0.5s ease-out;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
         }
         .flash-message .alert {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-right: 4rem;
+            padding: 1rem 1.5rem;
+            margin: 0;
+            border: none;
+            border-radius: 8px;
+        }
+        .flash-message .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .flash-message .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .flash-message .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        .flash-message .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
         }
         .flash-message .btn-close {
-            margin-left: 2rem;
+            margin-left: 1rem;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .flash-message .btn-close:hover {
+            opacity: 1;
+        }
+        .flash-message .alert i {
+            margin-right: 0.75rem;
+            font-size: 1.25rem;
         }
         @keyframes slideIn {
             from {

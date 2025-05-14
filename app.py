@@ -1383,13 +1383,36 @@ def purchase_history():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    # Получаем историю покупок пользователя, отсортированную по дате (новые сверху)
-    purchases = TicketPurchase.query.filter_by(user_id=current_user.id)\
+    # Получаем историю покупок билетов
+    ticket_purchases = TicketPurchase.query.filter_by(user_id=current_user.id)\
         .order_by(TicketPurchase.purchase_date.desc()).all()
+    
+    # Получаем историю покупок товаров
+    prize_purchases = PrizePurchase.query.filter_by(user_id=current_user.id)\
+        .order_by(PrizePurchase.created_at.desc()).all()
     
     return render_template('purchase_history.html', 
                          title='История покупок',
-                         purchases=purchases)
+                         ticket_purchases=ticket_purchases,
+                         prize_purchases=prize_purchases)
+
+@app.route('/purchase/<int:purchase_id>/details')
+@login_required
+def purchase_details(purchase_id):
+    purchase = PrizePurchase.query.get_or_404(purchase_id)
+    
+    # Проверяем, принадлежит ли покупка текущему пользователю
+    if purchase.user_id != current_user.id:
+        return jsonify({'error': 'У вас нет доступа к этой информации'}), 403
+    
+    return jsonify({
+        'id': purchase.id,
+        'created_at': purchase.created_at.strftime('%d.%m.%Y %H:%M'),
+        'status': purchase.status,
+        'full_name': purchase.full_name,
+        'phone': purchase.phone,
+        'address': purchase.address
+    })
 
 @app.route('/download-receipt/<int:purchase_id>')
 @login_required
