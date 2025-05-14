@@ -498,6 +498,19 @@
                 document.querySelector('#tournamentStatsModal .modal-body').innerHTML = 
                     '<div class="alert alert-danger">Ошибка при загрузке статистики. Пожалуйста, попробуйте позже.</div>';
             });
+
+        // Добавляем обработчик события скрытия модального окна
+        document.getElementById('tournamentStatsModal').addEventListener('hidden.bs.modal', function () {
+            // Удаляем backdrop
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            // Удаляем класс modal-open с body
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        });
     }
     </script>
 </body>
