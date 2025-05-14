@@ -534,4 +534,440 @@ footer {
     .navbar {
         padding-top: 0.75rem;
     }
+}
+
+/* Общие стили */
+body {
+    font-family: 'Roboto', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Стили для уведомлений */
+.flash-messages {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    min-width: 300px;
+}
+
+.flash-message {
+    margin-bottom: 10px;
+    animation: slideIn 0.5s ease-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.flash-message .alert {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    margin: 0;
+    border: none;
+    border-radius: 8px;
+}
+
+.flash-message .alert-success {
+    background-color: #d4edda;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.flash-message .alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.flash-message .alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.flash-message .alert-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+.flash-message .btn-close {
+    margin-left: 1rem;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.flash-message .btn-close:hover {
+    opacity: 1;
+}
+
+.flash-message .alert i {
+    margin-right: 0.75rem;
+    font-size: 1.25rem;
+}
+
+/* Анимации для уведомлений */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.flash-message.fade-out {
+    animation: fadeOut 0.5s ease-out forwards;
+}
+
+/* Стили для таблицы рейтинга */
+.rating-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+}
+
+.rating-table-container thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #f8f9fa;
+}
+
+.rating-table-container thead th {
+    border-bottom: 2px solid #dee2e6;
+}
+
+.rating-table-container tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Стилизация скроллбара */
+.rating-table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.rating-table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.rating-table-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.rating-table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+#loadingSpinner {
+    padding: 1rem;
+}
+
+/* Стили для карточек */
+.card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Стили для кнопок */
+.btn {
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* Стили для модальных окон */
+.modal-content {
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+/* Стили для форм */
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #80bdff;
+}
+
+/* Стили для навигации */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-link {
+    transition: color 0.3s ease;
+}
+
+/* Стили для футера */
+footer {
+    margin-top: auto;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для счетчика */
+.countdown-timer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 1rem 0;
+}
+
+.countdown-items {
+    display: flex;
+    gap: 1rem;
+}
+
+.countdown-item {
+    text-align: center;
+    min-width: 60px;
+}
+
+.countdown-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.countdown-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+/* Стили для предупреждений */
+.alert-info {
+    background-color: #e8f4f8;
+    border-color: #bee5eb;
+    color: #0c5460;
+}
+
+/* Стили для таблиц */
+.table-responsive {
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 500;
+}
+
+/* Стили для бейджей */
+.badge {
+    padding: 0.5em 0.75em;
+    font-weight: 500;
+}
+
+/* Стили для карточек статистики */
+.stats-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.stats-card .card-title {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card .card-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+/* Стили для изображений */
+.img-thumbnail {
+    max-height: 100px;
+    object-fit: cover;
+}
+
+/* Стили для форм авторизации */
+.auth-section {
+    padding: 2rem 0;
+}
+
+.auth-section .card {
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.auth-section .card-header {
+    background-color: #f8f9fa;
+    border-bottom: none;
+    padding: 1.5rem;
+}
+
+.auth-section .card-body {
+    padding: 2rem;
+}
+
+/* Стили для кнопок действий */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-buttons .btn {
+    padding: 0.375rem 0.75rem;
+}
+
+/* Стили для модальных окон подтверждения */
+.confirmation-modal .modal-content {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.confirmation-modal .modal-header {
+    background-color: #f8f9fa;
+    border-bottom: none;
+}
+
+.confirmation-modal .modal-footer {
+    border-top: none;
+    padding: 1rem 1.5rem;
+}
+
+/* Стили для хлебных крошек */
+.breadcrumb {
+    background-color: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 1.5rem;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: "›";
+}
+
+/* Стили для спиннера загрузки */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Стили для карточек призов */
+.prize-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.prize-card .card-img-top {
+    height: 200px;
+    object-fit: cover;
+}
+
+.prize-card .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.prize-card .card-footer {
+    background-color: transparent;
+    border-top: none;
+}
+
+/* Стили для корзины */
+.cart-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.cart-item:last-child {
+    border-bottom: none;
+}
+
+.cart-item-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 0.375rem;
+    margin-right: 1rem;
+}
+
+/* Стили для истории заказов */
+.order-history {
+    margin-top: 2rem;
+}
+
+.order-card {
+    margin-bottom: 1rem;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.order-card .card-header {
+    background-color: #f8f9fa;
+    border-bottom: none;
+}
+
+/* Стили для профиля пользователя */
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.profile-stat-card {
+    text-align: center;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+}
+
+.profile-stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 0.5rem;
+}
+
+.profile-stat-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+    text-transform: uppercase;
 } 

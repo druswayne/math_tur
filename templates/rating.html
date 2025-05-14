@@ -42,59 +42,6 @@
     </div>
 </div>
 
-<style>
-.rating-table-container {
-    max-height: 600px;
-    overflow-y: auto;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-}
-
-.rating-table-container thead {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    background-color: #f8f9fa;
-}
-
-.rating-table-container thead th {
-    border-bottom: 2px solid #dee2e6;
-}
-
-.rating-table-container tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* Стилизация скроллбара */
-.rating-table-container::-webkit-scrollbar {
-    width: 8px;
-}
-
-.rating-table-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-.rating-table-container::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-}
-
-.rating-table-container::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-#loadingSpinner {
-    padding: 1rem;
-}
-
-.alert-info {
-    background-color: #e8f4f8;
-    border-color: #bee5eb;
-    color: #0c5460;
-}
-</style>
-
 <script>
 let currentPage = {{ current_page }};
 const totalPages = {{ total_pages }};
