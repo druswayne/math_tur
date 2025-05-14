@@ -14,6 +14,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import random
 from flask import session
+from sqlalchemy import func
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
@@ -1282,6 +1283,42 @@ def tournament_results(tournament_id):
                          solved_count=solved_count,
                          earned_points=earned_points,
                          current_balance=current_user.balance)
+
+@app.route('/tournament/history')
+@login_required
+def tournament_history():
+    # Получаем все турниры, в которых участвовал пользователь
+    tournaments = db.session.query(
+        Tournament,
+        func.count(SolvedTask.id).label('solved_tasks'),
+        func.sum(Task.points).label('earned_points')
+    ).join(
+        Task,
+        Tournament.id == Task.tournament_id
+    ).join(
+        SolvedTask,
+        Task.id == SolvedTask.task_id
+    ).filter(
+        SolvedTask.user_id == current_user.id,
+        SolvedTask.is_correct == True
+    ).group_by(
+        Tournament.id
+    ).order_by(
+        Tournament.start_date.desc()
+    ).all()
+    
+    # Преобразуем результаты в список словарей для удобного доступа в шаблоне
+    tournament_list = []
+    for tournament, solved_tasks, earned_points in tournaments:
+        tournament_list.append({
+            'id': tournament.id,
+            'name': tournament.title,
+            'start_date': tournament.start_date,
+            'solved_tasks': solved_tasks,
+            'earned_points': earned_points or 0
+        })
+    
+    return render_template('tournament_history.html', tournaments=tournament_list)
 
 if __name__ == '__main__':
     with app.app_context():
