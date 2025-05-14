@@ -91,12 +91,12 @@ function updateCountdown() {
     
     const diff = targetDate - now;
     
-    // Если время истекло, показываем нули
+    // Если время истекло, перезагружаем страницу
     if (diff <= 0) {
-        document.getElementById('days').textContent = '00';
-        document.getElementById('hours').textContent = '00';
-        document.getElementById('minutes').textContent = '00';
-        document.getElementById('seconds').textContent = '00';
+        // Добавляем небольшую задержку перед перезагрузкой
+        setTimeout(() => {
+            location.reload();
+        }, 100);
         return;
     }
 
@@ -114,6 +114,16 @@ function updateCountdown() {
 // Обновляем таймер каждую секунду
 setInterval(updateCountdown, 1000);
 updateCountdown(); // Запускаем сразу
+
+// Добавляем дополнительную проверку для начала турнира
+const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
+const now = new Date();
+if (startDate > now) {
+    const timeToStart = startDate - now;
+    setTimeout(() => {
+        location.reload();
+    }, timeToStart);
+}
 </script>
 {% endif %}
 {% endblock %} 
