@@ -29,7 +29,7 @@
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         {% for prize in prizes %}
         <div class="col">
-            <div class="card h-100">
+            <div class="card h-100 {% if prize.quantity == 0 %}border-danger{% endif %}">
                 {% if prize.image %}
                 <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" 
                      class="card-img-top" 
@@ -52,6 +52,8 @@
                         </h6>
                         {% if prize.quantity > 0 %}
                         <small class="text-muted">Осталось: {{ prize.quantity }}</small>
+                        {% else %}
+                        <small class="text-danger">Товар закончился</small>
                         {% endif %}
                     </div>
                 </div>
@@ -61,21 +63,25 @@
                         <div class="input-group" style="width: 130px;">
                             <button class="btn btn-outline-secondary btn-sm" 
                                     type="button" 
-                                    onclick="decrementQuantity({{ prize.id }})">-</button>
+                                    onclick="decrementQuantity({{ prize.id }})"
+                                    {% if prize.quantity == 0 %}disabled{% endif %}>-</button>
                             <input type="number" 
                                    class="form-control form-control-sm text-center" 
                                    id="quantity-{{ prize.id }}" 
                                    value="1" 
                                    min="1" 
-                                   max="{{ prize.quantity if prize.quantity > 0 else 1 }}">
+                                   max="{{ prize.quantity if prize.quantity > 0 else 1 }}"
+                                   {% if prize.quantity == 0 %}disabled{% endif %}>
                             <button class="btn btn-outline-secondary btn-sm" 
                                     type="button" 
-                                    onclick="incrementQuantity({{ prize.id }})">+</button>
+                                    onclick="incrementQuantity({{ prize.id }})"
+                                    {% if prize.quantity == 0 %}disabled{% endif %}>+</button>
                         </div>
-                        <button class="btn btn-primary" 
-                                onclick="addToCart({{ prize.id }})">
+                        <button class="btn {% if prize.quantity == 0 %}btn-secondary{% else %}btn-primary{% endif %}" 
+                                onclick="addToCart({{ prize.id }})"
+                                {% if prize.quantity == 0 %}disabled{% endif %}>
                             <i class="fas fa-cart-plus me-1"></i>
-                            В корзину
+                            {% if prize.quantity == 0 %}Нет в наличии{% else %}В корзину{% endif %}
                         </button>
                     </div>
                 </div>
