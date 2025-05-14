@@ -45,13 +45,15 @@
                                     <td>
                                         <div class="input-group" style="width: 120px;">
                                             <button class="btn btn-outline-secondary btn-sm" 
-                                                    onclick="updateQuantity({{ item.prize.id }}, 'decrease')">-</button>
+                                                    onclick="updateCart({{ item.prize.id }}, 'decrease')">-</button>
                                             <input type="number" class="form-control form-control-sm text-center" 
                                                    value="{{ item.quantity }}" 
                                                    min="1" 
-                                                   onchange="updateQuantity({{ item.prize.id }}, 'set', this.value)">
+                                                   onchange="updateCart({{ item.prize.id }}, 'set', this.value)"
+                                                   id="quantity-{{ item.prize.id }}"
+                                                   max="{{ item.prize.quantity }}">
                                             <button class="btn btn-outline-secondary btn-sm" 
-                                                    onclick="updateQuantity({{ item.prize.id }}, 'increase')">+</button>
+                                                    onclick="updateCart({{ item.prize.id }}, 'increase')">+</button>
                                         </div>
                                     </td>
                                     <td>{{ item.prize.points_cost }} баллов</td>
@@ -116,8 +118,28 @@
     {% endif %}
 </div>
 
+<!-- Модальное окно для сообщений -->
+<div class="modal fade" id="cartMessageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Уведомление</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="cartMessageContent">
+                    <!-- Здесь будет содержимое -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-function updateQuantity(prizeId, action, value = null) {
+function updateCart(prizeId, action, value = null) {
     let quantity;
     const input = event.target.parentElement.querySelector('input');
     
@@ -130,6 +152,22 @@ function updateQuantity(prizeId, action, value = null) {
     }
     
     if (quantity < 1) return;
+    
+    const maxQuantity = parseInt(input.getAttribute('max'));
+    
+    if (quantity > maxQuantity) {
+        // Показываем модальное окно с сообщением об ошибке
+        const content = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Превышено максимальное количество товара. Доступно: ${maxQuantity} шт.
+            </div>
+        `;
+        document.getElementById('cartMessageContent').innerHTML = content;
+        const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+        modal.show();
+        return;
+    }
     
     fetch('/update-cart', {
         method: 'POST',
@@ -144,14 +182,47 @@ function updateQuantity(prizeId, action, value = null) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Обновляем общую стоимость
+            document.getElementById('total-cost').textContent = data.total_cost;
+            // Показываем сообщение об успехе
+            const content = `
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Количество товара успешно обновлено
+                </div>
+            `;
+            document.getElementById('cartMessageContent').innerHTML = content;
+            const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+            modal.show();
+            // Закрываем модальное окно через 1.5 секунды
+            setTimeout(() => {
+                modal.hide();
+            }, 1500);
         } else {
-            alert(data.message);
+            // Показываем сообщение об ошибке
+            const content = `
+                <div class="alert alert-danger mb-0">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    ${data.message}
+                </div>
+            `;
+            document.getElementById('cartMessageContent').innerHTML = content;
+            const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+            modal.show();
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Произошла ошибка при обновлении корзины');
+        // Показываем сообщение об ошибке
+        const content = `
+            <div class="alert alert-danger mb-0">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Произошла ошибка при обновлении корзины
+            </div>
+        `;
+        document.getElementById('cartMessageContent').innerHTML = content;
+        const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+        modal.show();
     });
 }
 
