@@ -117,6 +117,7 @@ class User(UserMixin, db.Model):
     email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
+    last_activity = db.Column(db.DateTime, nullable=True)  # Время последней активности
     balance = db.Column(db.Integer, default=0)  # Общий счет
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
     session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
@@ -333,13 +334,20 @@ def login():
             
             # Проверяем, не вошел ли пользователь с другого устройства
             if user.session_token:
-                flash('Вы уже вошли в систему с другого устройства. Пожалуйста, выйдите из другого устройства перед входом.', 'danger')
-                return redirect(url_for('login'))
+                # Проверяем время последней активности
+                if user.last_activity and (datetime.utcnow() - user.last_activity) < timedelta(days=1):
+                    flash('Вы уже вошли в систему с другого устройства. Пожалуйста, выйдите из другого устройства перед входом или подождите 24 часа.', 'danger')
+                    return redirect(url_for('login'))
+                else:
+                    # Если прошло больше суток, очищаем старую сессию
+                    user.session_token = None
+                    user.last_activity = None
             
             # Генерируем новый токен сессии
             session_token = secrets.token_urlsafe(32)
             user.session_token = session_token
             user.last_login = datetime.utcnow()
+            user.last_activity = datetime.utcnow()
             db.session.commit()
             
             # Сохраняем токен в сессии
@@ -357,6 +365,7 @@ def login():
 def logout():
     # Очищаем токен сессии
     current_user.session_token = None
+    current_user.last_activity = None
     db.session.commit()
     session.pop('session_token', None)
     logout_user()
@@ -1219,6 +1228,21 @@ def check_session():
             logout_user()
             flash('Ваша сессия была завершена, так как вы вошли в систему с другого устройства', 'warning')
             return redirect(url_for('login'))
+        
+        # Проверяем время последней активности
+        if current_user.last_activity and (datetime.utcnow() - current_user.last_activity) > timedelta(days=1):
+            # Очищаем сессию
+            current_user.session_token = None
+            current_user.last_activity = None
+            db.session.commit()
+            session.pop('session_token', None)
+            logout_user()
+            flash('Ваша сессия была завершена из-за длительного отсутствия активности', 'warning')
+            return redirect(url_for('login'))
+        
+        # Обновляем время последней активности
+        current_user.last_activity = datetime.utcnow()
+        db.session.commit()
     return None
 
 def restore_scheduler_jobs():
