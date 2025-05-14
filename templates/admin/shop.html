@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">Управление магазином</h1>
+    
+    <div class="row">
+        <!-- Раздел билетов -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Управление билетами</h5>
+                    <p class="card-text">Настройка цен и количества билетов для продажи</p>
+                    <a href="{{ url_for('admin_tickets') }}" class="btn btn-primary">
+                        <i class="fas fa-ticket-alt me-2"></i>Управление билетами
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Раздел призов -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Управление призами</h5>
+                    <p class="card-text">Настройка призов и их стоимости в билетах</p>
+                    <a href="{{ url_for('admin_prizes') }}" class="btn btn-primary">
+                        <i class="fas fa-gift me-2"></i>Управление призами
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Раздел заявок -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Управление заявками</h5>
+                    <p class="card-text">Просмотр и обработка заявок на получение призов</p>
+                    <a href="{{ url_for('admin_orders') }}" class="btn btn-primary">
+                        <i class="fas fa-shopping-cart me-2"></i>Управление заявками
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>История покупок</h1>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
+        </a>
+    </div>
+
+    {% if purchases %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Дата покупки</th>
+                            <th>Количество билетов</th>
+                            <th>Стоимость</th>
+                            <th>Скидка</th>
+                            <th>Итоговая стоимость</th>
+                            <th>Чек</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for purchase in purchases %}
+                        <tr>
+                            <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>{{ purchase.quantity }}</td>
+                            <td>{{ (purchase.amount / (1 - purchase.discount/100))|round(2) }} ₽</td>
+                            <td>{{ purchase.discount }}%</td>
+                            <td>{{ purchase.amount|round(2) }} ₽</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary" disabled>
+                                    <i class="fas fa-file-invoice me-1"></i>Чек
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок билетов
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

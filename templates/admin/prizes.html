@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Управление призами</h1>
+        <a href="{{ url_for('admin_shop') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад к магазину
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Добавить новый приз</h5>
+            <form method="POST" action="{{ url_for('admin_add_prize') }}" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="name" class="form-label">Название приза</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="points_cost" class="form-label">Стоимость (баллы)</label>
+                        <input type="number" class="form-control" id="points_cost" name="points_cost" min="1" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="image" class="form-label">Изображение</label>
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="quantity" class="form-label">Количество доступных призов</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="0" value="0">
+                        <small class="form-text text-muted">Оставьте 0 для неограниченного количества</small>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Добавить приз
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Существующие призы</h5>
+            <div class="row">
+                {% for prize in prizes %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        {% if prize.image %}
+                        <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" class="card-img-top" alt="{{ prize.name }}">
+                        {% endif %}
+                        <div class="card-body">
+                            <h5 class="card-title">{{ prize.name }}</h5>
+                            <p class="card-text">{{ prize.description }}</p>
+                            <p class="card-text">
+                                <strong>Стоимость:</strong> {{ prize.points_cost }} баллов<br>
+                                <strong>Доступно:</strong> 
+                                {% if prize.quantity == 0 %}
+                                Неограниченно
+                                {% else %}
+                                {{ prize.quantity }} шт.
+                                {% endif %}
+                            </p>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" onclick="editPrize({{ prize.id }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="deletePrize({{ prize.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deletePrize(prizeId) {
+    if (confirm('Вы уверены, что хотите удалить этот приз?')) {
+        fetch(`/admin/shop/prizes/${prizeId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function editPrize(prizeId) {
+    window.location.href = `/admin/shop/prizes/${prizeId}/edit`;
+}
+</script>
+{% endblock %} 

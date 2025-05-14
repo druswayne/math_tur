@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Корзина</h2>
+        <a href="{{ url_for('shop') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Вернуться в магазин
+        </a>
+    </div>
+
+    {% if cart_items %}
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Товар</th>
+                                    <th>Количество</th>
+                                    <th>Цена</th>
+                                    <th>Сумма</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cart_items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if item.prize.image %}
+                                            <img src="{{ url_for('static', filename='uploads/prizes/' + item.prize.image) }}" 
+                                                 alt="{{ item.prize.name }}" 
+                                                 class="img-thumbnail me-3" 
+                                                 style="width: 50px; height: 50px; object-fit: cover;">
+                                            {% endif %}
+                                            <div>
+                                                <h6 class="mb-0">{{ item.prize.name }}</h6>
+                                                <small class="text-muted">{{ item.prize.description }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="input-group" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="updateQuantity({{ item.prize.id }}, 'decrease')">-</button>
+                                            <input type="number" class="form-control form-control-sm text-center" 
+                                                   value="{{ item.quantity }}" 
+                                                   min="1" 
+                                                   onchange="updateQuantity({{ item.prize.id }}, 'set', this.value)">
+                                            <button class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="updateQuantity({{ item.prize.id }}, 'increase')">+</button>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.prize.points_cost }} баллов</td>
+                                    <td>{{ item.prize.points_cost * item.quantity }} баллов</td>
+                                    <td>
+                                        <button class="btn btn-outline-danger btn-sm" 
+                                                onclick="removeFromCart({{ item.prize.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Оформление заказа</h5>
+                    
+                    <div class="mb-4">
+                        <h6>Ваш баланс: {{ current_user.balance }} баллов</h6>
+                        <h6>Итого к оплате: {{ total_cost }} баллов</h6>
+                    </div>
+
+                    <form id="checkoutForm" class="mb-4">
+                        <div class="mb-3">
+                            <label for="fullName" class="form-label">ФИО *</label>
+                            <input type="text" class="form-control" id="fullName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Номер телефона *</label>
+                            <input type="tel" class="form-control" id="phone" required 
+                                   pattern="[0-9]{11}" placeholder="89991234567">
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Адрес доставки *</label>
+                            <textarea class="form-control" id="address" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" 
+                                {% if current_user.balance < total_cost %}disabled{% endif %}>
+                            Оформить заказ
+                        </button>
+                    </form>
+
+                    {% if current_user.balance < total_cost %}
+                    <div class="alert alert-warning">
+                        Недостаточно баллов для оформления заказа
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        Ваша корзина пуста
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function updateQuantity(prizeId, action, value = null) {
+    let quantity;
+    const input = event.target.parentElement.querySelector('input');
+    
+    if (action === 'increase') {
+        quantity = parseInt(input.value) + 1;
+    } else if (action === 'decrease') {
+        quantity = parseInt(input.value) - 1;
+    } else if (action === 'set') {
+        quantity = parseInt(value);
+    }
+    
+    if (quantity < 1) return;
+    
+    fetch('/update-cart', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            prize_id: prizeId,
+            quantity: quantity
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при обновлении корзины');
+    });
+}
+
+function removeFromCart(prizeId) {
+    if (!confirm('Вы уверены, что хотите удалить этот товар из корзины?')) return;
+    
+    fetch('/remove-from-cart', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            prize_id: prizeId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при удалении товара');
+    });
+}
+
+document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const fullName = document.getElementById('fullName').value;
+    const phone = document.getElementById('phone').value;
+    const address = document.getElementById('address').value;
+    
+    if (!fullName || !phone || !address) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+    
+    fetch('/checkout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            full_name: fullName,
+            phone: phone,
+            address: address
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.href = '/profile';
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при оформлении заказа');
+    });
+});
+</script>
+{% endblock %} 

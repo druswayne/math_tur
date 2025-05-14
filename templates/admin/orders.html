@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Заявки на призы</h2>
+        <a href="{{ url_for('admin_shop') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-2"></i>Вернуться в магазин
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Пользователь</th>
+                            <th>Приз</th>
+                            <th>Количество</th>
+                            <th>Стоимость</th>
+                            <th>Статус</th>
+                            <th>Дата</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in orders %}
+                        <tr>
+                            <td>{{ order.id }}</td>
+                            <td>{{ order.user.username }}</td>
+                            <td>{{ order.prize.name }}</td>
+                            <td>{{ order.quantity }}</td>
+                            <td>{{ order.points_cost }} баллов</td>
+                            <td>
+                                <span class="badge {% if order.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
+                                    {{ 'Обработана' if order.status == 'completed' else 'В обработке' }}
+                                </span>
+                            </td>
+                            <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="showOrderDetails({{ order.id }})">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="toggleOrderStatus({{ order.id }})">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteOrder({{ order.id }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно с деталями заказа -->
+<div class="modal fade" id="orderDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Детали заказа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="orderDetailsContent">
+                    <!-- Здесь будет содержимое заказа -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showOrderDetails(orderId) {
+    fetch(`/admin/orders/${orderId}/details`)
+        .then(response => response.json())
+        .then(data => {
+            const content = `
+                <div class="mb-3">
+                    <h6>Информация о заказе</h6>
+                    <p><strong>ID заказа:</strong> ${data.id}</p>
+                    <p><strong>Дата:</strong> ${data.created_at}</p>
+                    <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработана' : 'В обработке'}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Информация о пользователе</h6>
+                    <p><strong>Имя пользователя:</strong> ${data.user.username}</p>
+                    <p><strong>Email:</strong> ${data.user.email}</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Информация о призе</h6>
+                    <p><strong>Название:</strong> ${data.prize.name}</p>
+                    <p><strong>Количество:</strong> ${data.quantity}</p>
+                    <p><strong>Стоимость:</strong> ${data.points_cost} баллов</p>
+                </div>
+                <div class="mb-3">
+                    <h6>Информация о доставке</h6>
+                    <p><strong>ФИО:</strong> ${data.full_name}</p>
+                    <p><strong>Телефон:</strong> ${data.phone}</p>
+                    <p><strong>Адрес:</strong> ${data.address}</p>
+                </div>
+            `;
+            document.getElementById('orderDetailsContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('orderDetailsModal')).show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при загрузке деталей заказа');
+        });
+}
+
+function toggleOrderStatus(orderId) {
+    if (!confirm('Изменить статус заказа?')) return;
+    
+    fetch(`/admin/orders/${orderId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при изменении статуса заказа');
+    });
+}
+
+function deleteOrder(orderId) {
+    if (!confirm('Вы уверены, что хотите удалить эту заявку?')) return;
+    
+    fetch(`/admin/orders/${orderId}/delete`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Произошла ошибка при удалении заказа');
+    });
+}
+</script>
+{% endblock %} 

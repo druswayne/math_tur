@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -188,6 +188,7 @@ class TicketPurchase(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     amount = db.Column(db.Float, nullable=False)
+    discount = db.Column(db.Integer, default=0)  # Скидка в процентах
     purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     user = db.relationship('User', backref=db.backref('ticket_purchases', lazy=True))
@@ -219,16 +220,25 @@ class SolvedTask(db.Model):
 
 class TicketPackage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    quantity = db.Column(db.Integer, nullable=False)  # Количество билетов в пакете
-    price = db.Column(db.Float, nullable=False)  # Цена пакета
-    discount = db.Column(db.Integer, default=0)  # Скидка в процентах
+    price = db.Column(db.Float, nullable=False)  # Базовая цена за 1 билет
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    @property
-    def final_price(self):
-        """Вычисляет итоговую цену с учетом скидки"""
-        return round(self.price * (1 - self.discount / 100), 2)
+class TicketDiscount(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    min_quantity = db.Column(db.Integer, nullable=False)  # Минимальное количество билетов для скидки
+    discount = db.Column(db.Integer, nullable=False)  # Скидка в процентах
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def get_discount_for_quantity(quantity):
+        """Получает максимальную доступную скидку для указанного количества билетов"""
+        discount = TicketDiscount.query.filter(
+            TicketDiscount.min_quantity <= quantity,
+            TicketDiscount.is_active == True
+        ).order_by(TicketDiscount.discount.desc()).first()
+        return discount.discount if discount else 0
 
 class Prize(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -244,11 +254,26 @@ class PrizePurchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
-    purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='pending')  # pending, completed, cancelled
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    points_cost = db.Column(db.Integer, nullable=False)
+    full_name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    address = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     
     user = db.relationship('User', backref=db.backref('prize_purchases', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('purchases', lazy=True))
+
+class CartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
+    prize = db.relationship('Prize', backref=db.backref('cart_items', lazy=True))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -800,54 +825,86 @@ def admin_tickets():
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
-    ticket_packages = TicketPackage.query.filter_by(is_active=True).order_by(TicketPackage.price.asc()).all()
+    base_price = TicketPackage.query.filter_by(is_active=True).first()
+    discounts = TicketDiscount.query.filter_by(is_active=True).order_by(TicketDiscount.min_quantity.asc()).all()
+    
     return render_template('admin/tickets.html', 
                          title='Управление билетами',
-                         ticket_packages=ticket_packages)
+                         base_price=base_price,
+                         discounts=discounts)
 
-@app.route('/admin/shop/tickets/add', methods=['POST'])
+@app.route('/admin/shop/tickets/set-price', methods=['POST'])
 @login_required
-def admin_add_ticket_package():
+def admin_set_ticket_price():
     if not current_user.is_admin:
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
-    quantity = request.form.get('quantity', type=int)
     price = request.form.get('price', type=float)
-    discount = request.form.get('discount', type=int, default=0)
+    if not price or price <= 0:
+        flash('Некорректная цена', 'danger')
+        return redirect(url_for('admin_tickets'))
     
-    if not all([quantity, price]):
+    # Деактивируем старый пакет
+    old_package = TicketPackage.query.filter_by(is_active=True).first()
+    if old_package:
+        old_package.is_active = False
+    
+    # Создаем новый пакет с новой ценой
+    new_package = TicketPackage(price=price)
+    db.session.add(new_package)
+    db.session.commit()
+    
+    flash('Базовая цена билета успешно обновлена', 'success')
+    return redirect(url_for('admin_tickets'))
+
+@app.route('/admin/shop/tickets/discounts/add', methods=['POST'])
+@login_required
+def admin_add_ticket_discount():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    min_quantity = request.form.get('min_quantity', type=int)
+    discount = request.form.get('discount', type=int)
+    
+    if not all([min_quantity, discount]):
         flash('Все поля должны быть заполнены', 'danger')
         return redirect(url_for('admin_tickets'))
     
-    if quantity < 1 or price <= 0 or discount < 0 or discount > 100:
+    if min_quantity < 1 or discount < 0 or discount > 100:
         flash('Некорректные значения', 'danger')
         return redirect(url_for('admin_tickets'))
     
-    package = TicketPackage(
-        quantity=quantity,
-        price=price,
+    # Проверяем, нет ли уже скидки для такого количества
+    existing_discount = TicketDiscount.query.filter_by(min_quantity=min_quantity, is_active=True).first()
+    if existing_discount:
+        flash('Скидка для такого количества билетов уже существует', 'danger')
+        return redirect(url_for('admin_tickets'))
+    
+    discount_obj = TicketDiscount(
+        min_quantity=min_quantity,
         discount=discount
     )
     
-    db.session.add(package)
+    db.session.add(discount_obj)
     db.session.commit()
     
-    flash('Пакет билетов успешно добавлен', 'success')
+    flash('Скидка успешно добавлена', 'success')
     return redirect(url_for('admin_tickets'))
 
-@app.route('/admin/shop/tickets/<int:package_id>/delete', methods=['POST'])
+@app.route('/admin/shop/tickets/discounts/<int:discount_id>/delete', methods=['POST'])
 @login_required
-def admin_delete_ticket_package(package_id):
+def admin_delete_ticket_discount(discount_id):
     if not current_user.is_admin:
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
-    package = TicketPackage.query.get_or_404(package_id)
-    package.is_active = False
+    discount = TicketDiscount.query.get_or_404(discount_id)
+    discount.is_active = False
     db.session.commit()
     
-    flash('Пакет билетов успешно удален', 'success')
+    flash('Скидка успешно удалена', 'success')
     return redirect(url_for('admin_tickets'))
 
 @app.route('/admin/shop/prizes')
@@ -1260,14 +1317,93 @@ def profile():
 def buy_tickets():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
-    return render_template('buy_tickets.html', title='Покупка билетов')
+    
+    base_price = TicketPackage.query.filter_by(is_active=True).first()
+    if not base_price:
+        flash('В данный момент покупка билетов недоступна', 'warning')
+        return redirect(url_for('profile'))
+    
+    # Получаем скидки и преобразуем их в словари
+    discounts = TicketDiscount.query.filter_by(is_active=True).order_by(TicketDiscount.min_quantity.asc()).all()
+    discounts_data = [{
+        'min_quantity': discount.min_quantity,
+        'discount': discount.discount
+    } for discount in discounts]
+    
+    return render_template('buy_tickets.html', 
+                         title='Покупка билетов',
+                         base_price=base_price,
+                         discounts=discounts_data)
+
+@app.route('/process-ticket-purchase', methods=['POST'])
+@login_required
+def process_ticket_purchase():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    quantity = request.form.get('quantity', type=int)
+    if not quantity or quantity < 1:
+        flash('Укажите корректное количество билетов', 'danger')
+        return redirect(url_for('buy_tickets'))
+    
+    base_price = TicketPackage.query.filter_by(is_active=True).first()
+    if not base_price:
+        flash('В данный момент покупка билетов недоступна', 'warning')
+        return redirect(url_for('profile'))
+    
+    # Получаем скидку для указанного количества
+    discount = TicketDiscount.get_discount_for_quantity(quantity)
+    
+    # Рассчитываем итоговую стоимость
+    total_price = base_price.price * quantity * (1 - discount / 100)
+    
+    # Здесь должна быть интеграция с платежной системой
+    # Для демонстрации просто добавляем билеты пользователю
+    
+    # Создаем запись о покупке
+    purchase = TicketPurchase(
+        user_id=current_user.id,
+        quantity=quantity,
+        amount=total_price,
+        discount=discount
+    )
+    
+    # Добавляем билеты пользователю
+    current_user.tickets += quantity
+    
+    db.session.add(purchase)
+    db.session.commit()
+    
+    flash(f'Успешно куплено {quantity} билетов', 'success')
+    return redirect(url_for('profile'))
 
 @app.route('/purchase-history')
 @login_required
 def purchase_history():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
-    return render_template('purchase_history.html', title='История покупок')
+    
+    # Получаем историю покупок пользователя, отсортированную по дате (новые сверху)
+    purchases = TicketPurchase.query.filter_by(user_id=current_user.id)\
+        .order_by(TicketPurchase.purchase_date.desc()).all()
+    
+    return render_template('purchase_history.html', 
+                         title='История покупок',
+                         purchases=purchases)
+
+@app.route('/download-receipt/<int:purchase_id>')
+@login_required
+def download_receipt(purchase_id):
+    purchase = TicketPurchase.query.get_or_404(purchase_id)
+    
+    # Проверяем, принадлежит ли покупка текущему пользователю
+    if purchase.user_id != current_user.id:
+        flash('У вас нет доступа к этому чеку', 'danger')
+        return redirect(url_for('purchase_history'))
+    
+    # TODO: Здесь будет интеграция с эквайрингом для получения чека
+    flash('Функция получения чека временно недоступна', 'info')
+    return redirect(url_for('purchase_history'))
 
 @app.route('/completed-tournaments')
 @login_required
@@ -1759,6 +1895,301 @@ def rating():
                          total_pages=total_pages,
                          per_page=per_page,
                          user_rank=user_rank)
+
+@app.route('/shop')
+@login_required
+def shop():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    # Получаем все активные призы
+    prizes = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).all()
+    
+    # Получаем количество товаров в корзине
+    cart_items_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    
+    return render_template('shop.html', 
+                         title='Магазин',
+                         prizes=prizes,
+                         cart_items_count=cart_items_count)
+
+@app.route('/cart')
+@login_required
+def cart():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    # Получаем товары из корзины
+    cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    
+    # Считаем общую стоимость
+    total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
+    
+    return render_template('cart.html',
+                         title='Корзина',
+                         cart_items=cart_items,
+                         total_cost=total_cost)
+
+@app.route('/add-to-cart', methods=['POST'])
+@login_required
+def add_to_cart():
+    if current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
+    
+    data = request.get_json()
+    prize_id = data.get('prize_id')
+    quantity = data.get('quantity', 1)
+    
+    if not prize_id or not quantity:
+        return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
+    
+    prize = Prize.query.get(prize_id)
+    if not prize or not prize.is_active:
+        return jsonify({'success': False, 'message': 'Товар не найден'})
+    
+    if prize.quantity > 0 and quantity > prize.quantity:
+        return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
+    
+    # Проверяем, есть ли уже такой товар в корзине
+    cart_item = CartItem.query.filter_by(
+        user_id=current_user.id,
+        prize_id=prize_id
+    ).first()
+    
+    if cart_item:
+        # Если товар уже есть, обновляем количество
+        new_quantity = cart_item.quantity + quantity
+        if prize.quantity > 0 and new_quantity > prize.quantity:
+            return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
+        cart_item.quantity = new_quantity
+    else:
+        # Если товара нет, создаем новую запись
+        cart_item = CartItem(
+            user_id=current_user.id,
+            prize_id=prize_id,
+            quantity=quantity
+        )
+        db.session.add(cart_item)
+    
+    db.session.commit()
+    
+    # Получаем обновленное количество товаров в корзине
+    cart_items_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Товар добавлен в корзину',
+        'cart_items_count': cart_items_count
+    })
+
+@app.route('/update-cart', methods=['POST'])
+@login_required
+def update_cart():
+    if current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
+    
+    data = request.get_json()
+    prize_id = data.get('prize_id')
+    quantity = data.get('quantity', 1)
+    
+    if not prize_id or not quantity:
+        return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
+    
+    prize = Prize.query.get(prize_id)
+    if not prize or not prize.is_active:
+        return jsonify({'success': False, 'message': 'Товар не найден'})
+    
+    if prize.quantity > 0 and quantity > prize.quantity:
+        return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
+    
+    # Находим товар в корзине
+    cart_item = CartItem.query.filter_by(
+        user_id=current_user.id,
+        prize_id=prize_id
+    ).first()
+    
+    if not cart_item:
+        return jsonify({'success': False, 'message': 'Товар не найден в корзине'})
+    
+    # Обновляем количество
+    cart_item.quantity = quantity
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Количество товара обновлено'
+    })
+
+@app.route('/remove-from-cart', methods=['POST'])
+@login_required
+def remove_from_cart():
+    if current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
+    
+    data = request.get_json()
+    prize_id = data.get('prize_id')
+    
+    if not prize_id:
+        return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
+    
+    # Находим товар в корзине
+    cart_item = CartItem.query.filter_by(
+        user_id=current_user.id,
+        prize_id=prize_id
+    ).first()
+    
+    if not cart_item:
+        return jsonify({'success': False, 'message': 'Товар не найден в корзине'})
+    
+    # Удаляем товар из корзины
+    db.session.delete(cart_item)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Товар удален из корзины'
+    })
+
+@app.route('/checkout', methods=['POST'])
+@login_required
+def checkout():
+    if current_user.is_admin:
+        return redirect(url_for('admin_dashboard'))
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': 'Неверный формат данных'})
+    
+    # Получаем данные доставки
+    full_name = data.get('full_name')
+    phone = data.get('phone')
+    address = data.get('address')
+    
+    if not all([full_name, phone, address]):
+        return jsonify({'success': False, 'message': 'Пожалуйста, заполните все поля'})
+    
+    # Получаем товары из корзины
+    cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    if not cart_items:
+        return jsonify({'success': False, 'message': 'Корзина пуста'})
+    
+    # Проверяем баланс и наличие товаров
+    total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
+    if current_user.balance < total_cost:
+        return jsonify({'success': False, 'message': 'Недостаточно баллов для оформления заказа'})
+    
+    for item in cart_items:
+        if item.prize.quantity < item.quantity:
+            return jsonify({
+                'success': False, 
+                'message': f'Товар "{item.prize.name}" доступен только в количестве {item.prize.quantity} шт.'
+            })
+    
+    try:
+        # Создаем запись о покупке
+        purchase = PrizePurchase(
+            user_id=current_user.id,
+            prize_id=cart_items[0].prize_id,
+            quantity=cart_items[0].quantity,
+            points_cost=cart_items[0].prize.points_cost * cart_items[0].quantity,
+            full_name=full_name,
+            phone=phone,
+            address=address
+        )
+        db.session.add(purchase)
+        
+        # Обновляем баланс пользователя
+        current_user.balance -= total_cost
+        
+        # Обновляем количество товаров
+        for item in cart_items:
+            item.prize.quantity -= item.quantity
+        
+        # Очищаем корзину
+        CartItem.query.filter_by(user_id=current_user.id).delete()
+        
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'message': 'Заказ успешно оформлен! Мы свяжемся с вами для уточнения деталей доставки.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Произошла ошибка при оформлении заказа'})
+
+@app.route('/admin/orders')
+@login_required
+def admin_orders():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    # Получаем все заявки, отсортированные по дате (новые сверху)
+    orders = PrizePurchase.query.order_by(PrizePurchase.created_at.desc()).all()
+    
+    return render_template('admin/orders.html', 
+                         title='Управление заявками',
+                         orders=orders)
+
+@app.route('/admin/orders/<int:order_id>/details')
+@login_required
+def admin_order_details(order_id):
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Недостаточно прав'})
+    
+    order = PrizePurchase.query.get_or_404(order_id)
+    
+    return jsonify({
+        'id': order.id,
+        'created_at': order.created_at.strftime('%d.%m.%Y %H:%M'),
+        'status': order.status,
+        'user': {
+            'username': order.user.username,
+            'email': order.user.email
+        },
+        'prize': {
+            'name': order.prize.name
+        },
+        'quantity': order.quantity,
+        'points_cost': order.points_cost,
+        'full_name': order.full_name,
+        'phone': order.phone,
+        'address': order.address
+    })
+
+@app.route('/admin/orders/<int:order_id>/toggle-status', methods=['POST'])
+@login_required
+def admin_toggle_order_status(order_id):
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Недостаточно прав'})
+    
+    order = PrizePurchase.query.get_or_404(order_id)
+    
+    # Меняем статус заказа
+    order.status = 'completed' if order.status == 'pending' else 'pending'
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Статус заказа успешно обновлен'
+    })
+
+@app.route('/admin/orders/<int:order_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_order(order_id):
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Недостаточно прав'})
+    
+    order = PrizePurchase.query.get_or_404(order_id)
+    
+    # Удаляем заказ
+    db.session.delete(order)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Заказ успешно удален'
+    })
 
 if __name__ == '__main__':
     with app.app_context():

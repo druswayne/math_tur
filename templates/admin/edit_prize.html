@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Редактирование приза</h1>
+        <a href="{{ url_for('admin_prizes') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад к призам
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="name" class="form-label">Название приза</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ prize.name }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="points_cost" class="form-label">Стоимость (баллы)</label>
+                        <input type="number" class="form-control" id="points_cost" name="points_cost" value="{{ prize.points_cost }}" min="1" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required>{{ prize.description }}</textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="image" class="form-label">Изображение</label>
+                        {% if prize.image %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" 
+                                 alt="{{ prize.name }}" 
+                                 class="img-thumbnail" 
+                                 style="max-height: 200px;">
+                        </div>
+                        {% endif %}
+                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                        <small class="form-text text-muted">Оставьте пустым, чтобы сохранить текущее изображение</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="quantity" class="form-label">Количество доступных призов</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" value="{{ prize.quantity }}" min="0">
+                        <small class="form-text text-muted">Оставьте 0 для неограниченного количества</small>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Сохранить изменения
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

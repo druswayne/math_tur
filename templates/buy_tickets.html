@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Покупка билетов</h1>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Выберите количество билетов</h5>
+                    <form id="purchaseForm" method="POST" action="{{ url_for('process_ticket_purchase') }}">
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">Количество билетов</label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" 
+                                   min="1" required onchange="updatePrice()">
+                        </div>
+                        
+                        {% if discounts %}
+                        <div class="mb-3">
+                            <h6>Информация о скидках:</h6>
+                            <div id="discountInfo" class="alert alert-info">
+                                Выберите количество билетов, чтобы увидеть доступную скидку
+                            </div>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ваш заказ</h5>
+                    <div class="mb-3">
+                        <label class="form-label">Количество билетов</label>
+                        <p id="selectedQuantity" class="form-text">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Базовая цена</label>
+                        <p id="basePrice" class="form-text">{{ base_price.price }} ₽ за билет</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Скидка</label>
+                        <p id="discount" class="form-text">0%</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Итоговая стоимость</label>
+                        <p id="totalPrice" class="form-text">-</p>
+                    </div>
+                    <button type="submit" form="purchaseForm" class="btn btn-success w-100">
+                        <i class="fas fa-shopping-cart me-2"></i>Оформить покупку
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updatePrice() {
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const basePrice = {{ base_price.price }};
+    const discounts = {{ discounts|tojson|safe }};
+    
+    // Находим максимальную доступную скидку
+    let maxDiscount = 0;
+    let nextDiscount = null;
+    
+    // Сортируем скидки по возрастанию минимального количества
+    discounts.sort((a, b) => a.min_quantity - b.min_quantity);
+    
+    for (const discount of discounts) {
+        if (quantity >= discount.min_quantity && discount.discount > maxDiscount) {
+            maxDiscount = discount.discount;
+        }
+        // Находим следующую доступную скидку
+        if (quantity < discount.min_quantity && !nextDiscount) {
+            nextDiscount = discount;
+        }
+    }
+    
+    // Обновляем информацию о заказе
+    document.getElementById('selectedQuantity').textContent = quantity || '-';
+    document.getElementById('discount').textContent = maxDiscount + '%';
+    
+    // Рассчитываем итоговую стоимость
+    const totalPrice = basePrice * quantity * (1 - maxDiscount / 100);
+    document.getElementById('totalPrice').textContent = quantity ? totalPrice.toFixed(2) + ' ₽' : '-';
+    
+    // Обновляем информацию о скидках
+    const discountInfo = document.getElementById('discountInfo');
+    if (maxDiscount > 0) {
+        discountInfo.className = 'alert alert-success';
+        if (nextDiscount) {
+            discountInfo.textContent = `Ваша скидка: ${maxDiscount}%. Добавьте еще ${nextDiscount.min_quantity - quantity} билетов для получения скидки ${nextDiscount.discount}%`;
+        } else {
+            discountInfo.textContent = `Ваша скидка: ${maxDiscount}%`;
+        }
+    } else if (nextDiscount) {
+        discountInfo.className = 'alert alert-info';
+        discountInfo.textContent = `Добавьте еще ${nextDiscount.min_quantity - quantity} билетов для получения скидки ${nextDiscount.discount}%`;
+    } else {
+        discountInfo.className = 'alert alert-info';
+        discountInfo.textContent = 'Выберите количество билетов, чтобы увидеть доступную скидку';
+    }
+}
+</script>
+{% endblock %} 
