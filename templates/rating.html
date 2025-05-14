@@ -15,21 +15,34 @@
         <table class="table table-hover">
             <thead class="table-light sticky-top">
                 <tr>
-                    <th>Место</th>
+                    <th class="d-none d-md-table-cell">Место</th>
                     <th>Пользователь</th>
-                    <th>Общий счет</th>
-                    <th>Решено задач</th>
-                    <th>Участий в турнирах</th>
+                    <th class="d-none d-md-table-cell">Общий счет</th>
+                    <th class="d-none d-md-table-cell">Решено задач</th>
+                    <th class="d-none d-md-table-cell">Участий в турнирах</th>
+                    <th class="d-table-cell d-md-none">Статистика</th>
                 </tr>
             </thead>
             <tbody id="ratingTableBody">
                 {% for user in users %}
                 <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
-                    <td>{{ (current_page - 1) * per_page + loop.index }}</td>
-                    <td>{{ user.username }}</td>
-                    <td>{{ user.balance }}</td>
-                    <td>{{ user.solved_tasks_count }}</td>
-                    <td>{{ user.tournaments_count }}</td>
+                    <td class="d-none d-md-table-cell">{{ (current_page - 1) * per_page + loop.index }}</td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <span class="d-md-none me-2">{{ (current_page - 1) * per_page + loop.index }}.</span>
+                            {{ user.username }}
+                        </div>
+                    </td>
+                    <td class="d-none d-md-table-cell">{{ user.balance }}</td>
+                    <td class="d-none d-md-table-cell">{{ user.solved_tasks_count }}</td>
+                    <td class="d-none d-md-table-cell">{{ user.tournaments_count }}</td>
+                    <td class="d-table-cell d-md-none">
+                        <small class="text-muted">
+                            Счет: {{ user.balance }}<br>
+                            Задач: {{ user.solved_tasks_count }}<br>
+                            Турниров: {{ user.tournaments_count }}
+                        </small>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -41,6 +54,22 @@
         </div>
     </div>
 </div>
+
+<style>
+@media (max-width: 767px) {
+    .rating-table-container {
+        font-size: 0.9rem;
+    }
+    
+    .table td, .table th {
+        padding: 0.5rem;
+    }
+    
+    .table td small {
+        font-size: 0.8rem;
+    }
+}
+</style>
 
 <script>
 let currentPage = {{ current_page }};
