@@ -1320,6 +1320,40 @@ def tournament_history():
     
     return render_template('tournament_history.html', tournaments=tournament_list)
 
+@app.route('/rating')
+def rating():
+    # Получаем всех пользователей, отсортированных по балансу
+    users = db.session.query(
+        User,
+        func.count(SolvedTask.id).label('solved_tasks_count'),
+        func.count(TournamentParticipation.id).label('tournaments_count')
+    ).outerjoin(
+        SolvedTask,
+        User.id == SolvedTask.user_id
+    ).outerjoin(
+        TournamentParticipation,
+        User.id == TournamentParticipation.user_id
+    ).filter(
+        User.is_admin == False  # Исключаем администраторов
+    ).group_by(
+        User.id
+    ).order_by(
+        User.balance.desc()
+    ).all()
+    
+    # Преобразуем результаты в список словарей для удобного доступа в шаблоне
+    user_list = []
+    for user, solved_tasks_count, tournaments_count in users:
+        user_list.append({
+            'id': user.id,
+            'username': user.username,
+            'balance': user.balance,
+            'solved_tasks_count': solved_tasks_count,
+            'tournaments_count': tournaments_count
+        })
+    
+    return render_template('rating.html', users=user_list)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
