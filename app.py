@@ -1326,11 +1326,8 @@ def rating():
     page = request.args.get('page', 1, type=int)
     per_page = 20  # Количество пользователей на странице
     
-    # Получаем общее количество пользователей
-    total_users = db.session.query(User).filter(User.is_admin == False).count()
-    
-    # Получаем пользователей для текущей страницы
-    users = db.session.query(
+    # Получаем всех пользователей, отсортированных по балансу
+    all_users = db.session.query(
         User,
         func.count(SolvedTask.id).label('solved_tasks_count'),
         func.count(TournamentParticipation.id).label('tournaments_count')
@@ -1346,11 +1343,19 @@ def rating():
         User.id
     ).order_by(
         User.balance.desc()
-    ).offset((page - 1) * per_page).limit(per_page).all()
+    ).all()
+    
+    # Получаем общее количество пользователей
+    total_users = len(all_users)
+    
+    # Получаем пользователей для текущей страницы
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    page_users = all_users[start_idx:end_idx]
     
     # Преобразуем результаты в список словарей
     user_list = []
-    for user, solved_tasks_count, tournaments_count in users:
+    for user, solved_tasks_count, tournaments_count in page_users:
         user_list.append({
             'id': user.id,
             'username': user.username,
@@ -1362,11 +1367,21 @@ def rating():
     # Вычисляем общее количество страниц
     total_pages = (total_users + per_page - 1) // per_page
     
+    # Если пользователь авторизован, получаем его место в рейтинге
+    user_rank = None
+    if current_user.is_authenticated and not current_user.is_admin:
+        # Находим индекс пользователя в отсортированном списке
+        for index, (user, _, _) in enumerate(all_users, 1):
+            if user.id == current_user.id:
+                user_rank = index
+                break
+    
     return render_template('rating.html', 
                          users=user_list,
                          current_page=page,
                          total_pages=total_pages,
-                         per_page=per_page)
+                         per_page=per_page,
+                         user_rank=user_rank)
 
 if __name__ == '__main__':
     with app.app_context():

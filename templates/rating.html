@@ -4,6 +4,13 @@
 <div class="container mt-5">
     <h2 class="mb-4">Общий рейтинг участников</h2>
     
+    {% if current_user.is_authenticated and not current_user.is_admin and user_rank %}
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-trophy me-2"></i>
+        Ваше место в рейтинге: <strong>{{ user_rank }}</strong>
+    </div>
+    {% endif %}
+    
     <div class="table-responsive rating-table-container" id="ratingTable">
         <table class="table table-hover">
             <thead class="table-light sticky-top">
@@ -79,6 +86,12 @@
 
 #loadingSpinner {
     padding: 1rem;
+}
+
+.alert-info {
+    background-color: #e8f4f8;
+    border-color: #bee5eb;
+    color: #0c5460;
 }
 </style>
 
