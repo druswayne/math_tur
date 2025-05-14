@@ -275,6 +275,43 @@ class CartItem(db.Model):
     user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('cart_items', lazy=True))
 
+class ShopSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    is_open = db.Column(db.Boolean, default=True)
+    top_users_percentage = db.Column(db.Integer, default=100)  # Процент лучших пользователей
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @staticmethod
+    def get_settings():
+        settings = ShopSettings.query.first()
+        if not settings:
+            settings = ShopSettings()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
+    def can_user_shop(self, user):
+        if not self.is_open:
+            return False
+        
+        if self.top_users_percentage >= 100:
+            return True
+            
+        # Получаем общее количество пользователей
+        total_users = User.query.filter_by(is_admin=False).count()
+        if total_users == 0:
+            return False
+            
+        # Вычисляем количество пользователей, которым разрешено делать покупки
+        allowed_users_count = max(1, int(total_users * self.top_users_percentage / 100))
+        
+        # Получаем ранг пользователя
+        user_rank = get_user_rank(user.id)
+        if not user_rank:
+            return False
+            
+        return user_rank <= allowed_users_count
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -1922,19 +1959,15 @@ def rating():
 @app.route('/shop')
 @login_required
 def shop():
-    if current_user.is_admin:
-        return redirect(url_for('admin_dashboard'))
-    
-    # Получаем все активные призы
-    prizes = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).all()
-    
-    # Получаем количество товаров в корзине
-    cart_items_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    prizes = Prize.query.filter(Prize.quantity > 0).all()
+    settings = ShopSettings.get_settings()
+    can_shop = settings.can_user_shop(current_user)
     
     return render_template('shop.html', 
-                         title='Магазин',
                          prizes=prizes,
-                         cart_items_count=cart_items_count)
+                         settings=settings,
+                         can_shop=can_shop,
+                         cart_items_count=len(current_user.cart_items))
 
 @app.route('/cart')
 @login_required
@@ -2212,6 +2245,75 @@ def admin_delete_order(order_id):
     return jsonify({
         'success': True,
         'message': 'Заказ успешно удален'
+    })
+
+@app.route('/purchase/<int:purchase_id>/cancel', methods=['POST'])
+@login_required
+def cancel_purchase(purchase_id):
+    purchase = PrizePurchase.query.get_or_404(purchase_id)
+    
+    # Проверяем, что покупка принадлежит текущему пользователю
+    if purchase.user_id != current_user.id:
+        return jsonify({'success': False, 'message': 'У вас нет прав для отмены этой покупки'}), 403
+    
+    # Проверяем, что покупка еще не обработана
+    if purchase.status != 'pending':
+        return jsonify({'success': False, 'message': 'Нельзя отменить уже обработанную покупку'}), 400
+    
+    try:
+        # Возвращаем баллы пользователю
+        current_user.balance += purchase.points_cost
+        
+        # Обновляем статус покупки
+        purchase.status = 'cancelled'
+        
+        # Возвращаем товары на склад
+        purchase.prize.quantity += purchase.quantity
+        
+        db.session.commit()
+        return jsonify({
+            'success': True, 
+            'message': 'Покупка успешно отменена. Баллы возвращены на ваш счет.'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Произошла ошибка при отмене покупки'}), 500
+
+@app.route('/admin/shop/settings')
+@login_required
+def admin_shop_settings():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    settings = ShopSettings.get_settings()
+    return render_template('admin/shop_settings.html', 
+                         title='Настройки магазина',
+                         settings=settings)
+
+@app.route('/admin/shop/settings/update', methods=['POST'])
+@login_required
+def admin_update_shop_settings():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Недостаточно прав'})
+    
+    settings = ShopSettings.get_settings()
+    
+    # Обновляем настройки
+    settings.is_open = 'is_open' in request.form
+    try:
+        top_users_percentage = int(request.form.get('top_users_percentage', 100))
+        if top_users_percentage < 1 or top_users_percentage > 100:
+            raise ValueError
+        settings.top_users_percentage = top_users_percentage
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Некорректное значение процента пользователей'})
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Настройки магазина успешно обновлены'
     })
 
 if __name__ == '__main__':

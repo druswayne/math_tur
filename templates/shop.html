@@ -25,70 +25,90 @@
         </div>
     </div>
 
-    <!-- Сетка товаров -->
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% for prize in prizes %}
-        <div class="col">
-            <div class="card h-100 {% if prize.quantity == 0 %}border-danger{% endif %}">
-                {% if prize.image %}
-                <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" 
-                     class="card-img-top" 
-                     alt="{{ prize.name }}"
-                     style="height: 200px; object-fit: cover;">
-                {% else %}
-                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
-                     style="height: 200px;">
-                    <i class="fas fa-gift fa-3x text-muted"></i>
-                </div>
-                {% endif %}
-                
-                <div class="card-body">
-                    <h5 class="card-title">{{ prize.name }}</h5>
-                    <p class="card-text">{{ prize.description }}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0">
-                            <i class="fas fa-coins text-warning me-1"></i>
-                            {{ prize.points_cost }} баллов
-                        </h6>
-                        {% if prize.quantity > 0 %}
-                        <small class="text-muted">Осталось: {{ prize.quantity }}</small>
-                        {% else %}
-                        <small class="text-danger">Товар закончился</small>
-                        {% endif %}
+    {% if not settings.is_open %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        Магазин временно закрыт. Пожалуйста, зайдите позже.
+    </div>
+    {% else %}
+        {% if not can_shop %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            В данный момент покупки доступны только для {{ settings.top_users_percentage }}% лучших пользователей.
+            Продолжайте участвовать в турнирах, чтобы повысить свой рейтинг!
+        </div>
+        {% endif %}
+
+        <!-- Сетка товаров -->
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for prize in prizes %}
+            <div class="col">
+                <div class="card h-100 {% if prize.quantity == 0 %}border-danger{% endif %}">
+                    {% if prize.image %}
+                    <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" 
+                         class="card-img-top" 
+                         alt="{{ prize.name }}"
+                         style="height: 200px; object-fit: cover;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                         style="height: 200px;">
+                        <i class="fas fa-gift fa-3x text-muted"></i>
                     </div>
-                </div>
-                
-                <div class="card-footer bg-white border-top-0">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="input-group" style="width: 130px;">
-                            <button class="btn btn-outline-secondary btn-sm" 
-                                    type="button" 
-                                    onclick="decrementQuantity({{ prize.id }})"
-                                    {% if prize.quantity == 0 %}disabled{% endif %}>-</button>
-                            <input type="number" 
-                                   class="form-control form-control-sm text-center" 
-                                   id="quantity-{{ prize.id }}" 
-                                   value="1" 
-                                   min="1" 
-                                   max="{{ prize.quantity if prize.quantity > 0 else 1 }}"
-                                   {% if prize.quantity == 0 %}disabled{% endif %}>
-                            <button class="btn btn-outline-secondary btn-sm" 
-                                    type="button" 
-                                    onclick="incrementQuantity({{ prize.id }})"
-                                    {% if prize.quantity == 0 %}disabled{% endif %}>+</button>
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ prize.name }}</h5>
+                        <p class="card-text">{{ prize.description }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-coins text-warning me-1"></i>
+                                {{ prize.points_cost }} баллов
+                            </h6>
+                            {% if prize.quantity > 0 %}
+                            <small class="text-muted">Осталось: {{ prize.quantity }}</small>
+                            {% else %}
+                            <small class="text-danger">Товар закончился</small>
+                            {% endif %}
                         </div>
-                        <button class="btn {% if prize.quantity == 0 %}btn-secondary{% else %}btn-primary{% endif %}" 
-                                onclick="addToCart({{ prize.id }})"
-                                {% if prize.quantity == 0 %}disabled{% endif %}>
-                            <i class="fas fa-cart-plus me-1"></i>
-                            {% if prize.quantity == 0 %}Нет в наличии{% else %}В корзину{% endif %}
-                        </button>
+                    </div>
+                    
+                    <div class="card-footer bg-white border-top-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="input-group" style="width: 130px;">
+                                <button class="btn btn-outline-secondary btn-sm" 
+                                        type="button" 
+                                        onclick="decrementQuantity({{ prize.id }})"
+                                        {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>-</button>
+                                <input type="number" 
+                                       class="form-control form-control-sm text-center" 
+                                       id="quantity-{{ prize.id }}" 
+                                       value="1" 
+                                       min="1" 
+                                       max="{{ prize.quantity if prize.quantity > 0 else 1 }}"
+                                       {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>
+                                <button class="btn btn-outline-secondary btn-sm" 
+                                        type="button" 
+                                        onclick="incrementQuantity({{ prize.id }})"
+                                        {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>+</button>
+                            </div>
+                            <button class="btn {% if prize.quantity == 0 or not can_shop %}btn-secondary{% else %}btn-primary{% endif %}" 
+                                    onclick="addToCart({{ prize.id }})"
+                                    {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>
+                                <i class="fas fa-cart-plus me-1"></i>
+                                {% if prize.quantity == 0 %}
+                                    Нет в наличии
+                                {% elif not can_shop %}
+                                    Недоступно
+                                {% else %}
+                                    В корзину
+                                {% endif %}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+    {% endif %}
 </div>
 
 <!-- Модальное окно подтверждения добавления в корзину -->

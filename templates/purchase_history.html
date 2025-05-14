@@ -70,7 +70,7 @@
                             <th>Количество</th>
                             <th>Стоимость</th>
                             <th>Статус</th>
-                            <th>Детали доставки</th>
+                            <th>Действия</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -94,15 +94,29 @@
                             <td>{{ purchase.quantity }}</td>
                             <td>{{ purchase.points_cost }} баллов</td>
                             <td>
-                                <span class="badge {% if purchase.status == 'completed' %}bg-success{% else %}bg-warning{% endif %}">
-                                    {{ 'Обработана' if purchase.status == 'completed' else 'В обработке' }}
+                                <span class="badge {% if purchase.status == 'completed' %}bg-success{% elif purchase.status == 'cancelled' %}bg-danger{% else %}bg-warning{% endif %}">
+                                    {% if purchase.status == 'completed' %}
+                                        Обработана
+                                    {% elif purchase.status == 'cancelled' %}
+                                        Отменена
+                                    {% else %}
+                                        В обработке
+                                    {% endif %}
                                 </span>
                             </td>
                             <td>
-                                <button class="btn btn-sm btn-outline-info" 
-                                        onclick="showDeliveryDetails({{ purchase.id }})">
-                                    <i class="fas fa-info-circle me-1"></i>Подробнее
-                                </button>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-info" 
+                                            onclick="showDeliveryDetails({{ purchase.id }})">
+                                        <i class="fas fa-info-circle me-1"></i>Подробнее
+                                    </button>
+                                    {% if purchase.status == 'pending' %}
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="showCancelConfirmation({{ purchase.id }})">
+                                        <i class="fas fa-times me-1"></i>Отменить
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -135,7 +149,28 @@
     </div>
 </div>
 
+<!-- Модальное окно подтверждения отмены -->
+<div class="modal fade" id="cancelConfirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение отмены</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите отменить этот заказ? Баллы будут возвращены на ваш счет.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmCancel">Отменить заказ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let purchaseToCancel = null;
+
 function showDeliveryDetails(purchaseId) {
     fetch(`/purchase/${purchaseId}/details`)
         .then(response => response.json())
@@ -144,7 +179,7 @@ function showDeliveryDetails(purchaseId) {
                 <div class="mb-3">
                     <h6>Информация о заказе</h6>
                     <p><strong>Дата:</strong> ${data.created_at}</p>
-                    <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработана' : 'В обработке'}</p>
+                    <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработана' : data.status === 'cancelled' ? 'Отменена' : 'В обработке'}</p>
                 </div>
                 <div class="mb-3">
                     <h6>Информация о доставке</h6>
@@ -160,6 +195,75 @@ function showDeliveryDetails(purchaseId) {
             console.error('Error:', error);
             showNotification('Произошла ошибка при загрузке деталей заказа', 'danger');
         });
+}
+
+function showCancelConfirmation(purchaseId) {
+    purchaseToCancel = purchaseId;
+    new bootstrap.Modal(document.getElementById('cancelConfirmationModal')).show();
+}
+
+document.getElementById('confirmCancel').onclick = function() {
+    if (!purchaseToCancel) return;
+    
+    fetch(`/purchase/${purchaseToCancel}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            // Перезагружаем страницу для обновления данных
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Произошла ошибка при отмене заказа', 'danger');
+    });
+    
+    // Закрываем модальное окно
+    bootstrap.Modal.getInstance(document.getElementById('cancelConfirmationModal')).hide();
+};
+
+function showNotification(message, type = 'info') {
+    const flashContainer = document.querySelector('.flash-messages');
+    if (!flashContainer) {
+        const container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+    }
+    
+    const icons = {
+        success: 'fa-check-circle',
+        danger: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash-message';
+    messageDiv.innerHTML = `
+        <div class="alert alert-${type}">
+            <div>
+                <i class="fas ${icons[type] || icons.info}"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
+        </div>
+    `;
+    
+    document.querySelector('.flash-messages').appendChild(messageDiv);
+    
+    // Автоматически удаляем уведомление через 5 секунд
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 5000);
 }
 </script>
 {% endblock %} 

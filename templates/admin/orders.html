@@ -3,25 +3,26 @@
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Заявки на призы</h2>
-        <a href="{{ url_for('admin_shop') }}" class="btn btn-outline-primary">
-            <i class="fas fa-arrow-left me-2"></i>Вернуться в магазин
+        <h1>Управление заказами</h1>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад в панель администратора
         </a>
     </div>
 
     <div class="card">
         <div class="card-body">
+            {% if orders %}
             <div class="table-responsive">
-                <table class="table">
+                <table class="table table-hover">
                     <thead>
                         <tr>
                             <th>ID</th>
+                            <th>Дата</th>
                             <th>Пользователь</th>
-                            <th>Приз</th>
+                            <th>Товар</th>
                             <th>Количество</th>
                             <th>Стоимость</th>
                             <th>Статус</th>
-                            <th>Дата</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -29,32 +30,70 @@
                         {% for order in orders %}
                         <tr>
                             <td>{{ order.id }}</td>
-                            <td>{{ order.user.username }}</td>
-                            <td>{{ order.prize.name }}</td>
+                            <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>
+                                <div>
+                                    <strong>{{ order.user.username }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ order.user.email }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if order.prize.image %}
+                                    <img src="{{ url_for('static', filename='uploads/prizes/' + order.prize.image) }}" 
+                                         alt="{{ order.prize.name }}" 
+                                         class="img-thumbnail me-2" 
+                                         style="width: 40px; height: 40px; object-fit: cover;">
+                                    {% endif %}
+                                    <div>
+                                        <h6 class="mb-0">{{ order.prize.name }}</h6>
+                                        <small class="text-muted">{{ order.prize.description }}</small>
+                                    </div>
+                                </div>
+                            </td>
                             <td>{{ order.quantity }}</td>
                             <td>{{ order.points_cost }} баллов</td>
                             <td>
-                                <span class="badge {% if order.status == 'pending' %}bg-warning{% else %}bg-success{% endif %}">
-                                    {{ 'Обработана' if order.status == 'completed' else 'В обработке' }}
+                                <span class="badge {% if order.status == 'completed' %}bg-success{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-warning{% endif %}">
+                                    {% if order.status == 'completed' %}
+                                        Обработан
+                                    {% elif order.status == 'cancelled' %}
+                                        Отменен
+                                    {% else %}
+                                        В обработке
+                                    {% endif %}
                                 </span>
                             </td>
-                            <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>
-                                <button class="btn btn-info btn-sm" onclick="showOrderDetails({{ order.id }})">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>
-                                <button class="btn btn-success btn-sm" onclick="toggleOrderStatus({{ order.id }})">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="deleteOrder({{ order.id }})">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-info" 
+                                            onclick="showOrderDetails({{ order.id }})">
+                                        <i class="fas fa-info-circle me-1"></i>Подробнее
+                                    </button>
+                                    {% if order.status != 'cancelled' %}
+                                    <button class="btn btn-sm {% if order.status == 'completed' %}btn-warning{% else %}btn-success{% endif %}" 
+                                            onclick="toggleOrderStatus({{ order.id }})">
+                                        <i class="fas {% if order.status == 'completed' %}fa-times{% else %}fa-check{% endif %} me-1"></i>
+                                        {% if order.status == 'completed' %}Отменить{% else %}Обработать{% endif %}
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="deleteOrder({{ order.id }})">
+                                        <i class="fas fa-trash me-1"></i>Удалить
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>Заказов пока нет
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -69,7 +108,7 @@
             </div>
             <div class="modal-body">
                 <div id="orderDetailsContent">
-                    <!-- Здесь будет содержимое заказа -->
+                    <!-- Здесь будет содержимое -->
                 </div>
             </div>
         </div>
@@ -84,17 +123,17 @@ function showOrderDetails(orderId) {
             const content = `
                 <div class="mb-3">
                     <h6>Информация о заказе</h6>
-                    <p><strong>ID заказа:</strong> ${data.id}</p>
+                    <p><strong>ID:</strong> ${data.id}</p>
                     <p><strong>Дата:</strong> ${data.created_at}</p>
-                    <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработана' : 'В обработке'}</p>
+                    <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработан' : data.status === 'cancelled' ? 'Отменен' : 'В обработке'}</p>
                 </div>
                 <div class="mb-3">
                     <h6>Информация о пользователе</h6>
-                    <p><strong>Имя пользователя:</strong> ${data.user.username}</p>
+                    <p><strong>Логин:</strong> ${data.user.username}</p>
                     <p><strong>Email:</strong> ${data.user.email}</p>
                 </div>
                 <div class="mb-3">
-                    <h6>Информация о призе</h6>
+                    <h6>Информация о товаре</h6>
                     <p><strong>Название:</strong> ${data.prize.name}</p>
                     <p><strong>Количество:</strong> ${data.quantity}</p>
                     <p><strong>Стоимость:</strong> ${data.points_cost} баллов</p>
@@ -111,54 +150,92 @@ function showOrderDetails(orderId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Произошла ошибка при загрузке деталей заказа');
+            showNotification('Произошла ошибка при загрузке деталей заказа', 'danger');
         });
 }
 
 function toggleOrderStatus(orderId) {
-    if (!confirm('Изменить статус заказа?')) return;
+    if (!confirm('Вы уверены, что хотите изменить статус заказа?')) return;
     
     fetch(`/admin/orders/${orderId}/toggle-status`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            showNotification(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            alert(data.message);
+            showNotification(data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Произошла ошибка при изменении статуса заказа');
+        showNotification('Произошла ошибка при изменении статуса заказа', 'danger');
     });
 }
 
 function deleteOrder(orderId) {
-    if (!confirm('Вы уверены, что хотите удалить эту заявку?')) return;
+    if (!confirm('Вы уверены, что хотите удалить этот заказ?')) return;
     
     fetch(`/admin/orders/${orderId}/delete`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            showNotification(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            alert(data.message);
+            showNotification(data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Произошла ошибка при удалении заказа');
+        showNotification('Произошла ошибка при удалении заказа', 'danger');
     });
+}
+
+function showNotification(message, type = 'info') {
+    const flashContainer = document.querySelector('.flash-messages');
+    if (!flashContainer) {
+        const container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+    }
+    
+    const icons = {
+        success: 'fa-check-circle',
+        danger: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash-message';
+    messageDiv.innerHTML = `
+        <div class="alert alert-${type}">
+            <div>
+                <i class="fas ${icons[type] || icons.info}"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
+        </div>
+    `;
+    
+    document.querySelector('.flash-messages').appendChild(messageDiv);
+    
+    // Автоматически удаляем уведомление через 5 секунд
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 5000);
 }
 </script>
 {% endblock %} 
