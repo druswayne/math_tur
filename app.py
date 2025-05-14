@@ -1371,35 +1371,47 @@ def tournament_results(tournament_id):
 @app.route('/tournament/history')
 @login_required
 def tournament_history():
+    if current_user.is_admin:
+        flash('Администраторы не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('home'))
+    
     # Получаем все турниры, в которых участвовал пользователь
     tournaments = db.session.query(
         Tournament,
+        TournamentParticipation.score,
+        TournamentParticipation.place,
         func.count(SolvedTask.id).label('solved_tasks'),
-        func.sum(Task.points).label('earned_points')
+        func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points')
     ).join(
+        TournamentParticipation,
+        Tournament.id == TournamentParticipation.tournament_id
+    ).outerjoin(
         Task,
         Tournament.id == Task.tournament_id
-    ).join(
+    ).outerjoin(
         SolvedTask,
-        Task.id == SolvedTask.task_id
+        (Task.id == SolvedTask.task_id) & (SolvedTask.user_id == current_user.id)
     ).filter(
-        SolvedTask.user_id == current_user.id,
-        SolvedTask.is_correct == True
+        TournamentParticipation.user_id == current_user.id
     ).group_by(
-        Tournament.id
+        Tournament.id,
+        TournamentParticipation.score,
+        TournamentParticipation.place
     ).order_by(
         Tournament.start_date.desc()
     ).all()
     
     # Преобразуем результаты в список словарей для удобного доступа в шаблоне
     tournament_list = []
-    for tournament, solved_tasks, earned_points in tournaments:
+    for tournament, score, place, solved_tasks, earned_points in tournaments:
         tournament_list.append({
             'id': tournament.id,
             'name': tournament.title,
             'start_date': tournament.start_date,
-            'solved_tasks': solved_tasks,
-            'earned_points': earned_points or 0
+            'solved_tasks': solved_tasks or 0,
+            'earned_points': earned_points or 0,
+            'score': score or 0,
+            'place': place
         })
     
     return render_template('tournament_history.html', tournaments=tournament_list)
