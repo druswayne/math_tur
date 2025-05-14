@@ -217,6 +217,39 @@ class SolvedTask(db.Model):
     user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
     task = db.relationship('Task', backref=db.backref('solutions', lazy=True, cascade='all, delete-orphan'))
 
+class TicketPackage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quantity = db.Column(db.Integer, nullable=False)  # Количество билетов в пакете
+    price = db.Column(db.Float, nullable=False)  # Цена пакета
+    discount = db.Column(db.Integer, default=0)  # Скидка в процентах
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def final_price(self):
+        """Вычисляет итоговую цену с учетом скидки"""
+        return round(self.price * (1 - self.discount / 100), 2)
+
+class Prize(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    image = db.Column(db.String(200))  # Путь к изображению
+    points_cost = db.Column(db.Integer, nullable=False)  # Стоимость в баллах
+    quantity = db.Column(db.Integer, default=0)  # 0 означает неограниченное количество
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PrizePurchase(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
+    purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='pending')  # pending, completed, cancelled
+    
+    user = db.relationship('User', backref=db.backref('prize_purchases', lazy=True))
+    prize = db.relationship('Prize', backref=db.backref('purchases', lazy=True))
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -759,6 +792,191 @@ def admin_shop():
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     return render_template('admin/shop.html', title='Управление магазином')
+
+@app.route('/admin/shop/tickets')
+@login_required
+def admin_tickets():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    ticket_packages = TicketPackage.query.filter_by(is_active=True).order_by(TicketPackage.price.asc()).all()
+    return render_template('admin/tickets.html', 
+                         title='Управление билетами',
+                         ticket_packages=ticket_packages)
+
+@app.route('/admin/shop/tickets/add', methods=['POST'])
+@login_required
+def admin_add_ticket_package():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    quantity = request.form.get('quantity', type=int)
+    price = request.form.get('price', type=float)
+    discount = request.form.get('discount', type=int, default=0)
+    
+    if not all([quantity, price]):
+        flash('Все поля должны быть заполнены', 'danger')
+        return redirect(url_for('admin_tickets'))
+    
+    if quantity < 1 or price <= 0 or discount < 0 or discount > 100:
+        flash('Некорректные значения', 'danger')
+        return redirect(url_for('admin_tickets'))
+    
+    package = TicketPackage(
+        quantity=quantity,
+        price=price,
+        discount=discount
+    )
+    
+    db.session.add(package)
+    db.session.commit()
+    
+    flash('Пакет билетов успешно добавлен', 'success')
+    return redirect(url_for('admin_tickets'))
+
+@app.route('/admin/shop/tickets/<int:package_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_ticket_package(package_id):
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    package = TicketPackage.query.get_or_404(package_id)
+    package.is_active = False
+    db.session.commit()
+    
+    flash('Пакет билетов успешно удален', 'success')
+    return redirect(url_for('admin_tickets'))
+
+@app.route('/admin/shop/prizes')
+@login_required
+def admin_prizes():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    prizes = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).all()
+    return render_template('admin/prizes.html', 
+                         title='Управление призами',
+                         prizes=prizes)
+
+@app.route('/admin/shop/prizes/add', methods=['POST'])
+@login_required
+def admin_add_prize():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    name = request.form.get('name')
+    description = request.form.get('description')
+    points_cost = request.form.get('points_cost', type=int)
+    quantity = request.form.get('quantity', type=int, default=0)
+    
+    if not all([name, description, points_cost]):
+        flash('Все обязательные поля должны быть заполнены', 'danger')
+        return redirect(url_for('admin_prizes'))
+    
+    if points_cost < 1 or quantity < 0:
+        flash('Некорректные значения', 'danger')
+        return redirect(url_for('admin_prizes'))
+    
+    # Обработка изображения
+    image = request.files.get('image')
+    image_filename = None
+    if image and image.filename:
+        image_filename = secure_filename(image.filename)
+        image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
+        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+        image.save(image_path)
+    
+    prize = Prize(
+        name=name,
+        description=description,
+        image=image_filename,
+        points_cost=points_cost,
+        quantity=quantity
+    )
+    
+    db.session.add(prize)
+    db.session.commit()
+    
+    flash('Приз успешно добавлен', 'success')
+    return redirect(url_for('admin_prizes'))
+
+@app.route('/admin/shop/prizes/<int:prize_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_prize(prize_id):
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    prize = Prize.query.get_or_404(prize_id)
+    
+    # Удаляем изображение
+    if prize.image:
+        image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
+        if os.path.exists(image_path):
+            os.remove(image_path)
+    
+    prize.is_active = False
+    db.session.commit()
+    
+    flash('Приз успешно удален', 'success')
+    return redirect(url_for('admin_prizes'))
+
+@app.route('/admin/shop/prizes/<int:prize_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_edit_prize(prize_id):
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    prize = Prize.query.get_or_404(prize_id)
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description')
+        points_cost = request.form.get('points_cost', type=int)
+        quantity = request.form.get('quantity', type=int, default=0)
+        
+        if not all([name, description, points_cost]):
+            flash('Все обязательные поля должны быть заполнены', 'danger')
+            return redirect(url_for('admin_edit_prize', prize_id=prize_id))
+        
+        if points_cost < 1 or quantity < 0:
+            flash('Некорректные значения', 'danger')
+            return redirect(url_for('admin_edit_prize', prize_id=prize_id))
+        
+        # Обработка изображения
+        image = request.files.get('image')
+        if image and image.filename:
+            # Удаляем старое изображение
+            if prize.image:
+                old_image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+            
+            # Сохраняем новое изображение
+            image_filename = secure_filename(image.filename)
+            image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
+            os.makedirs(os.path.dirname(image_path), exist_ok=True)
+            image.save(image_path)
+            prize.image = image_filename
+        
+        prize.name = name
+        prize.description = description
+        prize.points_cost = points_cost
+        prize.quantity = quantity
+        
+        db.session.commit()
+        flash('Приз успешно обновлен', 'success')
+        return redirect(url_for('admin_prizes'))
+    
+    return render_template('admin/edit_prize.html',
+                         title='Редактирование приза',
+                         prize=prize)
 
 @app.route('/admin/tournaments/<int:tournament_id>/configure')
 @login_required
