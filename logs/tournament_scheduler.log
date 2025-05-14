@@ -56,3 +56,54 @@
 2025-05-14 22:45:05,927 INFO: Добавлена задача end для турнира "ыва" (ID: 1)
 Время выполнения: 2025-05-14 22:59:00
 Текущее время сервера: 2025-05-14 19:45:05.927574 [in D:\python project\math_tur\app.py:83]
+2025-05-14 22:48:00,028 INFO: Турнир ыва (ID: 1) начался в 2025-05-14 19:48:00.028989 [in D:\python project\math_tur\app.py:60]
+2025-05-14 22:49:31,997 INFO: Tournament scheduler startup [in D:\python project\math_tur\app.py:35]
+2025-05-14 22:49:32,135 INFO: Очистка всех задач планировщика [in D:\python project\math_tur\app.py:1716]
+2025-05-14 22:49:32,135 INFO: Все задачи успешно удалены [in D:\python project\math_tur\app.py:1719]
+2025-05-14 22:49:32,136 INFO: ================================================== [in D:\python project\math_tur\app.py:1669]
+2025-05-14 22:49:32,136 INFO: Начало восстановления задач планировщика [in D:\python project\math_tur\app.py:1670]
+2025-05-14 22:49:32,137 INFO: Текущее время сервера: 2025-05-14 22:49:32.137157 [in D:\python project\math_tur\app.py:1671]
+2025-05-14 22:49:32,140 INFO: Найдено активных турниров: 1 [in D:\python project\math_tur\app.py:1675]
+2025-05-14 22:49:32,140 INFO: 
+Обработка турнира: "ыва" (ID: 1) [in D:\python project\math_tur\app.py:1681]
+2025-05-14 22:49:32,141 INFO: Дата начала: 2025-05-14 22:48:00 [in D:\python project\math_tur\app.py:1682]
+2025-05-14 22:49:32,141 INFO: Длительность: 11 минут [in D:\python project\math_tur\app.py:1683]
+2025-05-14 22:49:32,141 INFO: Текущий статус: started [in D:\python project\math_tur\app.py:1684]
+2025-05-14 22:49:32,141 INFO: Турнир уже идет, создаем задачу на окончание [in D:\python project\math_tur\app.py:1696]
+2025-05-14 22:49:32,142 INFO: Добавлена задача end для турнира "ыва" (ID: 1)
+Время выполнения: 2025-05-14 22:59:00
+Текущее время сервера: 2025-05-14 19:49:32.142143 [in D:\python project\math_tur\app.py:83]
+2025-05-14 22:49:32,144 INFO: 
+Восстановление задач завершено [in D:\python project\math_tur\app.py:1710]
+2025-05-14 22:49:32,144 INFO: Всего восстановлено задач: 1 [in D:\python project\math_tur\app.py:1711]
+2025-05-14 22:49:32,145 INFO: ================================================== [in D:\python project\math_tur\app.py:1712]
+2025-05-14 22:50:13,713 INFO: Tournament scheduler startup [in D:\python project\math_tur\app.py:35]
+2025-05-14 22:50:13,827 INFO: Очистка всех задач планировщика [in D:\python project\math_tur\app.py:1716]
+2025-05-14 22:50:13,827 INFO: Все задачи успешно удалены [in D:\python project\math_tur\app.py:1719]
+2025-05-14 22:50:13,827 INFO: ================================================== [in D:\python project\math_tur\app.py:1669]
+2025-05-14 22:50:13,828 INFO: Начало восстановления задач планировщика [in D:\python project\math_tur\app.py:1670]
+2025-05-14 22:50:13,829 INFO: Текущее время сервера: 2025-05-14 22:50:13.829489 [in D:\python project\math_tur\app.py:1671]
+2025-05-14 22:50:13,831 INFO: Найдено активных турниров: 1 [in D:\python project\math_tur\app.py:1675]
+2025-05-14 22:50:13,831 INFO: 
+Обработка турнира: "ыва" (ID: 1) [in D:\python project\math_tur\app.py:1681]
+2025-05-14 22:50:13,831 INFO: Дата начала: 2025-05-14 22:48:00 [in D:\python project\math_tur\app.py:1682]
+2025-05-14 22:50:13,831 INFO: Длительность: 11 минут [in D:\python project\math_tur\app.py:1683]
+2025-05-14 22:50:13,832 INFO: Текущий статус: started [in D:\python project\math_tur\app.py:1684]
+2025-05-14 22:50:13,832 INFO: Турнир уже идет, создаем задачу на окончание [in D:\python project\math_tur\app.py:1696]
+2025-05-14 22:50:13,832 INFO: Добавлена задача end для турнира "ыва" (ID: 1)
+Время выполнения: 2025-05-14 22:59:00
+Текущее время сервера: 2025-05-14 19:50:13.832447 [in D:\python project\math_tur\app.py:83]
+2025-05-14 22:50:13,833 INFO: 
+Восстановление задач завершено [in D:\python project\math_tur\app.py:1710]
+2025-05-14 22:50:13,833 INFO: Всего восстановлено задач: 1 [in D:\python project\math_tur\app.py:1711]
+2025-05-14 22:50:13,834 INFO: ================================================== [in D:\python project\math_tur\app.py:1712]
+2025-05-14 22:51:24,213 WARNING: Ошибка при удалении задачи start для турнира "ыва" (ID: 1): 'No job by the id of start_tournament_1 was found' [in D:\python project\math_tur\app.py:105]
+2025-05-14 22:51:24,214 INFO: Удалена задача end для турнира "ыва" (ID: 1)
+Текущее время сервера: 2025-05-14 19:51:24.214712 [in D:\python project\math_tur\app.py:100]
+2025-05-14 22:51:37,037 INFO: Добавлена задача start для турнира "123" (ID: 1)
+Время выполнения: 2025-05-14 22:55:00
+Текущее время сервера: 2025-05-14 19:51:37.037880 [in D:\python project\math_tur\app.py:83]
+2025-05-14 22:51:37,038 INFO: Добавлена задача end для турнира "123" (ID: 1)
+Время выполнения: 2025-05-14 22:56:00
+Текущее время сервера: 2025-05-14 19:51:37.038878 [in D:\python project\math_tur\app.py:83]
+2025-05-14 22:55:00,033 INFO: Турнир 123 (ID: 1) начался в 2025-05-14 19:55:00.033608 [in D:\python project\math_tur\app.py:60]
