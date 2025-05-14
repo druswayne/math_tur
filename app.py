@@ -10,29 +10,15 @@ from flask_mail import Mail, Message
 import re
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
-import logging
-from logging.handlers import RotatingFileHandler
 import random
 from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
+app.config['SECRET_KEY'] = os.urandom(32).hex()  # Генерируем криптографически стойкий ключ
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/school_tournaments.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Настройка логирования
-if not os.path.exists('logs'):
-    os.mkdir('logs')
-file_handler = RotatingFileHandler('logs/tournament_scheduler.log', maxBytes=10240, backupCount=10)
-file_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-))
-file_handler.setLevel(logging.INFO)
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-app.logger.info('Tournament scheduler startup')
 
 # Настройки для отправки email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -57,7 +43,6 @@ def start_tournament_job(tournament_id):
         if tournament:
             tournament.status = 'started'
             db.session.commit()
-            app.logger.info(f'Турнир {tournament.title} (ID: {tournament.id}) начался в {datetime.utcnow()}')
 
 def end_tournament_job(tournament_id):
     with app.app_context():
@@ -66,10 +51,9 @@ def end_tournament_job(tournament_id):
             tournament.status = 'finished'
             tournament.is_active = False
             db.session.commit()
-            app.logger.info(f'Турнир {tournament.title} (ID: {tournament.id}) завершен в {datetime.utcnow()}')
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type):
-    """Добавляет задачу в планировщик с логированием"""
+    """Добавляет задачу в планировщик"""
     job_id = f'{job_type}_tournament_{tournament_id}'
     tournament = Tournament.query.get(tournament_id)
     
@@ -80,31 +64,18 @@ def add_scheduler_job(job_func, run_date, tournament_id, job_type):
             args=[tournament_id],
             id=job_id
         )
-        app.logger.info(
-            f'Добавлена задача {job_type} для турнира "{tournament.title}" (ID: {tournament_id})\n'
-            f'Время выполнения: {run_date}\n'
-            f'Текущее время сервера: {datetime.utcnow()}'
-        )
     except Exception as e:
-        app.logger.error(
-            f'Ошибка при добавлении задачи {job_type} для турнира "{tournament.title}" (ID: {tournament_id}): {str(e)}'
-        )
+        pass
 
 def remove_scheduler_job(tournament_id, job_type):
-    """Удаляет задачу из планировщика с логированием"""
+    """Удаляет задачу из планировщика"""
     job_id = f'{job_type}_tournament_{tournament_id}'
     tournament = Tournament.query.get(tournament_id)
     
     try:
         scheduler.remove_job(job_id)
-        app.logger.info(
-            f'Удалена задача {job_type} для турнира "{tournament.title}" (ID: {tournament_id})\n'
-            f'Текущее время сервера: {datetime.utcnow()}'
-        )
     except Exception as e:
-        app.logger.warning(
-            f'Ошибка при удалении задачи {job_type} для турнира "{tournament.title}" (ID: {tournament_id}): {str(e)}'
-        )
+        pass
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1666,26 +1637,15 @@ def check_session():
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
-    app.logger.info('='*50)
-    app.logger.info('Начало восстановления задач планировщика')
-    app.logger.info(f'Текущее время сервера: {datetime.utcnow() + timedelta(hours=3)}')
-    
     # Получаем все активные турниры
     active_tournaments = Tournament.query.filter_by(is_active=True).all()
-    app.logger.info(f'Найдено активных турниров: {len(active_tournaments)}')
     
     now = datetime.utcnow() + timedelta(hours=3)  # Московское время
     restored_jobs = 0
     
     for tournament in active_tournaments:
-        app.logger.info(f'\nОбработка турнира: "{tournament.title}" (ID: {tournament.id})')
-        app.logger.info(f'Дата начала: {tournament.start_date}')
-        app.logger.info(f'Длительность: {tournament.duration} минут')
-        app.logger.info(f'Текущий статус: {tournament.status}')
-        
         # Если турнир еще не начался
         if tournament.start_date > now:
-            app.logger.info('Турнир еще не начался, создаем задачи на начало и окончание')
             add_scheduler_job(start_tournament_job, tournament.start_date, tournament.id, 'start')
             end_time = tournament.start_date + timedelta(minutes=tournament.duration)
             add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
@@ -1693,7 +1653,6 @@ def restore_scheduler_jobs():
             
         # Если турнир уже идет
         elif tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
-            app.logger.info('Турнир уже идет, создаем задачу на окончание')
             tournament.status = 'started'
             end_time = tournament.start_date + timedelta(minutes=tournament.duration)
             add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
@@ -1701,24 +1660,17 @@ def restore_scheduler_jobs():
             
         # Если турнир уже должен был закончиться
         else:
-            app.logger.info('Турнир уже должен был закончиться, деактивируем его')
             tournament.status = 'finished'
             tournament.is_active = False
     
     db.session.commit()
-    
-    app.logger.info(f'\nВосстановление задач завершено')
-    app.logger.info(f'Всего восстановлено задач: {restored_jobs}')
-    app.logger.info('='*50)
 
 def cleanup_scheduler_jobs():
     """Очищает все задачи планировщика перед восстановлением"""
-    app.logger.info('Очистка всех задач планировщика')
     try:
         scheduler.remove_all_jobs()
-        app.logger.info('Все задачи успешно удалены')
     except Exception as e:
-        app.logger.error(f'Ошибка при очистке задач: {str(e)}')
+        pass
 
 @app.route('/tournament/<int:tournament_id>/task')
 @login_required
@@ -2346,4 +2298,4 @@ if __name__ == '__main__':
         create_admin_user()
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
-    app.run(debug=True) 
+    app.run()
