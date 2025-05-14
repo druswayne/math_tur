@@ -674,15 +674,12 @@ def admin_tournament_stats(tournament_id):
         Task.title,
         Task.points,
         func.count(SolvedTask.id).label('solved_count'),
-        func.count(case((SolvedTask.is_correct == True, 1))).label('correct_count')
-    ).outerjoin(
-        SolvedTask,
-        Task.id == SolvedTask.task_id
-    ).filter(
-        Task.tournament_id == tournament_id
-    ).group_by(
-        Task.id
-    ).all()
+        func.sum(case((SolvedTask.is_correct == True, 1), else_=0)).label('correct_count')
+    ).select_from(Task)\
+     .filter(Task.tournament_id == tournament_id)\
+     .outerjoin(SolvedTask, Task.id == SolvedTask.task_id)\
+     .group_by(Task.id, Task.title, Task.points)\
+     .all()
     
     # Формируем статистику по задачам
     tasks_data = []
@@ -690,7 +687,7 @@ def admin_tournament_stats(tournament_id):
     
     for task_id, title, points, solved_count, correct_count in tasks_stats:
         if total_participants > 0:
-            solve_percentage = (correct_count / total_participants) * 100
+            solve_percentage = (correct_count or 0) / total_participants * 100
         else:
             solve_percentage = 0
             
@@ -698,12 +695,12 @@ def admin_tournament_stats(tournament_id):
             'id': task_id,
             'title': title,
             'points': points,
-            'solved_count': solved_count,
-            'correct_count': correct_count,
+            'solved_count': solved_count or 0,
+            'correct_count': correct_count or 0,
             'solve_percentage': round(solve_percentage, 2)
         })
         
-        total_points_earned += points * correct_count
+        total_points_earned += points * (correct_count or 0)
     
     # Получаем топ-5 участников
     top_participants = db.session.query(

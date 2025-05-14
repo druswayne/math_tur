@@ -105,7 +105,7 @@
                                             <i class="bi bi-play-fill"></i>
                                         </button>
                                         {% endif %}
-                                        <button type="button" class="btn btn-action stats" data-bs-toggle="modal" data-bs-target="#tournamentStatsModal" 
+                                        <button type="button" class="btn btn-action stats" onclick="showTournamentStats({{ tournament.id }})" data-bs-toggle="modal" data-bs-target="#tournamentStatsModal" 
                                                 data-id="{{ tournament.id }}" data-title="{{ tournament.title }}">
                                             <i class="bi bi-graph-up"></i>
                                         </button>
@@ -429,6 +429,15 @@
             this.querySelector('#deleteTournamentTitle').textContent = title;
             this.querySelector('#deleteTournamentForm').action = `/admin/tournaments/${tournamentId}/delete`;
         });
+
+        // Обработка статистики турнира
+        const statsButtons = document.querySelectorAll('.stats');
+        statsButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const tournamentId = this.getAttribute('data-id');
+                showTournamentStats(tournamentId);
+            });
+        });
     });
 
     function showTournamentStats(tournamentId) {
@@ -475,12 +484,19 @@
                                      style="width: ${task.solve_percentage}%;" 
                                      aria-valuenow="${task.solve_percentage}" 
                                      aria-valuemin="0" 
-                                     aria-valuemax="100"></div>
+                                     aria-valuemax="100">
+                                    ${task.solve_percentage}%
+                                </div>
                             </div>
                         </td>
                     </tr>
                 `).join('');
                 document.getElementById('tasksStats').innerHTML = tasksStatsHtml;
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке статистики:', error);
+                document.querySelector('#tournamentStatsModal .modal-body').innerHTML = 
+                    '<div class="alert alert-danger">Ошибка при загрузке статистики. Пожалуйста, попробуйте позже.</div>';
             });
     }
     </script>
