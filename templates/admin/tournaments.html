@@ -243,7 +243,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <form id="activateTournamentForm" method="POST" class="d-inline">
+                    <form id="activateTournamentForm" method="POST" action="" class="d-inline">
                         <button type="submit" class="btn btn-success">Активировать</button>
                     </form>
                 </div>
@@ -264,7 +264,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <form id="deactivateTournamentForm" method="POST" class="d-inline">
+                    <form id="deactivateTournamentForm" method="POST" action="" class="d-inline">
                         <button type="submit" class="btn btn-warning">Деактивировать</button>
                     </form>
                 </div>
@@ -286,9 +286,65 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <form id="deleteTournamentForm" method="POST" class="d-inline">
+                    <form id="deleteTournamentForm" method="POST" action="" class="d-inline">
                         <button type="submit" class="btn btn-danger">Удалить</button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно статистики турнира -->
+    <div class="modal fade" id="tournamentStatsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Статистика турнира</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Общая информация</h6>
+                                    <p class="mb-1">Всего участников: <span id="totalParticipants">-</span></p>
+                                    <p class="mb-1">Общий счет: <span id="totalPoints">-</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Топ-5 участников</h6>
+                                    <div id="topParticipants">
+                                        <!-- Здесь будет список топ участников -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6>Статистика по задачам</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Задача</th>
+                                    <th>Баллы</th>
+                                    <th>Решено</th>
+                                    <th>Правильно</th>
+                                    <th>Процент решения</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tasksStats">
+                                <!-- Здесь будет статистика по задачам -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                 </div>
             </div>
         </div>
@@ -374,6 +430,59 @@
             this.querySelector('#deleteTournamentForm').action = `/admin/tournaments/${tournamentId}/delete`;
         });
     });
+
+    function showTournamentStats(tournamentId) {
+        // Показываем модальное окно
+        const modal = new bootstrap.Modal(document.getElementById('tournamentStatsModal'));
+        modal.show();
+        
+        // Очищаем предыдущие данные
+        document.getElementById('totalParticipants').textContent = '-';
+        document.getElementById('totalPoints').textContent = '-';
+        document.getElementById('topParticipants').innerHTML = '';
+        document.getElementById('tasksStats').innerHTML = '';
+        
+        // Загружаем статистику
+        fetch(`/admin/tournaments/${tournamentId}/stats`)
+            .then(response => response.json())
+            .then(data => {
+                // Обновляем заголовок
+                document.querySelector('#tournamentStatsModal .modal-title').textContent = 
+                    `Статистика турнира: ${data.tournament_title}`;
+                
+                // Обновляем общую информацию
+                document.getElementById('totalParticipants').textContent = data.total_participants;
+                document.getElementById('totalPoints').textContent = data.total_points_earned;
+                
+                // Обновляем топ участников
+                const topParticipantsHtml = data.top_participants.map((participant, index) => `
+                    <p class="mb-1">
+                        ${index + 1}. ${participant.username} - ${participant.score} баллов
+                    </p>
+                `).join('');
+                document.getElementById('topParticipants').innerHTML = topParticipantsHtml;
+                
+                // Обновляем статистику по задачам
+                const tasksStatsHtml = data.tasks_stats.map(task => `
+                    <tr>
+                        <td>${task.title}</td>
+                        <td>${task.points}</td>
+                        <td>${task.solved_count}</td>
+                        <td>${task.correct_count}</td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar" role="progressbar" 
+                                     style="width: ${task.solve_percentage}%;" 
+                                     aria-valuenow="${task.solve_percentage}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+                document.getElementById('tasksStats').innerHTML = tasksStatsHtml;
+            });
+    }
     </script>
 </body>
 </html> 

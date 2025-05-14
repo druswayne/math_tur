@@ -15,6 +15,7 @@ from logging.handlers import RotatingFileHandler
 import random
 from flask import session
 from sqlalchemy import func
+from sqlalchemy import case
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ваш_секретный_ключ_здесь'  # В продакшене используйте безопасный ключ
@@ -661,8 +662,69 @@ def admin_tournament_stats(tournament_id):
         return redirect(url_for('home'))
     
     tournament = Tournament.query.get_or_404(tournament_id)
-    # TODO: Добавить статистику турнира
-    return render_template('admin/tournament_stats.html', title='Статистика турнира', tournament=tournament)
+    
+    # Получаем общее количество участников
+    total_participants = db.session.query(func.count(TournamentParticipation.id))\
+        .filter(TournamentParticipation.tournament_id == tournament_id)\
+        .scalar()
+    
+    # Получаем статистику по задачам
+    tasks_stats = db.session.query(
+        Task.id,
+        Task.title,
+        Task.points,
+        func.count(SolvedTask.id).label('solved_count'),
+        func.count(case((SolvedTask.is_correct == True, 1))).label('correct_count')
+    ).outerjoin(
+        SolvedTask,
+        Task.id == SolvedTask.task_id
+    ).filter(
+        Task.tournament_id == tournament_id
+    ).group_by(
+        Task.id
+    ).all()
+    
+    # Формируем статистику по задачам
+    tasks_data = []
+    total_points_earned = 0
+    
+    for task_id, title, points, solved_count, correct_count in tasks_stats:
+        if total_participants > 0:
+            solve_percentage = (correct_count / total_participants) * 100
+        else:
+            solve_percentage = 0
+            
+        tasks_data.append({
+            'id': task_id,
+            'title': title,
+            'points': points,
+            'solved_count': solved_count,
+            'correct_count': correct_count,
+            'solve_percentage': round(solve_percentage, 2)
+        })
+        
+        total_points_earned += points * correct_count
+    
+    # Получаем топ-5 участников
+    top_participants = db.session.query(
+        User.username,
+        TournamentParticipation.score
+    ).join(
+        TournamentParticipation,
+        User.id == TournamentParticipation.user_id
+    ).filter(
+        TournamentParticipation.tournament_id == tournament_id
+    ).order_by(
+        TournamentParticipation.score.desc()
+    ).limit(5).all()
+    
+    return jsonify({
+        'tournament_title': tournament.title,
+        'total_participants': total_participants,
+        'tasks_stats': tasks_data,
+        'total_points_earned': total_points_earned,
+        'top_participants': [{'username': username, 'score': score} for username, score in top_participants]
+    })
 
 @app.route('/admin/shop')
 @login_required
