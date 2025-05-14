@@ -875,18 +875,24 @@ def delete_tournament_task(tournament_id, task_id):
     return redirect(url_for('configure_tournament', tournament_id=tournament_id))
 
 def is_password_strong(password):
-    # Проверяем длину пароля (минимум 8 символов)
     if len(password) < 8:
         return False
-    
-    # Проверяем наличие цифр
-    if not re.search(r"\d", password):
+    if not any(c.isdigit() for c in password):
         return False
-    
-    # Проверяем наличие букв
-    if not re.search(r"[a-zA-Z]", password):
+    if not any(c.isalpha() for c in password):
         return False
-    
+    return True
+
+def is_valid_username(username):
+    # Проверяем, что логин содержит только допустимые символы
+    if not all(c.isalnum() or c == '_' for c in username):
+        return False
+    # Проверяем, что логин содержит хотя бы одну букву
+    if not any(c.isalpha() for c in username):
+        return False
+    # Проверяем минимальную длину
+    if len(username) < 3:
+        return False
     return True
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -897,12 +903,12 @@ def register():
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
-        if not is_password_strong(password):
-            flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
+        if not is_valid_username(username):
+            flash('Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.', 'danger')
             return redirect(url_for('register'))
 
-        if password != confirm_password:
-            flash('Пароли не совпадают', 'danger')
+        if not is_password_strong(password):
+            flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
             return redirect(url_for('register'))
 
         if User.query.filter_by(username=username).first():
