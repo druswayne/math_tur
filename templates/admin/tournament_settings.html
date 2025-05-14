@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_tournaments') }}">Турниры</a></li>
+            <li class="breadcrumb-item active">Настройки турниров</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="card-title mb-0">Настройки турниров</h2>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_season_active" name="is_season_active" 
+                               {% if settings.is_season_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_season_active">
+                            <h5 class="mb-0">Сезон турниров активен</h5>
+                        </label>
+                    </div>
+                    <div class="form-text">
+                        Когда сезон закрыт, пользователи будут видеть специальное сообщение на главной странице
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="closed_season_message" class="form-label">
+                        <h5>Сообщение для закрытого сезона</h5>
+                    </label>
+                    <textarea class="form-control" id="closed_season_message" name="closed_season_message" 
+                              rows="5" placeholder="Введите сообщение, которое будет отображаться на главной странице во время закрытого сезона">{{ settings.closed_season_message or '' }}</textarea>
+                    <div class="form-text">
+                        Это сообщение будет отображаться на главной странице, когда сезон турниров закрыт
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('admin_tournaments') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Назад к турнирам
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Сохранить настройки
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %} 

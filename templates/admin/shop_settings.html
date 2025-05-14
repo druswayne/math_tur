@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Настройки магазина</h1>
+        <a href="{{ url_for('admin_shop') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад в управление магазином
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form id="shopSettingsForm">
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="isOpen" name="is_open"
+                               {% if settings.is_open %}checked{% endif %}>
+                        <label class="form-check-label" for="isOpen">
+                            <h5 class="mb-0">Статус магазина</h5>
+                            <small class="text-muted">
+                                {% if settings.is_open %}
+                                    Магазин открыт. Пользователи могут просматривать товары.
+                                {% else %}
+                                    Магазин закрыт. Пользователи не могут просматривать товары.
+                                {% endif %}
+                            </small>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="topUsersPercentage" class="form-label">
+                        <h5>Доступ к покупкам</h5>
+                        <small class="text-muted">
+                            Укажите процент лучших пользователей, которым будет разрешено делать покупки в магазине.
+                            Например, если указать 10%, то только 10% пользователей с наивысшим рейтингом смогут покупать товары.
+                        </small>
+                    </label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="topUsersPercentage" name="top_users_percentage"
+                               min="1" max="100" value="{{ settings.top_users_percentage }}">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Текущие настройки:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>
+                            {% if settings.is_open %}
+                                Магазин открыт
+                            {% else %}
+                                Магазин закрыт
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if settings.top_users_percentage >= 100 %}
+                                Все пользователи могут делать покупки
+                            {% else %}
+                                Только {{ settings.top_users_percentage }}% лучших пользователей могут делать покупки
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Сохранить настройки
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('shopSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/admin/shop/settings/update', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showNotification(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Произошла ошибка при сохранении настроек', 'danger');
+    });
+});
+
+function showNotification(message, type = 'info') {
+    const flashContainer = document.querySelector('.flash-messages');
+    if (!flashContainer) {
+        const container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+    }
+    
+    const icons = {
+        success: 'fa-check-circle',
+        danger: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'flash-message';
+    messageDiv.innerHTML = `
+        <div class="alert alert-${type}">
+            <div>
+                <i class="fas ${icons[type] || icons.info}"></i>
+                ${message}
+            </div>
+            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
+        </div>
+    `;
+    
+    document.querySelector('.flash-messages').appendChild(messageDiv);
+    
+    // Автоматически удаляем уведомление через 5 секунд
+    setTimeout(() => {
+        messageDiv.classList.add('fade-out');
+        setTimeout(() => messageDiv.remove(), 500);
+    }, 5000);
+}
+</script>
+{% endblock %} 

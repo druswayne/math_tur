@@ -312,6 +312,21 @@ class ShopSettings(db.Model):
             
         return user_rank <= allowed_users_count
 
+class TournamentSettings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    is_season_active = db.Column(db.Boolean, default=True)
+    closed_season_message = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @staticmethod
+    def get_settings():
+        settings = TournamentSettings.query.first()
+        if not settings:
+            settings = TournamentSettings()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -358,54 +373,44 @@ def send_credentials_email(user, password):
 
 @app.route('/')
 def home():
-    # Получаем текущее время в UTC и добавляем 3 часа для московского времени
-    current_time = datetime.utcnow() + timedelta(hours=3)
-    
-    # Сначала ищем будущие турниры
-    next_tournament = Tournament.query.filter(
-        Tournament.start_date > current_time,
-        Tournament.is_active == True
-    ).order_by(Tournament.start_date.asc()).first()
-    
-    # Если нет будущих турниров, ищем текущий активный турнир
-    if not next_tournament:
-        # Получаем все активные турниры, которые уже начались
-        active_tournaments = Tournament.query.filter(
-            Tournament.start_date <= current_time,
+    settings = TournamentSettings.get_settings()
+    if settings.is_season_active:
+        # Получаем текущее время
+        current_time = datetime.utcnow() + timedelta(hours=3)
+        
+        # Сначала ищем будущие турниры
+        next_tournament = Tournament.query.filter(
+            Tournament.start_date > current_time,
             Tournament.is_active == True
-        ).all()
+        ).order_by(Tournament.start_date.asc()).first()
         
-        # Находим турнир, который еще не закончился
-        for tournament in active_tournaments:
-            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-            if end_time > current_time:
-                next_tournament = tournament
-                break
-    
-    # Проверяем, идет ли турнир
-    is_tournament_running = False
-    if next_tournament:
-        # Проверяем статус турнира и время
-        is_tournament_running = (
-            next_tournament.status == 'started' and
-            next_tournament.is_active and
-            next_tournament.start_date <= current_time and 
-            current_time <= next_tournament.start_date + timedelta(minutes=next_tournament.duration)
-        )
+        # Если нет будущих турниров, ищем текущий активный турнир
+        if not next_tournament:
+            # Получаем все активные турниры, которые уже начались
+            active_tournaments = Tournament.query.filter(
+                Tournament.start_date <= current_time,
+                Tournament.is_active == True
+            ).all()
+            
+            # Находим турнир, который еще не закончился
+            for tournament in active_tournaments:
+                end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+                if end_time > current_time:
+                    next_tournament = tournament
+                    break
         
-        # Если турнир должен идти, но статус не обновлен, обновляем его
-        if (next_tournament.start_date <= current_time and 
-            current_time <= next_tournament.start_date + timedelta(minutes=next_tournament.duration) and
-            next_tournament.status != 'started'):
-            next_tournament.status = 'started'
-            db.session.commit()
-            is_tournament_running = True
-    
-    return render_template('index.html', 
-                         title='Главная страница',
-                         next_tournament=next_tournament,
-                         now=current_time,
-                         is_tournament_running=is_tournament_running)
+        # Определяем, идет ли турнир
+        is_tournament_running = False
+        if next_tournament:
+            is_tournament_running = (next_tournament.start_date <= current_time and 
+                                   current_time <= next_tournament.start_date + timedelta(minutes=next_tournament.duration))
+        
+        return render_template('index.html',
+                             next_tournament=next_tournament,
+                             now=current_time,
+                             is_tournament_running=is_tournament_running)
+    else:
+        return render_template('index_close.html', message=settings.closed_season_message)
 
 @app.route('/about')
 def about():
@@ -2315,6 +2320,25 @@ def admin_update_shop_settings():
         'success': True,
         'message': 'Настройки магазина успешно обновлены'
     })
+
+@app.route('/admin/tournaments/settings', methods=['GET', 'POST'])
+@login_required
+def tournament_settings():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    settings = TournamentSettings.get_settings()
+    
+    if request.method == 'POST':
+        settings.is_season_active = request.form.get('is_season_active') == 'on'
+        settings.closed_season_message = request.form.get('closed_season_message')
+        settings.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash('Настройки турниров успешно обновлены', 'success')
+        return redirect(url_for('tournament_settings'))
+    
+    return render_template('admin/tournament_settings.html', settings=settings)
 
 if __name__ == '__main__':
     with app.app_context():
