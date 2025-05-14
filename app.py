@@ -119,6 +119,7 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime, nullable=True)
     balance = db.Column(db.Integer, default=0)  # Общий счет
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
+    session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
 
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -329,6 +330,21 @@ def login():
             if not user.is_active:
                 flash('Пожалуйста, подтвердите ваш email перед входом', 'warning')
                 return redirect(url_for('login'))
+            
+            # Проверяем, не вошел ли пользователь с другого устройства
+            if user.session_token:
+                flash('Вы уже вошли в систему с другого устройства. Пожалуйста, выйдите из другого устройства перед входом.', 'danger')
+                return redirect(url_for('login'))
+            
+            # Генерируем новый токен сессии
+            session_token = secrets.token_urlsafe(32)
+            user.session_token = session_token
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+            
+            # Сохраняем токен в сессии
+            session['session_token'] = session_token
+            
             login_user(user)
             return redirect(url_for('home'))
         else:
@@ -339,6 +355,10 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    # Очищаем токен сессии
+    current_user.session_token = None
+    db.session.commit()
+    session.pop('session_token', None)
     logout_user()
     return redirect(url_for('home'))
 
@@ -1187,6 +1207,19 @@ def update_tournament_status():
 @app.before_request
 def before_request():
     update_tournament_status()
+    if current_user.is_authenticated:
+        result = check_session()
+        if result:
+            return result
+
+def check_session():
+    if current_user.is_authenticated:
+        session_token = session.get('session_token')
+        if not session_token or session_token != current_user.session_token:
+            logout_user()
+            flash('Ваша сессия была завершена, так как вы вошли в систему с другого устройства', 'warning')
+            return redirect(url_for('login'))
+    return None
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
