@@ -1245,6 +1245,9 @@ def register():
         db.session.add(user)
         db.session.commit()
 
+        # Сохраняем пароль во временной сессии для последующей отправки
+        session['temp_password'] = password
+
         # Отправляем письмо с подтверждением асинхронно
         send_confirmation_email(user)
         
@@ -1262,10 +1265,11 @@ def confirm_email(token):
         db.session.commit()
         
         # Отправляем письмо с учетными данными
-        # Получаем пароль из формы регистрации
-        password = request.args.get('password')
+        # Получаем пароль из сессии
+        password = session.get('temp_password')
         if password:
             send_credentials_email(user, password)
+            session.pop('temp_password', None)  # Удаляем пароль из сессии
         
         flash('Email успешно подтвержден! Теперь вы можете войти.', 'success')
     else:
