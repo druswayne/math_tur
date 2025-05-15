@@ -324,7 +324,7 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
         if (data.success) {
             showNotification(data.message, 'success');
             setTimeout(() => {
-                window.location.href = '/profile';
+            window.location.href = '/profile';
             }, 2000);
         } else {
             showNotification(data.message, 'danger');

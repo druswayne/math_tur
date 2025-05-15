@@ -24,8 +24,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'  # Замените на ваш email
-app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'     # Замените на пароль приложения
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
+app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
+app.config['MAIL_DEFAULT_SENDER'] = 'mazaxak2@gmail.com'
+app.config['MAIL_MAX_EMAILS'] = 5
+app.config['MAIL_ASCII_ATTACHMENTS'] = False
+app.config['MAIL_SUPPRESS_SEND'] = False
+app.config['MAIL_DEBUG'] = True
 
 mail = Mail(app)
 db = SQLAlchemy(app)
