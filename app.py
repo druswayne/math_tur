@@ -14,6 +14,7 @@ import random
 from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
+from email_sender import add_to_queue, start_email_worker
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()  # Генерируем криптографически стойкий ключ
@@ -22,17 +23,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Настройки для отправки email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 465
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
-app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
-app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
-app.config['MAIL_DEFAULT_SENDER'] = 'mazaxak2@gmail.com'
-app.config['MAIL_MAX_EMAILS'] = 5
-app.config['MAIL_ASCII_ATTACHMENTS'] = False
-app.config['MAIL_SUPPRESS_SEND'] = False
-app.config['MAIL_DEBUG'] = True
-app.config['MAIL_TIMEOUT'] = 30
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'  # Замените на ваш email
+app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'     # Замените на пароль приложения
 
 mail = Mail(app)
 db = SQLAlchemy(app)
@@ -43,6 +37,9 @@ login_manager.login_view = 'login'
 # Инициализация планировщика
 scheduler = BackgroundScheduler()
 scheduler.start()
+
+# Запускаем обработчик очереди писем
+start_email_worker()
 
 def start_tournament_job(tournament_id):
     with app.app_context():
@@ -333,7 +330,7 @@ def send_confirmation_email(user):
 
 Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
 '''
-    mail.send(msg)
+    add_to_queue(app, mail, msg)
 
 def send_credentials_email(user, password):
     msg = Message('Ваши учетные данные',
@@ -347,7 +344,7 @@ def send_credentials_email(user, password):
 
 Рекомендуем сменить пароль после первого входа в систему.
 '''
-    mail.send(msg)
+    add_to_queue(app, mail, msg)
 
 @app.route('/')
 def home():
@@ -1248,19 +1245,8 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # Добавляем пароль в URL для подтверждения
-        token = user.generate_confirmation_token()
-        confirm_url = url_for('confirm_email', token=token, password=password, _external=True)
-        
-        msg = Message('Подтверждение регистрации',
-                      sender=app.config['MAIL_USERNAME'],
-                      recipients=[user.email])
-        msg.body = f'''Для подтверждения вашей регистрации перейдите по следующей ссылке:
-{confirm_url}
-
-Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
-'''
-        mail.send(msg)
+        # Отправляем письмо с подтверждением асинхронно
+        send_confirmation_email(user)
         
         flash('Письмо с подтверждением отправлено на ваш email', 'success')
         return redirect(url_for('login'))
