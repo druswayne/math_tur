@@ -1394,13 +1394,20 @@ def purchase_history():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    # Получаем историю покупок билетов
-    ticket_purchases = TicketPurchase.query.filter_by(user_id=current_user.id)\
-        .order_by(TicketPurchase.purchase_date.desc()).all()
+    # Получаем параметры пагинации
+    ticket_page = request.args.get('ticket_page', 1, type=int)
+    prize_page = request.args.get('prize_page', 1, type=int)
+    per_page = 10  # количество записей на странице
     
-    # Получаем историю покупок товаров
+    # Получаем историю покупок билетов с пагинацией
+    ticket_purchases = TicketPurchase.query.filter_by(user_id=current_user.id)\
+        .order_by(TicketPurchase.purchase_date.desc())\
+        .paginate(page=ticket_page, per_page=per_page, error_out=False)
+    
+    # Получаем историю покупок товаров с пагинацией
     prize_purchases = PrizePurchase.query.filter_by(user_id=current_user.id)\
-        .order_by(PrizePurchase.created_at.desc()).all()
+        .order_by(PrizePurchase.created_at.desc())\
+        .paginate(page=prize_page, per_page=per_page, error_out=False)
     
     return render_template('purchase_history.html', 
                          title='История покупок',
@@ -1808,8 +1815,12 @@ def tournament_history():
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
     
+    # Получаем параметр страницы
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # количество записей на странице
+    
     # Получаем все турниры, в которых участвовал пользователь
-    tournaments = db.session.query(
+    tournaments_query = db.session.query(
         Tournament,
         TournamentParticipation.score,
         TournamentParticipation.place,
@@ -1834,11 +1845,14 @@ def tournament_history():
         TournamentParticipation.place
     ).order_by(
         Tournament.start_date.desc()
-    ).all()
+    )
+    
+    # Применяем пагинацию
+    tournaments = tournaments_query.paginate(page=page, per_page=per_page, error_out=False)
     
     # Преобразуем результаты в список словарей для удобного доступа в шаблоне
     tournament_list = []
-    for tournament, score, place, solved_tasks, earned_points, correct_tasks, total_tasks in tournaments:
+    for tournament, score, place, solved_tasks, earned_points, correct_tasks, total_tasks in tournaments.items:
         # Рассчитываем процент правильно решенных задач
         success_rate = round((correct_tasks or 0) / (total_tasks or 1) * 100, 1)
         
@@ -1853,7 +1867,9 @@ def tournament_history():
             'success_rate': success_rate
         })
     
-    return render_template('tournament_history.html', tournaments=tournament_list)
+    return render_template('tournament_history.html', 
+                         tournaments=tournament_list,
+                         pagination=tournaments)
 
 @app.route('/rating')
 def rating():
