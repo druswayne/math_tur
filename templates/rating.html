@@ -1,123 +1,64 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">Общий рейтинг участников</h2>
+<div class="container mt-4">
+    <h2>Рейтинг участников</h2>
     
-    {% if current_user.is_authenticated and not current_user.is_admin and user_rank %}
-    <div class="alert alert-info mb-4">
-        <i class="fas fa-trophy me-2"></i>
-        Ваше место в рейтинге: <strong>{{ user_rank }}</strong>
+    {% if current_user.is_authenticated and not current_user.is_admin %}
+    <div class="alert alert-info">
+        Ваше место в рейтинге: {{ user_rank }}
     </div>
     {% endif %}
     
-    <div class="table-responsive rating-table-container" id="ratingTable">
+    <div class="table-responsive">
         <table class="table table-hover">
-            <thead class="table-light sticky-top">
+            <thead>
                 <tr>
-                    <th class="d-none d-md-table-cell">Место</th>
+                    <th>Место</th>
                     <th>Пользователь</th>
-                    <th class="d-none d-md-table-cell">Общий счет</th>
-                    <th class="d-none d-md-table-cell">Решено задач</th>
-                    <th class="d-none d-md-table-cell">Участий в турнирах</th>
-                    <th class="d-table-cell d-md-none">Статистика</th>
+                    <th>Баллы</th>
+                    <th>Решено задач</th>
+                    <th>% верных решений</th>
+                    <th>Турниров</th>
                 </tr>
             </thead>
-            <tbody id="ratingTableBody">
+            <tbody>
                 {% for user in users %}
                 <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
-                    <td class="d-none d-md-table-cell">{{ (current_page - 1) * per_page + loop.index }}</td>
-                    <td>
-                        <div class="d-flex align-items-center">
-                            <span class="d-md-none me-2">{{ (current_page - 1) * per_page + loop.index }}.</span>
-                            {{ user.username }}
-                        </div>
-                    </td>
-                    <td class="d-none d-md-table-cell">{{ user.balance }}</td>
-                    <td class="d-none d-md-table-cell">{{ user.solved_tasks_count }}</td>
-                    <td class="d-none d-md-table-cell">{{ user.tournaments_count }}</td>
-                    <td class="d-table-cell d-md-none">
-                        <small class="text-muted">
-                            Счет: {{ user.balance }}<br>
-                            Задач: {{ user.solved_tasks_count }}<br>
-                            Турниров: {{ user.tournaments_count }}
-                        </small>
-                    </td>
+                    <td>{{ loop.index + (current_page - 1) * per_page }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.balance }}</td>
+                    <td>{{ user.solved_tasks_count }}</td>
+                    <td>{{ user.success_rate }}%</td>
+                    <td>{{ user.tournaments_count }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <div id="loadingSpinner" class="text-center d-none">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Загрузка...</span>
-            </div>
-        </div>
     </div>
+    
+    {% if total_pages > 1 %}
+    <nav aria-label="Навигация по страницам">
+        <ul class="pagination justify-content-center">
+            {% if current_page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('rating', page=current_page-1) }}">Предыдущая</a>
+            </li>
+            {% endif %}
+            
+            {% for page in range(1, total_pages + 1) %}
+            <li class="page-item {% if page == current_page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('rating', page=page) }}">{{ page }}</a>
+            </li>
+            {% endfor %}
+            
+            {% if current_page < total_pages %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('rating', page=current_page+1) }}">Следующая</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
-
-<style>
-@media (max-width: 767px) {
-    .rating-table-container {
-        font-size: 0.9rem;
-    }
-    
-    .table td, .table th {
-        padding: 0.5rem;
-    }
-    
-    .table td small {
-        font-size: 0.8rem;
-    }
-}
-</style>
-
-<script>
-let currentPage = {{ current_page }};
-const totalPages = {{ total_pages }};
-let isLoading = false;
-
-function loadMoreUsers() {
-    if (isLoading || currentPage >= totalPages) return;
-    
-    isLoading = true;
-    document.getElementById('loadingSpinner').classList.remove('d-none');
-    
-    fetch(`/rating?page=${currentPage + 1}`)
-        .then(response => response.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const newRows = doc.querySelectorAll('#ratingTableBody tr');
-            
-            const tbody = document.getElementById('ratingTableBody');
-            newRows.forEach(row => {
-                tbody.appendChild(row.cloneNode(true));
-            });
-            
-            currentPage++;
-            isLoading = false;
-            document.getElementById('loadingSpinner').classList.add('d-none');
-        })
-        .catch(error => {
-            console.error('Ошибка при загрузке данных:', error);
-            isLoading = false;
-            document.getElementById('loadingSpinner').classList.add('d-none');
-        });
-}
-
-// Наблюдатель за прокруткой
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            loadMoreUsers();
-        }
-    });
-}, {
-    root: document.querySelector('.rating-table-container'),
-    threshold: 0.1
-});
-
-// Наблюдаем за спиннером загрузки
-observer.observe(document.getElementById('loadingSpinner'));
-</script>
 {% endblock %} 

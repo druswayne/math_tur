@@ -95,6 +95,7 @@ class User(UserMixin, db.Model):
     last_activity = db.Column(db.DateTime, nullable=True)  # Время последней активности
     balance = db.Column(db.Integer, default=0)  # Общий счет
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
+    tournaments_count = db.Column(db.Integer, default=0)  # Количество турниров, в которых участвовал пользователь
     session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
 
     # Добавляем связь с турнирами через TournamentParticipation
@@ -1553,6 +1554,7 @@ def start_tournament(tournament_id):
             score=0
         )
         current_user.tickets -= 1
+        current_user.tournaments_count += 1  # Увеличиваем счетчик турниров
         db.session.add(participation)
         db.session.commit()
         flash('Билет успешно списан. Удачи в турнире!', 'success')
@@ -1571,7 +1573,7 @@ def admin_user_details(user_id):
     
     # Получаем статистику
     total_tickets_purchased = sum(purchase.quantity for purchase in user.ticket_purchases)
-    total_tournaments_participated = len(user.tournament_participations)
+    total_tournaments_participated = user.tournaments_count  # Используем новое поле
     total_tournaments_won = sum(1 for p in user.tournament_participations if p.place == 1)
     average_tournament_score = sum(p.score for p in user.tournament_participations) / total_tournaments_participated if total_tournaments_participated > 0 else 0
     
@@ -1812,7 +1814,9 @@ def tournament_history():
         TournamentParticipation.score,
         TournamentParticipation.place,
         func.count(SolvedTask.id).label('solved_tasks'),
-        func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points')
+        func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points'),
+        func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks'),
+        func.count(Task.id).label('total_tasks')
     ).join(
         TournamentParticipation,
         Tournament.id == TournamentParticipation.tournament_id
@@ -1834,7 +1838,10 @@ def tournament_history():
     
     # Преобразуем результаты в список словарей для удобного доступа в шаблоне
     tournament_list = []
-    for tournament, score, place, solved_tasks, earned_points in tournaments:
+    for tournament, score, place, solved_tasks, earned_points, correct_tasks, total_tasks in tournaments:
+        # Рассчитываем процент правильно решенных задач
+        success_rate = round((correct_tasks or 0) / (total_tasks or 1) * 100, 1)
+        
         tournament_list.append({
             'id': tournament.id,
             'name': tournament.title,
@@ -1842,73 +1849,70 @@ def tournament_history():
             'solved_tasks': solved_tasks or 0,
             'earned_points': earned_points or 0,
             'score': score or 0,
-            'place': place
+            'place': place,
+            'success_rate': success_rate
         })
     
     return render_template('tournament_history.html', tournaments=tournament_list)
 
 @app.route('/rating')
 def rating():
-    # Получаем номер страницы из параметров запроса
     page = request.args.get('page', 1, type=int)
-    per_page = 20  # Количество пользователей на странице
+    per_page = 50
     
-    # Получаем всех пользователей, отсортированных по балансу
-    all_users = db.session.query(
+    # Получаем общее количество пользователей
+    total_users = User.query.filter(User.is_admin == False).count()
+    total_pages = (total_users + per_page - 1) // per_page
+    
+    # Получаем пользователей с их статистикой
+    users = db.session.query(
         User,
         func.count(SolvedTask.id).label('solved_tasks_count'),
-        func.count(TournamentParticipation.id).label('tournaments_count')
+        func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks_count')
     ).outerjoin(
-        SolvedTask,
-        User.id == SolvedTask.user_id
-    ).outerjoin(
-        TournamentParticipation,
-        User.id == TournamentParticipation.user_id
+        SolvedTask, User.id == SolvedTask.user_id
     ).filter(
         User.is_admin == False
     ).group_by(
         User.id
     ).order_by(
         User.balance.desc()
-    ).all()
-    
-    # Получаем общее количество пользователей
-    total_users = len(all_users)
-    
-    # Получаем пользователей для текущей страницы
-    start_idx = (page - 1) * per_page
-    end_idx = start_idx + per_page
-    page_users = all_users[start_idx:end_idx]
+    ).offset(
+        (page - 1) * per_page
+    ).limit(per_page).all()
     
     # Преобразуем результаты в список словарей
-    user_list = []
-    for user, solved_tasks_count, tournaments_count in page_users:
-        user_list.append({
+    users_list = []
+    for user, solved_tasks_count, correct_tasks_count in users:
+        success_rate = round((correct_tasks_count or 0) / (solved_tasks_count or 1) * 100, 1)
+        users_list.append({
             'id': user.id,
             'username': user.username,
             'balance': user.balance,
-            'solved_tasks_count': solved_tasks_count,
-            'tournaments_count': tournaments_count
+            'solved_tasks_count': solved_tasks_count or 0,
+            'correct_tasks_count': correct_tasks_count or 0,
+            'success_rate': success_rate,
+            'tournaments_count': user.tournaments_count
         })
     
-    # Вычисляем общее количество страниц
-    total_pages = (total_users + per_page - 1) // per_page
-    
-    # Если пользователь авторизован, получаем его место в рейтинге
+    # Получаем место текущего пользователя в рейтинге
     user_rank = None
     if current_user.is_authenticated and not current_user.is_admin:
-        # Находим индекс пользователя в отсортированном списке
-        for index, (user, _, _) in enumerate(all_users, 1):
-            if user.id == current_user.id:
-                user_rank = index
-                break
+        user_rank = db.session.query(
+            func.count(User.id) + 1
+        ).filter(
+            User.balance > current_user.balance,
+            User.is_admin == False
+        ).scalar()
     
-    return render_template('rating.html', 
-                         users=user_list,
-                         current_page=page,
-                         total_pages=total_pages,
-                         per_page=per_page,
-                         user_rank=user_rank)
+    return render_template(
+        'rating.html',
+        users=users_list,
+        current_page=page,
+        total_pages=total_pages,
+        per_page=per_page,
+        user_rank=user_rank
+    )
 
 @app.route('/shop')
 @login_required

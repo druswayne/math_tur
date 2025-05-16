@@ -13,6 +13,7 @@
                     <th>Название турнира</th>
                     <th>Место</th>
                     <th>Решено задач</th>
+                    <th>% решения</th>
                     <th>Заработано очков</th>
                     <th>Общий счет</th>
                 </tr>
@@ -34,6 +35,7 @@
                         {% endif %}
                     </td>
                     <td>{{ tournament.solved_tasks }}</td>
+                    <td>{{ tournament.success_rate }}%</td>
                     <td>{{ tournament.earned_points }}</td>
                     <td>{{ tournament.score }}</td>
                 </tr>
