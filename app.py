@@ -20,6 +20,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()  # Генерируем криптографически стойкий ключ
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/school_tournaments.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SESSION_PERMANENT'] = False  # Сессия не будет постоянной
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)  # Максимальное время жизни сессии
 
 # Настройки для отправки email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -2315,6 +2317,12 @@ def tournament_settings():
         return redirect(url_for('tournament_settings'))
     
     return render_template('admin/tournament_settings.html', settings=settings)
+
+@app.before_first_request
+def clear_sessions():
+    # Очищаем все токены сессий при запуске приложения
+    User.query.update({User.session_token: None, User.last_activity: None})
+    db.session.commit()
 
 if __name__ == '__main__':
     with app.app_context():

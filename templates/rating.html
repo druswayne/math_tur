@@ -36,73 +36,78 @@
             </tbody>
         </table>
     </div>
-    
-    {% if total_pages > current_page %}
-    <div class="text-center mt-3">
-        <button class="btn btn-outline-primary" id="loadMoreUsers" data-page="{{ current_page }}">
-            Загрузить еще
-        </button>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
-    let isLoadingUsers = false;
+    document.addEventListener('DOMContentLoaded', function() {
+        let isLoadingUsers = false;
+        let currentPage = {{ current_page }};
+        let hasMorePages = {{ 'true' if total_pages > current_page else 'false' }};
 
-    async function loadMoreUsers(page) {
-        if (isLoadingUsers) return;
-        isLoadingUsers = true;
+        async function loadMoreUsers(page) {
+            if (isLoadingUsers || !hasMorePages) return;
+            isLoadingUsers = true;
 
-        try {
-            const response = await fetch(`/rating?page=${page + 1}`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+            try {
+                const response = await fetch(`/rating?page=${page + 1}`, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
-            const data = await response.json();
-            
-            const tbody = document.querySelector('table tbody');
-            const startIndex = page * {{ per_page }};
-            
-            data.users.forEach((user, index) => {
-                const row = document.createElement('tr');
-                if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
-                    row.classList.add('table-primary');
-                }
-                row.innerHTML =
-                    '<td>' + (startIndex + index + 1) + '</td>' +
-                    '<td>' + user.username + '</td>' +
-                    '<td>' + user.balance + '</td>' +
-                    '<td>' + user.solved_tasks_count + '</td>' +
-                    '<td>' + user.success_rate + '%</td>' +
-                    '<td>' + user.tournaments_count + '</td>';
-                tbody.appendChild(row);
-            });
-            
-            const loadMoreButton = document.getElementById('loadMoreUsers');
-            if (loadMoreButton) {
-                loadMoreButton.dataset.page = page + 1;
-                if (!data.has_next) {
-                    loadMoreButton.remove();
-                }
+                
+                const data = await response.json();
+                const tbody = document.querySelector('table tbody');
+                const startIndex = page * {{ per_page }};
+                
+                data.users.forEach((user, index) => {
+                    const row = document.createElement('tr');
+                    if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
+                        row.classList.add('table-primary');
+                    }
+                    row.innerHTML = 
+                        '<td>' + (startIndex + index + 1) + '</td>' +
+                        '<td>' + user.username + '</td>' +
+                        '<td>' + user.balance + '</td>' +
+                        '<td>' + user.solved_tasks_count + '</td>' +
+                        '<td>' + user.success_rate + '%</td>' +
+                        '<td>' + user.tournaments_count + '</td>';
+                    tbody.appendChild(row);
+                });
+                
+                currentPage = page + 1;
+                hasMorePages = data.has_next;
+            } catch (error) {
+                console.error('Ошибка при загрузке пользователей:', error);
+                alert('Произошла ошибка при загрузке пользователей');
+            } finally {
+                isLoadingUsers = false;
             }
-        } catch (error) {
-            console.error('Ошибка при загрузке пользователей:', error);
-            alert('Произошла ошибка при загрузке пользователей');
-        } finally {
-            isLoadingUsers = false;
         }
-    }
 
-    // Обработчик для кнопки "Загрузить еще"
-    const loadMoreUsersBtn = document.getElementById('loadMoreUsers');
-    if (loadMoreUsersBtn) {
-        loadMoreUsersBtn.addEventListener('click', function() {
-            const page = parseInt(this.dataset.page);
-            loadMoreUsers(page);
-        });
-    }
+        // Функция для проверки, нужно ли загружать новые данные
+        function checkScroll() {
+            const container = document.querySelector('.rating-table-container');
+            const scrollPosition = container.scrollTop + container.clientHeight;
+            const scrollHeight = container.scrollHeight;
+            
+            // Загружаем новые данные, когда пользователь прокрутил до 80% контента
+            if (scrollPosition >= scrollHeight * 0.8) {
+                loadMoreUsers(currentPage);
+            }
+        }
+
+        // Добавляем обработчик прокрутки
+        const container = document.querySelector('.rating-table-container');
+        if (container) {
+            container.addEventListener('scroll', checkScroll);
+        }
+    });
 </script>
 {% endblock %} 
