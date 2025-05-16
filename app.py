@@ -1877,9 +1877,17 @@ def tournament_history():
 def rating():
     page = request.args.get('page', 1, type=int)
     per_page = 50
+    search_query = request.args.get('search', '').strip()
+    
+    # Базовый запрос для пользователей
+    users_query = User.query.filter(User.is_admin == False)
+    
+    # Применяем поиск, если есть поисковый запрос
+    if search_query:
+        users_query = users_query.filter(User.username.ilike(f'%{search_query}%'))
     
     # Получаем общее количество пользователей
-    total_users = User.query.filter(User.is_admin == False).count()
+    total_users = users_query.count()
     total_pages = (total_users + per_page - 1) // per_page
     
     # Получаем пользователей с их статистикой
@@ -1891,7 +1899,13 @@ def rating():
         SolvedTask, User.id == SolvedTask.user_id
     ).filter(
         User.is_admin == False
-    ).group_by(
+    )
+    
+    # Применяем поиск к основному запросу
+    if search_query:
+        users = users.filter(User.username.ilike(f'%{search_query}%'))
+    
+    users = users.group_by(
         User.id
     ).order_by(
         User.balance.desc()
