@@ -10,7 +10,7 @@
     </div>
     {% endif %}
     
-    <div class="table-responsive">
+    <div class="rating-table-container">
         <table class="table table-hover">
             <thead>
                 <tr>
@@ -37,28 +37,72 @@
         </table>
     </div>
     
-    {% if total_pages > 1 %}
-    <nav aria-label="Навигация по страницам">
-        <ul class="pagination justify-content-center">
-            {% if current_page > 1 %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('rating', page=current_page-1) }}">Предыдущая</a>
-            </li>
-            {% endif %}
-            
-            {% for page in range(1, total_pages + 1) %}
-            <li class="page-item {% if page == current_page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('rating', page=page) }}">{{ page }}</a>
-            </li>
-            {% endfor %}
-            
-            {% if current_page < total_pages %}
-            <li class="page-item">
-                <a class="page-link" href="{{ url_for('rating', page=current_page+1) }}">Следующая</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
+    {% if total_pages > current_page %}
+    <div class="text-center mt-3">
+        <button class="btn btn-outline-primary" id="loadMoreUsers" data-page="{{ current_page }}">
+            Загрузить еще
+        </button>
+    </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let isLoadingUsers = false;
+
+    async function loadMoreUsers(page) {
+        if (isLoadingUsers) return;
+        isLoadingUsers = true;
+
+        try {
+            const response = await fetch(`/rating?page=${page + 1}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const data = await response.json();
+            
+            const tbody = document.querySelector('table tbody');
+            const startIndex = page * {{ per_page }};
+            
+            data.users.forEach((user, index) => {
+                const row = document.createElement('tr');
+                if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
+                    row.classList.add('table-primary');
+                }
+                row.innerHTML =
+                    '<td>' + (startIndex + index + 1) + '</td>' +
+                    '<td>' + user.username + '</td>' +
+                    '<td>' + user.balance + '</td>' +
+                    '<td>' + user.solved_tasks_count + '</td>' +
+                    '<td>' + user.success_rate + '%</td>' +
+                    '<td>' + user.tournaments_count + '</td>';
+                tbody.appendChild(row);
+            });
+            
+            const loadMoreButton = document.getElementById('loadMoreUsers');
+            if (loadMoreButton) {
+                loadMoreButton.dataset.page = page + 1;
+                if (!data.has_next) {
+                    loadMoreButton.remove();
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке пользователей:', error);
+            alert('Произошла ошибка при загрузке пользователей');
+        } finally {
+            isLoadingUsers = false;
+        }
+    }
+
+    // Обработчик для кнопки "Загрузить еще"
+    const loadMoreUsersBtn = document.getElementById('loadMoreUsers');
+    if (loadMoreUsersBtn) {
+        loadMoreUsersBtn.addEventListener('click', function() {
+            const page = parseInt(this.dataset.page);
+            loadMoreUsers(page);
+        });
+    }
+</script>
 {% endblock %} 

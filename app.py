@@ -1921,6 +1921,13 @@ def rating():
             User.is_admin == False
         ).scalar()
     
+    # Если это AJAX-запрос, возвращаем только данные
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'users': users_list,
+            'has_next': page < total_pages
+        })
+    
     return render_template(
         'rating.html',
         users=users_list,
@@ -2315,4 +2322,4 @@ if __name__ == '__main__':
         create_admin_user()
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=True)
