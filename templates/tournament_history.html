@@ -21,17 +21,14 @@
                     <th>% решения</th>
                     <th>Заработано очков</th>
                     <th>Общий счет</th>
+                    <th>Действия</th>
                 </tr>
             </thead>
             <tbody>
                 {% for tournament in tournaments %}
                 <tr>
                     <td>{{ tournament.start_date.strftime('%d.%m.%Y') }}</td>
-                    <td>
-                        <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="text-decoration-none">
-                            {{ tournament.name }}
-                        </a>
-                    </td>
+                    <td>{{ tournament.name }}</td>
                     <td>
                         {% if tournament.place %}
                             {{ tournament.place }} место
@@ -43,6 +40,11 @@
                     <td>{{ tournament.success_rate }}%</td>
                     <td>{{ tournament.earned_points }}</td>
                     <td>{{ tournament.score }}</td>
+                    <td>
+                        <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-info-circle me-1"></i>Подробнее
+                        </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
