@@ -30,12 +30,12 @@
         <table class="table table-hover">
             <thead>
                 <tr>
-                    <th data-sort="place" class="sortable">Место <i class="fas fa-sort"></i></th>
-                    <th data-sort="username" class="sortable">Пользователь <i class="fas fa-sort"></i></th>
-                    <th data-sort="balance" class="sortable">Баллы <i class="fas fa-sort"></i></th>
-                    <th data-sort="solved_tasks" class="sortable">Решено задач <i class="fas fa-sort"></i></th>
-                    <th data-sort="success_rate" class="sortable">% верных решений <i class="fas fa-sort"></i></th>
-                    <th data-sort="tournaments" class="sortable">Турниров <i class="fas fa-sort"></i></th>
+                    <th style="cursor: default">Место</th>
+                    <th style="cursor: default">Пользователь</th>
+                    <th style="cursor: default">Баллы</th>
+                    <th style="cursor: default">Решено задач</th>
+                    <th style="cursor: default">% верных решений</th>
+                    <th style="cursor: default">Турниров</th>
                 </tr>
             </thead>
             <tbody>
@@ -63,10 +63,6 @@
         let currentPage = {{ current_page }};
         let hasMorePages = {{ 'true' if total_pages > current_page else 'false' }};
         let searchQuery = '';
-        let currentSort = {
-            column: 'balance',
-            direction: 'desc'
-        };
 
         // Обработчик формы поиска
         const searchForm = document.getElementById('searchForm');
@@ -79,30 +75,6 @@
             await loadUsers(true);
         });
 
-        // Добавляем обработчики для сортировки
-        document.querySelectorAll('th.sortable').forEach(header => {
-            header.addEventListener('click', async function() {
-                const column = this.dataset.sort;
-                if (currentSort.column === column) {
-                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-                } else {
-                    currentSort.column = column;
-                    currentSort.direction = 'desc';
-                }
-                
-                // Обновляем иконки сортировки
-                document.querySelectorAll('th.sortable i').forEach(icon => {
-                    icon.className = 'fas fa-sort';
-                });
-                
-                const icon = this.querySelector('i');
-                icon.className = `fas fa-sort-${currentSort.direction === 'asc' ? 'up' : 'down'}`;
-                
-                currentPage = 1;
-                await loadUsers(true);
-            });
-        });
-
         async function loadUsers(reset = false) {
             if (isLoadingUsers) return;
             isLoadingUsers = true;
@@ -113,8 +85,6 @@
                 if (searchQuery) {
                     url.searchParams.set('search', searchQuery);
                 }
-                url.searchParams.set('sort', currentSort.column);
-                url.searchParams.set('direction', currentSort.direction);
 
                 const response = await fetch(url, {
                     headers: {
