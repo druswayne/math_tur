@@ -1878,6 +1878,8 @@ def rating():
     page = request.args.get('page', 1, type=int)
     per_page = 50
     search_query = request.args.get('search', '').strip()
+    sort_column = request.args.get('sort', 'balance')
+    sort_direction = request.args.get('direction', 'desc')
     
     # Базовый запрос для пользователей
     users_query = User.query.filter(User.is_admin == False)
@@ -1905,10 +1907,26 @@ def rating():
     if search_query:
         users = users.filter(User.username.ilike(f'%{search_query}%'))
     
+    # Применяем сортировку
+    if sort_column == 'username':
+        users = users.order_by(User.username.desc() if sort_direction == 'desc' else User.username.asc())
+    elif sort_column == 'balance':
+        users = users.order_by(User.balance.desc() if sort_direction == 'desc' else User.balance.asc())
+    elif sort_column == 'solved_tasks':
+        users = users.order_by(func.count(SolvedTask.id).desc() if sort_direction == 'desc' else func.count(SolvedTask.id).asc())
+    elif sort_column == 'success_rate':
+        users = users.order_by(
+            (func.count(case((SolvedTask.is_correct == True, 1))) * 100.0 / func.count(SolvedTask.id)).desc() 
+            if sort_direction == 'desc' 
+            else (func.count(case((SolvedTask.is_correct == True, 1))) * 100.0 / func.count(SolvedTask.id)).asc()
+        )
+    elif sort_column == 'tournaments':
+        users = users.order_by(User.tournaments_count.desc() if sort_direction == 'desc' else User.tournaments_count.asc())
+    else:
+        users = users.order_by(User.balance.desc())
+    
     users = users.group_by(
         User.id
-    ).order_by(
-        User.balance.desc()
     ).offset(
         (page - 1) * per_page
     ).limit(per_page).all()

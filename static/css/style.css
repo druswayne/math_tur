@@ -651,17 +651,37 @@ main {
 }
 
 .rating-table-container table {
-    margin-bottom: 0;
+    margin: 0;
 }
 
 .rating-table-container thead th {
     position: sticky;
     top: 0;
-    background-color: #fff;
+    background: #fff;
     z-index: 1;
-    border-bottom: 2px solid #dee2e6;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
 }
 
+.rating-table-container thead th:hover {
+    background-color: #f8f9fa;
+}
+
+.rating-table-container thead th.sortable {
+    padding-right: 1.5rem;
+}
+
+.rating-table-container thead th.sortable i {
+    margin-left: 0.5rem;
+    color: #6c757d;
+}
+
+.rating-table-container thead th.sortable:hover i {
+    color: #495057;
+}
+
+/* Стилизация скроллбара */
 .rating-table-container::-webkit-scrollbar {
     width: 8px;
 }
