@@ -1,20 +1,25 @@
 /* Базовые стили */
 :root {
-    --primary-color: #0d6efd;
-    --secondary-color: #6c757d;
-    --success-color: #198754;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
-    --info-color: #0dcaf0;
-    --light-color: #f8f9fa;
-    --dark-color: #212529;
+    --primary-color: #4a90e2;
+    --secondary-color: #2c3e50;
+    --accent-color: #e74c3c;
+    --success-color: #2ecc71;
+    --warning-color: #f1c40f;
+    --danger-color: #e74c3c;
+    --light-bg: #f8f9fa;
+    --dark-bg: #2c3e50;
+    --text-color: #2c3e50;
+    --text-light: #7f8c8d;
+    --border-radius: 10px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
 }
 
 body {
     font-family: 'Roboto', sans-serif;
+    color: var(--text-color);
+    background-color: #f5f6fa;
     line-height: 1.6;
-    color: var(--dark-color);
-    background-color: #f5f5f5;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -99,13 +104,28 @@ main {
 }
 
 .card {
-    transition: transform 0.2s;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    background: white;
+    margin-bottom: 1.5rem;
 }
 
 .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 1.25rem;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
 }
 
 .badge {
@@ -114,8 +134,28 @@ main {
 }
 
 .navbar {
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    padding-top: 1rem;
+    background-color: white;
+    box-shadow: var(--box-shadow);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: #adb5bd !important;
+    font-size: 1.5rem;
+}
+
+.nav-link {
+    color: #adb5bd !important;
+    font-weight: 500;
+    transition: var(--transition);
+    padding: 0.5rem 1rem !important;
+    border-radius: var(--border-radius);
+}
+
+.nav-link:hover {
+    background-color: var(--light-bg);
+    color: #495057 !important;
 }
 
 footer {
@@ -308,47 +348,33 @@ footer {
 
 /* Стили для таймера обратного отсчёта */
 .countdown-timer {
-    margin: 2rem 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.countdown-text {
-    font-size: 1.2rem;
-    color: #495057;
-    margin-bottom: 1rem;
-    text-align: center;
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
 }
 
 .countdown-items {
     display: flex;
     justify-content: center;
-    gap: 1rem;
-    flex-wrap: wrap;
+    gap: 2rem;
 }
 
 .countdown-item {
     text-align: center;
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
-    min-width: 100px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .countdown-number {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #0d6efd;
-    display: block;
-    margin-bottom: 0.5rem;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
 }
 
 .countdown-label {
+    color: var(--text-light);
     font-size: 0.9rem;
-    color: #6c757d;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Стили для главной страницы */
@@ -429,7 +455,7 @@ footer {
     }
 
     .countdown-items {
-        gap: 0.5rem;
+        gap: 1rem;
     }
 
     .countdown-item {
@@ -438,7 +464,7 @@ footer {
     }
 
     .countdown-number {
-        font-size: 1.2rem;
+        font-size: 2rem;
         margin-bottom: 0.25rem;
     }
 
@@ -534,7 +560,7 @@ footer {
     .navbar {
         padding-top: 0.75rem;
     }
-} 
+}
 
 /* Общие стили */
 body {
@@ -704,16 +730,6 @@ main {
     padding: 1rem;
 }
 
-/* Стили для карточек */
-.card {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transition: box-shadow 0.3s ease;
-}
-
-.card:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
 /* Стили для кнопок */
 .btn {
     transition: all 0.3s ease;
@@ -738,21 +754,6 @@ main {
 .form-control:focus {
     box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     border-color: #80bdff;
-}
-
-/* Стили для навигации */
-.navbar {
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.nav-link {
-    transition: color 0.3s ease;
-}
-
-/* Стили для футера */
-footer {
-    margin-top: auto;
-    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Стили для счетчика */
@@ -987,4 +988,53 @@ footer {
     color: #6c757d;
     font-size: 0.875rem;
     text-transform: uppercase;
+}
+
+/* Стили для профиля */
+.profile-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+    border-radius: var(--border-radius);
+}
+
+.profile-avatar {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 5px solid white;
+    box-shadow: var(--box-shadow);
+}
+
+/* Стили для турниров */
+.tournament-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.tournament-status {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.status-upcoming {
+    background-color: var(--warning-color);
+    color: var(--text-color);
+}
+
+.status-finished {
+    background-color: var(--text-light);
+    color: white;
 } 
