@@ -1757,11 +1757,11 @@ def submit_task_answer(tournament_id, task_id):
         flash('Вы уже решили эту задачу', 'warning')
         return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
-    # Получаем ответ пользователя
-    user_answer = request.form.get('answer', '').strip()
+    # Получаем ответ пользователя и приводим к нижнему регистру
+    user_answer = request.form.get('answer', '').strip().lower()
     
-    # Проверяем ответ
-    is_correct = user_answer.lower() == task.correct_answer.lower()
+    # Проверяем ответ (приводим правильный ответ к нижнему регистру)
+    is_correct = user_answer == task.correct_answer.lower()
     
     # Сохраняем результат
     solution = SolvedTask(
