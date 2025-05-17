@@ -2339,6 +2339,39 @@ def clear_sessions():
     User.query.update({User.session_token: None, User.last_activity: None})
     db.session.commit()
 
+@app.route('/change-password', methods=['POST'])
+@login_required
+def change_password():
+    data = request.get_json()
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not current_password or not new_password:
+        return jsonify({
+            'success': False,
+            'message': 'Пожалуйста, заполните все поля'
+        })
+    
+    if not current_user.check_password(current_password):
+        return jsonify({
+            'success': False,
+            'message': 'Неверный текущий пароль'
+        })
+    
+    if not is_password_strong(new_password):
+        return jsonify({
+            'success': False,
+            'message': 'Пароль должен содержать минимум 8 символов, включая цифры и буквы'
+        })
+    
+    current_user.set_password(new_password)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Пароль успешно изменен'
+    })
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
