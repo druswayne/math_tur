@@ -15,17 +15,14 @@
             <h4 class="mb-0">История покупки билетов</h4>
         </div>
         <div class="card-body">
-            {% if ticket_purchases.items %}
-            <div class="table-responsive">
+            <div class="ticket-history-container" style="max-height: 400px; overflow-y: auto;">
                 <table class="table table-hover" id="ticketTable">
                     <thead>
                         <tr>
-                            <th>Дата покупки</th>
-                            <th>Количество билетов</th>
-                            <th>Стоимость</th>
+                            <th>Дата</th>
+                            <th>Количество</th>
+                            <th>Сумма</th>
                             <th>Скидка</th>
-                            <th>Итоговая стоимость</th>
-                            <th>Чек</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -33,31 +30,13 @@
                         <tr>
                             <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>{{ purchase.quantity }}</td>
-                            <td>{{ (purchase.amount / (1 - purchase.discount/100))|round(2) }} ₽</td>
+                            <td>{{ "%.2f"|format(purchase.amount) }} ₽</td>
                             <td>{{ purchase.discount }}%</td>
-                            <td>{{ purchase.amount|round(2) }} ₽</td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-secondary" disabled>
-                                    <i class="fas fa-file-invoice me-1"></i>Чек
-                                </button>
-                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            {% if ticket_purchases.has_next %}
-            <div class="text-center mt-3">
-                <button class="btn btn-outline-primary" id="loadMoreTickets" data-page="{{ ticket_purchases.next_num }}">
-                    Загрузить еще
-                </button>
-            </div>
-            {% endif %}
-            {% else %}
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок билетов
-            </div>
-            {% endif %}
         </div>
     </div>
 
@@ -68,7 +47,7 @@
         </div>
         <div class="card-body">
             {% if prize_purchases.items %}
-            <div class="table-responsive">
+            <div class="prize-history-container" style="max-height: 400px; overflow-y: auto;">
                 <table class="table table-hover" id="prizeTable">
                     <thead>
                         <tr>
@@ -130,13 +109,6 @@
                     </tbody>
                 </table>
             </div>
-            {% if prize_purchases.has_next %}
-            <div class="text-center mt-3">
-                <button class="btn btn-outline-primary" id="loadMorePrizes" data-page="{{ prize_purchases.next_num }}">
-                    Загрузить еще
-                </button>
-            </div>
-            {% endif %}
             {% else %}
             <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок товаров
@@ -286,33 +258,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const prizeTable = document.getElementById('prizeTable');
     let isLoadingTickets = false;
     let isLoadingPrizes = false;
+    let currentTicketPage = 1;
+    let currentPrizePage = 1;
 
     // Функция для загрузки дополнительных билетов
-    async function loadMoreTickets(page) {
+    async function loadMoreTickets() {
         if (isLoadingTickets) return;
         isLoadingTickets = true;
 
         try {
-            const response = await fetch(`/purchase-history?ticket_page=${page}`);
+            const response = await fetch(`/purchase-history?ticket_page=${currentTicketPage + 1}`);
             const html = await response.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
             const newRows = doc.querySelectorAll('#ticketTable tbody tr');
-            const tbody = ticketTable.querySelector('tbody');
-            
-            newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
-            
-            const loadMoreButton = document.getElementById('loadMoreTickets');
-            if (loadMoreButton) {
-                const nextPage = parseInt(loadMoreButton.dataset.page) + 1;
-                loadMoreButton.dataset.page = nextPage;
-                
-                // Проверяем, есть ли еще страницы
-                const hasNext = doc.querySelector('#loadMoreTickets') !== null;
-                if (!hasNext) {
-                    loadMoreButton.remove();
-                }
+            if (newRows.length > 0) {
+                const tbody = ticketTable.querySelector('tbody');
+                newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+                currentTicketPage++;
             }
         } catch (error) {
             console.error('Ошибка при загрузке билетов:', error);
@@ -323,31 +287,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Функция для загрузки дополнительных товаров
-    async function loadMorePrizes(page) {
+    async function loadMorePrizes() {
         if (isLoadingPrizes) return;
         isLoadingPrizes = true;
 
         try {
-            const response = await fetch(`/purchase-history?prize_page=${page}`);
+            const response = await fetch(`/purchase-history?prize_page=${currentPrizePage + 1}`);
             const html = await response.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
             const newRows = doc.querySelectorAll('#prizeTable tbody tr');
-            const tbody = prizeTable.querySelector('tbody');
-            
-            newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
-            
-            const loadMoreButton = document.getElementById('loadMorePrizes');
-            if (loadMoreButton) {
-                const nextPage = parseInt(loadMoreButton.dataset.page) + 1;
-                loadMoreButton.dataset.page = nextPage;
-                
-                // Проверяем, есть ли еще страницы
-                const hasNext = doc.querySelector('#loadMorePrizes') !== null;
-                if (!hasNext) {
-                    loadMoreButton.remove();
-                }
+            if (newRows.length > 0) {
+                const tbody = prizeTable.querySelector('tbody');
+                newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+                currentPrizePage++;
             }
         } catch (error) {
             console.error('Ошибка при загрузке товаров:', error);
@@ -357,51 +311,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Обработчики для кнопок "Загрузить еще"
-    const loadMoreTicketsBtn = document.getElementById('loadMoreTickets');
-    if (loadMoreTicketsBtn) {
-        loadMoreTicketsBtn.addEventListener('click', function() {
-            const page = parseInt(this.dataset.page);
-            loadMoreTickets(page);
-        });
-    }
-
-    const loadMorePrizesBtn = document.getElementById('loadMorePrizes');
-    if (loadMorePrizesBtn) {
-        loadMorePrizesBtn.addEventListener('click', function() {
-            const page = parseInt(this.dataset.page);
-            loadMorePrizes(page);
-        });
-    }
-
     // Добавляем бесконечный скроллинг
-    const ticketCard = document.querySelector('.card.mb-4');
-    const prizeCard = document.querySelector('.card:last-child');
+    const ticketContainer = document.querySelector('.ticket-history-container');
+    const prizeContainer = document.querySelector('.prize-history-container');
 
-    if (ticketCard) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && loadMoreTicketsBtn) {
-                    const page = parseInt(loadMoreTicketsBtn.dataset.page);
-                    loadMoreTickets(page);
-                }
-            });
-        }, { threshold: 0.5 });
-
-        observer.observe(ticketCard);
+    if (ticketContainer) {
+        ticketContainer.addEventListener('scroll', function() {
+            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 100) {
+                loadMoreTickets();
+            }
+        });
     }
 
-    if (prizeCard) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting && loadMorePrizesBtn) {
-                    const page = parseInt(loadMorePrizesBtn.dataset.page);
-                    loadMorePrizes(page);
-                }
-            });
-        }, { threshold: 0.5 });
-
-        observer.observe(prizeCard);
+    if (prizeContainer) {
+        prizeContainer.addEventListener('scroll', function() {
+            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 100) {
+                loadMorePrizes();
+            }
+        });
     }
 });
 </script>
