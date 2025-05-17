@@ -362,12 +362,19 @@ footer {
 
 .countdown-item {
     text-align: center;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    min-width: 100px;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .countdown-number {
     font-size: 2.5rem;
     font-weight: 700;
     color: var(--primary-color);
+    margin-bottom: 0.5rem;
 }
 
 .countdown-label {
@@ -446,30 +453,31 @@ footer {
     }
 
     .countdown-timer {
-        margin: 1rem 0;
-    }
-
-    .countdown-text {
-        font-size: 1rem;
-        margin-bottom: 0.75rem;
+        padding: 0.5rem;
+        margin: 0.5rem;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .countdown-items {
-        gap: 1rem;
+        gap: 0.25rem;
+        flex-wrap: nowrap;
+        justify-content: center;
     }
 
     .countdown-item {
-        min-width: 60px;
-        padding: 0.5rem;
+        min-width: 45px;
+        padding: 0.25rem;
+        margin: 0;
     }
 
     .countdown-number {
-        font-size: 2rem;
-        margin-bottom: 0.25rem;
+        font-size: 1.2rem;
+        margin-bottom: 0.15rem;
     }
 
     .countdown-label {
-        font-size: 0.7rem;
+        font-size: 0.6rem;
     }
 }
 
