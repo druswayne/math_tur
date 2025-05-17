@@ -82,19 +82,24 @@
                         <h6>Итого к оплате: {{ total_cost }} баллов</h6>
                     </div>
 
-                    <form id="checkoutForm" class="mb-4">
+                    <form id="checkoutForm" class="mb-4" onsubmit="return validateForm()">
                         <div class="mb-3">
                             <label for="fullName" class="form-label">ФИО *</label>
-                            <input type="text" class="form-control" id="fullName" required>
+                            <input type="text" class="form-control" id="fullName" name="full_name" required>
                         </div>
                         <div class="mb-3">
                             <label for="phone" class="form-label">Номер телефона *</label>
-                            <input type="tel" class="form-control" id="phone" required 
-                                   pattern="[0-9]{11}" placeholder="89991234567">
+                            <div class="input-group">
+                                <span class="input-group-text">+375</span>
+                                <input type="tel" class="form-control" id="phone" name="phone" 
+                                       pattern="[0-9]{9}" maxlength="9" required
+                                       placeholder="29XXXXXXX">
+                            </div>
+                            <div class="form-text">Формат: +37529XXXXXXX</div>
                         </div>
                         <div class="mb-3">
                             <label for="address" class="form-label">Адрес доставки *</label>
-                            <textarea class="form-control" id="address" rows="3" required></textarea>
+                            <textarea class="form-control" id="address" name="address" rows="3" required></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary w-100" 
                                 {% if current_user.balance < total_cost %}disabled{% endif %}>
@@ -371,5 +376,41 @@ function showNotification(message, type = 'info') {
         setTimeout(() => messageDiv.remove(), 500);
     }, 5000);
 }
+
+// Функция для валидации номера телефона
+function validatePhone(phone) {
+    // Проверяем, что номер начинается с 29, 33, 44, 25
+    const validPrefixes = ['29', '33', '44', '25'];
+    const prefix = phone.substring(0, 2);
+    if (!validPrefixes.includes(prefix)) {
+        return false;
+    }
+    
+    // Проверяем, что остальные цифры являются числами
+    const rest = phone.substring(2);
+    return /^\d{7}$/.test(rest);
+}
+
+// Функция для валидации всей формы
+function validateForm() {
+    const phone = document.getElementById('phone').value;
+    if (!validatePhone(phone)) {
+        alert('Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX');
+        return false;
+    }
+    return true;
+}
+
+// Обработчик ввода номера телефона
+document.getElementById('phone').addEventListener('input', function(e) {
+    // Удаляем все нецифровые символы
+    let value = e.target.value.replace(/\D/g, '');
+    
+    // Ограничиваем длину до 9 цифр
+    value = value.substring(0, 9);
+    
+    // Обновляем значение поля
+    e.target.value = value;
+});
 </script>
 {% endblock %} 
