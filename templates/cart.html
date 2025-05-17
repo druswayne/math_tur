@@ -33,8 +33,7 @@
                                             {% if item.prize.image %}
                                             <img src="{{ url_for('static', filename='uploads/prizes/' + item.prize.image) }}" 
                                                  alt="{{ item.prize.name }}" 
-                                                 class="img-thumbnail me-3" 
-                                                 style="width: 50px; height: 50px; object-fit: cover;">
+                                                 class="img-thumbnail me-3 cart-item-image">
                                             {% endif %}
                                             <div>
                                                 <h6 class="mb-0">{{ item.prize.name }}</h6>
@@ -43,10 +42,10 @@
                                         </div>
                                     </td>
                                     <td>
-                                        <div class="input-group" style="width: 120px;">
+                                        <div class="input-group cart-quantity-input">
                                             <button class="btn btn-outline-secondary btn-sm" 
                                                     onclick="updateCart({{ item.prize.id }}, 'decrease')">-</button>
-                                            <input type="number" class="form-control form-control-sm text-center" 
+                                            <input type="number" class="form-control form-control-sm" 
                                                    value="{{ item.quantity }}" 
                                                    min="1" 
                                                    onchange="updateCart({{ item.prize.id }}, 'set', this.value)"
@@ -59,7 +58,7 @@
                                     <td>{{ item.prize.points_cost }} баллов</td>
                                     <td>{{ item.prize.points_cost * item.quantity }} баллов</td>
                                     <td>
-                                        <button class="btn btn-outline-danger btn-sm" 
+                                        <button class="btn btn-outline-danger btn-sm cart-item-remove" 
                                                 onclick="removeFromCart({{ item.prize.id }})">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -77,9 +76,15 @@
                 <div class="card-body">
                     <h5 class="card-title mb-4">Оформление заказа</h5>
                     
-                    <div class="mb-4">
-                        <h6>Ваш баланс: {{ current_user.balance }} баллов</h6>
-                        <h6>Итого к оплате: {{ total_cost }} баллов</h6>
+                    <div class="cart-summary mb-4">
+                        <div class="cart-summary-item">
+                            <span>Ваш баланс:</span>
+                            <span>{{ current_user.balance }} баллов</span>
+                        </div>
+                        <div class="cart-summary-item cart-summary-total">
+                            <span>Итого к оплате:</span>
+                            <span>{{ total_cost }} баллов</span>
+                        </div>
                     </div>
 
                     <form id="checkoutForm" class="mb-4" onsubmit="return validateForm()">

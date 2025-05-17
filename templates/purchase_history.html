@@ -15,7 +15,7 @@
             <h4 class="mb-0">История покупки билетов</h4>
         </div>
         <div class="card-body">
-            <div class="ticket-history-container" style="max-height: 400px; overflow-y: auto;">
+            <div class="ticket-history-container">
                 <table class="table table-hover" id="ticketTable">
                     <thead>
                         <tr>
@@ -47,7 +47,7 @@
         </div>
         <div class="card-body">
             {% if prize_purchases.items %}
-            <div class="prize-history-container" style="max-height: 400px; overflow-y: auto;">
+            <div class="prize-history-container">
                 <table class="table table-hover" id="prizeTable">
                     <thead>
                         <tr>
@@ -68,8 +68,7 @@
                                     {% if purchase.prize.image %}
                                     <img src="{{ url_for('static', filename='uploads/prizes/' + purchase.prize.image) }}" 
                                          alt="{{ purchase.prize.name }}" 
-                                         class="img-thumbnail me-2" 
-                                         style="width: 40px; height: 40px; object-fit: cover;">
+                                         class="img-thumbnail me-2 purchase-history-image">
                                     {% endif %}
                                     <div>
                                         <h6 class="mb-0">{{ purchase.prize.name }}</h6>
@@ -80,7 +79,7 @@
                             <td>{{ purchase.quantity }}</td>
                             <td>{{ purchase.points_cost }} баллов</td>
                             <td>
-                                <span class="badge {% if purchase.status == 'completed' %}bg-success{% elif purchase.status == 'cancelled' %}bg-danger{% else %}bg-warning{% endif %}">
+                                <span class="badge purchase-history-badge {% if purchase.status == 'completed' %}completed{% elif purchase.status == 'cancelled' %}cancelled{% else %}pending{% endif %}">
                                     {% if purchase.status == 'completed' %}
                                         Обработана
                                     {% elif purchase.status == 'cancelled' %}
@@ -91,7 +90,7 @@
                                 </span>
                             </td>
                             <td>
-                                <div class="btn-group">
+                                <div class="purchase-history-actions">
                                     <button class="btn btn-sm btn-outline-info" 
                                             onclick="showDeliveryDetails({{ purchase.id }})">
                                         <i class="fas fa-info-circle me-1"></i>Подробнее
