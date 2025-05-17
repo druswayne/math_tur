@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from sqlalchemy.testing import fails
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
@@ -2378,4 +2379,4 @@ if __name__ == '__main__':
         create_admin_user()
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=False)
