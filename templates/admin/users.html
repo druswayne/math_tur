@@ -413,6 +413,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 tbody.appendChild(row);
             });
             
+            // Инициализация модальных окон для новых пользователей
+            initializeModals(data.users);
+            
             hasMorePages = data.has_next;
             
             if (!hasMorePages) {
@@ -427,6 +430,118 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             isLoadingUsers = false;
         }
+    }
+
+    // Функция для инициализации модальных окон
+    function initializeModals(users) {
+        users.forEach(user => {
+            // Создаем модальные окна для каждого пользователя
+            const modalsContainer = document.querySelector('.modals-container');
+            
+            // Модальное окно информации
+            const infoModal = document.createElement('div');
+            infoModal.className = 'modal fade';
+            infoModal.id = `userInfoModal${user.id}`;
+            infoModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Информация о пользователе</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>ID:</strong> ${user.id}</p>
+                            <p><strong>Логин:</strong> ${user.username}</p>
+                            <p><strong>Email:</strong> ${user.email}</p>
+                            <p><strong>Дата регистрации:</strong> ${user.created_at}</p>
+                            <p><strong>Статус:</strong> ${user.is_active ? 'Активен' : 'Ожидает подтверждения'}</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalsContainer.appendChild(infoModal);
+
+            // Модальное окно редактирования
+            const editModal = document.createElement('div');
+            editModal.className = 'modal fade';
+            editModal.id = `editUserModal${user.id}`;
+            editModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Редактирование пользователя</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form action="/admin/users/${user.id}/edit" method="POST">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="username${user.id}" class="form-label">Логин</label>
+                                    <input type="text" class="form-control" id="username${user.id}" name="username" value="${user.username}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="email${user.id}" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email${user.id}" name="email" value="${user.email}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="password${user.id}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                                    <input type="password" class="form-control" id="password${user.id}" name="password">
+                                </div>
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input type="checkbox" class="form-check-input" id="is_admin${user.id}" name="is_admin" ${user.is_admin ? 'checked' : ''}>
+                                        <label class="form-check-label" for="is_admin${user.id}">Администратор</label>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="tickets${user.id}" class="form-label">Количество билетов</label>
+                                    <input type="number" class="form-control" id="tickets${user.id}" name="tickets" value="${user.tickets || 0}" min="0">
+                                    <small class="form-text text-muted">Укажите новое количество билетов для пользователя</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            modalsContainer.appendChild(editModal);
+
+            // Модальное окно удаления
+            const deleteModal = document.createElement('div');
+            deleteModal.className = 'modal fade';
+            deleteModal.id = `deleteUserModal${user.id}`;
+            deleteModal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Подтверждение удаления</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Вы уверены, что хотите удалить пользователя "${user.username}"?</p>
+                            <p class="text-danger">Это действие нельзя отменить!</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                            <form action="/admin/users/${user.id}/delete" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger">Удалить</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalsContainer.appendChild(deleteModal);
+
+            // Инициализация Bootstrap модальных окон
+            new bootstrap.Modal(infoModal);
+            new bootstrap.Modal(editModal);
+            new bootstrap.Modal(deleteModal);
+        });
     }
 });
 </script>
