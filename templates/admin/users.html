@@ -7,15 +7,16 @@
     <!-- Форма поиска -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="{{ url_for('admin_users') }}" class="row g-3">
+            <form method="GET" action="{{ url_for('admin_users') }}" class="row g-3" id="searchForm">
                 <div class="col-md-6">
                     <div class="input-group">
                         <input type="text" 
                                class="form-control" 
                                name="search" 
+                               id="searchInput"
                                placeholder="Поиск пользователей..." 
                                value="{{ search_query }}">
-                        <select class="form-select" name="search_type" style="max-width: 150px;">
+                        <select class="form-select" name="search_type" id="searchType" style="max-width: 150px;">
                             <option value="username" {% if search_type == 'username' %}selected{% endif %}>По логину</option>
                             <option value="email" {% if search_type == 'email' %}selected{% endif %}>По email</option>
                             <option value="id" {% if search_type == 'id' %}selected{% endif %}>По ID</option>
@@ -43,7 +44,7 @@
             </button>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
+            <div class="table-container">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -55,7 +56,7 @@
                             <th>Действия</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="usersTableBody">
                         {% for user in users %}
                         <tr>
                             <td>{{ user.id }}</td>
@@ -103,140 +104,330 @@
                                 </div>
                             </td>
                         </tr>
-
-                        <!-- Модальное окно информации о пользователе -->
-                        <div class="modal fade" id="userInfoModal{{ user.id }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Информация о пользователе</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <p><strong>ID:</strong> {{ user.id }}</p>
-                                        <p><strong>Логин:</strong> {{ user.username }}</p>
-                                        <p><strong>Email:</strong> {{ user.email }}</p>
-                                        <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
-                                        <p><strong>Последний вход:</strong> {{ user.last_login.strftime('%d.%m.%Y %H:%M') if user.last_login else 'Нет' }}</p>
-                                        <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Ожидает подтверждения{% endif %}</p>
-                                        <p><strong>Общий счет:</strong> {{ user.balance }}</p>
-                                        <p><strong>Билеты:</strong> {{ user.tickets }}</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <a href="{{ url_for('admin_user_details', user_id=user.id) }}" class="btn btn-primary">Подробнее</a>
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Модальное окно редактирования пользователя -->
-                        <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Редактирование пользователя</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <form action="{{ url_for('admin_edit_user', user_id=user.id) }}" method="POST">
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label for="username{{ user.id }}" class="form-label">Логин</label>
-                                                <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="email{{ user.id }}" class="form-label">Email</label>
-                                                <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="password{{ user.id }}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
-                                                <input type="password" class="form-control" id="password{{ user.id }}" name="password">
-                                            </div>
-                                            <div class="mb-3">
-                                                <div class="form-check">
-                                                    <input type="checkbox" class="form-check-input" id="is_admin{{ user.id }}" name="is_admin" {% if user.is_admin %}checked{% endif %}>
-                                                    <label class="form-check-label" for="is_admin{{ user.id }}">Администратор</label>
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="tickets{{ user.id }}" class="form-label">Количество билетов</label>
-                                                <input type="number" class="form-control" id="tickets{{ user.id }}" name="tickets" value="{{ user.tickets }}" min="0">
-                                                <small class="form-text text-muted">Укажите новое количество билетов для пользователя</small>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                            <button type="submit" class="btn btn-primary">Сохранить</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Модальное окно удаления пользователя -->
-                        <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Подтверждение удаления</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <p>Вы уверены, что хотите удалить пользователя "{{ user.username }}"?</p>
-                                        <p class="text-danger">Это действие нельзя отменить!</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                        <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" class="d-inline">
-                                            <button type="submit" class="btn btn-danger">Удалить</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            
+            {% if pagination.has_next %}
+            <div class="text-center mt-3">
+                <button class="btn btn-outline-primary" id="loadMoreButton" data-page="{{ pagination.next_num }}">
+                    Загрузить еще
+                </button>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Модальное окно добавления пользователя -->
-<div class="modal fade" id="addUserModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Добавление пользователя</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('admin_add_user') }}" method="POST">
+<!-- Модальные окна -->
+<div class="modals-container">
+    {% for user in users %}
+    <!-- Модальное окно информации о пользователе -->
+    <div class="modal fade" id="userInfoModal{{ user.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Информация о пользователе</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Логин</label>
-                        <input type="text" class="form-control" id="username" name="username" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Пароль</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
-                            <label class="form-check-label" for="is_admin">Администратор</label>
+                    <p><strong>ID:</strong> {{ user.id }}</p>
+                    <p><strong>Логин:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    <p><strong>Последний вход:</strong> {{ user.last_login.strftime('%d.%m.%Y %H:%M') if user.last_login else 'Нет' }}</p>
+                    <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Ожидает подтверждения{% endif %}</p>
+                    <p><strong>Общий счет:</strong> {{ user.balance }}</p>
+                    <p><strong>Билеты:</strong> {{ user.tickets }}</p>
+                </div>
+                <div class="modal-footer">
+                    <a href="{{ url_for('admin_user_details', user_id=user.id) }}" class="btn btn-primary">Подробнее</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно редактирования пользователя -->
+    <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактирование пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('admin_edit_user', user_id=user.id) }}" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="username{{ user.id }}" class="form-label">Логин</label>
+                            <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email{{ user.id }}" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password{{ user.id }}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                            <input type="password" class="form-control" id="password{{ user.id }}" name="password">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="is_admin{{ user.id }}" name="is_admin" {% if user.is_admin %}checked{% endif %}>
+                                <label class="form-check-label" for="is_admin{{ user.id }}">Администратор</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tickets{{ user.id }}" class="form-label">Количество билетов</label>
+                            <input type="number" class="form-control" id="tickets{{ user.id }}" name="tickets" value="{{ user.tickets }}" min="0">
+                            <small class="form-text text-muted">Укажите новое количество билетов для пользователя</small>
                         </div>
                     </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно удаления пользователя -->
+    <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение удаления</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Вы уверены, что хотите удалить пользователя "{{ user.username }}"?</p>
+                    <p class="text-danger">Это действие нельзя отменить!</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Добавить</button>
+                    <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-danger">Удалить</button>
+                    </form>
                 </div>
-            </form>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Модальное окно добавления пользователя -->
+    <div class="modal fade" id="addUserModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавление пользователя</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="{{ url_for('admin_add_user') }}" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Логин</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Пароль</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
+                                <label class="form-check-label" for="is_admin">Администратор</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+.table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    position: relative;
+}
+
+.table-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-container thead {
+    position: sticky;
+    top: 0;
+    background-color: #fff;
+    z-index: 1;
+}
+
+.table-container thead th {
+    border-bottom: 2px solid #dee2e6;
+    padding: 12px;
+    background-color: #f8f9fa;
+}
+
+.table-container tbody td {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.modals-container {
+    position: fixed;
+    z-index: 1050;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let isLoadingUsers = false;
+    let currentPage = 1;
+    let hasMorePages = {{ 'true' if pagination.has_next else 'false' }};
+    let searchQuery = '{{ search_query }}';
+    let searchType = '{{ search_type }}';
+
+    // Обработчик формы поиска
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
+    const searchTypeSelect = document.getElementById('searchType');
+
+    searchForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        searchQuery = searchInput.value.trim();
+        searchType = searchTypeSelect.value;
+        currentPage = 1;
+        await loadUsers(true);
+    });
+
+    // Обработчик кнопки "Загрузить еще"
+    const loadMoreButton = document.getElementById('loadMoreButton');
+    if (loadMoreButton) {
+        loadMoreButton.addEventListener('click', async function() {
+            currentPage++;
+            await loadUsers();
+        });
+    }
+
+    async function loadUsers(reset = false) {
+        if (isLoadingUsers) return;
+        isLoadingUsers = true;
+
+        try {
+            const url = new URL('{{ url_for("admin_users") }}', window.location.origin);
+            url.searchParams.set('page', currentPage);
+            if (searchQuery) {
+                url.searchParams.set('search', searchQuery);
+                url.searchParams.set('search_type', searchType);
+            }
+
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const tbody = document.getElementById('usersTableBody');
+            
+            if (reset) {
+                tbody.innerHTML = '';
+            }
+            
+            data.users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${user.created_at}</td>
+                    <td>
+                        ${user.is_active ? '<span class="badge bg-success">Активен</span>' : '<span class="badge bg-warning">Ожидает подтверждения</span>'}
+                        ${user.is_blocked ? '<span class="badge bg-danger">Заблокирован</span>' : ''}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-info btn-sm" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#userInfoModal${user.id}">
+                                <i class="bi bi-info-circle"></i>
+                            </button>
+                            <button type="button" class="btn btn-warning btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editUserModal${user.id}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form action="/admin/users/${user.id}/toggle-block" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm" 
+                                        ${user.id === {{ current_user.id if current_user.is_authenticated else 0 }} ? 'disabled' : ''}
+                                        onclick="return confirm('Вы уверены, что хотите ${user.is_blocked ? 'разблокировать' : 'заблокировать'} пользователя ${user.username}?')">
+                                    <i class="bi bi-${user.is_blocked ? 'unlock' : 'lock'}"></i>
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-danger btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteUserModal${user.id}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            hasMorePages = data.has_next;
+            
+            if (!hasMorePages) {
+                const loadMoreButton = document.getElementById('loadMoreButton');
+                if (loadMoreButton) {
+                    loadMoreButton.remove();
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка при загрузке пользователей:', error);
+            alert('Произошла ошибка при загрузке пользователей');
+        } finally {
+            isLoadingUsers = false;
+        }
+    }
+});
+</script>
 {% endblock %} 

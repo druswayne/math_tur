@@ -469,9 +469,11 @@ def admin_users():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    # Получаем параметры поиска
+    # Получаем параметры поиска и пагинации
     search_query = request.args.get('search', '').strip()
     search_type = request.args.get('search_type', 'username')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Количество пользователей на странице
     
     # Базовый запрос
     query = User.query
@@ -490,10 +492,25 @@ def admin_users():
                 flash('ID пользователя должен быть числом', 'warning')
     
     # Получаем пользователей с сортировкой по дате создания
-    users = query.order_by(User.created_at.desc()).all()
+    users = query.order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Если это AJAX-запрос, возвращаем только данные
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'users': [{
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'created_at': user.created_at.strftime('%d.%m.%Y %H:%M'),
+                'is_active': user.is_active,
+                'is_blocked': user.is_blocked
+            } for user in users.items],
+            'has_next': users.has_next
+        })
     
     return render_template('admin/users.html', 
-                         users=users,
+                         users=users.items,
+                         pagination=users,
                          search_query=search_query,
                          search_type=search_type)
 
