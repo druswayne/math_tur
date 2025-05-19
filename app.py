@@ -632,6 +632,14 @@ def admin_tournaments():
     tournaments = Tournament.query.order_by(Tournament.id.desc()).all()
     return render_template('admin/tournaments.html', title='Управление турнирами', tournaments=tournaments)
 
+def generate_unique_filename(filename):
+    """Генерирует уникальное имя файла, сохраняя расширение"""
+    # Получаем расширение файла
+    ext = os.path.splitext(filename)[1]
+    # Генерируем уникальное имя с использованием timestamp и случайной строки
+    unique_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(8)}{ext}"
+    return unique_name
+
 @app.route('/admin/tournaments/add', methods=['POST'])
 @login_required
 def admin_add_tournament():
@@ -641,7 +649,7 @@ def admin_add_tournament():
     
     title = request.form.get('title')
     description = request.form.get('description')
-    rules = request.form.get('rules')  # Получаем правила из формы
+    rules = request.form.get('rules')
     start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     duration = int(request.form.get('duration'))
     
@@ -649,7 +657,7 @@ def admin_add_tournament():
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
-        image_filename = secure_filename(image.filename)
+        image_filename = generate_unique_filename(secure_filename(image.filename))
         image_path = os.path.join(app.static_folder, 'uploads', image_filename)
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         image.save(image_path)
@@ -657,7 +665,7 @@ def admin_add_tournament():
     tournament = Tournament(
         title=title,
         description=description,
-        rules=rules,  # Добавляем правила в создание турнира
+        rules=rules,
         image=image_filename,
         start_date=start_date,
         duration=duration
@@ -680,7 +688,7 @@ def admin_edit_tournament(tournament_id):
     
     tournament.title = request.form.get('title')
     tournament.description = request.form.get('description')
-    tournament.rules = request.form.get('rules')  # Обновляем правила
+    tournament.rules = request.form.get('rules')
     tournament.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     tournament.duration = int(request.form.get('duration'))
     
@@ -693,8 +701,8 @@ def admin_edit_tournament(tournament_id):
             if os.path.exists(old_image_path):
                 os.remove(old_image_path)
         
-        # Сохраняем новое изображение
-        image_filename = secure_filename(image.filename)
+        # Сохраняем новое изображение с уникальным именем
+        image_filename = generate_unique_filename(secure_filename(image.filename))
         image_path = os.path.join(app.static_folder, 'uploads', image_filename)
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         image.save(image_path)
@@ -978,7 +986,7 @@ def admin_add_prize():
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
-        image_filename = secure_filename(image.filename)
+        image_filename = generate_unique_filename(secure_filename(image.filename))
         image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         image.save(image_path)
@@ -1050,8 +1058,8 @@ def admin_edit_prize(prize_id):
                 if os.path.exists(old_image_path):
                     os.remove(old_image_path)
             
-            # Сохраняем новое изображение
-            image_filename = secure_filename(image.filename)
+            # Сохраняем новое изображение с уникальным именем
+            image_filename = generate_unique_filename(secure_filename(image.filename))
             image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
             os.makedirs(os.path.dirname(image_path), exist_ok=True)
             image.save(image_path)
@@ -1110,7 +1118,7 @@ def add_tournament_task(tournament_id):
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
-        image_filename = secure_filename(image.filename)
+        image_filename = generate_unique_filename(secure_filename(image.filename))
         image_path = os.path.join(app.static_folder, 'uploads', 'tasks', image_filename)
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         image.save(image_path)
@@ -1170,8 +1178,8 @@ def edit_tournament_task(tournament_id, task_id):
             if os.path.exists(old_image_path):
                 os.remove(old_image_path)
         
-        # Сохраняем новое изображение
-        image_filename = secure_filename(image.filename)
+        # Сохраняем новое изображение с уникальным именем
+        image_filename = generate_unique_filename(secure_filename(image.filename))
         image_path = os.path.join(app.static_folder, 'uploads', 'tasks', image_filename)
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         image.save(image_path)
