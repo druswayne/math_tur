@@ -357,32 +357,29 @@ def home():
         # Получаем текущее время
         current_time = datetime.utcnow() + timedelta(hours=3)
         
-        # Сначала ищем будущие турниры
-        next_tournament = Tournament.query.filter(
-            Tournament.start_date > current_time,
+        # Сначала ищем текущий активный турнир
+        active_tournaments = Tournament.query.filter(
+            Tournament.start_date <= current_time,
             Tournament.is_active == True
-        ).order_by(Tournament.start_date.asc()).first()
+        ).order_by(Tournament.start_date.desc()).all()
         
-        # Если нет будущих турниров, ищем текущий активный турнир
-        if not next_tournament:
-            # Получаем все активные турниры, которые уже начались
-            active_tournaments = Tournament.query.filter(
-                Tournament.start_date <= current_time,
-                Tournament.is_active == True
-            ).all()
-            
-            # Находим турнир, который еще не закончился
-            for tournament in active_tournaments:
-                end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-                if end_time > current_time:
-                    next_tournament = tournament
-                    break
-        
-        # Определяем, идет ли турнир
+        next_tournament = None
         is_tournament_running = False
-        if next_tournament:
-            is_tournament_running = (next_tournament.start_date <= current_time and 
-                                   current_time <= next_tournament.start_date + timedelta(minutes=next_tournament.duration))
+        
+        # Проверяем каждый активный турнир
+        for tournament in active_tournaments:
+            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+            if current_time <= end_time:
+                next_tournament = tournament
+                is_tournament_running = True
+                break
+        
+        # Если нет текущего турнира, ищем следующий
+        if not next_tournament:
+            next_tournament = Tournament.query.filter(
+                Tournament.start_date > current_time,
+                Tournament.is_active == True
+            ).order_by(Tournament.start_date.asc()).first()
         
         return render_template('index.html',
                              next_tournament=next_tournament,
@@ -1327,12 +1324,12 @@ def profile():
         active_tournaments = Tournament.query.filter(
             Tournament.start_date <= current_time,
             Tournament.is_active == True
-        ).all()
+        ).order_by(Tournament.start_date.desc()).all()
         
-        # Находим турнир, который еще не закончился
+        # Находим турнир, который идет сейчас
         for tournament in active_tournaments:
             end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-            if end_time > current_time:
+            if current_time <= end_time:
                 next_tournament = tournament
                 break
     
