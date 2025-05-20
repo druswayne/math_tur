@@ -30,12 +30,12 @@
         <table class="table table-hover">
             <thead>
                 <tr>
-                    <th>Место</th>
-                    <th>Пользователь</th>
-                    <th>Баллы</th>
-                    <th>Попыток решения</th>
-                    <th>% верных решений</th>
-                    <th>Турниров</th>
+                    <th class="sortable" data-sort="global_rank">Место <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-sort="username">Пользователь <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-sort="balance">Баллы <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-sort="solved_tasks_count">Попыток решения <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-sort="success_rate">% верных решений <i class="fas fa-sort"></i></th>
+                    <th class="sortable" data-sort="tournaments_count">Турниров <i class="fas fa-sort"></i></th>
                 </tr>
             </thead>
             <tbody id="usersTableBody">
@@ -61,6 +61,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasMorePages = true;
     let isLoading = false;
     let searchQuery = '';
+    let sortField = 'global_rank';
+    let sortDirection = 'asc';
+    let allUsers = [];
 
     // Загружаем первые данные при загрузке страницы
     loadUsers();
@@ -71,6 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searchQuery = searchInput.value.trim();
         currentPage = 1;
         usersTableBody.innerHTML = ''; // Очищаем таблицу
+        allUsers = []; // Очищаем массив пользователей
         hasMorePages = true;
         loadUsers();
     });
@@ -81,6 +85,65 @@ document.addEventListener('DOMContentLoaded', function() {
             loadUsers();
         }
     });
+
+    // Обработчики сортировки
+    document.querySelectorAll('th.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const field = this.dataset.sort;
+            if (sortField === field) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDirection = 'asc';
+            }
+            
+            // Обновляем иконки сортировки
+            document.querySelectorAll('th.sortable i').forEach(icon => {
+                icon.className = 'fas fa-sort';
+            });
+            this.querySelector('i').className = `fas fa-sort-${sortDirection === 'asc' ? 'up' : 'down'}`;
+            
+            // Сортируем и отображаем данные
+            sortAndDisplayUsers();
+        });
+    });
+
+    // Функция сортировки и отображения пользователей
+    function sortAndDisplayUsers() {
+        usersTableBody.innerHTML = '';
+        
+        allUsers.sort((a, b) => {
+            let valueA = a[sortField];
+            let valueB = b[sortField];
+            
+            // Преобразуем значения в числа, если это числовые поля
+            if (['global_rank', 'balance', 'solved_tasks_count', 'success_rate', 'tournaments_count'].includes(sortField)) {
+                valueA = Number(valueA);
+                valueB = Number(valueB);
+            }
+            
+            if (sortDirection === 'asc') {
+                return valueA > valueB ? 1 : -1;
+            } else {
+                return valueA < valueB ? 1 : -1;
+            }
+        });
+        
+        allUsers.forEach(user => {
+            const row = document.createElement('tr');
+            if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
+                row.classList.add('table-primary');
+            }
+            row.innerHTML = 
+                '<td>' + user.global_rank + '</td>' +
+                '<td>' + user.username + '</td>' +
+                '<td>' + user.balance + '</td>' +
+                '<td>' + user.solved_tasks_count + '</td>' +
+                '<td>' + user.success_rate + '%</td>' +
+                '<td>' + user.tournaments_count + '</td>';
+            usersTableBody.appendChild(row);
+        });
+    }
 
     // Функция загрузки пользователей
     async function loadUsers() {
@@ -108,20 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             
-            data.users.forEach(user => {
-                const row = document.createElement('tr');
-                if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
-                    row.classList.add('table-primary');
-                }
-                row.innerHTML = 
-                    '<td>' + user.global_rank + '</td>' +
-                    '<td>' + user.username + '</td>' +
-                    '<td>' + user.balance + '</td>' +
-                    '<td>' + user.solved_tasks_count + '</td>' +
-                    '<td>' + user.success_rate + '%</td>' +
-                    '<td>' + user.tournaments_count + '</td>';
-                usersTableBody.appendChild(row);
-            });
+            // Добавляем новых пользователей в общий массив
+            allUsers = allUsers.concat(data.users);
+            
+            // Сортируем и отображаем всех пользователей
+            sortAndDisplayUsers();
             
             hasMorePages = data.has_next;
             
@@ -141,4 +195,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<style>
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+th.sortable:hover {
+    background-color: #f8f9fa;
+}
+
+th.sortable i {
+    margin-left: 5px;
+}
+</style>
 {% endblock %} 
