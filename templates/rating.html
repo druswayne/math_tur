@@ -52,9 +52,9 @@
 {% block scripts %}
 {{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchForm = document.getElementById('searchForm');
-    const searchInput = document.getElementById('searchInput');
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchInput');
     const usersTableBody = document.getElementById('usersTableBody');
     const loadMoreButton = document.getElementById('loadMoreButton');
     let currentPage = 1;
@@ -67,13 +67,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обработчик отправки формы поиска
     searchForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        searchQuery = searchInput.value.trim();
-        currentPage = 1;
+            e.preventDefault();
+            searchQuery = searchInput.value.trim();
+            currentPage = 1;
         usersTableBody.innerHTML = ''; // Очищаем таблицу
         hasMorePages = true;
         loadUsers();
-    });
+        });
 
     // Обработчик кнопки "Загрузить еще"
     loadMoreButton.addEventListener('click', function() {
@@ -89,47 +89,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
         loadMoreButton.disabled = true;
 
-        try {
-            const url = new URL('/rating', window.location.origin);
-            url.searchParams.set('page', currentPage);
-            if (searchQuery) {
-                url.searchParams.set('search', searchQuery);
-            }
+            try {
+                const url = new URL('/rating', window.location.origin);
+                url.searchParams.set('page', currentPage);
+                if (searchQuery) {
+                    url.searchParams.set('search', searchQuery);
+                }
 
-            const response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
+                
+                const data = await response.json();
+                
             data.users.forEach(user => {
-                const row = document.createElement('tr');
-                if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
-                    row.classList.add('table-primary');
-                }
-                row.innerHTML = 
+                    const row = document.createElement('tr');
+                    if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
+                        row.classList.add('table-primary');
+                    }
+                    row.innerHTML = 
                     '<td>' + user.global_rank + '</td>' +
-                    '<td>' + user.username + '</td>' +
-                    '<td>' + user.balance + '</td>' +
-                    '<td>' + user.solved_tasks_count + '</td>' +
-                    '<td>' + user.success_rate + '%</td>' +
-                    '<td>' + user.tournaments_count + '</td>';
+                        '<td>' + user.username + '</td>' +
+                        '<td>' + user.balance + '</td>' +
+                        '<td>' + user.solved_tasks_count + '</td>' +
+                        '<td>' + user.success_rate + '%</td>' +
+                        '<td>' + user.tournaments_count + '</td>';
                 usersTableBody.appendChild(row);
-            });
-            
-            hasMorePages = data.has_next;
-            
-            if (!hasMorePages) {
+                });
+                
+                hasMorePages = data.has_next;
+                
+                if (!hasMorePages) {
                 loadMoreButton.style.display = 'none';
             }
             
-            currentPage++;
+                currentPage++;
         } catch (error) {
             console.error('Error:', error);
             loadMoreButton.innerHTML = 'Ошибка загрузки. Попробуйте еще раз';
@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
             loadMoreButton.disabled = false;
             loadMoreButton.innerHTML = 'Загрузить еще';
         }
-    }
-});
+        }
+    });
 </script>
 {% endblock %} 

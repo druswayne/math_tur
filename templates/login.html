@@ -43,4 +43,32 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем, было ли уже дано согласие
+    if (!localStorage.getItem('cookieConsent')) {
+        // Показываем модальное окно
+        const cookieModal = new bootstrap.Modal(document.getElementById('cookieConsentModal'));
+        cookieModal.show();
+    }
+
+    // Обработчик кнопки "Принять"
+    document.getElementById('acceptCookies').addEventListener('click', function() {
+        localStorage.setItem('cookieConsent', 'true');
+        const cookieModal = bootstrap.Modal.getInstance(document.getElementById('cookieConsentModal'));
+        cookieModal.hide();
+    });
+
+    // Обработчик кнопки "Отклонить"
+    document.getElementById('declineCookies').addEventListener('click', function() {
+        localStorage.setItem('cookieConsent', 'false');
+        const cookieModal = bootstrap.Modal.getInstance(document.getElementById('cookieConsentModal'));
+        cookieModal.hide();
+    });
+});
+</script>
 {% endblock %} 
