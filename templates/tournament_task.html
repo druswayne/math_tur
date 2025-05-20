@@ -203,6 +203,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const confirmSubmitBtn = document.getElementById('confirmSubmit');
     const answerForm = document.getElementById('answerForm');
     
+    // Предотвращаем отправку формы по нажатию Enter
+    answerInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
     // Обработчик нажатия на кнопку отправки
     submitBtn.addEventListener('click', function() {
         if (answerInput.value.trim() === '') {
