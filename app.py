@@ -643,6 +643,28 @@ def admin_toggle_user_block(user_id):
     flash(f'Пользователь {user.username} успешно {action}', 'success')
     return redirect(url_for('admin_users'))
 
+@app.route('/admin/users/reset-all-balances', methods=['POST'])
+@login_required
+def admin_reset_all_balances():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    password = request.form.get('password')
+    if not password:
+        return jsonify({'success': False, 'message': 'Введите пароль для подтверждения'})
+    
+    if not current_user.check_password(password):
+        return jsonify({'success': False, 'message': 'Неверный пароль'})
+    
+    try:
+        User.query.update({User.balance: 0})
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Счет всех пользователей успешно обнулен'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Произошла ошибка при обнулении счетов'})
+
 @app.route('/admin/tournaments')
 @login_required
 def admin_tournaments():
@@ -2401,4 +2423,4 @@ if __name__ == '__main__':
         create_admin_user()
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=True)

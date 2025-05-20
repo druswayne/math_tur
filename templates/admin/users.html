@@ -39,9 +39,14 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">Управление пользователями</h4>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                Добавить пользователя
-            </button>
+            <div>
+                <button type="button" class="btn btn-secondary me-2" data-bs-toggle="modal" data-bs-target="#userSettingsModal">
+                    <i class="bi bi-gear"></i>
+                </button>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    Добавить пользователя
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <div class="table-container">
@@ -249,6 +254,72 @@
                         <button type="submit" class="btn btn-primary">Добавить</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно настроек пользователей -->
+    <div class="modal fade" id="userSettingsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Настройки пользователей</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-4">
+                        <h6>Управление счетом</h6>
+                        <form id="resetBalancesForm" class="d-inline">
+                            <div class="mb-3">
+                                <label for="adminPassword" class="form-label">Введите пароль администратора для подтверждения</label>
+                                <input type="password" class="form-control" id="adminPassword" required>
+                            </div>
+                            <button type="submit" class="btn btn-danger" id="resetBalancesBtn">
+                                Обнулить счет всех пользователей
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Подтверждение действия</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" id="confirmButton">Подтвердить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно уведомления -->
+    <div class="modal fade" id="notificationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Уведомление</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="notificationMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+                </div>
             </div>
         </div>
     </div>
@@ -543,6 +614,69 @@ document.addEventListener('DOMContentLoaded', function() {
             new bootstrap.Modal(deleteModal);
         });
     }
+
+    // Функция для показа модального окна уведомления
+    function showNotification(message) {
+        const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+        document.getElementById('notificationMessage').textContent = message;
+        modal.show();
+    }
+
+    // Функция для показа модального окна подтверждения
+    function showConfirmModal(message, callback) {
+        const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+        document.getElementById('confirmMessage').textContent = message;
+        
+        const confirmButton = document.getElementById('confirmButton');
+        const oldClickHandler = confirmButton.onclick;
+        
+        confirmButton.onclick = function() {
+            modal.hide();
+            if (callback) {
+                callback();
+            }
+        };
+        
+        modal.show();
+    }
+
+    // Обработчик формы обнуления счетов
+    document.getElementById('resetBalancesForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const password = document.getElementById('adminPassword').value;
+        const button = document.getElementById('resetBalancesBtn');
+        
+        showConfirmModal('Вы уверены, что хотите обнулить счет всех пользователей? Это действие нельзя отменить!', async function() {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Обработка...';
+            
+            try {
+                const response = await fetch('{{ url_for("admin_reset_all_balances") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `password=${encodeURIComponent(password)}`
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(data.message);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(data.message);
+                }
+            } catch (error) {
+                showNotification('Произошла ошибка при выполнении операции');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = 'Обнулить счет всех пользователей';
+                document.getElementById('adminPassword').value = '';
+            }
+        });
+    });
 });
 </script>
 {% endblock %} 
