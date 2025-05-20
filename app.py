@@ -121,6 +121,7 @@ class User(UserMixin, db.Model):
     tournaments_count = db.Column(db.Integer, default=0)  # Количество турниров, в которых участвовал пользователь
     session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
     global_rank = db.Column(db.Integer, default=0)  # Место в общей таблице
+    temp_password = db.Column(db.String(128), nullable=True)  # Временное хранение пароля до подтверждения email
 
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -1311,11 +1312,9 @@ def register():
 
         user = User(username=username, email=email)
         user.set_password(password)
+        user.temp_password = password
         db.session.add(user)
         db.session.commit()
-
-        # Сохраняем пароль во временной сессии для последующей отправки
-        session['temp_password'] = password
 
         # Отправляем письмо с подтверждением асинхронно
         send_confirmation_email(user)
@@ -1334,11 +1333,11 @@ def confirm_email(token):
         db.session.commit()
         
         # Отправляем письмо с учетными данными
-        # Получаем пароль из сессии
-        password = session.get('temp_password')
+        password = user.temp_password
         if password:
             send_credentials_email(user, password)
-            session.pop('temp_password', None)  # Удаляем пароль из сессии
+            user.temp_password = None
+            db.session.commit()
         
         flash('Email успешно подтвержден! Теперь вы можете войти.', 'success')
     else:
