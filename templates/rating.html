@@ -33,7 +33,7 @@
                     <th>Место</th>
                     <th>Пользователь</th>
                     <th>Баллы</th>
-                    <th>Решено задач</th>
+                    <th>Попыток решения</th>
                     <th>% верных решений</th>
                     <th>Турниров</th>
                 </tr>
@@ -41,7 +41,7 @@
             <tbody>
                 {% for user in users %}
                 <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
-                    <td>{{ loop.index + (current_page - 1) * per_page }}</td>
+                    <td>{{ user.global_rank }}</td>
                     <td>{{ user.username }}</td>
                     <td>{{ user.balance }}</td>
                     <td>{{ user.solved_tasks_count }}</td>
@@ -58,102 +58,89 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        let isLoadingUsers = false;
-        let currentPage = {{ current_page }};
-        let hasMorePages = {{ 'true' if total_pages > current_page else 'false' }};
-        let searchQuery = '';
+document.addEventListener('DOMContentLoaded', function() {
+    const searchForm = document.getElementById('searchForm');
+    const searchInput = document.getElementById('searchInput');
+    let currentPage = 1;
+    let hasMorePages = true;
+    let isLoading = false;
+    let searchQuery = '';
 
-        // Обработчик формы поиска
-        const searchForm = document.getElementById('searchForm');
-        const searchInput = document.getElementById('searchInput');
+    // Обработчик отправки формы поиска
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        searchQuery = searchInput.value.trim();
+        currentPage = 1;
+        loadUsers(true);
+    });
 
-        searchForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            searchQuery = searchInput.value.trim();
-            currentPage = 1;
-            await loadUsers(true);
-        });
+    // Функция загрузки пользователей
+    async function loadUsers(reset = false) {
+        if (isLoading || !hasMorePages) return;
+        isLoading = true;
 
-        async function loadUsers(reset = false) {
-            if (isLoadingUsers) return;
-            isLoadingUsers = true;
-
-            try {
-                const url = new URL('/rating', window.location.origin);
-                url.searchParams.set('page', currentPage);
-                if (searchQuery) {
-                    url.searchParams.set('search', searchQuery);
-                }
-
-                const response = await fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const tbody = document.querySelector('table tbody');
-                
-                if (reset) {
-                    tbody.innerHTML = '';
-                }
-                
-                const startIndex = (currentPage - 1) * {{ per_page }};
-                
-                data.users.forEach((user, index) => {
-                    const row = document.createElement('tr');
-                    if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
-                        row.classList.add('table-primary');
-                    }
-                    row.innerHTML = 
-                        '<td>' + (startIndex + index + 1) + '</td>' +
-                        '<td>' + user.username + '</td>' +
-                        '<td>' + user.balance + '</td>' +
-                        '<td>' + user.solved_tasks_count + '</td>' +
-                        '<td>' + user.success_rate + '%</td>' +
-                        '<td>' + user.tournaments_count + '</td>';
-                    tbody.appendChild(row);
-                });
-                
-                hasMorePages = data.has_next;
-                
-                if (!hasMorePages) {
-                    const loadMoreButton = document.getElementById('loadMoreButton');
-                    if (loadMoreButton) {
-                        loadMoreButton.remove();
-                    }
-                }
-            } catch (error) {
-                console.error('Ошибка при загрузке пользователей:', error);
-                alert('Произошла ошибка при загрузке пользователей');
-            } finally {
-                isLoadingUsers = false;
+        try {
+            const url = new URL('/rating', window.location.origin);
+            url.searchParams.set('page', currentPage);
+            if (searchQuery) {
+                url.searchParams.set('search', searchQuery);
             }
-        }
 
-        // Функция для проверки, нужно ли загружать новые данные
-        function checkScroll() {
-            const container = document.querySelector('.rating-table-container');
-            const scrollPosition = container.scrollTop + container.clientHeight;
-            const scrollHeight = container.scrollHeight;
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
             
-            // Загружаем новые данные, когда пользователь прокрутил до 80% контента
-            if (scrollPosition >= scrollHeight * 0.8) {
-                currentPage++;
-                loadUsers();
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            
+            const data = await response.json();
+            const tbody = document.querySelector('table tbody');
+            
+            if (reset) {
+                tbody.innerHTML = '';
+            }
+            
+            data.users.forEach(user => {
+                const row = document.createElement('tr');
+                if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
+                    row.classList.add('table-primary');
+                }
+                row.innerHTML = 
+                    '<td>' + user.global_rank + '</td>' +
+                    '<td>' + user.username + '</td>' +
+                    '<td>' + user.balance + '</td>' +
+                    '<td>' + user.solved_tasks_count + '</td>' +
+                    '<td>' + user.success_rate + '%</td>' +
+                    '<td>' + user.tournaments_count + '</td>';
+                tbody.appendChild(row);
+            });
+            
+            hasMorePages = data.has_next;
+            
+            if (!hasMorePages) {
+                const loadMoreButton = document.getElementById('loadMoreButton');
+                if (loadMoreButton) {
+                    loadMoreButton.remove();
+                }
+            }
+            
+            currentPage++;
+        } catch (error) {
+            console.error('Error:', error);
+        } finally {
+            isLoading = false;
         }
+    }
 
-        // Добавляем обработчик прокрутки
-        const container = document.querySelector('.rating-table-container');
-        if (container) {
-            container.addEventListener('scroll', checkScroll);
+    // Обработчик прокрутки для бесконечной загрузки
+    window.addEventListener('scroll', function() {
+        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
+            loadUsers();
         }
     });
+});
 </script>
 {% endblock %} 

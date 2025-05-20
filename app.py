@@ -51,12 +51,32 @@ def start_tournament_job(tournament_id):
             tournament.status = 'started'
             db.session.commit()
 
+def update_global_ranks():
+    """Обновляет места пользователей в общей таблице на основе их баланса"""
+    # Получаем всех пользователей, отсортированных по балансу (по убыванию)
+    users = User.query.filter_by(is_admin=False).order_by(User.balance.desc()).all()
+    
+    # Обновляем места
+    for rank, user in enumerate(users, 1):
+        user.global_rank = rank
+    
+    db.session.commit()
+
 def end_tournament_job(tournament_id):
     with app.app_context():
         tournament = Tournament.query.get(tournament_id)
         if tournament:
             tournament.status = 'finished'
             tournament.is_active = False
+            
+            # Обновляем места участников в турнире
+            participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
+            for rank, participation in enumerate(participations, 1):
+                participation.place = rank
+            
+            # Обновляем общую таблицу
+            update_global_ranks()
+            
             db.session.commit()
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type):
@@ -100,6 +120,7 @@ class User(UserMixin, db.Model):
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
     tournaments_count = db.Column(db.Integer, default=0)  # Количество турниров, в которых участвовал пользователь
     session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
+    global_rank = db.Column(db.Integer, default=0)  # Место в общей таблице
 
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -1899,83 +1920,62 @@ def tournament_history():
 @app.route('/rating')
 def rating():
     page = request.args.get('page', 1, type=int)
-    per_page = 50
+    per_page = 20
     search_query = request.args.get('search', '').strip()
     
-    # Базовый запрос для пользователей
-    users_query = User.query.filter(User.is_admin == False)
+    # Базовый запрос
+    query = User.query.filter_by(is_admin=False)
     
     # Применяем поиск, если есть поисковый запрос
     if search_query:
-        users_query = users_query.filter(User.username.ilike(f'%{search_query}%'))
+        query = query.filter(User.username.ilike(f'%{search_query}%'))
     
-    # Получаем общее количество пользователей
-    total_users = users_query.count()
-    total_pages = (total_users + per_page - 1) // per_page
+    # Получаем пользователей, отсортированных по балансу
+    users = query.order_by(User.balance.desc()).paginate(page=page, per_page=per_page, error_out=False)
     
-    # Получаем пользователей с их статистикой
-    users = db.session.query(
-        User,
-        func.count(SolvedTask.id).label('solved_tasks_count'),
-        func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks_count')
-    ).outerjoin(
-        SolvedTask, User.id == SolvedTask.user_id
-    ).filter(
-        User.is_admin == False
-    )
+    # Получаем место текущего пользователя
+    user_rank = None
+    if current_user.is_authenticated and not current_user.is_admin:
+        user_rank = current_user.global_rank
     
-    # Применяем поиск к основному запросу
-    if search_query:
-        users = users.filter(User.username.ilike(f'%{search_query}%'))
-    
-    # Сортируем по балансу по умолчанию
-    users = users.order_by(User.balance.desc())
-    
-    users = users.group_by(
-        User.id
-    ).offset(
-        (page - 1) * per_page
-    ).limit(per_page).all()
-    
-    # Преобразуем результаты в список словарей
-    users_list = []
-    for user, solved_tasks_count, correct_tasks_count in users:
-        success_rate = round((correct_tasks_count or 0) / (solved_tasks_count or 1) * 100, 1)
-        users_list.append({
+    # Получаем статистику по решенным задачам для каждого пользователя
+    users_with_stats = []
+    for user in users.items:
+        # Получаем общее количество попыток решения
+        solved_tasks = db.session.query(func.count(SolvedTask.id))\
+            .filter(SolvedTask.user_id == user.id)\
+            .scalar() or 0
+            
+        # Получаем количество правильно решенных задач
+        correct_tasks = db.session.query(func.count(SolvedTask.id))\
+            .filter(SolvedTask.user_id == user.id, SolvedTask.is_correct == True)\
+            .scalar() or 0
+            
+        # Рассчитываем процент верных решений
+        success_rate = round((correct_tasks / solved_tasks) * 100, 1) if solved_tasks > 0 else 0
+        
+        users_with_stats.append({
             'id': user.id,
             'username': user.username,
             'balance': user.balance,
-            'solved_tasks_count': solved_tasks_count or 0,
-            'correct_tasks_count': correct_tasks_count or 0,
+            'solved_tasks_count': solved_tasks,
             'success_rate': success_rate,
-            'tournaments_count': user.tournaments_count
+            'tournaments_count': user.tournaments_count,
+            'global_rank': user.global_rank
         })
     
-    # Получаем место текущего пользователя в рейтинге
-    user_rank = None
-    if current_user.is_authenticated and not current_user.is_admin:
-        user_rank = db.session.query(
-            func.count(User.id) + 1
-        ).filter(
-            User.balance > current_user.balance,
-            User.is_admin == False
-        ).scalar()
-    
-    # Если это AJAX-запрос, возвращаем только данные
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
-            'users': users_list,
-            'has_next': page < total_pages
+            'users': users_with_stats,
+            'has_next': users.has_next
         })
     
-    return render_template(
-        'rating.html',
-        users=users_list,
-        current_page=page,
-        total_pages=total_pages,
-        per_page=per_page,
-        user_rank=user_rank
-    )
+    return render_template('rating.html',
+                         users=users_with_stats,
+                         pagination=users,
+                         user_rank=user_rank,
+                         current_page=page,
+                         per_page=per_page)
 
 @app.route('/shop')
 @login_required
