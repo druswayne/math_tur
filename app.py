@@ -1961,7 +1961,7 @@ def rating():
             'solved_tasks_count': solved_tasks,
             'success_rate': success_rate,
             'tournaments_count': user.tournaments_count,
-            'global_rank': user.global_rank
+            'global_rank': user.global_rank  # Используем значение из БД
         })
     
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

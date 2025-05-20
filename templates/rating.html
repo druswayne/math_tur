@@ -38,19 +38,13 @@
                     <th>Турниров</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for user in users %}
-                <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
-                    <td>{{ user.global_rank }}</td>
-                    <td>{{ user.username }}</td>
-                    <td>{{ user.balance }}</td>
-                    <td>{{ user.solved_tasks_count }}</td>
-                    <td>{{ user.success_rate }}%</td>
-                    <td>{{ user.tournaments_count }}</td>
-                </tr>
-                {% endfor %}
+            <tbody id="usersTableBody">
             </tbody>
         </table>
+        
+        <div class="text-center mt-3 mb-4">
+            <button id="loadMoreButton" class="btn btn-primary">Загрузить еще</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -61,23 +55,39 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchForm = document.getElementById('searchForm');
     const searchInput = document.getElementById('searchInput');
+    const usersTableBody = document.getElementById('usersTableBody');
+    const loadMoreButton = document.getElementById('loadMoreButton');
     let currentPage = 1;
     let hasMorePages = true;
     let isLoading = false;
     let searchQuery = '';
+
+    // Загружаем первые данные при загрузке страницы
+    loadUsers();
 
     // Обработчик отправки формы поиска
     searchForm.addEventListener('submit', function(e) {
         e.preventDefault();
         searchQuery = searchInput.value.trim();
         currentPage = 1;
-        loadUsers(true);
+        usersTableBody.innerHTML = ''; // Очищаем таблицу
+        hasMorePages = true;
+        loadUsers();
+    });
+
+    // Обработчик кнопки "Загрузить еще"
+    loadMoreButton.addEventListener('click', function() {
+        if (!isLoading && hasMorePages) {
+            loadUsers();
+        }
     });
 
     // Функция загрузки пользователей
-    async function loadUsers(reset = false) {
+    async function loadUsers() {
         if (isLoading || !hasMorePages) return;
         isLoading = true;
+
+        loadMoreButton.disabled = true;
 
         try {
             const url = new URL('/rating', window.location.origin);
@@ -97,11 +107,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const data = await response.json();
-            const tbody = document.querySelector('table tbody');
-            
-            if (reset) {
-                tbody.innerHTML = '';
-            }
             
             data.users.forEach(user => {
                 const row = document.createElement('tr');
@@ -115,32 +120,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     '<td>' + user.solved_tasks_count + '</td>' +
                     '<td>' + user.success_rate + '%</td>' +
                     '<td>' + user.tournaments_count + '</td>';
-                tbody.appendChild(row);
+                usersTableBody.appendChild(row);
             });
             
             hasMorePages = data.has_next;
             
             if (!hasMorePages) {
-                const loadMoreButton = document.getElementById('loadMoreButton');
-                if (loadMoreButton) {
-                    loadMoreButton.remove();
-                }
+                loadMoreButton.style.display = 'none';
             }
             
             currentPage++;
         } catch (error) {
             console.error('Error:', error);
+            loadMoreButton.innerHTML = 'Ошибка загрузки. Попробуйте еще раз';
         } finally {
             isLoading = false;
+            loadMoreButton.disabled = false;
+            loadMoreButton.innerHTML = 'Загрузить еще';
         }
     }
-
-    // Обработчик прокрутки для бесконечной загрузки
-    window.addEventListener('scroll', function() {
-        if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 1000) {
-            loadUsers();
-        }
-    });
 });
 </script>
 {% endblock %} 
