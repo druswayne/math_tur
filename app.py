@@ -119,6 +119,9 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(20), unique=True, nullable=False)
+    parent_name = db.Column(db.String(100), nullable=False)
+    category = db.Column(db.String(10), nullable=False)
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False)  # Для подтверждения email
@@ -349,6 +352,9 @@ def create_admin_user():
         admin = User(
             username='admin',
             email='admin@school-tournaments.ru',
+            phone='+375000000000',  # Добавляем номер телефона
+            parent_name='Администратор',  # Добавляем имя представителя
+            category='10-11',  # Добавляем категорию
             is_admin=True,
             is_active=True  # Устанавливаем is_active=True для администратора
         )
@@ -1301,6 +1307,9 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         email = request.form.get('email')
+        phone = request.form.get('phone')
+        parent_name = request.form.get('parent_name')
+        category = request.form.get('category')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
 
@@ -1312,6 +1321,18 @@ def register():
             flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
             return redirect(url_for('register'))
 
+        if password != confirm_password:
+            flash('Пароли не совпадают', 'danger')
+            return redirect(url_for('register'))
+
+        if not re.match(r'^\+375[0-9]{9}$', phone):
+            flash('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger')
+            return redirect(url_for('register'))
+
+        if not category or category not in ['1-2', '3-4', '5-6', '7-8', '9', '10-11']:
+            flash('Пожалуйста, выберите группу', 'danger')
+            return redirect(url_for('register'))
+
         if User.query.filter_by(username=username).first():
             flash('Пользователь с таким логином уже существует', 'danger')
             return redirect(url_for('register'))
@@ -1320,7 +1341,17 @@ def register():
             flash('Пользователь с таким email уже существует', 'danger')
             return redirect(url_for('register'))
 
-        user = User(username=username, email=email)
+        if User.query.filter_by(phone=phone).first():
+            flash('Пользователь с таким номером телефона уже существует', 'danger')
+            return redirect(url_for('register'))
+
+        user = User(
+            username=username,
+            email=email,
+            phone=phone,
+            parent_name=parent_name,
+            category=category
+        )
         user.set_password(password)
         user.temp_password = password
         db.session.add(user)
@@ -2423,6 +2454,10 @@ def change_password():
         'success': True,
         'message': 'Пароль успешно изменен'
     })
+
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html', title='Политика конфиденциальности')
 
 if __name__ == '__main__':
     with app.app_context():

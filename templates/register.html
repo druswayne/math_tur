@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-6">
+        <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
-                    <h2 class="text-center mb-0">Регистрация</h2>
+                    <h3 class="text-center">Регистрация</h3>
                 </div>
                 <div class="card-body">
                     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -24,10 +24,6 @@
                             <div class="form-text">Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.</div>
                         </div>
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                        <div class="mb-3">
                             <label for="password" class="form-label">Пароль</label>
                             <input type="password" class="form-control" id="password" name="password" required>
                             <div class="form-text">Пароль должен содержать минимум 8 символов, включая цифры и буквы</div>
@@ -36,13 +32,101 @@
                             <label for="confirm_password" class="form-label">Подтвердите пароль</label>
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                         </div>
+                        <hr class="my-4">
+                        <div class="mb-3">
+                            <label for="parent_name" class="form-label">ФИО законного представителя (родителя)</label>
+                            <input type="text" class="form-control" id="parent_name" name="parent_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Номер телефона</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" pattern="\+375[0-9]{9}" placeholder="+375XXXXXXXXX" required>
+                            <div class="form-text">Введите номер в формате +375XXXXXXXXX</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Выберите группу</label>
+                            <div class="category-cards">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="category-card">
+                                            <input type="radio" class="btn-check" name="category" id="category1-2" value="1-2" required>
+                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category1-2">
+                                                <div class="text-center">
+                                                    <i class="fas fa-child fa-2x mb-2"></i>
+                                                    <div>1-2 класс</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="category-card">
+                                            <input type="radio" class="btn-check" name="category" id="category3-4" value="3-4" required>
+                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category3-4">
+                                                <div class="text-center">
+                                                    <i class="fas fa-child fa-2x mb-2"></i>
+                                                    <div>3-4 класс</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="category-card">
+                                            <input type="radio" class="btn-check" name="category" id="category5-6" value="5-6" required>
+                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category5-6">
+                                                <div class="text-center">
+                                                    <i class="fas fa-child fa-2x mb-2"></i>
+                                                    <div>5-6 класс</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="category-card">
+                                            <input type="radio" class="btn-check" name="category" id="category7-8" value="7-8" required>
+                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category7-8">
+                                                <div class="text-center">
+                                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                                    <div>7-8 класс</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="category-card">
+                                            <input type="radio" class="btn-check" name="category" id="category9" value="9" required>
+                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category9">
+                                                <div class="text-center">
+                                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                                    <div>9 класс</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="category-card">
+                                            <input type="radio" class="btn-check" name="category" id="category10-11" value="10-11" required>
+                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category10-11">
+                                                <div class="text-center">
+                                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                                    <div>10-11 класс</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="mb-3 form-check">
-                            <input class="form-check-input" type="checkbox" id="personalDataConsent" name="personalDataConsent" required>
-                            <label class="form-check-label" for="personalDataConsent">
-                                Я даю согласие на сбор и обработку моих персональных данных
+                            <input type="checkbox" class="form-check-input" id="agree" name="agree" required>
+                            <label class="form-check-label" for="agree">
+                                Я согласен на обработку персональных данных 
+                                <a href="{{ url_for('privacy_policy') }}" target="_blank" class="text-decoration-none">(подробнее)</a>
                             </label>
                         </div>
-                        <div class="d-grid">
+                        <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
                         </div>
                     </form>
@@ -54,4 +138,42 @@
         </div>
     </div>
 </div>
+
+<style>
+.category-cards {
+    margin-bottom: 1rem;
+}
+
+.category-card {
+    height: 120px;
+    margin-bottom: 1rem;
+}
+
+.category-card .btn {
+    height: 100%;
+    transition: all 0.3s ease;
+    border: 2px solid #dee2e6;
+    background-color: #fff;
+}
+
+.category-card .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.btn-check:checked + .btn {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+.btn-check:checked + .btn i {
+    color: white;
+}
+
+.category-card i {
+    color: #0d6efd;
+    margin-bottom: 0.5rem;
+}
+</style>
 {% endblock %} 
