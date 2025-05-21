@@ -16,32 +16,6 @@ from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
 from email_sender import add_to_queue, start_email_worker
-import logging
-import traceback
-
-# Настройка логирования
-logging.basicConfig(
-    filename='tournament.log',
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-
-# Настройка логирования для APScheduler
-scheduler_logger = logging.getLogger('apscheduler')
-scheduler_logger.setLevel(logging.DEBUG)
-scheduler_handler = logging.FileHandler('scheduler.log')
-scheduler_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-scheduler_logger.addHandler(scheduler_handler)
-
-def log_debug(message):
-    logging.debug(message)
-
-def log_error(message, error=None):
-    if error:
-        logging.error(f"{message}: {str(error)}\n{traceback.format_exc()}")
-    else:
-        logging.error(message)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()  # Генерируем криптографически стойкий ключ
@@ -63,88 +37,56 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Инициализация планировщика с логированием
-scheduler = BackgroundScheduler(
-    logger=scheduler_logger,
-    timezone='Europe/Moscow'
-)
+# Инициализация планировщика
+scheduler = BackgroundScheduler(timezone='Europe/Moscow')
 scheduler.start()
-log_debug("Планировщик запущен")
 
 # Запускаем обработчик очереди писем
 start_email_worker()
 
 def start_tournament_job(tournament_id):
-    log_debug(f"Запуск задачи start_tournament_job для турнира {tournament_id}")
     try:
         with app.app_context():
             tournament = Tournament.query.get(tournament_id)
             if tournament:
-                log_debug(f"Найден турнир: {tournament.title}")
                 tournament.status = 'started'
                 db.session.commit()
-                log_debug(f"Статус турнира {tournament_id} изменен на 'started'")
-            else:
-                log_error(f"Турнир {tournament_id} не найден")
     except Exception as e:
-        log_error(f"Ошибка при запуске турнира {tournament_id}", e)
+        pass
 
 def update_global_ranks():
     """Обновляет места пользователей в общей таблице на основе их баланса"""
     try:
-        log_debug("[DEBUG] Начало обновления глобального рейтинга")
         # Получаем всех пользователей, отсортированных по балансу (по убыванию)
         users = User.query.filter_by(is_admin=False).order_by(User.balance.desc()).all()
-        log_debug(f"[DEBUG] Найдено пользователей для обновления: {len(users)}")
         
         # Обновляем места
         for rank, user in enumerate(users, 1):
-            old_rank = user.global_rank
             user.global_rank = rank
-            log_debug(f"[DEBUG] Пользователь {user.username}: баланс {user.balance}, место {old_rank} -> {rank}")
         
         db.session.commit()
-        log_debug("[DEBUG] Глобальный рейтинг успешно обновлен")
     except Exception as e:
-        log_error("[ERROR] Ошибка при обновлении глобального рейтинга", e)
-        log_error("[ERROR] Тип ошибки", type(e))
-        log_error("[ERROR] Traceback", traceback.format_exc())
         db.session.rollback()
 
 def end_tournament_job(tournament_id):
-    log_debug(f"Запуск задачи end_tournament_job для турнира {tournament_id}")
     try:
         with app.app_context():
             tournament = Tournament.query.get(tournament_id)
             if tournament:
-                log_debug(f"Найден турнир: {tournament.title}")
-                log_debug(f"Текущий статус: {tournament.status}")
-                log_debug(f"Текущий is_active: {tournament.is_active}")
-                
                 tournament.status = 'finished'
                 tournament.is_active = False
-                log_debug(f"Новый статус: {tournament.status}")
-                log_debug(f"Новый is_active: {tournament.is_active}")
                 
                 # Обновляем места участников в турнире
                 participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
-                log_debug(f"Найдено участников: {len(participations)}")
                 
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
-                    log_debug(f"Установлено место {rank} для пользователя {participation.user_id}")
                 
                 # Обновляем общую таблицу
-                log_debug("Начинаем обновление глобального рейтинга")
                 update_global_ranks()
-                log_debug("Глобальный рейтинг обновлен")
                 
                 db.session.commit()
-                log_debug("Изменения сохранены в БД")
-            else:
-                log_error(f"Турнир с ID {tournament_id} не найден")
     except Exception as e:
-        log_error(f"Ошибка при завершении турнира {tournament_id}", e)
         db.session.rollback()
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type):
@@ -153,7 +95,6 @@ def add_scheduler_job(job_func, run_date, tournament_id, job_type):
     tournament = Tournament.query.get(tournament_id)
     
     try:
-        log_debug(f"Добавление задачи {job_id} на время {run_date}")
         scheduler.add_job(
             job_func,
             trigger=DateTrigger(run_date=run_date),
@@ -161,9 +102,8 @@ def add_scheduler_job(job_func, run_date, tournament_id, job_type):
             id=job_id,
             replace_existing=True
         )
-        log_debug(f"Задача {job_id} успешно добавлена")
     except Exception as e:
-        log_error(f"Ошибка при добавлении задачи {job_id}", e)
+        pass
 
 def remove_scheduler_job(tournament_id, job_type):
     """Удаляет задачу из планировщика"""
@@ -171,11 +111,9 @@ def remove_scheduler_job(tournament_id, job_type):
     tournament = Tournament.query.get(tournament_id)
     
     try:
-        log_debug(f"Удаление задачи {job_id}")
         scheduler.remove_job(job_id)
-        log_debug(f"Задача {job_id} успешно удалена")
     except Exception as e:
-        log_error(f"Ошибка при удалении задачи {job_id}", e)
+        pass
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -417,7 +355,6 @@ def create_admin_user():
         admin.set_password('admin123')
         db.session.add(admin)
         db.session.commit()
-        log_debug("Администратор успешно создан")
 
 def send_confirmation_email(user):
     token = user.generate_confirmation_token()
@@ -1600,19 +1537,17 @@ def join_tournament(tournament_id):
     # Используем локальное время вместо UTC
     current_time = datetime.now()
     
-    log_debug(f"Tournament start time: {tournament.start_date}")
-    log_debug(f"Current time (local): {current_time}")
-    log_debug(f"Tournament duration: {tournament.duration} minutes")
+
     
     # Проверяем, не является ли пользователь администратором
     if current_user.is_admin:
-        log_debug("User is admin, redirecting to home")
+
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-        log_debug("User has no tickets, redirecting to profile")
+
         flash('У вас недостаточно билетов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
@@ -1620,17 +1555,17 @@ def join_tournament(tournament_id):
     if tournament.start_date <= current_time:
         # Проверяем, не закончился ли турнир
         end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-        log_debug(f"Tournament end time: {end_time}")
+
         if end_time > current_time:
-            log_debug("Tournament is active, redirecting to menu")
+
             # Если турнир идет, перенаправляем в меню турнира
             return redirect(url_for('tournament_menu', tournament_id=tournament.id))
         else:
-            log_debug("Tournament has ended, redirecting to home")
+
             flash('Турнир уже закончился', 'warning')
             return redirect(url_for('home'))
     else:
-        log_debug("Tournament hasn't started yet, redirecting to home")
+
         # Показываем время начала турнира в локальном времени
         local_start_time = tournament.start_date.strftime('%H:%M')
         flash(f'Турнир начнется в {local_start_time}', 'warning')
