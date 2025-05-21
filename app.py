@@ -53,31 +53,65 @@ def start_tournament_job(tournament_id):
 
 def update_global_ranks():
     """Обновляет места пользователей в общей таблице на основе их баланса"""
-    # Получаем всех пользователей, отсортированных по балансу (по убыванию)
-    users = User.query.filter_by(is_admin=False).order_by(User.balance.desc()).all()
-    
-    # Обновляем места
-    for rank, user in enumerate(users, 1):
-        user.global_rank = rank
-    
-    db.session.commit()
+    try:
+        print("[DEBUG] Начало обновления глобального рейтинга")
+        # Получаем всех пользователей, отсортированных по балансу (по убыванию)
+        users = User.query.filter_by(is_admin=False).order_by(User.balance.desc()).all()
+        print(f"[DEBUG] Найдено пользователей для обновления: {len(users)}")
+        
+        # Обновляем места
+        for rank, user in enumerate(users, 1):
+            old_rank = user.global_rank
+            user.global_rank = rank
+            print(f"[DEBUG] Пользователь {user.username}: баланс {user.balance}, место {old_rank} -> {rank}")
+        
+        db.session.commit()
+        print("[DEBUG] Глобальный рейтинг успешно обновлен")
+    except Exception as e:
+        print(f"[ERROR] Ошибка при обновлении глобального рейтинга: {str(e)}")
+        print(f"[ERROR] Тип ошибки: {type(e)}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        db.session.rollback()
 
 def end_tournament_job(tournament_id):
-    with app.app_context():
-        tournament = Tournament.query.get(tournament_id)
-        if tournament:
-            tournament.status = 'finished'
-            tournament.is_active = False
-            
-            # Обновляем места участников в турнире
-            participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
-            for rank, participation in enumerate(participations, 1):
-                participation.place = rank
-            
-            # Обновляем общую таблицу
-            update_global_ranks()
-            
-            db.session.commit()
+    try:
+        print(f"\n[DEBUG] Начало завершения турнира {tournament_id}")
+        with app.app_context():
+            tournament = Tournament.query.get(tournament_id)
+            if tournament:
+                print(f"[DEBUG] Турнир найден: {tournament.title}")
+                print(f"[DEBUG] Текущий статус: {tournament.status}")
+                print(f"[DEBUG] Текущий is_active: {tournament.is_active}")
+                
+                tournament.status = 'finished'
+                tournament.is_active = False
+                print(f"[DEBUG] Новый статус: {tournament.status}")
+                print(f"[DEBUG] Новый is_active: {tournament.is_active}")
+                
+                # Обновляем места участников в турнире
+                participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
+                print(f"[DEBUG] Найдено участников: {len(participations)}")
+                
+                for rank, participation in enumerate(participations, 1):
+                    participation.place = rank
+                    print(f"[DEBUG] Установлено место {rank} для пользователя {participation.user_id}")
+                
+                # Обновляем общую таблицу
+                print("[DEBUG] Начинаем обновление глобального рейтинга")
+                update_global_ranks()
+                print("[DEBUG] Глобальный рейтинг обновлен")
+                
+                db.session.commit()
+                print("[DEBUG] Изменения сохранены в БД")
+            else:
+                print(f"[ERROR] Турнир с ID {tournament_id} не найден")
+    except Exception as e:
+        print(f"[ERROR] Ошибка при завершении турнира: {str(e)}")
+        print(f"[ERROR] Тип ошибки: {type(e)}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        db.session.rollback()
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type):
     """Добавляет задачу в планировщик"""
