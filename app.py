@@ -16,6 +16,25 @@ from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
 from email_sender import add_to_queue, start_email_worker
+import logging
+import traceback
+
+# Настройка логирования
+logging.basicConfig(
+    filename='tournament.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+def log_debug(message):
+    logging.debug(message)
+
+def log_error(message, error=None):
+    if error:
+        logging.error(f"{message}: {str(error)}\n{traceback.format_exc()}")
+    else:
+        logging.error(message)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()  # Генерируем криптографически стойкий ключ
@@ -54,63 +73,61 @@ def start_tournament_job(tournament_id):
 def update_global_ranks():
     """Обновляет места пользователей в общей таблице на основе их баланса"""
     try:
-        print("[DEBUG] Начало обновления глобального рейтинга")
+        log_debug("[DEBUG] Начало обновления глобального рейтинга")
         # Получаем всех пользователей, отсортированных по балансу (по убыванию)
         users = User.query.filter_by(is_admin=False).order_by(User.balance.desc()).all()
-        print(f"[DEBUG] Найдено пользователей для обновления: {len(users)}")
+        log_debug(f"[DEBUG] Найдено пользователей для обновления: {len(users)}")
         
         # Обновляем места
         for rank, user in enumerate(users, 1):
             old_rank = user.global_rank
             user.global_rank = rank
-            print(f"[DEBUG] Пользователь {user.username}: баланс {user.balance}, место {old_rank} -> {rank}")
+            log_debug(f"[DEBUG] Пользователь {user.username}: баланс {user.balance}, место {old_rank} -> {rank}")
         
         db.session.commit()
-        print("[DEBUG] Глобальный рейтинг успешно обновлен")
+        log_debug("[DEBUG] Глобальный рейтинг успешно обновлен")
     except Exception as e:
-        print(f"[ERROR] Ошибка при обновлении глобального рейтинга: {str(e)}")
-        print(f"[ERROR] Тип ошибки: {type(e)}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        log_error("[ERROR] Ошибка при обновлении глобального рейтинга", e)
+        log_error("[ERROR] Тип ошибки", type(e))
+        log_error("[ERROR] Traceback", traceback.format_exc())
         db.session.rollback()
 
 def end_tournament_job(tournament_id):
     try:
-        print(f"\n[DEBUG] Начало завершения турнира {tournament_id}")
+        log_debug(f"\n[DEBUG] Начало завершения турнира {tournament_id}")
         with app.app_context():
             tournament = Tournament.query.get(tournament_id)
             if tournament:
-                print(f"[DEBUG] Турнир найден: {tournament.title}")
-                print(f"[DEBUG] Текущий статус: {tournament.status}")
-                print(f"[DEBUG] Текущий is_active: {tournament.is_active}")
+                log_debug(f"[DEBUG] Турнир найден: {tournament.title}")
+                log_debug(f"[DEBUG] Текущий статус: {tournament.status}")
+                log_debug(f"[DEBUG] Текущий is_active: {tournament.is_active}")
                 
                 tournament.status = 'finished'
                 tournament.is_active = False
-                print(f"[DEBUG] Новый статус: {tournament.status}")
-                print(f"[DEBUG] Новый is_active: {tournament.is_active}")
+                log_debug(f"[DEBUG] Новый статус: {tournament.status}")
+                log_debug(f"[DEBUG] Новый is_active: {tournament.is_active}")
                 
                 # Обновляем места участников в турнире
                 participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
-                print(f"[DEBUG] Найдено участников: {len(participations)}")
+                log_debug(f"[DEBUG] Найдено участников: {len(participations)}")
                 
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
-                    print(f"[DEBUG] Установлено место {rank} для пользователя {participation.user_id}")
+                    log_debug(f"[DEBUG] Установлено место {rank} для пользователя {participation.user_id}")
                 
                 # Обновляем общую таблицу
-                print("[DEBUG] Начинаем обновление глобального рейтинга")
+                log_debug("[DEBUG] Начинаем обновление глобального рейтинга")
                 update_global_ranks()
-                print("[DEBUG] Глобальный рейтинг обновлен")
+                log_debug("[DEBUG] Глобальный рейтинг обновлен")
                 
                 db.session.commit()
-                print("[DEBUG] Изменения сохранены в БД")
+                log_debug("[DEBUG] Изменения сохранены в БД")
             else:
-                print(f"[ERROR] Турнир с ID {tournament_id} не найден")
+                log_error(f"[ERROR] Турнир с ID {tournament_id} не найден")
     except Exception as e:
-        print(f"[ERROR] Ошибка при завершении турнира: {str(e)}")
-        print(f"[ERROR] Тип ошибки: {type(e)}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        log_error("[ERROR] Ошибка при завершении турнира", e)
+        log_error("[ERROR] Тип ошибки", type(e))
+        log_error("[ERROR] Traceback", traceback.format_exc())
         db.session.rollback()
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type):
@@ -378,7 +395,7 @@ def create_admin_user():
         admin.set_password('admin123')
         db.session.add(admin)
         db.session.commit()
-        print("Администратор успешно создан")
+        log_debug("Администратор успешно создан")
 
 def send_confirmation_email(user):
     token = user.generate_confirmation_token()
@@ -1561,19 +1578,19 @@ def join_tournament(tournament_id):
     # Используем локальное время вместо UTC
     current_time = datetime.now()
     
-    print(f"Tournament start time: {tournament.start_date}")
-    print(f"Current time (local): {current_time}")
-    print(f"Tournament duration: {tournament.duration} minutes")
+    log_debug(f"Tournament start time: {tournament.start_date}")
+    log_debug(f"Current time (local): {current_time}")
+    log_debug(f"Tournament duration: {tournament.duration} minutes")
     
     # Проверяем, не является ли пользователь администратором
     if current_user.is_admin:
-        print("User is admin, redirecting to home")
+        log_debug("User is admin, redirecting to home")
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-        print("User has no tickets, redirecting to profile")
+        log_debug("User has no tickets, redirecting to profile")
         flash('У вас недостаточно билетов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
@@ -1581,17 +1598,17 @@ def join_tournament(tournament_id):
     if tournament.start_date <= current_time:
         # Проверяем, не закончился ли турнир
         end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-        print(f"Tournament end time: {end_time}")
+        log_debug(f"Tournament end time: {end_time}")
         if end_time > current_time:
-            print("Tournament is active, redirecting to menu")
+            log_debug("Tournament is active, redirecting to menu")
             # Если турнир идет, перенаправляем в меню турнира
             return redirect(url_for('tournament_menu', tournament_id=tournament.id))
         else:
-            print("Tournament has ended, redirecting to home")
+            log_debug("Tournament has ended, redirecting to home")
             flash('Турнир уже закончился', 'warning')
             return redirect(url_for('home'))
     else:
-        print("Tournament hasn't started yet, redirecting to home")
+        log_debug("Tournament hasn't started yet, redirecting to home")
         # Показываем время начала турнира в локальном времени
         local_start_time = tournament.start_date.strftime('%H:%M')
         flash(f'Турнир начнется в {local_start_time}', 'warning')
