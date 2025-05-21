@@ -27,6 +27,13 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+# Настройка логирования для APScheduler
+scheduler_logger = logging.getLogger('apscheduler')
+scheduler_logger.setLevel(logging.DEBUG)
+scheduler_handler = logging.FileHandler('scheduler.log')
+scheduler_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+scheduler_logger.addHandler(scheduler_handler)
+
 def log_debug(message):
     logging.debug(message)
 
@@ -56,19 +63,31 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-# Инициализация планировщика
-scheduler = BackgroundScheduler()
+# Инициализация планировщика с логированием
+scheduler = BackgroundScheduler(
+    logger=scheduler_logger,
+    timezone='Europe/Moscow'
+)
 scheduler.start()
+log_debug("Планировщик запущен")
 
 # Запускаем обработчик очереди писем
 start_email_worker()
 
 def start_tournament_job(tournament_id):
-    with app.app_context():
-        tournament = Tournament.query.get(tournament_id)
-        if tournament:
-            tournament.status = 'started'
-            db.session.commit()
+    log_debug(f"Запуск задачи start_tournament_job для турнира {tournament_id}")
+    try:
+        with app.app_context():
+            tournament = Tournament.query.get(tournament_id)
+            if tournament:
+                log_debug(f"Найден турнир: {tournament.title}")
+                tournament.status = 'started'
+                db.session.commit()
+                log_debug(f"Статус турнира {tournament_id} изменен на 'started'")
+            else:
+                log_error(f"Турнир {tournament_id} не найден")
+    except Exception as e:
+        log_error(f"Ошибка при запуске турнира {tournament_id}", e)
 
 def update_global_ranks():
     """Обновляет места пользователей в общей таблице на основе их баланса"""
@@ -93,41 +112,39 @@ def update_global_ranks():
         db.session.rollback()
 
 def end_tournament_job(tournament_id):
+    log_debug(f"Запуск задачи end_tournament_job для турнира {tournament_id}")
     try:
-        log_debug(f"\n[DEBUG] Начало завершения турнира {tournament_id}")
         with app.app_context():
             tournament = Tournament.query.get(tournament_id)
             if tournament:
-                log_debug(f"[DEBUG] Турнир найден: {tournament.title}")
-                log_debug(f"[DEBUG] Текущий статус: {tournament.status}")
-                log_debug(f"[DEBUG] Текущий is_active: {tournament.is_active}")
+                log_debug(f"Найден турнир: {tournament.title}")
+                log_debug(f"Текущий статус: {tournament.status}")
+                log_debug(f"Текущий is_active: {tournament.is_active}")
                 
                 tournament.status = 'finished'
                 tournament.is_active = False
-                log_debug(f"[DEBUG] Новый статус: {tournament.status}")
-                log_debug(f"[DEBUG] Новый is_active: {tournament.is_active}")
+                log_debug(f"Новый статус: {tournament.status}")
+                log_debug(f"Новый is_active: {tournament.is_active}")
                 
                 # Обновляем места участников в турнире
                 participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
-                log_debug(f"[DEBUG] Найдено участников: {len(participations)}")
+                log_debug(f"Найдено участников: {len(participations)}")
                 
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
-                    log_debug(f"[DEBUG] Установлено место {rank} для пользователя {participation.user_id}")
+                    log_debug(f"Установлено место {rank} для пользователя {participation.user_id}")
                 
                 # Обновляем общую таблицу
-                log_debug("[DEBUG] Начинаем обновление глобального рейтинга")
+                log_debug("Начинаем обновление глобального рейтинга")
                 update_global_ranks()
-                log_debug("[DEBUG] Глобальный рейтинг обновлен")
+                log_debug("Глобальный рейтинг обновлен")
                 
                 db.session.commit()
-                log_debug("[DEBUG] Изменения сохранены в БД")
+                log_debug("Изменения сохранены в БД")
             else:
-                log_error(f"[ERROR] Турнир с ID {tournament_id} не найден")
+                log_error(f"Турнир с ID {tournament_id} не найден")
     except Exception as e:
-        log_error("[ERROR] Ошибка при завершении турнира", e)
-        log_error("[ERROR] Тип ошибки", type(e))
-        log_error("[ERROR] Traceback", traceback.format_exc())
+        log_error(f"Ошибка при завершении турнира {tournament_id}", e)
         db.session.rollback()
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type):
@@ -136,14 +153,17 @@ def add_scheduler_job(job_func, run_date, tournament_id, job_type):
     tournament = Tournament.query.get(tournament_id)
     
     try:
+        log_debug(f"Добавление задачи {job_id} на время {run_date}")
         scheduler.add_job(
             job_func,
             trigger=DateTrigger(run_date=run_date),
             args=[tournament_id],
-            id=job_id
+            id=job_id,
+            replace_existing=True
         )
+        log_debug(f"Задача {job_id} успешно добавлена")
     except Exception as e:
-        pass
+        log_error(f"Ошибка при добавлении задачи {job_id}", e)
 
 def remove_scheduler_job(tournament_id, job_type):
     """Удаляет задачу из планировщика"""
@@ -151,9 +171,11 @@ def remove_scheduler_job(tournament_id, job_type):
     tournament = Tournament.query.get(tournament_id)
     
     try:
+        log_debug(f"Удаление задачи {job_id}")
         scheduler.remove_job(job_id)
+        log_debug(f"Задача {job_id} успешно удалена")
     except Exception as e:
-        pass
+        log_error(f"Ошибка при удалении задачи {job_id}", e)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
