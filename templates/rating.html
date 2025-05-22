@@ -13,16 +13,17 @@
 
             <!-- Кнопки выбора группы -->
             <div class="nav nav-pills mb-4" id="categoryTabs" role="tablist">
-                <button class="btn btn-outline-primary me-2 active" data-category="1-2" role="tab">1-2 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="3-4" role="tab">3-4 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="5-6" role="tab">5-6 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="7-8" role="tab">7-8 класс</button>
-                <button class="btn btn-outline-primary" data-category="9-11" role="tab">9-11 класс</button>
+                <button class="btn btn-outline-primary me-2 active" data-category="1-2" role="tab">1-2 классы</button>
+                <button class="btn btn-outline-primary me-2" data-category="3-4" role="tab">3-4 классы</button>
+                <button class="btn btn-outline-primary me-2" data-category="5-6" role="tab">5-6 классы</button>
+                <button class="btn btn-outline-primary me-2" data-category="7-8" role="tab">7-8 классы</button>
+                <button class="btn btn-outline-primary me-2" data-category="9" role="tab">9 класс</button>
+                <button class="btn btn-outline-primary" data-category="10-11" role="tab">10-11 классы</button>
             </div>
 
             <!-- Таблицы для каждой группы -->
             <div class="tab-content">
-                {% for category in ['1-2', '3-4', '5-6', '7-8', '9-11'] %}
+                {% for category in ['1-2', '3-4', '5-6', '7-8', '9', '10-11'] %}
                 <div class="tab-pane fade {% if category == '1-2' %}show active{% endif %}" id="tab-{{ category }}" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-hover">
