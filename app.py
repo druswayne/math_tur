@@ -560,7 +560,14 @@ def admin_add_user():
     username = request.form.get('username')
     email = request.form.get('email')
     password = request.form.get('password')
+    phone = request.form.get('phone')
+    parent_name = request.form.get('parent_name')
+    category = request.form.get('category')
     is_admin = 'is_admin' in request.form
+    
+    if not all([username, email, password, phone, parent_name, category]):
+        flash('Все поля должны быть заполнены', 'danger')
+        return redirect(url_for('admin_users'))
     
     if User.query.filter_by(username=username).first():
         flash('Пользователь с таким логином уже существует', 'danger')
@@ -570,7 +577,27 @@ def admin_add_user():
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    user = User(username=username, email=email, is_admin=is_admin, is_active=True)
+    if User.query.filter_by(phone=phone).first():
+        flash('Пользователь с таким номером телефона уже существует', 'danger')
+        return redirect(url_for('admin_users'))
+    
+    if not re.match(r'^\+375[0-9]{9}$', phone):
+        flash('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger')
+        return redirect(url_for('admin_users'))
+    
+    if category not in ['1-2', '3-4', '5-6', '7-8', '9', '10-11']:
+        flash('Некорректная категория', 'danger')
+        return redirect(url_for('admin_users'))
+    
+    user = User(
+        username=username,
+        email=email,
+        phone=phone,
+        parent_name=parent_name,
+        category=category,
+        is_admin=is_admin,
+        is_active=True
+    )
     user.set_password(password)
     
     db.session.add(user)
