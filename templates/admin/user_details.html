@@ -21,6 +21,8 @@
                     <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Ожидает подтверждения{% endif %}</p>
                     <p><strong>Общий счет:</strong> {{ user.balance }}</p>
                     <p><strong>Билеты:</strong> {{ user.tickets }}</p>
+                    <p><strong>Категория:</strong> {{ user.category }}</p>
+                    <p><strong>Место в категории:</strong> {{ user.category_rank }}</p>
                 </div>
                 <div class="col-md-6">
                     <h5>Статистика</h5>

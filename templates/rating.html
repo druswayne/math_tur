@@ -2,143 +2,160 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Рейтинг участников</h2>
-    
-    {% if current_user.is_authenticated and not current_user.is_admin %}
-    <div class="alert alert-info">
-        Ваше место в рейтинге: {{ user_rank }}
-    </div>
-    {% endif %}
-    
-    <!-- Форма поиска -->
-    <div class="card mb-4">
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">Рейтинг участников</h4>
+        </div>
         <div class="card-body">
-            <form id="searchForm" class="row g-3">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="searchInput" placeholder="Поиск по имени пользователя...">
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-search me-1"></i>Поиск
-                        </button>
+            <div class="mb-3">
+                <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени пользователя...">
+            </div>
+            
+            <ul class="nav nav-tabs" id="categoryTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-category="1-2" type="button">1-2 класс</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-category="3-4" type="button">3-4 класс</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-category="5-6" type="button">5-6 класс</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-category="7-8" type="button">7-8 класс</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-category="9-11" type="button">9-11 класс</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content mt-3" id="categoryTabsContent">
+                {% for category in ['1-2', '3-4', '5-6', '7-8', '9-11'] %}
+                <div class="tab-pane {% if loop.first %}active{% endif %}" id="tab-{{ category }}">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Место</th>
+                                    <th>Пользователь</th>
+                                    <th>Баллы</th>
+                                    <th>Решено задач</th>
+                                    <th>Процент успеха</th>
+                                    <th>Турниров</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users if user.category == category %}
+                                <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
+                                    <td>{{ user.category_rank }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.balance }}</td>
+                                    <td>{{ user.solved_tasks_count }}</td>
+                                    <td>{{ user.success_rate }}%</td>
+                                    <td>{{ user.tournaments_count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-            </form>
-        </div>
-    </div>
-    
-    <div class="rating-table-container">
-        <table class="table table-hover">
-            <thead>
-                <tr>
-                    <th>Место</th>
-                    <th>Пользователь</th>
-                    <th>Баллы</th>
-                    <th>Попыток решения</th>
-                    <th>% верных решений</th>
-                    <th>Турниров</th>
-                </tr>
-            </thead>
-            <tbody id="usersTableBody">
-            </tbody>
-        </table>
-        
-        <div class="text-center mt-3 mb-4">
-            <button id="loadMoreButton" class="btn btn-primary">Загрузить еще</button>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-{{ super() }}
+<style>
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.nav-tabs .nav-item {
+    margin-bottom: -1px;
+}
+
+.nav-tabs .nav-link {
+    color: #495057;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-top-left-radius: 0.25rem;
+    border-top-right-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+    margin-right: 0.25rem;
+}
+
+.nav-tabs .nav-link:hover {
+    border-color: #e9ecef #e9ecef #dee2e6;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+    font-weight: bold;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+</style>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchForm = document.getElementById('searchForm');
-        const searchInput = document.getElementById('searchInput');
-    const usersTableBody = document.getElementById('usersTableBody');
-    const loadMoreButton = document.getElementById('loadMoreButton');
-    let currentPage = 1;
-    let hasMorePages = true;
-    let isLoading = false;
-    let searchQuery = '';
-
-    // Загружаем первые данные при загрузке страницы
-    loadUsers();
-
-    // Обработчик отправки формы поиска
-    searchForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            searchQuery = searchInput.value.trim();
-            currentPage = 1;
-        usersTableBody.innerHTML = ''; // Очищаем таблицу
-        hasMorePages = true;
-        loadUsers();
-        });
-
-    // Обработчик кнопки "Загрузить еще"
-    loadMoreButton.addEventListener('click', function() {
-        if (!isLoading && hasMorePages) {
-            loadUsers();
-        }
-    });
-
-    // Функция загрузки пользователей
-    async function loadUsers() {
-        if (isLoading || !hasMorePages) return;
-        isLoading = true;
-
-        loadMoreButton.disabled = true;
-
-            try {
-                const url = new URL('/rating', window.location.origin);
-                url.searchParams.set('page', currentPage);
-                if (searchQuery) {
-                    url.searchParams.set('search', searchQuery);
-                }
-
-                const response = await fetch(url, {
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-            data.users.forEach(user => {
-                    const row = document.createElement('tr');
-                    if (user.id === {{ current_user.id if current_user.is_authenticated else 0 }}) {
-                        row.classList.add('table-primary');
-                    }
-                    row.innerHTML = 
-                    '<td>' + user.global_rank + '</td>' +
-                        '<td>' + user.username + '</td>' +
-                        '<td>' + user.balance + '</td>' +
-                        '<td>' + user.solved_tasks_count + '</td>' +
-                        '<td>' + user.success_rate + '%</td>' +
-                        '<td>' + user.tournaments_count + '</td>';
-                usersTableBody.appendChild(row);
-                });
-                
-                hasMorePages = data.has_next;
-                
-                if (!hasMorePages) {
-                loadMoreButton.style.display = 'none';
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const tabButtons = document.querySelectorAll('.nav-link');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    
+    // Функция для переключения вкладок
+    function switchTab(category) {
+        // Обновляем кнопки
+        tabButtons.forEach(btn => {
+            if (btn.dataset.category === category) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
             }
-            
-                currentPage++;
-        } catch (error) {
-            console.error('Error:', error);
-            loadMoreButton.innerHTML = 'Ошибка загрузки. Попробуйте еще раз';
-        } finally {
-            isLoading = false;
-            loadMoreButton.disabled = false;
-            loadMoreButton.innerHTML = 'Загрузить еще';
-        }
-        }
+        });
+        
+        // Обновляем панели
+        tabPanes.forEach(pane => {
+            if (pane.id === `tab-${category}`) {
+                pane.classList.add('active');
+            } else {
+                pane.classList.remove('active');
+            }
+        });
+        
+        // Сбрасываем поиск
+        searchInput.value = '';
+        const rows = document.querySelector(`#tab-${category} tbody`).querySelectorAll('tr');
+        rows.forEach(row => row.style.display = '');
+    }
+    
+    // Обработчик клика по вкладкам
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.dataset.category;
+            switchTab(category);
+        });
     });
+    
+    // Обработчик поиска
+    searchInput.addEventListener('input', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        const activePane = document.querySelector('.tab-pane.active');
+        const rows = activePane.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const username = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            row.style.display = username.includes(searchText) ? '' : 'none';
+        });
+    });
+});
 </script>
 {% endblock %} 

@@ -82,8 +82,8 @@ def end_tournament_job(tournament_id):
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
                 
-                # Обновляем общую таблицу
-                update_global_ranks()
+                # Обновляем рейтинги в категориях
+                update_category_ranks()
                 
                 db.session.commit()
     except Exception as e:
@@ -134,7 +134,7 @@ class User(UserMixin, db.Model):
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
     tournaments_count = db.Column(db.Integer, default=0)  # Количество турниров, в которых участвовал пользователь
     session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
-    global_rank = db.Column(db.Integer, default=0)  # Место в общей таблице
+    category_rank = db.Column(db.Integer, default=0)  # Место в рейтинге категории
     temp_password = db.Column(db.String(128), nullable=True)  # Временное хранение пароля до подтверждения email
 
     # Добавляем связь с турнирами через TournamentParticipation
@@ -1386,11 +1386,17 @@ def confirm_email(token):
     return redirect(url_for('login'))
 
 def get_user_rank(user_id):
-    # Получаем всех пользователей, отсортированных по балансу (по убыванию)
-    users = User.query.filter(User.is_admin == False).order_by(User.balance.desc()).all()
+    """Получает ранг пользователя в его возрастной категории"""
+    user = User.query.get(user_id)
+    if not user:
+        return None
+    
+    # Получаем всех пользователей той же категории, отсортированных по балансу
+    users = User.query.filter_by(category=user.category).order_by(User.balance.desc()).all()
+    
     # Находим индекс пользователя в отсортированном списке
-    for index, user in enumerate(users, 1):
-        if user.id == user_id:
+    for index, u in enumerate(users, 1):
+        if u.id == user_id:
             return index
     return None
 
@@ -1979,63 +1985,13 @@ def tournament_history():
 
 @app.route('/rating')
 def rating():
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    search_query = request.args.get('search', '').strip()
-    
-    # Базовый запрос
-    query = User.query.filter_by(is_admin=False)
-    
-    # Применяем поиск, если есть поисковый запрос
-    if search_query:
-        query = query.filter(User.username.ilike(f'%{search_query}%'))
-    
-    # Получаем пользователей, отсортированных по балансу
-    users = query.order_by(User.balance.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    
-    # Получаем место текущего пользователя
+    users = User.query.filter_by(is_admin=False).all()
     user_rank = None
+    
     if current_user.is_authenticated and not current_user.is_admin:
-        user_rank = current_user.global_rank
+        user_rank = get_user_rank(current_user.id)
     
-    # Получаем статистику по решенным задачам для каждого пользователя
-    users_with_stats = []
-    for user in users.items:
-        # Получаем общее количество попыток решения
-        solved_tasks = db.session.query(func.count(SolvedTask.id))\
-            .filter(SolvedTask.user_id == user.id)\
-            .scalar() or 0
-            
-        # Получаем количество правильно решенных задач
-        correct_tasks = db.session.query(func.count(SolvedTask.id))\
-            .filter(SolvedTask.user_id == user.id, SolvedTask.is_correct == True)\
-            .scalar() or 0
-            
-        # Рассчитываем процент верных решений
-        success_rate = round((correct_tasks / solved_tasks) * 100, 1) if solved_tasks > 0 else 0
-        
-        users_with_stats.append({
-            'id': user.id,
-            'username': user.username,
-            'balance': user.balance,
-            'solved_tasks_count': solved_tasks,
-            'success_rate': success_rate,
-            'tournaments_count': user.tournaments_count,
-            'global_rank': user.global_rank  # Используем значение из БД
-        })
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({
-            'users': users_with_stats,
-            'has_next': users.has_next
-        })
-    
-    return render_template('rating.html',
-                         users=users_with_stats,
-                         pagination=users,
-                         user_rank=user_rank,
-                         current_page=page,
-                         per_page=per_page)
+    return render_template('rating.html', users=users, user_rank=user_rank)
 
 @app.route('/shop')
 @login_required
@@ -2459,6 +2415,27 @@ def change_password():
 def privacy_policy():
     return render_template('privacy_policy.html', title='Политика конфиденциальности')
 
+def update_category_ranks():
+    """Обновляет рейтинг пользователей внутри их возрастных категорий"""
+    categories = ['1-2', '3-4', '5-6', '7-8', '9-11']
+    
+    for category in categories:
+        # Получаем всех пользователей данной категории, отсортированных по балансу
+        users = User.query.filter_by(category=category).order_by(User.balance.desc()).all()
+        
+        # Обновляем рейтинг для каждого пользователя
+        for rank, user in enumerate(users, 1):
+            user.category_rank = rank
+        
+        db.session.commit()
+
+# Добавляем вызов функции обновления рейтинга после изменения баланса пользователя
+@app.after_request
+def after_request(response):
+    if response.status_code == 200 and request.endpoint in ['submit_answer', 'buy_tickets', 'use_tickets']:
+        update_category_ranks()
+    return response
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -2466,4 +2443,4 @@ if __name__ == '__main__':
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
 
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=True)
