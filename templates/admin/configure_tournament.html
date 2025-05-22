@@ -40,6 +40,7 @@
                                     <th>№</th>
                                     <th>Название</th>
                                     <th>Описание</th>
+                                    <th>Категория</th>
                                     <th>Изображение</th>
                                     <th>Баллы</th>
                                     <th>Действия</th>
@@ -51,6 +52,7 @@
                                     <td>{{ loop.index }}</td>
                                     <td>{{ task.title }}</td>
                                     <td>{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</td>
+                                    <td>{{ task.category }}</td>
                                     <td>
                                         {% if task.image %}
                                         <img src="{{ url_for('static', filename='uploads/tasks/' + task.image) }}" 
@@ -66,7 +68,8 @@
                                             <button type="button" class="btn btn-action edit" data-bs-toggle="modal" data-bs-target="#editTaskModal" 
                                                     data-id="{{ task.id }}" data-title="{{ task.title }}" 
                                                     data-description="{{ task.description }}" data-points="{{ task.points }}"
-                                                    data-image="{{ task.image }}" data-correct-answer="{{ task.correct_answer }}">
+                                                    data-image="{{ task.image }}" data-correct-answer="{{ task.correct_answer }}"
+                                                    data-category="{{ task.category }}">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button type="button" class="btn btn-action delete" data-bs-toggle="modal" data-bs-target="#deleteTaskModal" 
@@ -103,6 +106,17 @@
                     <div class="mb-3">
                         <label for="description" class="form-label">Описание задачи</label>
                         <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Категория</label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="">Выберите категорию</option>
+                            <option value="1-2">1-2 класс</option>
+                            <option value="3-4">3-4 класс</option>
+                            <option value="5-6">5-6 класс</option>
+                            <option value="7-8">7-8 класс</option>
+                            <option value="9-11">9-11 класс</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="image" class="form-label">Изображение</label>
@@ -143,6 +157,17 @@
                     <div class="mb-3">
                         <label for="edit_description" class="form-label">Описание задачи</label>
                         <textarea class="form-control" id="edit_description" name="description" rows="5" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_category" class="form-label">Категория</label>
+                        <select class="form-select" id="edit_category" name="category" required>
+                            <option value="">Выберите категорию</option>
+                            <option value="1-2">1-2 класс</option>
+                            <option value="3-4">3-4 класс</option>
+                            <option value="5-6">5-6 класс</option>
+                            <option value="7-8">7-8 класс</option>
+                            <option value="9-11">9-11 класс</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label for="edit_image" class="form-label">Изображение</label>
@@ -200,6 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const points = button.getAttribute('data-points');
         const image = button.getAttribute('data-image');
         const correctAnswer = button.getAttribute('data-correct-answer');
+        const category = button.getAttribute('data-category');
 
         const form = this.querySelector('#editTaskForm');
         form.action = `/admin/tournaments/{{ tournament.id }}/tasks/${taskId}/edit`;
@@ -207,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
         form.querySelector('#edit_description').value = description;
         form.querySelector('#edit_points').value = points;
         form.querySelector('#edit_correct_answer').value = correctAnswer;
+        form.querySelector('#edit_category').value = category;
 
         const currentImageDiv = form.querySelector('#current_image');
         if (image) {

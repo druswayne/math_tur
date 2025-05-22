@@ -3,35 +3,27 @@
 {% block content %}
 <div class="container mt-4">
     <div class="card">
-        <div class="card-header">
-            <h4 class="mb-0">Рейтинг участников</h4>
-        </div>
         <div class="card-body">
-            <div class="mb-3">
+            <h2 class="card-title mb-4">Рейтинг участников</h2>
+            
+            <!-- Поиск -->
+            <div class="mb-4">
                 <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени пользователя...">
             </div>
-            
-            <ul class="nav nav-tabs" id="categoryTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" data-category="1-2" type="button">1-2 класс</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-category="3-4" type="button">3-4 класс</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-category="5-6" type="button">5-6 класс</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-category="7-8" type="button">7-8 класс</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-category="9-11" type="button">9-11 класс</button>
-                </li>
-            </ul>
-            
-            <div class="tab-content mt-3" id="categoryTabsContent">
+
+            <!-- Кнопки выбора группы -->
+            <div class="nav nav-pills mb-4" id="categoryTabs" role="tablist">
+                <button class="btn btn-outline-primary me-2 active" data-category="1-2" role="tab">1-2 класс</button>
+                <button class="btn btn-outline-primary me-2" data-category="3-4" role="tab">3-4 класс</button>
+                <button class="btn btn-outline-primary me-2" data-category="5-6" role="tab">5-6 класс</button>
+                <button class="btn btn-outline-primary me-2" data-category="7-8" role="tab">7-8 класс</button>
+                <button class="btn btn-outline-primary" data-category="9-11" role="tab">9-11 класс</button>
+            </div>
+
+            <!-- Таблицы для каждой группы -->
+            <div class="tab-content">
                 {% for category in ['1-2', '3-4', '5-6', '7-8', '9-11'] %}
-                <div class="tab-pane {% if loop.first %}active{% endif %}" id="tab-{{ category }}">
+                <div class="tab-pane fade {% if category == '1-2' %}show active{% endif %}" id="tab-{{ category }}" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -40,14 +32,14 @@
                                     <th>Пользователь</th>
                                     <th>Баллы</th>
                                     <th>Решено задач</th>
-                                    <th>Процент успеха</th>
-                                    <th>Турниров</th>
+                                    <th>Успешность</th>
+                                    <th>Турниры</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for user in users if user.category == category %}
-                                <tr {% if current_user.is_authenticated and user.id == current_user.id %}class="table-primary"{% endif %}>
-                                    <td>{{ user.category_rank }}</td>
+                                <tr>
+                                    <td>{{ loop.index }}</td>
                                     <td>{{ user.username }}</td>
                                     <td>{{ user.balance }}</td>
                                     <td>{{ user.solved_tasks_count }}</td>
@@ -66,55 +58,60 @@
 </div>
 
 <style>
-.nav-tabs {
-    border-bottom: 1px solid #dee2e6;
-    margin-bottom: 1rem;
+.nav-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.nav-tabs .nav-item {
-    margin-bottom: -1px;
+.btn-outline-primary {
+    font-weight: 500;
+    padding: 10px 20px;
+    border-width: 2px;
+    color: #000;
+    border-color: #dee2e6;
+    transition: all 0.3s ease;
 }
 
-.nav-tabs .nav-link {
-    color: #495057;
-    cursor: pointer;
-    border: 1px solid transparent;
-    border-top-left-radius: 0.25rem;
-    border-top-right-radius: 0.25rem;
-    padding: 0.5rem 1rem;
-    margin-right: 0.25rem;
+.btn-outline-primary:hover {
+    background-color: #dee2e6;
+    color: #000;
+    border-color: #000;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.nav-tabs .nav-link:hover {
-    border-color: #e9ecef #e9ecef #dee2e6;
+.btn-outline-primary.active {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+    color: #000;
+    font-weight: 600;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.nav-tabs .nav-link.active {
-    color: #007bff;
-    background-color: #fff;
-    border-color: #dee2e6 #dee2e6 #fff;
-    font-weight: bold;
+.table {
+    margin-top: 20px;
 }
 
-.tab-pane {
-    display: none;
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
 }
 
-.tab-pane.active {
-    display: block;
+#searchInput {
+    max-width: 300px;
+    margin-bottom: 20px;
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const categoryButtons = document.querySelectorAll('[data-category]');
     const searchInput = document.getElementById('searchInput');
-    const tabButtons = document.querySelectorAll('.nav-link');
-    const tabPanes = document.querySelectorAll('.tab-pane');
     
-    // Функция для переключения вкладок
     function switchTab(category) {
-        // Обновляем кнопки
-        tabButtons.forEach(btn => {
+        // Обновляем активную кнопку
+        categoryButtons.forEach(btn => {
             if (btn.dataset.category === category) {
                 btn.classList.add('active');
             } else {
@@ -122,39 +119,43 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Обновляем панели
-        tabPanes.forEach(pane => {
-            if (pane.id === `tab-${category}`) {
-                pane.classList.add('active');
+        // Показываем соответствующую таблицу
+        document.querySelectorAll('.tab-pane').forEach(tab => {
+            if (tab.id === `tab-${category}`) {
+                tab.classList.add('show', 'active');
             } else {
-                pane.classList.remove('active');
+                tab.classList.remove('show', 'active');
             }
         });
         
-        // Сбрасываем поиск
+        // Сбрасываем поиск при смене категории
         searchInput.value = '';
-        const rows = document.querySelector(`#tab-${category} tbody`).querySelectorAll('tr');
-        rows.forEach(row => row.style.display = '');
+        filterTable(category);
     }
     
-    // Обработчик клика по вкладкам
-    tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const category = this.dataset.category;
-            switchTab(category);
-        });
+    function filterTable(category) {
+        const searchText = searchInput.value.toLowerCase();
+        const table = document.querySelector(`#tab-${category} tbody`);
+        const rows = table.getElementsByTagName('tr');
+        
+        for (let row of rows) {
+            const username = row.getElementsByTagName('td')[1].textContent.toLowerCase();
+            if (username.includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+    
+    // Обработчики событий
+    categoryButtons.forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.category));
     });
     
-    // Обработчик поиска
-    searchInput.addEventListener('input', function(e) {
-        const searchText = e.target.value.toLowerCase();
-        const activePane = document.querySelector('.tab-pane.active');
-        const rows = activePane.querySelectorAll('tbody tr');
-        
-        rows.forEach(row => {
-            const username = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
-            row.style.display = username.includes(searchText) ? '' : 'none';
-        });
+    searchInput.addEventListener('input', () => {
+        const activeCategory = document.querySelector('.btn-outline-primary.active').dataset.category;
+        filterTable(activeCategory);
     });
 });
 </script>

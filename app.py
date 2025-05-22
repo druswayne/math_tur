@@ -193,6 +193,7 @@ class Task(db.Model):
     image = db.Column(db.String(200))
     points = db.Column(db.Integer, nullable=False)
     correct_answer = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(10), nullable=False)  # Добавляем поле для категории
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1161,8 +1162,9 @@ def add_tournament_task(tournament_id):
     description = request.form.get('description')
     points = request.form.get('points')
     correct_answer = request.form.get('correct_answer')
+    category = request.form.get('category')  # Получаем категорию из формы
     
-    if not all([title, description, points, correct_answer]):
+    if not all([title, description, points, correct_answer, category]):  # Проверяем наличие категории
         flash('Все поля должны быть заполнены', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
@@ -1189,7 +1191,8 @@ def add_tournament_task(tournament_id):
         description=description,
         image=image_filename,
         points=points,
-        correct_answer=correct_answer
+        correct_answer=correct_answer,
+        category=category  # Добавляем категорию при создании задачи
     )
     
     db.session.add(task)
@@ -1666,7 +1669,25 @@ def start_tournament(tournament_id):
     ).first()
     
     if not participation:
-        # Если пользователь еще не участвует, создаем запись об участии и списываем билет
+        # Получаем список решенных задач пользователя
+        solved_tasks = SolvedTask.query.filter_by(
+            user_id=current_user.id,
+            is_correct=True
+        ).join(Task).filter(Task.tournament_id == tournament_id).all()
+        solved_task_ids = [task.task_id for task in solved_tasks]
+        
+        # Получаем доступные задачи для категории пользователя
+        available_tasks = Task.query.filter(
+            Task.tournament_id == tournament_id,
+            Task.id.notin_(solved_task_ids),
+            Task.category == current_user.category
+        ).all()
+        
+        if not available_tasks:
+            flash('Для вашей категории нет доступных задач в этом турнире', 'warning')
+            return redirect(url_for('home'))
+        
+        # Если есть доступные задачи, создаем запись об участии и списываем билет
         participation = TournamentParticipation(
             user_id=current_user.id,
             tournament_id=tournament_id,
@@ -1795,39 +1816,52 @@ def cleanup_scheduler_jobs():
 def tournament_task(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Проверяем, активен ли турнир
-    current_time = datetime.utcnow() + timedelta(hours=3)  # Московское время
-    if current_time < tournament.start_date or current_time > tournament.start_date + timedelta(minutes=tournament.duration):
-        flash('Турнир не активен', 'danger')
+    # Проверяем, что турнир активен
+    if not tournament.is_active:
+        flash('Турнир неактивен', 'warning')
         return redirect(url_for('home'))
     
-    # Получаем все задачи турнира
-    tasks = Task.query.filter_by(tournament_id=tournament_id).all()
-    if not tasks:
-        flash('В турнире нет задач', 'danger')
+    # Проверяем, что турнир еще не закончился
+    if datetime.utcnow() > tournament.start_date + timedelta(minutes=tournament.duration):
+        flash('Турнир уже закончился', 'warning')
         return redirect(url_for('home'))
     
-    # Получаем ID задач, которые пользователь уже решал в ЭТОМ турнире
-    solved_task_ids = db.session.query(SolvedTask.task_id)\
-        .filter(SolvedTask.user_id == current_user.id)\
-        .filter(SolvedTask.task_id.in_([task.id for task in tasks]))\
-        .all()
-    solved_task_ids = [task_id[0] for task_id in solved_task_ids]
+    # Проверяем, что пользователь участвует в турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id
+    ).first()
     
-    # Фильтруем задачи, которые пользователь еще не решал в этом турнире
-    unsolved_tasks = [task for task in tasks if task.id not in solved_task_ids]
+    if not participation:
+        flash('Вы не участвуете в этом турнире', 'warning')
+        return redirect(url_for('home'))
+    
+    # Получаем список решенных задач пользователя
+    solved_tasks = SolvedTask.query.filter_by(
+        user_id=current_user.id,
+        is_correct=True
+    ).join(Task).filter(Task.tournament_id == tournament_id).all()
+    solved_task_ids = [task.task_id for task in solved_tasks]
+    
+    # Получаем текущую задачу из сессии
+    current_task_id = session.get(f'current_task_{tournament_id}')
+    
+    # Получаем все задачи турнира для категории пользователя
+    unsolved_tasks = Task.query.filter(
+        Task.tournament_id == tournament_id,
+        Task.id.notin_(solved_task_ids),
+        Task.category == current_user.category  # Фильтруем по категории пользователя
+    ).all()
     
     if not unsolved_tasks:
         # Если все задачи решены, перенаправляем на страницу результатов
         return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
-    # Проверяем, есть ли сохраненная задача в сессии
-    current_task_id = session.get(f'current_task_{tournament_id}')
     if current_task_id:
-        # Проверяем, что задача все еще не решена
+        # Проверяем, что задача все еще не решена и соответствует категории пользователя
         if current_task_id not in solved_task_ids:
             task = Task.query.get(current_task_id)
-            if task and task.tournament_id == tournament_id:
+            if task and task.tournament_id == tournament_id and task.category == current_user.category:
                 return render_template('tournament_task.html', 
                                      tournament=tournament, 
                                      task=task,
@@ -1985,9 +2019,24 @@ def tournament_history():
 
 @app.route('/rating')
 def rating():
+    # Получаем всех пользователей, кроме админов
     users = User.query.filter_by(is_admin=False).all()
-    user_rank = None
     
+    # Для каждого пользователя считаем статистику
+    for user in users:
+        # Получаем все решенные задачи пользователя
+        solved_tasks = SolvedTask.query.filter_by(user_id=user.id).all()
+        total_attempts = len(solved_tasks)
+        
+        # Считаем количество правильных решений
+        correct_attempts = sum(1 for task in solved_tasks if task.is_correct)
+        
+        # Добавляем атрибуты для отображения в шаблоне
+        user.solved_tasks_count = correct_attempts
+        user.success_rate = round((correct_attempts / total_attempts * 100) if total_attempts > 0 else 0, 1)
+    
+    # Получаем ранг текущего пользователя
+    user_rank = None
     if current_user.is_authenticated and not current_user.is_admin:
         user_rank = get_user_rank(current_user.id)
     
