@@ -2019,28 +2019,93 @@ def tournament_history():
 
 @app.route('/rating')
 def rating():
-    # Получаем всех пользователей, кроме админов
-    users = User.query.filter_by(is_admin=False).all()
+    # Получаем параметр страницы
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # количество пользователей на страницу для каждой категории
     
-    # Для каждого пользователя считаем статистику
-    for user in users:
-        # Получаем все решенные задачи пользователя
-        solved_tasks = SolvedTask.query.filter_by(user_id=user.id).all()
-        total_attempts = len(solved_tasks)
+    # Словарь для хранения пользователей по категориям
+    users_by_category = {}
+    
+    # Получаем пользователей для каждой категории
+    categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
+    for category in categories:
+        users_query = User.query.filter_by(is_admin=False, category=category).order_by(User.balance.desc())
+        users = users_query.paginate(page=page, per_page=per_page, error_out=False)
         
-        # Считаем количество правильных решений
-        correct_attempts = sum(1 for task in solved_tasks if task.is_correct)
+        # Для каждого пользователя считаем статистику
+        for user in users.items:
+            # Получаем все решенные задачи пользователя
+            solved_tasks = SolvedTask.query.filter_by(user_id=user.id).all()
+            total_attempts = len(solved_tasks)
+            
+            # Считаем количество правильных решений
+            correct_attempts = sum(1 for task in solved_tasks if task.is_correct)
+            
+            # Добавляем атрибуты для отображения в шаблоне
+            user.solved_tasks_count = correct_attempts
+            user.success_rate = round((correct_attempts / total_attempts * 100) if total_attempts > 0 else 0, 1)
         
-        # Добавляем атрибуты для отображения в шаблоне
-        user.solved_tasks_count = correct_attempts
-        user.success_rate = round((correct_attempts / total_attempts * 100) if total_attempts > 0 else 0, 1)
+        users_by_category[category] = {
+            'users': users.items,
+            'has_next': users.has_next
+        }
     
     # Получаем ранг текущего пользователя
     user_rank = None
     if current_user.is_authenticated and not current_user.is_admin:
         user_rank = get_user_rank(current_user.id)
     
-    return render_template('rating.html', users=users, user_rank=user_rank)
+    # Если это AJAX-запрос, возвращаем только данные для запрошенной категории
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        category = request.args.get('category', '1-2')
+        users_data = users_by_category.get(category, {'users': [], 'has_next': False})
+        
+        return jsonify({
+            'users': [{
+                'username': user.username,
+                'balance': user.balance,
+                'solved_tasks_count': user.solved_tasks_count,
+                'success_rate': user.success_rate,
+                'tournaments_count': user.tournaments_count,
+                'category_rank': user.category_rank
+            } for user in users_data['users']],
+            'has_next': users_data['has_next']
+        })
+    
+    return render_template('rating.html', 
+                         users_by_category=users_by_category,
+                         user_rank=user_rank)
+
+@app.route('/rating/load-more')
+def load_more_users():
+    page = request.args.get('page', 1, type=int)
+    category = request.args.get('category', '1-2')
+    per_page = 20
+    
+    # Получаем пользователей для указанной категории
+    users_query = User.query.filter_by(is_admin=False, category=category).order_by(User.balance.desc())
+    users = users_query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Для каждого пользователя считаем статистику
+    for user in users.items:
+        solved_tasks = SolvedTask.query.filter_by(user_id=user.id).all()
+        total_attempts = len(solved_tasks)
+        correct_attempts = sum(1 for task in solved_tasks if task.is_correct)
+        
+        user.solved_tasks_count = correct_attempts
+        user.success_rate = round((correct_attempts / total_attempts * 100) if total_attempts > 0 else 0, 1)
+    
+    return jsonify({
+        'users': [{
+            'username': user.username,
+            'balance': user.balance,
+            'solved_tasks_count': user.solved_tasks_count,
+            'success_rate': user.success_rate,
+            'tournaments_count': user.tournaments_count,
+            'category_rank': user.category_rank
+        } for user in users.items],
+        'has_next': users.has_next
+    })
 
 @app.route('/shop')
 @login_required

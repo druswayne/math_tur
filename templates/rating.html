@@ -37,10 +37,10 @@
                                     <th>Турниры</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {% for user in users if user.category == category %}
+                            <tbody id="table-{{ category }}">
+                                {% for user in users_by_category[category]['users'] %}
                                 <tr>
-                                    <td>{{ loop.index }}</td>
+                                    <td>{{ user.category_rank }}</td>
                                     <td>{{ user.username }}</td>
                                     <td>{{ user.balance }}</td>
                                     <td>{{ user.solved_tasks_count }}</td>
@@ -50,6 +50,13 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                        <div class="text-center mt-3" id="load-more-{{ category }}">
+                            {% if users_by_category[category]['has_next'] %}
+                            <button class="btn btn-outline-primary load-more-btn" data-category="{{ category }}" data-page="2">
+                                Загрузить еще
+                            </button>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -103,12 +110,17 @@
     max-width: 300px;
     margin-bottom: 20px;
 }
+
+.load-more-btn {
+    min-width: 150px;
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const categoryButtons = document.querySelectorAll('[data-category]');
     const searchInput = document.getElementById('searchInput');
+    let currentPage = {};
     
     function switchTab(category) {
         // Обновляем активную кнопку
@@ -149,6 +161,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    function loadMoreUsers(category, page) {
+        const button = document.querySelector(`#load-more-${category} .load-more-btn`);
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Загрузка...';
+        
+        fetch(`/rating/load-more?category=${category}&page=${page}`)
+            .then(response => response.json())
+            .then(data => {
+                const table = document.querySelector(`#table-${category}`);
+                const startIndex = (page - 1) * 20 + 1;
+                
+                // Проверяем, есть ли уже загруженные пользователи
+                const existingUsernames = new Set();
+                table.querySelectorAll('tr').forEach(row => {
+                    const username = row.getElementsByTagName('td')[1].textContent;
+                    existingUsernames.add(username);
+                });
+                
+                let addedCount = 0;
+                data.users.forEach((user, index) => {
+                    // Проверяем, не загружен ли уже этот пользователь
+                    if (!existingUsernames.has(user.username)) {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${user.category_rank}</td>
+                            <td>${user.username}</td>
+                            <td>${user.balance}</td>
+                            <td>${user.solved_tasks_count}</td>
+                            <td>${user.success_rate}%</td>
+                            <td>${user.tournaments_count}</td>
+                        `;
+                        table.appendChild(row);
+                        existingUsernames.add(user.username);
+                        addedCount++;
+                    }
+                });
+                
+                button.disabled = false;
+                button.innerHTML = 'Загрузить еще';
+                button.dataset.page = page + 1;
+                
+                if (!data.has_next || addedCount === 0) {
+                    button.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                button.disabled = false;
+                button.innerHTML = 'Загрузить еще';
+            });
+    }
+    
     // Обработчики событий
     categoryButtons.forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.category));
@@ -157,6 +221,15 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', () => {
         const activeCategory = document.querySelector('.btn-outline-primary.active').dataset.category;
         filterTable(activeCategory);
+    });
+    
+    // Обработчики для кнопок "Загрузить еще"
+    document.querySelectorAll('.load-more-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            const category = button.dataset.category;
+            const page = parseInt(button.dataset.page);
+            loadMoreUsers(category, page);
+        });
     });
 });
 </script>
