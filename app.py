@@ -313,16 +313,16 @@ class ShopSettings(db.Model):
         if self.top_users_percentage >= 100:
             return True
             
-        # Получаем общее количество пользователей
-        total_users = User.query.filter_by(is_admin=False).count()
-        if total_users == 0:
+        # Получаем количество пользователей в категории пользователя
+        category_users = User.query.filter_by(category=user.category, is_admin=False).count()
+        if category_users == 0:
             return False
             
-        # Вычисляем количество пользователей, которым разрешено делать покупки
-        allowed_users_count = max(1, int(total_users * self.top_users_percentage / 100))
+        # Вычисляем количество пользователей в категории, которым разрешено делать покупки
+        allowed_users_count = max(1, int(category_users * self.top_users_percentage / 100))
         
-        # Получаем ранг пользователя
-        user_rank = get_user_rank(user.id)
+        # Получаем ранг пользователя в его категории
+        user_rank = user.category_rank
         if not user_rank:
             return False
             
