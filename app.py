@@ -79,8 +79,14 @@ def end_tournament_job(tournament_id):
                 # Обновляем места участников в турнире
                 participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
                 
+                current_time = datetime.utcnow() + timedelta(hours=3)
+                
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
+                    
+                    # Обновляем общее время для каждого участника
+                    time_spent = (current_time - participation.start_time).total_seconds()
+                    participation.user.total_tournament_time += int(time_spent)
                 
                 # Обновляем рейтинги в категориях
                 update_category_ranks()
@@ -136,6 +142,7 @@ class User(UserMixin, db.Model):
     session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
     category_rank = db.Column(db.Integer, default=0)  # Место в рейтинге категории
     temp_password = db.Column(db.String(128), nullable=True)  # Временное хранение пароля до подтверждения email
+    total_tournament_time = db.Column(db.Integer, default=0)  # Общее время в турнирах в секундах
 
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -216,6 +223,7 @@ class TournamentParticipation(db.Model):
     score = db.Column(db.Integer, default=0)
     place = db.Column(db.Integer)
     participation_date = db.Column(db.DateTime, default=datetime.utcnow)
+    start_time = db.Column(db.DateTime, default=datetime.utcnow)  # Время начала участия в турнире
     
     user = db.relationship('User', 
                          back_populates='tournament_participations',
@@ -1927,6 +1935,16 @@ def submit_task_answer(tournament_id, task_id):
         flash('Вы уже решили эту задачу', 'warning')
         return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
+    # Получаем участие пользователя в турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id
+    ).first()
+    
+    if not participation:
+        flash('Вы не участвуете в этом турнире', 'warning')
+        return redirect(url_for('home'))
+    
     # Получаем ответ пользователя и приводим к нижнему регистру
     user_answer = request.form.get('answer', '').strip().lower()
     
@@ -1944,6 +1962,11 @@ def submit_task_answer(tournament_id, task_id):
     if is_correct:
         # Добавляем баллы к общему счету
         current_user.balance += task.points
+        
+        # Обновляем время участия в турнире
+        time_spent = (current_time - participation.start_time).total_seconds()
+        current_user.total_tournament_time += int(time_spent)
+        
         flash(f'Правильный ответ! +{task.points} баллов', 'success')
     else:
         flash('Неправильный ответ', 'danger')
@@ -2094,7 +2117,8 @@ def rating():
                 'solved_tasks_count': user.solved_tasks_count,
                 'success_rate': user.success_rate,
                 'tournaments_count': user.tournaments_count,
-                'category_rank': user.category_rank
+                'category_rank': user.category_rank,
+                'total_tournament_time': user.total_tournament_time
             } for user in users_data['users']],
             'has_next': users_data['has_next']
         })
@@ -2561,12 +2585,27 @@ def update_category_ranks():
     categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
     
     for category in categories:
-        # Получаем всех пользователей данной категории, отсортированных по балансу
-        users = User.query.filter_by(category=category).order_by(User.balance.desc()).all()
+        # Получаем всех пользователей данной категории, отсортированных по балансу и времени
+        users = User.query.filter_by(category=category)\
+            .order_by(User.balance.desc(), User.total_tournament_time.asc())\
+            .all()
         
         # Обновляем рейтинг для каждого пользователя
-        for rank, user in enumerate(users, 1):
-            user.category_rank = rank
+        current_rank = 1
+        current_balance = None
+        current_time = None
+        same_rank_count = 0
+        
+        for user in users:
+            # Если баланс и время отличаются от предыдущего пользователя
+            if current_balance != user.balance or current_time != user.total_tournament_time:
+                current_rank += same_rank_count
+                same_rank_count = 0
+                current_balance = user.balance
+                current_time = user.total_tournament_time
+            
+            user.category_rank = current_rank
+            same_rank_count += 1
         
         db.session.commit()
 

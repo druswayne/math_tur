@@ -35,6 +35,7 @@
                                     <th>Решено задач</th>
                                     <th>Успешность</th>
                                     <th>Турниры</th>
+                                    <th>Время</th>
                                 </tr>
                             </thead>
                             <tbody id="table-{{ category }}">
@@ -46,6 +47,7 @@
                                     <td>{{ user.solved_tasks_count }}</td>
                                     <td>{{ user.success_rate }}%</td>
                                     <td>{{ user.tournaments_count }}</td>
+                                    <td>{{ (user.total_tournament_time // 3600)|int }}ч {{ ((user.total_tournament_time % 3600) // 60)|int }}м</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -183,6 +185,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 data.users.forEach((user, index) => {
                     // Проверяем, не загружен ли уже этот пользователь
                     if (!existingUsernames.has(user.username)) {
+                        const hours = Math.floor(user.total_tournament_time / 3600);
+                        const minutes = Math.floor((user.total_tournament_time % 3600) / 60);
                         const row = document.createElement('tr');
                         row.innerHTML = `
                             <td>${user.category_rank}</td>
@@ -191,6 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <td>${user.solved_tasks_count}</td>
                             <td>${user.success_rate}%</td>
                             <td>${user.tournaments_count}</td>
+                            <td>${hours}ч ${minutes}м</td>
                         `;
                         table.appendChild(row);
                         existingUsernames.add(user.username);
