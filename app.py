@@ -1469,11 +1469,14 @@ def profile():
                 break
     
     user_rank = get_user_rank(current_user.id)
+    settings = TournamentSettings.get_settings()
+    
     return render_template('profile.html', 
                          title='Личный кабинет', 
                          user_rank=user_rank,
                          next_tournament=next_tournament,
-                         now=current_time)
+                         now=current_time,
+                         settings=settings)
 
 @app.route('/buy-tickets')
 @login_required
@@ -2615,6 +2618,49 @@ def after_request(response):
     if response.status_code == 200 and request.endpoint in ['submit_answer', 'buy_tickets', 'use_tickets']:
         update_category_ranks()
     return response
+
+@app.route('/update-profile', methods=['POST'])
+@login_required
+def update_profile():
+    data = request.get_json()
+    
+    # Получаем данные из запроса
+    phone = data.get('phone')
+    category = data.get('category')
+    new_password = data.get('new_password')
+    
+    # Проверяем обязательные поля
+    if not phone or not category:
+        return jsonify({'success': False, 'message': 'Пожалуйста, заполните все обязательные поля'})
+    
+    # Проверяем формат телефона
+    if not re.match(r'^\+375\d{9}$', phone):
+        return jsonify({'success': False, 'message': 'Неверный формат номера телефона'})
+    
+    # Проверяем категорию
+    valid_categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
+    if category not in valid_categories:
+        return jsonify({'success': False, 'message': 'Неверная категория'})
+    
+    # Проверяем статус сезона
+    settings = TournamentSettings.get_settings()
+    if settings.is_season_active and category != current_user.category:
+        return jsonify({'success': False, 'message': 'Изменение группы недоступно во время активного сезона'})
+    
+    try:
+        # Обновляем данные пользователя
+        current_user.phone = phone
+        current_user.category = category
+        
+        # Если указан новый пароль, обновляем его
+        if new_password:
+            current_user.set_password(new_password)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Профиль успешно обновлен'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Произошла ошибка при обновлении профиля'})
 
 if __name__ == '__main__':
     with app.app_context():

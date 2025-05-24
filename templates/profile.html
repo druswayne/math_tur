@@ -65,16 +65,11 @@
                     <h5>{{ current_user.username }}</h5>
                     <p class="text-muted">{{ current_user.email }}</p>
                     <p>Дата регистрации: {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
-                    <div class="mb-3">
-                        <label class="form-label">Баланс</label>
-                        <p class="form-control-static">{{ current_user.balance }} баллов</p>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Место в рейтинге</label>
-                        <p class="form-control-static">{{ current_user.global_rank }} место</p>
-                    </div>
+                    <p>Телефон: {{ current_user.phone }}</p>
+                    <p>Группа: {{ current_user.category }}</p>
+                    
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
-                        <i class="fas fa-key me-2"></i>Сменить пароль
+                        Редактировать
                     </button>
                 </div>
             </div>
@@ -140,33 +135,48 @@
     </div>
 </div>
 
-<!-- Модальное окно для смены пароля -->
+<!-- Модальное окно для редактирования профиля -->
 <div class="modal fade" id="changePasswordModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Смена пароля</h5>
+                <h5 class="modal-title">Редактирование профиля</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="changePasswordForm">
                     <div class="mb-3">
-                        <label for="currentPassword" class="form-label">Текущий пароль</label>
-                        <input type="password" class="form-control" id="currentPassword" required>
+                        <label for="phone" class="form-label">Номер телефона</label>
+                        <input type="tel" class="form-control" id="phone" value="{{ current_user.phone }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Группа</label>
+                        <select class="form-control" id="category" name="category" {% if settings.is_season_active %}disabled{% endif %}>
+                            <option value="1-2" {% if current_user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
+                            <option value="3-4" {% if current_user.category == '3-4' %}selected{% endif %}>3-4 класс</option>
+                            <option value="5-6" {% if current_user.category == '5-6' %}selected{% endif %}>5-6 класс</option>
+                            <option value="7-8" {% if current_user.category == '7-8' %}selected{% endif %}>7-8 класс</option>
+                            <option value="9" {% if current_user.category == '9' %}selected{% endif %}>9 класс</option>
+                            <option value="10-11" {% if current_user.category == '10-11' %}selected{% endif %}>10-11 класс</option>
+                        </select>
+                        {% if settings.is_season_active %}
+                        <small class="form-text text-muted">Изменение группы недоступно во время активного сезона</small>
+                        {% endif %}
                     </div>
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">Новый пароль</label>
-                        <input type="password" class="form-control" id="newPassword" required>
+                        <input type="password" class="form-control" id="newPassword">
+                        <small class="text-muted">Оставьте пустым, если не хотите менять пароль</small>
                     </div>
                     <div class="mb-3">
                         <label for="confirmPassword" class="form-label">Подтвердите новый пароль</label>
-                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <input type="password" class="form-control" id="confirmPassword">
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="changePassword()">Сменить пароль</button>
+                <button type="button" class="btn btn-primary" onclick="updateProfile()">Сохранить</button>
             </div>
         </div>
     </div>
@@ -243,28 +253,30 @@ if (startDate > now) {
 {% endif %}
 
 <script>
-function changePassword() {
-    const currentPassword = document.getElementById('currentPassword').value;
+function updateProfile() {
+    const phone = document.getElementById('phone').value;
+    const category = document.getElementById('category').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
-    if (!currentPassword || !newPassword || !confirmPassword) {
-        showNotification('Пожалуйста, заполните все поля', 'warning');
+    if (!phone || !category) {
+        showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
         return;
     }
     
-    if (newPassword !== confirmPassword) {
+    if (newPassword && newPassword !== confirmPassword) {
         showNotification('Новые пароли не совпадают', 'danger');
         return;
     }
     
-    fetch('/change-password', {
+    fetch('/update-profile', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            current_password: currentPassword,
+            phone: phone,
+            category: category,
             new_password: newPassword
         })
     })
@@ -277,13 +289,15 @@ function changePassword() {
             modal.hide();
             // Очищаем форму
             document.getElementById('changePasswordForm').reset();
+            // Перезагружаем страницу для обновления данных
+            location.reload();
         } else {
             showNotification(data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Произошла ошибка при смене пароля', 'danger');
+        showNotification('Произошла ошибка при обновлении профиля', 'danger');
     });
 }
 
