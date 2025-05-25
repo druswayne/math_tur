@@ -132,6 +132,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False)  # Для подтверждения email
     is_blocked = db.Column(db.Boolean, default=False)  # Для блокировки пользователя
+    block_reason = db.Column(db.Text, nullable=True)  # Причина блокировки
     email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
@@ -449,7 +450,11 @@ def login():
         
         if user and user.check_password(password):
             if user.is_blocked:
-                flash('Ваш аккаунт заблокирован администратором. Для разблокировки обратитесь к администратору по email: admin@school-tournaments.ru', 'danger')
+                block_message = f'Ваш аккаунт заблокирован администратором.'
+                if user.block_reason:
+                    block_message += f' Причина: {user.block_reason}'
+                block_message += ' Для разблокировки обратитесь к администратору по email: admin@school-tournaments.ru'
+                flash(block_message, 'danger')
                 return redirect(url_for('login'))
             if not user.is_active:
                 flash('Пожалуйста, подтвердите ваш email перед входом', 'warning')
@@ -689,10 +694,23 @@ def admin_toggle_user_block(user_id):
         flash('Вы не можете заблокировать свой аккаунт', 'danger')
         return redirect(url_for('admin_users'))
     
-    user.is_blocked = not user.is_blocked
-    db.session.commit()
+    if user.is_blocked:
+        # Разблокировка пользователя
+        user.is_blocked = False
+        user.block_reason = None
+        action = "разблокирован"
+    else:
+        # Блокировка пользователя
+        block_reason = request.form.get('block_reason')
+        if not block_reason:
+            flash('Необходимо указать причину блокировки', 'danger')
+            return redirect(url_for('admin_users'))
+        
+        user.is_blocked = True
+        user.block_reason = block_reason
+        action = "заблокирован"
     
-    action = "заблокирован" if user.is_blocked else "разблокирован"
+    db.session.commit()
     flash(f'Пользователь {user.username} успешно {action}', 'success')
     return redirect(url_for('admin_users'))
 
@@ -1684,7 +1702,7 @@ def start_tournament(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
     # Проверяем, идет ли турнир
-    current_time = datetime.utcnow() + timedelta(hours=3)
+    current_time = datetime.now()  # Используем локальное время
     if not (tournament.start_date <= current_time and 
             current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
         flash('Турнир не активен', 'warning')
@@ -1729,7 +1747,8 @@ def start_tournament(tournament_id):
         participation = TournamentParticipation(
             user_id=current_user.id,
             tournament_id=tournament_id,
-            score=0
+            score=0,
+            start_time=current_time  # Используем локальное время
         )
         current_user.tickets -= 1
         current_user.tournaments_count += 1  # Увеличиваем счетчик турниров
@@ -1874,29 +1893,28 @@ def tournament_task(tournament_id):
         flash('Вы не участвуете в этом турнире', 'warning')
         return redirect(url_for('home'))
     
-    # Получаем список решенных задач пользователя
+    # Получаем список всех задач, которые пользователь уже решал (и правильно, и неправильно)
     solved_tasks = SolvedTask.query.filter_by(
-        user_id=current_user.id,
-        is_correct=True
+        user_id=current_user.id
     ).join(Task).filter(Task.tournament_id == tournament_id).all()
     solved_task_ids = [task.task_id for task in solved_tasks]
     
     # Получаем текущую задачу из сессии
     current_task_id = session.get(f'current_task_{tournament_id}')
     
-    # Получаем все задачи турнира для категории пользователя
-    unsolved_tasks = Task.query.filter(
+    # Получаем все задачи турнира для категории пользователя, исключая уже решенные
+    available_tasks = Task.query.filter(
         Task.tournament_id == tournament_id,
         Task.id.notin_(solved_task_ids),
         Task.category == current_user.category  # Фильтруем по категории пользователя
     ).all()
     
-    if not unsolved_tasks:
+    if not available_tasks:
         # Если все задачи решены, перенаправляем на страницу результатов
         return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
     if current_task_id:
-        # Проверяем, что задача все еще не решена и соответствует категории пользователя
+        # Проверяем, что задача все еще доступна и соответствует категории пользователя
         if current_task_id not in solved_task_ids:
             task = Task.query.get(current_task_id)
             if task and task.tournament_id == tournament_id and task.category == current_user.category:
@@ -1906,7 +1924,7 @@ def tournament_task(tournament_id):
                                      timedelta=timedelta)
     
     # Если нет сохраненной задачи или она уже решена, выбираем новую
-    task = random.choice(unsolved_tasks)
+    task = random.choice(available_tasks)
     
     # Сохраняем ID задачи в сессии
     session[f'current_task_{tournament_id}'] = task.id
@@ -1923,7 +1941,7 @@ def submit_task_answer(tournament_id, task_id):
     task = Task.query.get_or_404(task_id)
     
     # Проверяем, идет ли турнир
-    current_time = datetime.utcnow() + timedelta(hours=3)
+    current_time = datetime.now()  # Используем локальное время
     if not (tournament.start_date <= current_time and 
             current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
         flash('Турнир не активен', 'warning')
@@ -1966,9 +1984,54 @@ def submit_task_answer(tournament_id, task_id):
         # Добавляем баллы к общему счету
         current_user.balance += task.points
         
-        # Обновляем время участия в турнире
+        # Проверяем на подозрительную активность
+        # Получаем все задачи турнира для категории пользователя
+        all_tasks = Task.query.filter_by(
+            tournament_id=tournament_id,
+            category=current_user.category
+        ).all()
+        total_tasks = len(all_tasks)
+        
+        # Получаем все решенные задачи пользователя в этом турнире
+        solved_tasks = SolvedTask.query.filter_by(
+            user_id=current_user.id,
+            is_correct=True
+        ).join(Task).filter(
+            Task.tournament_id == tournament_id,
+            Task.category == current_user.category
+        ).all()
+        
+        # Считаем процент правильно решенных задач
+        correct_percentage = (len(solved_tasks) / total_tasks) * 100 if total_tasks > 0 else 0
+        
+        # Вычисляем время участия в турнире
         time_spent = (current_time - participation.start_time).total_seconds()
-        current_user.total_tournament_time += int(time_spent)
+        
+        # Выводим отладочную информацию
+        print(f"\n=== Проверка подозрительной активности ===")
+        print(f"Пользователь: {current_user.username}")
+        print(f"Время начала: {participation.start_time}")
+        print(f"Текущее время: {current_time}")
+        print(f"Время участия: {time_spent} секунд")
+        print(f"Решено задач: {len(solved_tasks)} из {total_tasks}")
+        print(f"Процент правильных ответов: {correct_percentage:.1f}%")
+        print("=====================================\n")
+        
+        # Если время меньше 5 минут и процент правильных ответов больше 50%
+        if time_spent < 300 and correct_percentage > 50:  # 300 секунд = 5 минут
+            current_user.is_blocked = True
+            current_user.block_reason = "Подозрение на жульничество"
+            flash('Ваш аккаунт заблокирован из-за подозрительной активности', 'danger')
+            db.session.commit()
+            
+            # Очищаем токен сессии
+            current_user.session_token = None
+            current_user.last_activity = None
+            db.session.commit()
+            session.pop('session_token', None)
+            logout_user()
+            
+            return redirect(url_for('login'))
         
         flash(f'Правильный ответ! +{task.points} баллов', 'success')
     else:
@@ -1999,6 +2062,35 @@ def tournament_results(tournament_id):
     # Считаем статистику
     solved_count = len(solved_tasks)
     earned_points = sum(task.task.points for task in solved_tasks)
+    
+    # Получаем участие пользователя в турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id
+    ).first()
+    
+    if participation:
+        # Вычисляем общее время участия в турнире
+        current_time = datetime.now()  # Используем локальное время
+        time_spent = (current_time - participation.start_time).total_seconds()
+        minutes = int(time_spent // 60)
+        seconds = int(time_spent % 60)
+        
+        # Добавляем время к общему времени участия в турнирах
+        current_user.total_tournament_time += int(time_spent)
+        db.session.commit()
+        
+        # Выводим информацию в консоль
+        print(f"\n=== Информация о турнире {tournament.title} ===")
+        print(f"Пользователь: {current_user.username}")
+        print(f"Время начала: {participation.start_time}")
+        print(f"Время окончания: {current_time}")
+        print(f"Общее время участия: {minutes} минут {seconds} секунд")
+        print(f"Решено задач: {solved_count} из {total_tasks}")
+        print(f"Процент правильных ответов: {(solved_count / total_tasks * 100) if total_tasks > 0 else 0:.1f}%")
+        print(f"Заработано баллов: {earned_points}")
+        print(f"Общее время в турнирах: {current_user.total_tournament_time} секунд")
+        print("=====================================\n")
     
     return render_template('tournament_results.html',
                          tournament=tournament,

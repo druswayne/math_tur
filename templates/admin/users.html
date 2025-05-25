@@ -2,54 +2,36 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Управление пользователями</h2>
-    
-    <!-- Форма поиска -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <form method="GET" action="{{ url_for('admin_users') }}" class="row g-3" id="searchForm">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <input type="text" 
-                               class="form-control" 
-                               name="search" 
-                               id="searchInput"
-                               placeholder="Поиск пользователей..." 
-                               value="{{ search_query }}">
-                        <select class="form-select" name="search_type" id="searchType" style="max-width: 150px;">
-                            <option value="username" {% if search_type == 'username' %}selected{% endif %}>По логину</option>
-                            <option value="email" {% if search_type == 'email' %}selected{% endif %}>По email</option>
-                            <option value="id" {% if search_type == 'id' %}selected{% endif %}>По ID</option>
-                        </select>
-                        <button class="btn btn-primary" type="submit">
-                            <i class="fas fa-search"></i> Поиск
-                        </button>
-                        {% if search_query %}
-                        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Сбросить
-                        </a>
-                        {% endif %}
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Таблица пользователей -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">Управление пользователями</h4>
             <div>
-                <button type="button" class="btn btn-secondary me-2" data-bs-toggle="modal" data-bs-target="#userSettingsModal">
-                    <i class="bi bi-gear"></i>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                    <i class="bi bi-plus-lg"></i> Добавить пользователя
                 </button>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
-                Добавить пользователя
-            </button>
             </div>
         </div>
         <div class="card-body">
-            <div class="table-container">
+            <!-- Поиск -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <form method="GET" class="d-flex gap-2">
+                        <select name="search_type" class="form-select" style="width: auto;">
+                            <option value="username" {% if search_type == 'username' %}selected{% endif %}>По логину</option>
+                            <option value="email" {% if search_type == 'email' %}selected{% endif %}>По email</option>
+                            <option value="id" {% if search_type == 'id' %}selected{% endif %}>По ID</option>
+                        </select>
+                        <input type="text" name="search" class="form-control" placeholder="Поиск..." value="{{ search_query }}">
+                        <button type="submit" class="btn btn-primary">Поиск</button>
+                        {% if search_query %}
+                            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">Сбросить</a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+
+            <!-- Таблица пользователей -->
+            <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
@@ -61,7 +43,7 @@
                             <th>Действия</th>
                         </tr>
                     </thead>
-                    <tbody id="usersTableBody">
+                    <tbody>
                         {% for user in users %}
                         <tr>
                             <td>{{ user.id }}</td>
@@ -80,31 +62,19 @@
                             </td>
                             <td>
                                 <div class="btn-group">
-                                    <button type="button" class="btn btn-info btn-sm" 
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#userInfoModal{{ user.id }}">
-                                        <i class="bi bi-info-circle"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-warning btn-sm"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editUserModal{{ user.id }}">
+                                    <a href="{{ url_for('admin_user_details', user_id=user.id) }}" class="btn btn-sm btn-info">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <form action="{{ url_for('admin_toggle_user_block', user_id=user.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-danger btn-sm" 
-                                                {% if user.id == current_user.id %}disabled{% endif %}
-                                                onclick="return confirm('Вы уверены, что хотите {% if user.is_blocked %}разблокировать{% else %}заблокировать{% endif %} пользователя {{ user.username }}?')">
-                                            {% if user.is_blocked %}
-                                                <i class="bi bi-unlock"></i>
-                                            {% else %}
-                                                <i class="bi bi-lock"></i>
-                                            {% endif %}
-                                        </button>
-                                    </form>
-                                    <button type="button" class="btn btn-danger btn-sm"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#deleteUserModal{{ user.id }}">
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}">
                                         <i class="bi bi-trash"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm {% if user.is_blocked %}btn-success{% else %}btn-warning{% endif %}" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#blockUserModal{{ user.id }}">
+                                        <i class="bi {% if user.is_blocked %}bi-unlock{% else %}bi-lock{% endif %}"></i>
                                     </button>
                                 </div>
                             </td>
@@ -113,234 +83,193 @@
                     </tbody>
                 </table>
             </div>
-            
-            {% if pagination.has_next %}
-            <div class="text-center mt-3">
-                <button class="btn btn-outline-primary" id="loadMoreButton" data-page="{{ pagination.next_num }}">
-                    Загрузить еще
-                </button>
-            </div>
+
+            <!-- Пагинация -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin_users', page=pagination.prev_num, search=search_query, search_type=search_type) }}">Предыдущая</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for page in pagination.iter_pages() %}
+                        {% if page %}
+                            <li class="page-item {% if page == pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin_users', page=page, search=search_query, search_type=search_type) }}">{{ page }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin_users', page=pagination.next_num, search=search_query, search_type=search_type) }}">Следующая</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Модальные окна -->
-    {% for user in users %}
-    <!-- Модальное окно информации о пользователе -->
-    <div class="modal fade" id="userInfoModal{{ user.id }}" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Информация о пользователе</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
+<!-- Модальное окно добавления пользователя -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('admin_add_user') }}" method="POST">
                 <div class="modal-body">
-                    <p><strong>ID:</strong> {{ user.id }}</p>
-                    <p><strong>Логин:</strong> {{ user.username }}</p>
-                    <p><strong>Email:</strong> {{ user.email }}</p>
-                    <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
-                    <p><strong>Последний вход:</strong> {{ user.last_login.strftime('%d.%m.%Y %H:%M') if user.last_login else 'Нет' }}</p>
-                    <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Ожидает подтверждения{% endif %}</p>
-                    <p><strong>Общий счет:</strong> {{ user.balance }}</p>
-                    <p><strong>Билеты:</strong> {{ user.tickets }}</p>
-                </div>
-                <div class="modal-footer">
-                    <a href="{{ url_for('admin_user_details', user_id=user.id) }}" class="btn btn-primary">Подробнее</a>
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно редактирования пользователя -->
-    <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Редактирование пользователя</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ url_for('admin_edit_user', user_id=user.id) }}" method="POST">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="username{{ user.id }}" class="form-label">Логин</label>
-                            <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email{{ user.id }}" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password{{ user.id }}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
-                            <input type="password" class="form-control" id="password{{ user.id }}" name="password">
-                        </div>
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="is_admin{{ user.id }}" name="is_admin" {% if user.is_admin %}checked{% endif %}>
-                                <label class="form-check-label" for="is_admin{{ user.id }}">Администратор</label>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="tickets{{ user.id }}" class="form-label">Количество билетов</label>
-                            <input type="number" class="form-control" id="tickets{{ user.id }}" name="tickets" value="{{ user.tickets }}" min="0">
-                            <small class="form-text text-muted">Укажите новое количество билетов для пользователя</small>
-                        </div>
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Логин</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Модальное окно удаления пользователя -->
-    <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Подтверждение удаления</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Вы уверены, что хотите удалить пользователя "{{ user.username }}"?</p>
-                    <p class="text-danger">Это действие нельзя отменить!</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" class="d-inline">
-                        <button type="submit" class="btn btn-danger">Удалить</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
-
-    <!-- Модальное окно добавления пользователя -->
-    <div class="modal fade" id="addUserModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Добавить пользователя</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ url_for('admin_add_user') }}" method="POST">
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="username" class="form-label">Логин</label>
-                            <input type="text" class="form-control" id="username" name="username" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="phone" class="form-label">Телефон</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" placeholder="+375XXXXXXXXX" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="parent_name" class="form-label">Имя родителя</label>
-                            <input type="text" class="form-control" id="parent_name" name="parent_name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="category" class="form-label">Категория</label>
-                            <select class="form-select" id="category" name="category" required>
-                                <option value="">Выберите категорию</option>
-                                <option value="1-2">1-2 классы</option>
-                                <option value="3-4">3-4 классы</option>
-                                <option value="5-6">5-6 классы</option>
-                                <option value="7-8">7-8 классы</option>
-                                <option value="9">9 класс</option>
-                                <option value="10-11">10-11 классы</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">Пароль</label>
-                            <input type="password" class="form-control" id="password" name="password" required>
-                        </div>
-                        <div class="mb-3 form-check">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Пароль</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Телефон</label>
+                        <input type="tel" class="form-control" id="phone" name="phone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parent_name" class="form-label">Имя представителя</label>
+                        <input type="text" class="form-control" id="parent_name" name="parent_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Категория</label>
+                        <select class="form-select" id="category" name="category" required>
+                            <option value="1-2">1-2 класс</option>
+                            <option value="3-4">3-4 класс</option>
+                            <option value="5-6">5-6 класс</option>
+                            <option value="7-8">7-8 класс</option>
+                            <option value="9">9 класс</option>
+                            <option value="10-11">10-11 класс</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin">
                             <label class="form-check-label" for="is_admin">Администратор</label>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                        <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальные окна для каждого пользователя -->
+{% for user in users %}
+<!-- Модальное окно редактирования -->
+<div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('admin_edit_user', user_id=user.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username{{ user.id }}" class="form-label">Логин</label>
+                        <input type="text" class="form-control" id="username{{ user.id }}" name="username" value="{{ user.username }}" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="email{{ user.id }}" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email{{ user.id }}" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password{{ user.id }}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                        <input type="password" class="form-control" id="password{{ user.id }}" name="password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="tickets{{ user.id }}" class="form-label">Количество билетов</label>
+                        <input type="number" class="form-control" id="tickets{{ user.id }}" name="tickets" value="{{ user.tickets }}" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="is_admin{{ user.id }}" name="is_admin" {% if user.is_admin %}checked{% endif %}>
+                            <label class="form-check-label" for="is_admin{{ user.id }}">Администратор</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно удаления -->
+<div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите удалить пользователя {{ user.username }}?</p>
+                <p class="text-danger">Это действие нельзя отменить!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Модальное окно настроек пользователей -->
-<div class="modal fade" id="userSettingsModal" tabindex="-1">
+<!-- Модальное окно блокировки/разблокировки -->
+<div class="modal fade" id="blockUserModal{{ user.id }}" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Настройки пользователей</h5>
+                <h5 class="modal-title">{% if user.is_blocked %}Разблокировать{% else %}Заблокировать{% endif %} пользователя</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-4">
-                    <h6>Управление счетом</h6>
-                    <form id="resetBalancesForm" class="d-inline">
+            <form action="{{ url_for('admin_toggle_user_block', user_id=user.id) }}" method="POST">
+                <div class="modal-body">
+                    {% if user.is_blocked %}
+                        <p>Вы уверены, что хотите разблокировать пользователя {{ user.username }}?</p>
+                    {% else %}
+                        <p>Вы уверены, что хотите заблокировать пользователя {{ user.username }}?</p>
                         <div class="mb-3">
-                            <label for="adminPassword" class="form-label">Введите пароль администратора для подтверждения</label>
-                            <input type="password" class="form-control" id="adminPassword" required>
+                            <label for="block_reason{{ user.id }}" class="form-label">Причина блокировки</label>
+                            <textarea class="form-control" id="block_reason{{ user.id }}" name="block_reason" rows="3" required></textarea>
                         </div>
-                        <button type="submit" class="btn btn-danger" id="resetBalancesBtn">
-                            Обнулить счет всех пользователей
-                        </button>
-                    </form>
+                    {% endif %}
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-            </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn {% if user.is_blocked %}btn-success{% else %}btn-warning{% endif %}">
+                        {% if user.is_blocked %}Разблокировать{% else %}Заблокировать{% endif %}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-
-<!-- Модальное окно подтверждения -->
-<div class="modal fade" id="confirmModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Подтверждение действия</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p id="confirmMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-danger" id="confirmButton">Подтвердить</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Модальное окно уведомления -->
-<div class="modal fade" id="notificationModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Уведомление</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p id="notificationMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-            </div>
-        </div>
-    </div>
-</div>
+{% endfor %}
 {% endblock %}
 
 {% block styles %}

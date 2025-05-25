@@ -18,7 +18,19 @@
                     <p><strong>Email:</strong> {{ user.email }}</p>
                     <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
                     <p><strong>Последний вход:</strong> {{ user.last_login.strftime('%d.%m.%Y %H:%M') if user.last_login else 'Нет' }}</p>
-                    <p><strong>Статус:</strong> {% if user.is_active %}Активен{% else %}Ожидает подтверждения{% endif %}</p>
+                    <p><strong>Статус:</strong> 
+                        {% if user.is_active %}
+                            Активен
+                        {% else %}
+                            Ожидает подтверждения
+                        {% endif %}
+                        {% if user.is_blocked %}
+                            <span class="badge bg-danger">Заблокирован</span>
+                            {% if user.block_reason %}
+                                <br><small class="text-danger">Причина: {{ user.block_reason }}</small>
+                            {% endif %}
+                        {% endif %}
+                    </p>
                     <p><strong>Общий счет:</strong> {{ user.balance }}</p>
                     <p><strong>Билеты:</strong> {{ user.tickets }}</p>
                     <p><strong>Категория:</strong> {{ user.category }}</p>
