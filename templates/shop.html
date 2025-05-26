@@ -34,7 +34,7 @@
         {% if not can_shop %}
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
-            В вашей категории ({{ current_user.category }}) покупки доступны только для {{ settings.top_users_percentage }}% лучших пользователей.
+            В вашей категории ({{ current_user.category }}) покупки доступны только для {{ settings['top_users_percentage_' + current_user.category.replace('-', '_')] }}% лучших пользователей.
             Продолжайте участвовать в турнирах, чтобы повысить свой рейтинг в категории!
         </div>
         {% endif %}

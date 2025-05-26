@@ -83,10 +83,7 @@ def end_tournament_job(tournament_id):
                 
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
-                    
-                    # Обновляем общее время для каждого участника
-                    time_spent = (current_time - participation.start_time).total_seconds()
-                    participation.user.total_tournament_time += int(time_spent)
+
                 
                 # Обновляем рейтинги в категориях
                 update_category_ranks()
@@ -303,7 +300,13 @@ class CartItem(db.Model):
 class ShopSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_open = db.Column(db.Boolean, default=True)
-    top_users_percentage = db.Column(db.Integer, default=100)  # Процент лучших пользователей
+    # Процент лучших пользователей для каждой категории
+    top_users_percentage_1_2 = db.Column(db.Integer, default=100)  # 1-2 классы
+    top_users_percentage_3_4 = db.Column(db.Integer, default=100)  # 3-4 классы
+    top_users_percentage_5_6 = db.Column(db.Integer, default=100)  # 5-6 классы
+    top_users_percentage_7_8 = db.Column(db.Integer, default=100)  # 7-8 классы
+    top_users_percentage_9 = db.Column(db.Integer, default=100)    # 9 класс
+    top_users_percentage_10_11 = db.Column(db.Integer, default=100)  # 10-11 классы
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     @staticmethod
@@ -319,7 +322,10 @@ class ShopSettings(db.Model):
         if not self.is_open:
             return False
         
-        if self.top_users_percentage >= 100:
+        # Получаем процент для категории пользователя
+        category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
+        
+        if category_percentage >= 100:
             return True
             
         # Получаем количество пользователей в категории пользователя
@@ -328,7 +334,7 @@ class ShopSettings(db.Model):
             return False
             
         # Вычисляем количество пользователей в категории, которым разрешено делать покупки
-        allowed_users_count = max(1, int(category_users * self.top_users_percentage / 100))
+        allowed_users_count = max(1, int(category_users * category_percentage / 100))
         
         # Получаем ранг пользователя в его категории
         user_rank = user.category_rank
@@ -2248,7 +2254,8 @@ def load_more_users():
             'solved_tasks_count': user.solved_tasks_count,
             'success_rate': user.success_rate,
             'tournaments_count': user.tournaments_count,
-            'category_rank': user.category_rank
+            'category_rank': user.category_rank,
+            'total_tournament_time': user.total_tournament_time
         } for user in users.items],
         'has_next': users.has_next
     })
@@ -2598,13 +2605,17 @@ def admin_update_shop_settings():
     
     # Обновляем настройки
     settings.is_open = 'is_open' in request.form
-    try:
-        top_users_percentage = int(request.form.get('top_users_percentage', 100))
-        if top_users_percentage < 1 or top_users_percentage > 100:
-            raise ValueError
-        settings.top_users_percentage = top_users_percentage
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Некорректное значение процента пользователей'})
+    
+    # Обновляем проценты для каждой категории
+    categories = ['1_2', '3_4', '5_6', '7_8', '9', '10_11']
+    for category in categories:
+        try:
+            percentage = int(request.form.get(f'top_users_percentage_{category}', 100))
+            if percentage < 1 or percentage > 100:
+                raise ValueError
+            setattr(settings, f'top_users_percentage_{category}', percentage)
+        except ValueError:
+            return jsonify({'success': False, 'message': f'Некорректное значение процента для категории {category.replace("_", "-")}'})
     
     db.session.commit()
     
