@@ -1,6 +1,107 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Стили для уведомлений -->
+<style>
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.notification {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+    padding: 16px;
+    min-width: 300px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    animation: slideIn 0.3s ease-out;
+    border-left: 4px solid;
+}
+
+.notification.success {
+    border-left-color: #28a745;
+}
+
+.notification.error {
+    border-left-color: #dc3545;
+}
+
+.notification.warning {
+    border-left-color: #ffc107;
+}
+
+.notification.info {
+    border-left-color: #17a2b8;
+}
+
+.notification-icon {
+    margin-right: 12px;
+    font-size: 20px;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.notification-message {
+    color: #666;
+    font-size: 14px;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    margin-left: 12px;
+}
+
+.notification-close:hover {
+    color: #666;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification.fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+}
+</style>
+
+<!-- Контейнер для уведомлений -->
+<div class="notification-container" id="notificationContainer"></div>
+
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Корзина</h2>
@@ -323,7 +424,12 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     const address = document.getElementById('address').value;
     
     if (!fullName || !phone || !address) {
-        showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
+        showNotification('Предупреждение', 'Пожалуйста, заполните все обязательные поля', 'warning');
+        return;
+    }
+    
+    if (!validatePhone(phone)) {
+        showNotification('Ошибка', 'Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX', 'error');
         return;
     }
     
@@ -341,66 +447,77 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification(data.message, 'success');
+            showNotification('Успешно', data.message, 'success');
             setTimeout(() => {
-            window.location.href = '/profile';
+                window.location.href = '/profile';
             }, 2000);
         } else {
-            showNotification(data.message, 'danger');
+            showNotification('Ошибка', data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('Произошла ошибка при оформлении заказа', 'danger');
+        showNotification('Ошибка', 'Произошла ошибка при оформлении заказа', 'error');
     });
 });
 
-function showNotification(message, type = 'info') {
-    const flashContainer = document.querySelector('.flash-messages');
-    if (!flashContainer) {
-        const container = document.createElement('div');
-        container.className = 'flash-messages';
-        document.body.appendChild(container);
-    }
+function showNotification(title, message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
     
     const icons = {
         success: 'fa-check-circle',
-        danger: 'fa-exclamation-circle',
+        error: 'fa-exclamation-circle',
         warning: 'fa-exclamation-triangle',
         info: 'fa-info-circle'
     };
     
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'flash-message';
-    messageDiv.innerHTML = `
-        <div class="alert alert-${type}">
-            <div>
-                <i class="fas ${icons[type] || icons.info}"></i>
-                ${message}
-            </div>
-            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107',
+        info: '#17a2b8'
+    };
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-icon" style="color: ${colors[type]}">
+            <i class="fas ${icons[type]}"></i>
         </div>
+        <div class="notification-content">
+            <div class="notification-title">${title}</div>
+            <div class="notification-message">${message}</div>
+        </div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
     `;
     
-    document.querySelector('.flash-messages').appendChild(messageDiv);
+    container.appendChild(notification);
+    
+    // Добавляем обработчик для кнопки закрытия
+    const closeButton = notification.querySelector('.notification-close');
+    closeButton.addEventListener('click', () => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+    });
     
     // Автоматически удаляем уведомление через 5 секунд
     setTimeout(() => {
-        messageDiv.classList.add('fade-out');
-        setTimeout(() => messageDiv.remove(), 500);
+        if (notification.parentNode) {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }
     }, 5000);
 }
 
 // Функция для валидации номера телефона
 function validatePhone(phone) {
-    // Проверяем, что номер начинается с 29, 33, 44, 25
     const validPrefixes = ['29', '33', '44', '25'];
     const prefix = phone.substring(0, 2);
     if (!validPrefixes.includes(prefix)) {
         return false;
     }
-    
-    // Проверяем, что остальные цифры являются числами
     const rest = phone.substring(2);
     return /^\d{7}$/.test(rest);
 }
@@ -482,42 +599,21 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 location.reload(); // Перезагружаем страницу для обновления итоговой суммы
             } else {
-                alert(data.message);
+                showNotification('Ошибка', data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Произошла ошибка при обновлении корзины');
+            showNotification('Ошибка', 'Произошла ошибка при обновлении корзины', 'error');
         });
     }
 
     // Обработчик удаления товара из корзины
     document.querySelectorAll('.remove-from-cart').forEach(button => {
         button.addEventListener('click', function() {
-            if (confirm('Вы уверены, что хотите удалить этот товар из корзины?')) {
-                const prizeId = this.dataset.prizeId;
-                fetch('/remove-from-cart', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        prize_id: prizeId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        location.reload(); // Перезагружаем страницу для обновления корзины
-                    } else {
-                        alert(data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Произошла ошибка при удалении товара из корзины');
-                });
-            }
+            cartItemToDelete = this.dataset.prizeId;
+            const modal = new bootstrap.Modal(document.getElementById('deleteCartItemModal'));
+            modal.show();
         });
     });
 });

@@ -1,6 +1,107 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Стили для уведомлений -->
+<style>
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.notification {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+    padding: 16px;
+    min-width: 300px;
+    max-width: 400px;
+    display: flex;
+    align-items: center;
+    animation: slideIn 0.3s ease-out;
+    border-left: 4px solid;
+}
+
+.notification.success {
+    border-left-color: #28a745;
+}
+
+.notification.error {
+    border-left-color: #dc3545;
+}
+
+.notification.warning {
+    border-left-color: #ffc107;
+}
+
+.notification.info {
+    border-left-color: #17a2b8;
+}
+
+.notification-icon {
+    margin-right: 12px;
+    font-size: 20px;
+}
+
+.notification-content {
+    flex-grow: 1;
+}
+
+.notification-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.notification-message {
+    color: #666;
+    font-size: 14px;
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    padding: 4px;
+    margin-left: 12px;
+}
+
+.notification-close:hover {
+    color: #666;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.notification.fade-out {
+    animation: fadeOut 0.3s ease-out forwards;
+}
+</style>
+
+<!-- Контейнер для уведомлений -->
+<div class="notification-container" id="notificationContainer"></div>
+
 <div class="container mt-4">
     <!-- Верхняя панель с балансом и корзиной -->
     <div class="row mb-4">
@@ -107,6 +208,57 @@
 </div>
 
 <script>
+// Функция для показа уведомлений
+function showNotification(title, message, type = 'info') {
+    const container = document.getElementById('notificationContainer');
+    
+    const icons = {
+        success: 'fa-check-circle',
+        error: 'fa-exclamation-circle',
+        warning: 'fa-exclamation-triangle',
+        info: 'fa-info-circle'
+    };
+    
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107',
+        info: '#17a2b8'
+    };
+    
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-icon" style="color: ${colors[type]}">
+            <i class="fas ${icons[type]}"></i>
+        </div>
+        <div class="notification-content">
+            <div class="notification-title">${title}</div>
+            <div class="notification-message">${message}</div>
+        </div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Добавляем обработчик для кнопки закрытия
+    const closeButton = notification.querySelector('.notification-close');
+    closeButton.addEventListener('click', () => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    // Автоматически удаляем уведомление через 5 секунд
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, 5000);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Обработчики для кнопок изменения количества
     document.querySelectorAll('.decrease-quantity').forEach(button => {
@@ -163,15 +315,16 @@ document.addEventListener('DOMContentLoaded', function() {
                         const cartButton = document.querySelector('.btn-primary');
                         cartButton.innerHTML += `<span class="badge bg-danger ms-2">${data.cart_items_count}</span>`;
                     }
-                    // Показываем уведомление
-                    alert(data.message);
+                    // Показываем уведомление об успехе
+                    showNotification('Успешно', data.message, 'success');
                 } else {
-                    alert(data.message);
+                    // Показываем уведомление об ошибке
+                    showNotification('Ошибка', data.message, 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Произошла ошибка при добавлении товара в корзину');
+                showNotification('Ошибка', 'Произошла ошибка при добавлении товара в корзину', 'error');
             });
         });
     });
