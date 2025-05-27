@@ -1132,22 +1132,25 @@ def admin_add_prize():
 @login_required
 def admin_delete_prize(prize_id):
     if not current_user.is_admin:
-        flash('Недостаточно прав', 'error')
-        return redirect(url_for('home'))
+        return jsonify({'success': False, 'message': 'Недостаточно прав'}), 403
     
     prize = Prize.query.get_or_404(prize_id)
     
-    # Удаляем изображение
-    if prize.image:
-        image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
-        if os.path.exists(image_path):
-            os.remove(image_path)
-    
-    prize.is_active = False
-    db.session.commit()
-    
-    flash('Приз успешно удален', 'success')
-    return redirect(url_for('admin_prizes'))
+    try:
+        # Удаляем изображение
+        if prize.image:
+            image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        
+        # Деактивируем приз
+        prize.is_active = False
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Приз успешно удален'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Произошла ошибка при удалении приза'}), 500
 
 @app.route('/admin/shop/prizes/<int:prize_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1163,6 +1166,8 @@ def admin_edit_prize(prize_id):
         description = request.form.get('description')
         points_cost = request.form.get('points_cost', type=int)
         quantity = request.form.get('quantity', type=int, default=0)
+        is_unique = 'is_unique' in request.form
+        is_active = 'is_active' in request.form
         
         if not all([name, description, points_cost]):
             flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -1175,13 +1180,12 @@ def admin_edit_prize(prize_id):
         # Обработка изображения
         image = request.files.get('image')
         if image and image.filename:
-            # Удаляем старое изображение
+            # Удаляем старое изображение, если оно есть
             if prize.image:
                 old_image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
                 if os.path.exists(old_image_path):
                     os.remove(old_image_path)
             
-            # Сохраняем новое изображение с уникальным именем
             image_filename = generate_unique_filename(secure_filename(image.filename))
             image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
             os.makedirs(os.path.dirname(image_path), exist_ok=True)
@@ -1192,14 +1196,14 @@ def admin_edit_prize(prize_id):
         prize.description = description
         prize.points_cost = points_cost
         prize.quantity = quantity
+        prize.is_unique = is_unique
+        prize.is_active = is_active
         
         db.session.commit()
         flash('Приз успешно обновлен', 'success')
         return redirect(url_for('admin_prizes'))
     
-    return render_template('admin/edit_prize.html',
-                         title='Редактирование приза',
-                         prize=prize)
+    return render_template('admin/edit_prize.html', prize=prize)
 
 @app.route('/admin/tournaments/<int:tournament_id>/configure')
 @login_required

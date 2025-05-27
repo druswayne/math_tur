@@ -125,34 +125,32 @@
                 });
             });
         }
-        
-        // Обработчики для кнопок удаления
-        document.querySelectorAll('.delete-prize').forEach(button => {
-            button.addEventListener('click', function() {
-                const prizeId = this.dataset.prizeId;
-                const prizeName = this.dataset.prizeName;
-                
-                if (confirm(`Вы уверены, что хотите удалить приз "${prizeName}"?`)) {
-                    fetch(`/admin/shop/prizes/${prizeId}/delete`, {
-                        method: 'POST'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showNotification('Успешно', data.message, 'success');
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        } else {
-                            showNotification('Ошибка', data.message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        showNotification('Ошибка', 'Произошла ошибка при удалении приза', 'error');
-                    });
-                }
-            });
-        });
     });
+
+    function editPrize(prizeId) {
+        // Перенаправляем на страницу редактирования приза
+        window.location.href = `/admin/shop/prizes/${prizeId}/edit`;
+    }
+
+    function deletePrize(prizeId) {
+        if (confirm('Вы уверены, что хотите удалить этот приз?')) {
+            fetch(`/admin/shop/prizes/${prizeId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    throw new Error('Ошибка при удалении приза');
+                }
+            })
+            .catch(error => {
+                alert('Произошла ошибка при удалении приза');
+            });
+        }
+    }
 </script>
 {% endblock %} 

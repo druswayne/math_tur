@@ -144,7 +144,7 @@
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             {% for prize in prizes %}
             <div class="col-md-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 prize-card">
                     {% if prize.image %}
                     <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" class="card-img-top" alt="{{ prize.name }}">
                     {% endif %}
@@ -155,27 +155,23 @@
                         {% endif %}
                         <p class="card-text">{{ prize.description }}</p>
                         <p class="card-text">
-                            <strong>Стоимость:</strong> {{ prize.points_cost }} баллов<br>
+                            <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов<br>
                             {% if not prize.is_unique %}
                             <strong>Доступно:</strong> {% if prize.quantity > 0 %}{{ prize.quantity }} шт.{% else %}Неограниченно{% endif %}
                             {% endif %}
                         </p>
                         {% if can_shop %}
-                        <div class="d-flex justify-content-between align-items-center">
-                            {% if prize.is_unique %}
-                            <button class="btn btn-primary add-to-cart" data-prize-id="{{ prize.id }}" data-quantity="1">
-                                Добавить в корзину
-                            </button>
-                            {% else %}
+                        <div class="d-flex flex-column gap-3 mt-3">
+                            {% if not prize.is_unique %}
                             <div class="input-group" style="width: 150px;">
                                 <button class="btn btn-outline-secondary decrease-quantity" type="button">-</button>
                                 <input type="number" class="form-control text-center prize-quantity" value="1" min="1" max="{{ prize.quantity if prize.quantity > 0 else '' }}">
                                 <button class="btn btn-outline-secondary increase-quantity" type="button">+</button>
                             </div>
-                            <button class="btn btn-primary add-to-cart" data-prize-id="{{ prize.id }}">
-                                Добавить в корзину
-                            </button>
                             {% endif %}
+                            <button class="btn btn-primary add-to-cart w-100" data-prize-id="{{ prize.id }}" {% if prize.is_unique %}data-quantity="1"{% endif %}>
+                                <i class="fas fa-shopping-cart me-2"></i>Добавить в корзину
+                            </button>
                         </div>
                         {% endif %}
                     </div>
