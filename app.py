@@ -2316,11 +2316,11 @@ def add_to_cart():
     
     # Проверяем, не является ли приз уникальным
     if prize.is_unique:
-        # Проверяем, не покупал ли пользователь уже этот приз (активные покупки и в обработке)
+        # Проверяем, не покупал ли пользователь уже этот приз (все статусы кроме отмененного)
         existing_purchase = PrizePurchase.query.filter(
             PrizePurchase.user_id == current_user.id,
             PrizePurchase.prize_id == prize_id,
-            PrizePurchase.status.in_(['active', 'pending'])  # Проверяем активные и в обработке
+            PrizePurchase.status != 'cancelled'  # Проверяем все статусы кроме отмененного
         ).first()
         
         if existing_purchase:
@@ -2441,13 +2441,16 @@ def remove_from_cart():
 @login_required
 def checkout():
     if current_user.is_admin:
-        return redirect(url_for('admin_dashboard'))
+        return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
+    
+    settings = ShopSettings.get_settings()
+    if not settings.is_open:
+        return jsonify({'success': False, 'message': 'Магазин временно закрыт'})
+    
+    if not settings.can_user_shop(current_user):
+        return jsonify({'success': False, 'message': 'У вас нет доступа к магазину'})
     
     data = request.get_json()
-    if not data:
-        return jsonify({'success': False, 'message': 'Неверный формат данных'})
-    
-    # Получаем данные доставки
     full_name = data.get('full_name')
     phone = data.get('phone')
     address = data.get('address')
@@ -2455,51 +2458,49 @@ def checkout():
     if not all([full_name, phone, address]):
         return jsonify({'success': False, 'message': 'Пожалуйста, заполните все поля'})
     
-    # Получаем товары из корзины
+    # Получаем все товары из корзины
     cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
     if not cart_items:
-        return jsonify({'success': False, 'message': 'Корзина пуста'})
+        return jsonify({'success': False, 'message': 'Ваша корзина пуста'})
     
-    # Проверяем баланс и наличие товаров
+    # Проверяем баланс и доступность товаров
     total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
     if current_user.balance < total_cost:
         return jsonify({'success': False, 'message': 'Недостаточно баллов для оформления заказа'})
     
+    # Проверяем доступность всех товаров
     for item in cart_items:
-        if item.prize.quantity < item.quantity:
-            return jsonify({
-                'success': False, 
-                'message': f'Товар "{item.prize.name}" доступен только в количестве {item.prize.quantity} шт.'
-            })
+        if item.prize.quantity > 0 and item.quantity > item.prize.quantity:
+            return jsonify({'success': False, 'message': f'Товар "{item.prize.name}" доступен только в количестве {item.prize.quantity} шт.'})
     
     try:
-        # Создаем запись о покупке
-        purchase = PrizePurchase(
-            user_id=current_user.id,
-            prize_id=cart_items[0].prize_id,
-            quantity=cart_items[0].quantity,
-            points_cost=cart_items[0].prize.points_cost * cart_items[0].quantity,
-            full_name=full_name,
-            phone=phone,
-            address=address
-        )
-        db.session.add(purchase)
-        
-        # Обновляем баланс пользователя
-        current_user.balance -= total_cost
-        
-        # Обновляем количество товаров
+        # Создаем записи о покупке для каждого товара
         for item in cart_items:
-            item.prize.quantity -= item.quantity
+            # Создаем запись о покупке
+            purchase = PrizePurchase(
+                user_id=current_user.id,
+                prize_id=item.prize.id,
+                quantity=item.quantity,
+                points_cost=item.prize.points_cost * item.quantity,
+                full_name=full_name,
+                phone=phone,
+                address=address,
+                status='pending'
+            )
+            db.session.add(purchase)
+            
+            # Уменьшаем количество доступных товаров
+            if item.prize.quantity > 0:
+                item.prize.quantity -= item.quantity
+        
+        # Списываем баллы
+        current_user.balance -= total_cost
         
         # Очищаем корзину
         CartItem.query.filter_by(user_id=current_user.id).delete()
         
         db.session.commit()
-        return jsonify({
-            'success': True, 
-            'message': 'Заказ успешно оформлен! Мы свяжемся с вами для уточнения деталей доставки.'
-        })
+        return jsonify({'success': True, 'message': 'Заказ успешно оформлен'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при оформлении заказа'})
