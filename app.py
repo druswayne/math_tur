@@ -2263,7 +2263,7 @@ def load_more_users():
 @app.route('/shop')
 @login_required
 def shop():
-    prizes = Prize.query.filter(Prize.quantity > 0).all()
+    prizes = Prize.query.filter(Prize.is_active == True).all()
     settings = ShopSettings.get_settings()
     can_shop = settings.can_user_shop(current_user)
     
