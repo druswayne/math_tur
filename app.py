@@ -270,6 +270,7 @@ class Prize(db.Model):
     points_cost = db.Column(db.Integer, nullable=False)  # Стоимость в баллах
     quantity = db.Column(db.Integer, default=0)  # 0 означает неограниченное количество
     is_active = db.Column(db.Boolean, default=True)
+    is_unique = db.Column(db.Boolean, default=False)  # Флаг уникального приза
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class PrizePurchase(db.Model):
@@ -1093,6 +1094,7 @@ def admin_add_prize():
     description = request.form.get('description')
     points_cost = request.form.get('points_cost', type=int)
     quantity = request.form.get('quantity', type=int, default=0)
+    is_unique = 'is_unique' in request.form  # Получаем значение флага уникальности
     
     if not all([name, description, points_cost]):
         flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -1101,6 +1103,10 @@ def admin_add_prize():
     if points_cost < 1 or quantity < 0:
         flash('Некорректные значения', 'danger')
         return redirect(url_for('admin_prizes'))
+    
+    # Если приз уникальный, устанавливаем количество в 1
+    if is_unique:
+        quantity = 1
     
     # Обработка изображения
     image = request.files.get('image')
@@ -1116,7 +1122,8 @@ def admin_add_prize():
         description=description,
         image=image_filename,
         points_cost=points_cost,
-        quantity=quantity
+        quantity=quantity,
+        is_unique=is_unique
     )
     
     db.session.add(prize)
@@ -2307,7 +2314,21 @@ def add_to_cart():
     if not prize or not prize.is_active:
         return jsonify({'success': False, 'message': 'Товар не найден'})
     
-    if prize.quantity > 0 and quantity > prize.quantity:
+    # Проверяем, не является ли приз уникальным
+    if prize.is_unique:
+        # Проверяем, не покупал ли пользователь уже этот приз (активные покупки и в обработке)
+        existing_purchase = PrizePurchase.query.filter(
+            PrizePurchase.user_id == current_user.id,
+            PrizePurchase.prize_id == prize_id,
+            PrizePurchase.status.in_(['active', 'pending'])  # Проверяем активные и в обработке
+        ).first()
+        
+        if existing_purchase:
+            return jsonify({'success': False, 'message': 'Вы уже приобрели этот уникальный приз'})
+        
+        # Для уникального приза устанавливаем количество 1
+        quantity = 1
+    elif prize.quantity > 0 and quantity > prize.quantity:
         return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
     
     # Проверяем, есть ли уже такой товар в корзине
@@ -2318,6 +2339,9 @@ def add_to_cart():
     
     if cart_item:
         # Если товар уже есть, обновляем количество
+        if prize.is_unique:
+            return jsonify({'success': False, 'message': 'Этот уникальный приз уже добавлен в корзину'})
+        
         new_quantity = cart_item.quantity + quantity
         if prize.quantity > 0 and new_quantity > prize.quantity:
             return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
@@ -2359,7 +2383,10 @@ def update_cart():
     if not prize or not prize.is_active:
         return jsonify({'success': False, 'message': 'Товар не найден'})
     
-    if prize.quantity > 0 and quantity > prize.quantity:
+    # Проверяем, не является ли приз уникальным
+    if prize.is_unique:
+        quantity = 1
+    elif prize.quantity > 0 and quantity > prize.quantity:
         return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
     
     # Находим товар в корзине

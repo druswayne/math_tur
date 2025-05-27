@@ -19,9 +19,9 @@
                             <thead>
                                 <tr>
                                     <th>Товар</th>
+                                    <th>Стоимость</th>
                                     <th>Количество</th>
-                                    <th>Цена</th>
-                                    <th>Сумма</th>
+                                    <th>Итого</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -33,33 +33,42 @@
                                             {% if item.prize.image %}
                                             <img src="{{ url_for('static', filename='uploads/prizes/' + item.prize.image) }}" 
                                                  alt="{{ item.prize.name }}" 
-                                                 class="img-thumbnail me-3 cart-item-image">
+                                                 class="me-3" 
+                                                 style="width: 50px; height: 50px; object-fit: cover;">
                                             {% endif %}
                                             <div>
                                                 <h6 class="mb-0">{{ item.prize.name }}</h6>
-                                                <small class="text-muted">{{ item.prize.description }}</small>
+                                                {% if item.prize.is_unique %}
+                                                <span class="badge bg-warning text-dark">Уникальный приз</span>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </td>
+                                    <td>{{ item.prize.points_cost }} баллов</td>
                                     <td>
-                                        <div class="input-group cart-quantity-input">
-                                            <button class="btn btn-outline-secondary btn-sm" 
-                                                    onclick="updateCart({{ item.prize.id }}, 'decrease')">-</button>
-                                            <input type="number" class="form-control form-control-sm" 
+                                        {% if item.prize.is_unique %}
+                                        <span class="text-muted">1 шт.</span>
+                                        {% else %}
+                                        <div class="input-group" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary btn-sm decrease-quantity" 
+                                                    type="button" 
+                                                    data-prize-id="{{ item.prize.id }}">-</button>
+                                            <input type="number" 
+                                                   class="form-control form-control-sm text-center cart-quantity" 
                                                    value="{{ item.quantity }}" 
                                                    min="1" 
-                                                   onchange="updateCart({{ item.prize.id }}, 'set', this.value)"
-                                                   id="quantity-{{ item.prize.id }}"
-                                                   max="{{ item.prize.quantity }}">
-                                            <button class="btn btn-outline-secondary btn-sm" 
-                                                    onclick="updateCart({{ item.prize.id }}, 'increase')">+</button>
+                                                   max="{{ item.prize.quantity if item.prize.quantity > 0 else '' }}"
+                                                   data-prize-id="{{ item.prize.id }}">
+                                            <button class="btn btn-outline-secondary btn-sm increase-quantity" 
+                                                    type="button" 
+                                                    data-prize-id="{{ item.prize.id }}">+</button>
                                         </div>
+                                        {% endif %}
                                     </td>
-                                    <td>{{ item.prize.points_cost }} баллов</td>
                                     <td>{{ item.prize.points_cost * item.quantity }} баллов</td>
                                     <td>
-                                        <button class="btn btn-outline-danger btn-sm cart-item-remove" 
-                                                onclick="removeFromCart({{ item.prize.id }})">
+                                        <button class="btn btn-danger btn-sm remove-from-cart" 
+                                                data-prize-id="{{ item.prize.id }}">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </td>
@@ -416,6 +425,101 @@ document.getElementById('phone').addEventListener('input', function(e) {
     
     // Обновляем значение поля
     e.target.value = value;
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчики для кнопок изменения количества
+    document.querySelectorAll('.decrease-quantity').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.nextElementSibling;
+            const currentValue = parseInt(input.value);
+            if (currentValue > 1) {
+                input.value = currentValue - 1;
+                updateCartItem(this.dataset.prizeId, currentValue - 1);
+            }
+        });
+    });
+
+    document.querySelectorAll('.increase-quantity').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            const currentValue = parseInt(input.value);
+            const maxValue = parseInt(input.getAttribute('max')) || Infinity;
+            if (currentValue < maxValue) {
+                input.value = currentValue + 1;
+                updateCartItem(this.dataset.prizeId, currentValue + 1);
+            }
+        });
+    });
+
+    // Обработчик изменения количества через input
+    document.querySelectorAll('.cart-quantity').forEach(input => {
+        input.addEventListener('change', function() {
+            const newValue = parseInt(this.value);
+            const maxValue = parseInt(this.getAttribute('max')) || Infinity;
+            if (newValue >= 1 && newValue <= maxValue) {
+                updateCartItem(this.dataset.prizeId, newValue);
+            } else {
+                this.value = Math.min(Math.max(1, newValue), maxValue);
+            }
+        });
+    });
+
+    // Функция обновления количества товара в корзине
+    function updateCartItem(prizeId, quantity) {
+        fetch('/update-cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prize_id: prizeId,
+                quantity: quantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload(); // Перезагружаем страницу для обновления итоговой суммы
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при обновлении корзины');
+        });
+    }
+
+    // Обработчик удаления товара из корзины
+    document.querySelectorAll('.remove-from-cart').forEach(button => {
+        button.addEventListener('click', function() {
+            if (confirm('Вы уверены, что хотите удалить этот товар из корзины?')) {
+                const prizeId = this.dataset.prizeId;
+                fetch('/remove-from-cart', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prize_id: prizeId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload(); // Перезагружаем страницу для обновления корзины
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Произошла ошибка при удалении товара из корзины');
+                });
+            }
+        });
+    });
 });
 </script>
 {% endblock %} 

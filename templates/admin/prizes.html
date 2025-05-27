@@ -40,6 +40,15 @@
                         <small class="form-text text-muted">Оставьте 0 для неограниченного количества</small>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="is_unique" name="is_unique">
+                            <label class="form-check-label" for="is_unique">Уникальный приз</label>
+                        </div>
+                        <small class="text-muted">Уникальный приз можно купить только один раз</small>
+                    </div>
+                </div>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i>Добавить приз
                 </button>
@@ -105,5 +114,20 @@ function deletePrize(prizeId) {
 function editPrize(prizeId) {
     window.location.href = `/admin/shop/prizes/${prizeId}/edit`;
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчик изменения флага уникального приза
+    const isUniqueCheckbox = document.getElementById('is_unique');
+    const quantityInput = document.getElementById('quantity');
+    
+    isUniqueCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            quantityInput.value = '1';
+            quantityInput.disabled = true;
+        } else {
+            quantityInput.disabled = false;
+        }
+    });
+});
 </script>
 {% endblock %} 

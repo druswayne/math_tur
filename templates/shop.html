@@ -42,67 +42,41 @@
         <!-- Сетка товаров -->
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             {% for prize in prizes %}
-            <div class="col">
-                <div class="card h-100 {% if prize.quantity == 0 %}border-danger{% endif %}">
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
                     {% if prize.image %}
-                    <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" 
-                         class="card-img-top" 
-                         alt="{{ prize.name }}"
-                         style="height: 200px; object-fit: cover;">
-                    {% else %}
-                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
-                         style="height: 200px;">
-                        <i class="fas fa-gift fa-3x text-muted"></i>
-                    </div>
+                    <img src="{{ url_for('static', filename='uploads/prizes/' + prize.image) }}" class="card-img-top" alt="{{ prize.name }}">
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ prize.name }}</h5>
+                        {% if prize.is_unique %}
+                        <span class="badge bg-warning text-dark mb-2">Уникальный приз</span>
+                        {% endif %}
                         <p class="card-text">{{ prize.description }}</p>
+                        <p class="card-text">
+                            <strong>Стоимость:</strong> {{ prize.points_cost }} баллов<br>
+                            {% if not prize.is_unique %}
+                            <strong>Доступно:</strong> {% if prize.quantity > 0 %}{{ prize.quantity }} шт.{% else %}Неограниченно{% endif %}
+                            {% endif %}
+                        </p>
+                        {% if can_shop %}
                         <div class="d-flex justify-content-between align-items-center">
-                            <h6 class="mb-0">
-                                <i class="fas fa-coins text-warning me-1"></i>
-                                {{ prize.points_cost }} баллов
-                            </h6>
-                            {% if prize.quantity > 0 %}
-                            <small class="text-muted">Осталось: {{ prize.quantity }}</small>
+                            {% if prize.is_unique %}
+                            <button class="btn btn-primary add-to-cart" data-prize-id="{{ prize.id }}" data-quantity="1">
+                                Добавить в корзину
+                            </button>
                             {% else %}
-                            <small class="text-danger">Товар закончился</small>
+                            <div class="input-group" style="width: 150px;">
+                                <button class="btn btn-outline-secondary decrease-quantity" type="button">-</button>
+                                <input type="number" class="form-control text-center prize-quantity" value="1" min="1" max="{{ prize.quantity if prize.quantity > 0 else '' }}">
+                                <button class="btn btn-outline-secondary increase-quantity" type="button">+</button>
+                            </div>
+                            <button class="btn btn-primary add-to-cart" data-prize-id="{{ prize.id }}">
+                                Добавить в корзину
+                            </button>
                             {% endif %}
                         </div>
-                    </div>
-                    
-                    <div class="card-footer bg-white border-top-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="input-group" style="width: 130px;">
-                                <button class="btn btn-outline-secondary btn-sm" 
-                                        type="button" 
-                                        onclick="decrementQuantity({{ prize.id }})"
-                                        {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>-</button>
-                                <input type="number" 
-                                       class="form-control form-control-sm text-center" 
-                                       id="quantity-{{ prize.id }}" 
-                                       value="1" 
-                                       min="1" 
-                                       max="{{ prize.quantity if prize.quantity > 0 else 1 }}"
-                                       {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>
-                                <button class="btn btn-outline-secondary btn-sm" 
-                                        type="button" 
-                                        onclick="incrementQuantity({{ prize.id }})"
-                                        {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>+</button>
-                            </div>
-                            <button class="btn {% if prize.quantity == 0 or not can_shop %}btn-secondary{% else %}btn-primary{% endif %}" 
-                                    onclick="addToCart({{ prize.id }})"
-                                    {% if prize.quantity == 0 or not can_shop %}disabled{% endif %}>
-                                <i class="fas fa-cart-plus me-1"></i>
-                                {% if prize.quantity == 0 %}
-                                    Нет в наличии
-                                {% elif not can_shop %}
-                                    Недоступно
-                                {% else %}
-                                    В корзину
-                                {% endif %}
-                            </button>
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -133,113 +107,74 @@
 </div>
 
 <script>
-function incrementQuantity(prizeId) {
-    const input = document.getElementById(`quantity-${prizeId}`);
-    const max = parseInt(input.getAttribute('max'));
-    if (parseInt(input.value) < max) {
-        input.value = parseInt(input.value) + 1;
-    }
-}
-
-function decrementQuantity(prizeId) {
-    const input = document.getElementById(`quantity-${prizeId}`);
-    if (parseInt(input.value) > 1) {
-        input.value = parseInt(input.value) - 1;
-    }
-}
-
-function addToCart(prizeId) {
-    const quantity = document.getElementById(`quantity-${prizeId}`).value;
-    const prizeName = document.querySelector(`#quantity-${prizeId}`).closest('.card').querySelector('.card-title').textContent;
-    const prizeCost = document.querySelector(`#quantity-${prizeId}`).closest('.card').querySelector('.text-warning').textContent;
-    
-    // Показываем модальное окно с информацией о товаре
-    const content = `
-        <div class="mb-3">
-            <h6>Информация о товаре:</h6>
-            <p><strong>Название:</strong> ${prizeName}</p>
-            <p><strong>Количество:</strong> ${quantity}</p>
-            <p><strong>Стоимость:</strong> ${prizeCost}</p>
-        </div>
-    `;
-    document.getElementById('addToCartContent').innerHTML = content;
-    
-    // Показываем модальное окно
-    const modal = new bootstrap.Modal(document.getElementById('addToCartModal'));
-    modal.show();
-    
-    // Обработчик подтверждения добавления в корзину
-    document.getElementById('confirmAddToCart').onclick = function() {
-        fetch('/add-to-cart', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                prize_id: prizeId,
-                quantity: parseInt(quantity)
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Обновляем счетчик корзины
-                const cartBadge = document.querySelector('.badge');
-                if (cartBadge) {
-                    cartBadge.textContent = data.cart_items_count;
-                } else {
-                    const cartButton = document.querySelector('.btn-primary');
-                    cartButton.innerHTML += `<span class="badge bg-danger ms-2">${data.cart_items_count}</span>`;
-                }
-                // Закрываем модальное окно
-                modal.hide();
-                // Показываем уведомление об успехе
-                showNotification(data.message, 'success');
-            } else {
-                showNotification(data.message, 'danger');
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчики для кнопок изменения количества
+    document.querySelectorAll('.decrease-quantity').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.nextElementSibling;
+            const currentValue = parseInt(input.value);
+            if (currentValue > 1) {
+                input.value = currentValue - 1;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('Произошла ошибка при добавлении товара в корзину', 'danger');
         });
-    };
-}
+    });
 
-function showNotification(message, type = 'info') {
-    const flashContainer = document.querySelector('.flash-messages');
-    if (!flashContainer) {
-        const container = document.createElement('div');
-        container.className = 'flash-messages';
-        document.body.appendChild(container);
-    }
-    
-    const icons = {
-        success: 'fa-check-circle',
-        danger: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'flash-message';
-    messageDiv.innerHTML = `
-        <div class="alert alert-${type}">
-            <div>
-                <i class="fas ${icons[type] || icons.info}"></i>
-                ${message}
-            </div>
-            <button type="button" class="btn-close" onclick="this.closest('.flash-message').remove()"></button>
-        </div>
-    `;
-    
-    document.querySelector('.flash-messages').appendChild(messageDiv);
-    
-    // Автоматически удаляем уведомление через 5 секунд
-    setTimeout(() => {
-        messageDiv.classList.add('fade-out');
-        setTimeout(() => messageDiv.remove(), 500);
-    }, 5000);
-}
+    document.querySelectorAll('.increase-quantity').forEach(button => {
+        button.addEventListener('click', function() {
+            const input = this.previousElementSibling;
+            const currentValue = parseInt(input.value);
+            const maxValue = parseInt(input.getAttribute('max')) || Infinity;
+            if (currentValue < maxValue) {
+                input.value = currentValue + 1;
+            }
+        });
+    });
+
+    // Обработчик добавления в корзину
+    document.querySelectorAll('.add-to-cart').forEach(button => {
+        button.addEventListener('click', function() {
+            const prizeId = this.dataset.prizeId;
+            let quantity = 1;
+            
+            // Если это не уникальный приз, получаем количество из input
+            if (!this.closest('.card').querySelector('.badge.bg-warning')) {
+                const quantityInput = this.closest('.card').querySelector('.prize-quantity');
+                quantity = parseInt(quantityInput.value);
+            }
+            
+            fetch('/add-to-cart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prize_id: prizeId,
+                    quantity: quantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем счетчик корзины
+                    const cartBadge = document.querySelector('.badge.bg-danger');
+                    if (cartBadge) {
+                        cartBadge.textContent = data.cart_items_count;
+                    } else {
+                        const cartButton = document.querySelector('.btn-primary');
+                        cartButton.innerHTML += `<span class="badge bg-danger ms-2">${data.cart_items_count}</span>`;
+                    }
+                    // Показываем уведомление
+                    alert(data.message);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при добавлении товара в корзину');
+            });
+        });
+    });
+});
 </script>
 {% endblock %} 
