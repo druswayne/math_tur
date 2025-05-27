@@ -1104,10 +1104,6 @@ def admin_add_prize():
         flash('Некорректные значения', 'danger')
         return redirect(url_for('admin_prizes'))
     
-    # Если приз уникальный, устанавливаем количество в 1
-    if is_unique:
-        quantity = 1
-    
     # Обработка изображения
     image = request.files.get('image')
     image_filename = None

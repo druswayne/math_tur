@@ -96,38 +96,63 @@
 </div>
 
 <script>
-function deletePrize(prizeId) {
-    if (confirm('Вы уверены, что хотите удалить этот приз?')) {
-        fetch(`/admin/shop/prizes/${prizeId}/delete`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        }).then(response => {
-            if (response.ok) {
-                location.reload();
-            }
-        });
-    }
-}
-
-function editPrize(prizeId) {
-    window.location.href = `/admin/shop/prizes/${prizeId}/edit`;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Обработчик изменения флага уникального приза
-    const isUniqueCheckbox = document.getElementById('is_unique');
-    const quantityInput = document.getElementById('quantity');
-    
-    isUniqueCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-            quantityInput.value = '1';
-            quantityInput.disabled = true;
-        } else {
-            quantityInput.disabled = false;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Обработчик для формы добавления приза
+        const addPrizeForm = document.getElementById('addPrizeForm');
+        if (addPrizeForm) {
+            addPrizeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                
+                fetch('/admin/shop/prizes/add', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('Успешно', data.message, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        showNotification('Ошибка', data.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    showNotification('Ошибка', 'Произошла ошибка при добавлении приза', 'error');
+                });
+            });
         }
+        
+        // Обработчики для кнопок удаления
+        document.querySelectorAll('.delete-prize').forEach(button => {
+            button.addEventListener('click', function() {
+                const prizeId = this.dataset.prizeId;
+                const prizeName = this.dataset.prizeName;
+                
+                if (confirm(`Вы уверены, что хотите удалить приз "${prizeName}"?`)) {
+                    fetch(`/admin/shop/prizes/${prizeId}/delete`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Успешно', data.message, 'success');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        } else {
+                            showNotification('Ошибка', data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        showNotification('Ошибка', 'Произошла ошибка при удалении приза', 'error');
+                    });
+                }
+            });
+        });
     });
-});
 </script>
 {% endblock %} 
