@@ -9,6 +9,9 @@
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
                     <i class="bi bi-plus-lg"></i> Добавить пользователя
                 </button>
+                <button type="button" class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#clearDataModal">
+                    <i class="bi bi-gear"></i>
+                </button>
             </div>
         </div>
         <div class="card-body">
@@ -270,6 +273,52 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- Модальное окно очистки данных -->
+<div class="modal fade" id="clearDataModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Очистка данных пользователей</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="clearDataForm" action="{{ url_for('admin_clear_user_data') }}" method="POST">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        Внимание! Это действие очистит счет и общее время решения задач для всех пользователей.
+                    </div>
+                    <div class="mb-3">
+                        <label for="adminPassword" class="form-label">Пароль администратора</label>
+                        <input type="password" class="form-control" id="adminPassword" name="admin_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-danger">Очистить данные</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно уведомления -->
+<div class="modal fade" id="notificationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Уведомление</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="notificationMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block styles %}
@@ -618,6 +667,56 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Обработчик формы очистки данных
+    const clearDataForm = document.getElementById('clearDataForm');
+    if (clearDataForm) {
+        clearDataForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('adminPassword').value;
+            const submitButton = this.querySelector('button[type="submit"]');
+            
+            if (!confirm('Вы уверены, что хотите очистить счет и время решения задач для всех пользователей? Это действие нельзя отменить!')) {
+                return;
+            }
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Обработка...';
+            
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `admin_password=${encodeURIComponent(password)}`
+                });
+                
+                const data = await response.json();
+                
+                // Закрываем модальное окно очистки данных
+                const clearDataModal = bootstrap.Modal.getInstance(document.getElementById('clearDataModal'));
+                clearDataModal.hide();
+                
+                // Показываем уведомление
+                const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
+                document.getElementById('notificationMessage').textContent = data.message;
+                notificationModal.show();
+                
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при выполнении операции');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Очистить данные';
+                document.getElementById('adminPassword').value = '';
+            }
+        });
+    }
 });
 </script>
 {% endblock %} 

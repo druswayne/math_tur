@@ -2793,6 +2793,46 @@ def update_profile():
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при обновлении профиля'})
 
+@app.route('/admin/users/clear-data', methods=['POST'])
+@login_required
+def admin_clear_user_data():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+    
+    admin_password = request.form.get('admin_password')
+    if not admin_password:
+        return jsonify({'success': False, 'message': 'Не указан пароль администратора'}), 400
+    
+    if not current_user.check_password(admin_password):
+        return jsonify({'success': False, 'message': 'Неверный пароль администратора'}), 400
+    
+    try:
+        # Очищаем счет и время решения задач для всех пользователей
+        users = User.query.filter_by(is_admin=False).all()
+        for user in users:
+            user.balance = 0
+            user.total_tournament_time = 0
+            user.tournaments_count = 0  # Очищаем количество турниров
+        
+        # Очищаем историю решенных задач
+        SolvedTask.query.delete()
+        
+        # Очищаем историю участия в турнирах
+        TournamentParticipation.query.delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Данные пользователей успешно очищены'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Произошла ошибка при очистке данных: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
