@@ -120,15 +120,15 @@ def remove_scheduler_job(tournament_id, job_type):
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     phone = db.Column(db.String(20), unique=True, nullable=False)
     parent_name = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(10), nullable=False)
+    category = db.Column(db.String(10), nullable=False, index=True)
     password_hash = db.Column(db.String(128))
     is_admin = db.Column(db.Boolean, default=False)
-    is_active = db.Column(db.Boolean, default=False)  # Для подтверждения email
-    is_blocked = db.Column(db.Boolean, default=False)  # Для блокировки пользователя
+    is_active = db.Column(db.Boolean, default=False, index=True)  # Для подтверждения email
+    is_blocked = db.Column(db.Boolean, default=False, index=True)  # Для блокировки пользователя
     block_reason = db.Column(db.Text, nullable=True)  # Причина блокировки
     email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -2118,16 +2118,7 @@ def submit_task_answer(tournament_id, task_id):
         # Вычисляем время участия в турнире
         time_spent = (current_time - participation.start_time).total_seconds()
         
-        # Выводим отладочную информацию
-        print(f"\n=== Проверка подозрительной активности ===")
-        print(f"Пользователь: {current_user.username}")
-        print(f"Время начала: {participation.start_time}")
-        print(f"Текущее время: {current_time}")
-        print(f"Время участия: {time_spent} секунд")
-        print(f"Решено задач: {len(solved_tasks)} из {total_tasks}")
-        print(f"Процент правильных ответов: {correct_percentage:.1f}%")
-        print("=====================================\n")
-        
+
         # Если время меньше 5 минут и процент правильных ответов больше 50%
         if time_spent < 300 and correct_percentage > 50:  # 300 секунд = 5 минут
             current_user.is_blocked = True
@@ -2191,17 +2182,7 @@ def tournament_results(tournament_id):
         current_user.total_tournament_time += int(time_spent)
         db.session.commit()
         
-        # Выводим информацию в консоль
-        print(f"\n=== Информация о турнире {tournament.title} ===")
-        print(f"Пользователь: {current_user.username}")
-        print(f"Время начала: {participation.start_time}")
-        print(f"Время окончания: {current_time}")
-        print(f"Общее время участия: {minutes} минут {seconds} секунд")
-        print(f"Решено задач: {solved_count} из {total_tasks}")
-        print(f"Процент правильных ответов: {(solved_count / total_tasks * 100) if total_tasks > 0 else 0:.1f}%")
-        print(f"Заработано баллов: {earned_points}")
-        print(f"Общее время в турнирах: {current_user.total_tournament_time} секунд")
-        print("=====================================\n")
+
     
     return render_template('tournament_results.html',
                          tournament=tournament,
