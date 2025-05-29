@@ -140,6 +140,8 @@ class User(UserMixin, db.Model):
     category_rank = db.Column(db.Integer, default=0)  # Место в рейтинге категории
     temp_password = db.Column(db.String(128), nullable=True)  # Временное хранение пароля до подтверждения email
     total_tournament_time = db.Column(db.Integer, default=0)  # Общее время в турнирах в секундах
+    reset_password_token = db.Column(db.String(100), unique=True)
+    reset_password_token_expires = db.Column(db.DateTime, nullable=True)
 
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -403,6 +405,70 @@ def send_credentials_email(user, password):
 Рекомендуем сменить пароль после первого входа в систему.
 '''
     add_to_queue(app, mail, msg)
+
+def send_reset_password_email(user):
+    token = secrets.token_urlsafe(32)
+    user.reset_password_token = token
+    user.reset_password_token_expires = datetime.utcnow() + timedelta(hours=1)
+    db.session.commit()
+    
+    msg = Message('Сброс пароля',
+                  sender=app.config['MAIL_USERNAME'],
+                  recipients=[user.email])
+    msg.body = f'''Для сброса пароля перейдите по следующей ссылке:
+{url_for('reset_password', token=token, _external=True)}
+
+Ссылка действительна в течение 1 часа.
+
+Если вы не запрашивали сброс пароля, проигнорируйте это письмо.
+'''
+    add_to_queue(app, mail, msg)
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        
+        if user:
+            send_reset_password_email(user)
+            flash('Инструкции по сбросу пароля отправлены на ваш email', 'success')
+        else:
+            flash('Пользователь с таким email не найден', 'danger')
+        
+        return redirect(url_for('login'))
+    
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    user = User.query.filter_by(reset_password_token=token).first()
+    
+    if not user or not user.reset_password_token_expires or user.reset_password_token_expires < datetime.utcnow():
+        flash('Недействительная или устаревшая ссылка для сброса пароля', 'danger')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if password != confirm_password:
+            flash('Пароли не совпадают', 'danger')
+            return redirect(url_for('reset_password', token=token))
+        
+        if not is_password_strong(password):
+            flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
+            return redirect(url_for('reset_password', token=token))
+        
+        user.set_password(password)
+        user.reset_password_token = None
+        user.reset_password_token_expires = None
+        db.session.commit()
+        
+        flash('Пароль успешно изменен', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('reset_password.html', token=token)
 
 @app.route('/')
 def home():
