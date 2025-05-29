@@ -16,20 +16,32 @@ from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
 from email_sender import add_to_queue, start_email_worker
+import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
+import threading
+
+# Получаем количество ядер CPU
+CPU_COUNT = multiprocessing.cpu_count()
+# Создаем пул потоков
+thread_pool = ThreadPoolExecutor(max_workers=CPU_COUNT * 2)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(32).hex()  # Генерируем криптографически стойкий ключ
+app.config['SECRET_KEY'] = os.urandom(32).hex()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/school_tournaments.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_PERMANENT'] = False  # Сессия не будет постоянной
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)  # Максимальное время жизни сессии
+app.config['SESSION_PERMANENT'] = False
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
+
+# Настройки для многопоточности
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['THREAD_POOL_SIZE'] = CPU_COUNT * 2
 
 # Настройки для отправки email
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'  # Замените на ваш email
-app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'     # Замените на пароль приложения
+app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
+app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
 mail = Mail(app)
 db = SQLAlchemy(app)
@@ -43,6 +55,60 @@ scheduler.start()
 
 # Запускаем обработчик очереди писем
 start_email_worker()
+
+# Создаем локальное хранилище для потоков
+thread_local = threading.local()
+
+def get_db():
+    """Получает или создает соединение с базой данных для текущего потока"""
+    if not hasattr(thread_local, 'db'):
+        thread_local.db = db.create_scoped_session()
+    return thread_local.db
+
+@app.before_request
+def before_request():
+    """Инициализация перед каждым запросом"""
+    # Создаем сессию базы данных для текущего потока
+    thread_local.db = db.create_scoped_session()
+    update_tournament_status()
+    if current_user.is_authenticated:
+        result = check_session()
+        if result:
+            return result
+
+@app.teardown_request
+def teardown_request(exception=None):
+    """Очистка после каждого запроса"""
+    # Закрываем сессию базы данных
+    if hasattr(thread_local, 'db'):
+        thread_local.db.remove()
+
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """Очистка при завершении контекста приложения"""
+    db.session.remove()
+
+def run_in_thread(func, *args, **kwargs):
+    """Запускает функцию в отдельном потоке"""
+    return thread_pool.submit(func, *args, **kwargs)
+
+# Модифицируем функции, которые могут выполняться асинхронно
+def send_email_async(msg):
+    """Асинхронная отправка email"""
+    def _send():
+        with app.app_context():
+            mail.send(msg)
+    return run_in_thread(_send)
+
+def update_user_activity_async(user_id):
+    """Асинхронное обновление активности пользователя"""
+    def _update():
+        with app.app_context():
+            user = User.query.get(user_id)
+            if user:
+                user.last_activity = datetime.utcnow()
+                db.session.commit()
+    return run_in_thread(_update)
 
 def start_tournament_job(tournament_id):
     try:
@@ -1880,6 +1946,7 @@ def admin_user_details(user_id):
     user = User.query.get_or_404(user_id)
     
     # Получаем статистику
+
     total_tickets_purchased = sum(purchase.quantity for purchase in user.ticket_purchases)
     total_tournaments_participated = user.tournaments_count  # Используем новое поле
     total_tournaments_won = sum(1 for p in user.tournament_participations if p.place == 1)
