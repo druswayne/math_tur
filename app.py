@@ -525,6 +525,14 @@ def about():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        # Получаем количество попыток из куки
+        login_attempts = int(request.cookies.get('login_attempts', 0))
+        
+        # Если превышено максимальное количество попыток
+        if login_attempts >= 5:
+            flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут или восстановите пароль.', 'danger')
+            return redirect(url_for('login'))
+        
         username = request.form.get('username')
         password = request.form.get('password')
         # Ищем пользователя без учета регистра
@@ -563,9 +571,25 @@ def login():
             session['session_token'] = session_token
             
             login_user(user)
-            return redirect(url_for('home'))
+            
+            # Создаем ответ с очисткой куки попыток входа
+            response = redirect(url_for('home'))
+            response.set_cookie('login_attempts', '0', max_age=0)
+            return response
         else:
-            flash('Неверный логин или пароль', 'danger')
+            # Увеличиваем счетчик попыток
+            login_attempts += 1
+            
+            # Создаем ответ с обновлением куки
+            response = redirect(url_for('login'))
+            response.set_cookie('login_attempts', str(login_attempts), max_age=900)  # 15 минут
+            
+            if login_attempts >= 5:
+                flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут или восстановите пароль.', 'danger')
+            else:
+                flash('Неверный логин или пароль', 'danger')
+            
+            return response
     
     return render_template('login.html')
 
