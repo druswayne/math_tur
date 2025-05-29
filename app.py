@@ -463,9 +463,19 @@ def reset_password(token):
         user.set_password(password)
         user.reset_password_token = None
         user.reset_password_token_expires = None
+        
+        # Очищаем токен сессии и время последней активности
+        user.session_token = None
+        user.last_activity = None
+        
         db.session.commit()
         
-        flash('Пароль успешно изменен', 'success')
+        # Если пользователь был авторизован, выходим из системы
+        if current_user.is_authenticated:
+            session.pop('session_token', None)
+            logout_user()
+        
+        flash('Пароль успешно изменен. Пожалуйста, войдите в систему с новым паролем.', 'success')
         return redirect(url_for('login'))
     
     return render_template('reset_password.html', token=token)
