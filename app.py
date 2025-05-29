@@ -65,6 +65,23 @@ def get_db():
         thread_local.db = db.create_scoped_session()
     return thread_local.db
 
+def update_user_activity():
+    """Обновление времени последней активности в сессии"""
+    session['last_activity'] = datetime.utcnow().isoformat()
+    session.permanent = True
+
+def check_user_activity():
+    """Проверка активности пользователя"""
+    last_activity = session.get('last_activity')
+    if not last_activity:
+        return False
+    
+    last_activity = datetime.fromisoformat(last_activity)
+    if datetime.utcnow() - last_activity > timedelta(days=1):
+        session.clear()
+        return False
+    return True
+
 @app.before_request
 def before_request():
     """Инициализация перед каждым запросом"""
@@ -72,9 +89,11 @@ def before_request():
     thread_local.db = db.create_scoped_session()
     update_tournament_status()
     if current_user.is_authenticated:
-        result = check_session()
-        if result:
-            return result
+        if not check_user_activity():
+            logout_user()
+            flash('Ваша сессия была завершена из-за длительного отсутствия активности', 'warning')
+            return redirect(url_for('login'))
+        update_user_activity()
 
 @app.teardown_request
 def teardown_request(exception=None):
@@ -187,28 +206,29 @@ def remove_scheduler_job(tournament_id, job_type):
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    phone = db.Column(db.String(20), unique=True, nullable=False)
-    parent_name = db.Column(db.String(100), nullable=False)
-    category = db.Column(db.String(10), nullable=False, index=True)
-    password_hash = db.Column(db.String(128))
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    hashed_password = db.Column(db.String(128), nullable=False, index=True)
+    phone = db.Column(db.String(20), unique=True, nullable=True)
+    parent_name = db.Column(db.String(100), nullable=True)
+    grade = db.Column(db.Integer, nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
-    is_active = db.Column(db.Boolean, default=False, index=True)  # Для подтверждения email
-    is_blocked = db.Column(db.Boolean, default=False, index=True)  # Для блокировки пользователя
-    block_reason = db.Column(db.Text, nullable=True)  # Причина блокировки
-    email_confirmation_token = db.Column(db.String(100), unique=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_activity = db.Column(db.DateTime, nullable=True)  # Время последней активности
-    balance = db.Column(db.Integer, default=0)  # Общий счет
-    tickets = db.Column(db.Integer, default=0)  # Количество билетов
-    tournaments_count = db.Column(db.Integer, default=0)  # Количество турниров, в которых участвовал пользователь
-    session_token = db.Column(db.String(100), unique=True)  # Токен текущей сессии
-    category_rank = db.Column(db.Integer, default=0)  # Место в рейтинге категории
-    temp_password = db.Column(db.String(128), nullable=True)  # Временное хранение пароля до подтверждения email
-    total_tournament_time = db.Column(db.Integer, default=0)  # Общее время в турнирах в секундах
-    reset_password_token = db.Column(db.String(100), unique=True)
+    is_active = db.Column(db.Boolean, default=False, index=True)
+    is_blocked = db.Column(db.Boolean, default=False, index=True)
+    block_reason = db.Column(db.Text, nullable=True)
+    email_confirmation_token = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    session_token = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    temp_password = db.Column(db.String(128), nullable=True)
+    reset_password_token = db.Column(db.String(100), unique=True, nullable=True, index=True)
     reset_password_token_expires = db.Column(db.DateTime, nullable=True)
-
+    category = db.Column(db.String(50), nullable=True, index=True)
+    category_rank = db.Column(db.Integer, nullable=True, index=True)
+    balance = db.Column(db.Integer, default=0)
+    tickets = db.Column(db.Integer, default=0)
+    tournaments_count = db.Column(db.Integer, default=0)
+    total_tournament_time = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
                                 secondary='tournament_participation',
@@ -223,10 +243,10 @@ class User(UserMixin, db.Model):
                                              overlaps="tournaments,participants")
 
     def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+        self.hashed_password = generate_password_hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        return check_password_hash(self.hashed_password, password)
 
     def generate_confirmation_token(self):
         token = secrets.token_urlsafe(32)
@@ -616,25 +636,14 @@ def login():
                 flash('Пожалуйста, подтвердите ваш email перед входом', 'warning')
                 return redirect(url_for('login'))
             
-            # Проверяем, не вошел ли пользователь с другого устройства
-            if user.session_token:
-                # Проверяем время последней активности
-                if user.last_activity and (datetime.utcnow() - user.last_activity) < timedelta(days=1):
-                    flash('Вы уже вошли в систему с другого устройства. Пожалуйста, выйдите из другого устройства перед входом или подождите 24 часа.', 'danger')
-                    return redirect(url_for('login'))
-                else:
-                    # Если прошло больше суток, очищаем старую сессию
-                    user.session_token = None
-                    user.last_activity = None
-            
             # Генерируем новый токен сессии
             session_token = secrets.token_urlsafe(32)
             user.session_token = session_token
-            user.last_activity = datetime.utcnow()
             db.session.commit()
             
             # Сохраняем токен в сессии
             session['session_token'] = session_token
+            update_user_activity()  # Добавляем обновление активности
             
             login_user(user)
             
@@ -664,9 +673,9 @@ def login():
 def logout():
     # Очищаем токен сессии
     current_user.session_token = None
-    current_user.last_activity = None
     db.session.commit()
     session.pop('session_token', None)
+    session.pop('last_activity', None)  # Очищаем время последней активности
     logout_user()
     return redirect(url_for('home'))
 
@@ -1977,38 +1986,6 @@ def update_tournament_status():
     
     db.session.commit()
 
-@app.before_request
-def before_request():
-    update_tournament_status()
-    if current_user.is_authenticated:
-        result = check_session()
-        if result:
-            return result
-
-def check_session():
-    if current_user.is_authenticated:
-        session_token = session.get('session_token')
-        if not session_token or session_token != current_user.session_token:
-            logout_user()
-            flash('Ваша сессия была завершена, так как вы вошли в систему с другого устройства', 'warning')
-            return redirect(url_for('login'))
-        
-        # Проверяем время последней активности
-        if current_user.last_activity and (datetime.utcnow() - current_user.last_activity) > timedelta(days=1):
-            # Очищаем сессию
-            current_user.session_token = None
-            current_user.last_activity = None
-            db.session.commit()
-            session.pop('session_token', None)
-            logout_user()
-            flash('Ваша сессия была завершена из-за длительного отсутствия активности', 'warning')
-            return redirect(url_for('login'))
-        
-        # Обновляем время последней активности
-        current_user.last_activity = datetime.utcnow()
-        db.session.commit()
-    return None
-
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
     # Получаем все активные турниры
@@ -2820,7 +2797,7 @@ def tournament_settings():
 @app.before_first_request
 def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
-    User.query.update({User.session_token: None, User.last_activity: None})
+    User.query.update({User.session_token: None})
     db.session.commit()
 
 @app.route('/change-password', methods=['POST'])
