@@ -132,7 +132,6 @@ class User(UserMixin, db.Model):
     block_reason = db.Column(db.Text, nullable=True)  # Причина блокировки
     email_confirmation_token = db.Column(db.String(100), unique=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_login = db.Column(db.DateTime, nullable=True)
     last_activity = db.Column(db.DateTime, nullable=True)  # Время последней активности
     balance = db.Column(db.Integer, default=0)  # Общий счет
     tickets = db.Column(db.Integer, default=0)  # Количество билетов
@@ -481,7 +480,6 @@ def login():
             # Генерируем новый токен сессии
             session_token = secrets.token_urlsafe(32)
             user.session_token = session_token
-            user.last_login = datetime.utcnow()
             user.last_activity = datetime.utcnow()
             db.session.commit()
             
@@ -2180,44 +2178,44 @@ def rating():
     # Получаем параметр страницы
     page = request.args.get('page', 1, type=int)
     per_page = 20  # количество пользователей на страницу для каждой категории
-    
-    # Словарь для хранения пользователей по категориям
+
+    from sqlalchemy import func, case
+
     users_by_category = {}
-    
-    # Получаем пользователей для каждой категории
     categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
     for category in categories:
-        users_query = User.query.filter_by(is_admin=False, category=category).order_by(User.balance.desc())
-        users = users_query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        # Для каждого пользователя считаем статистику
-        for user in users.items:
-            # Получаем все решенные задачи пользователя
-            solved_tasks = SolvedTask.query.filter_by(user_id=user.id).all()
-            total_attempts = len(solved_tasks)
-            
-            # Считаем количество правильных решений
-            correct_attempts = sum(1 for task in solved_tasks if task.is_correct)
-            
-            # Добавляем атрибуты для отображения в шаблоне
-            user.solved_tasks_count = correct_attempts
-            user.success_rate = round((correct_attempts / total_attempts * 100) if total_attempts > 0 else 0, 1)
-        
+        users_stats = (
+            db.session.query(
+                User,
+                func.count(SolvedTask.id).label('solved_tasks_count'),
+                func.sum(case((SolvedTask.is_correct == True, 1), else_=0)).label('correct_tasks_count')
+            )
+            .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
+            .filter(User.is_admin == False, User.category == category)
+            .group_by(User.id)
+            .order_by(User.balance.desc())
+            .limit(per_page)
+            .offset((page - 1) * per_page)
+            .all()
+        )
+        # users_stats: [(User, solved_tasks_count, correct_tasks_count), ...]
+        users = []
+        for user, solved_tasks_count, correct_tasks_count in users_stats:
+            user.solved_tasks_count = correct_tasks_count or 0
+            user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
+            users.append(user)
         users_by_category[category] = {
-            'users': users.items,
-            'has_next': users.has_next
+            'users': users,
+            'has_next': len(users) == per_page
         }
-    
-    # Получаем ранг текущего пользователя
+
     user_rank = None
     if current_user.is_authenticated and not current_user.is_admin:
         user_rank = get_user_rank(current_user.id)
-    
-    # Если это AJAX-запрос, возвращаем только данные для запрошенной категории
+
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         category = request.args.get('category', '1-2')
         users_data = users_by_category.get(category, {'users': [], 'has_next': False})
-        
         return jsonify({
             'users': [{
                 'username': user.username,
@@ -2230,7 +2228,7 @@ def rating():
             } for user in users_data['users']],
             'has_next': users_data['has_next']
         })
-    
+
     return render_template('rating.html', 
                          users_by_category=users_by_category,
                          user_rank=user_rank)
@@ -2840,4 +2838,4 @@ if __name__ == '__main__':
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
 
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000,  debug=False)
