@@ -210,7 +210,6 @@ class User(UserMixin, db.Model):
     hashed_password = db.Column(db.String(128), nullable=False, index=True)
     phone = db.Column(db.String(20), unique=True, nullable=True)
     parent_name = db.Column(db.String(100), nullable=True)
-    grade = db.Column(db.Integer, nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False, index=True)
     is_blocked = db.Column(db.Boolean, default=False, index=True)
@@ -2943,11 +2942,24 @@ def admin_clear_user_data():
         # Очищаем историю участия в турнирах
         TournamentParticipation.query.delete()
         
+        # Очищаем все задачи
+        Task.query.delete()
+        
+        # Очищаем все турниры
+        Tournament.query.delete()
+        
+        # Очищаем настройки турниров
+        TournamentSettings.query.delete()
+        
+        # Создаем новые настройки турниров с дефолтными значениями
+        settings = TournamentSettings()
+        db.session.add(settings)
+        
         db.session.commit()
         
         return jsonify({
             'success': True,
-            'message': 'Данные пользователей успешно очищены'
+            'message': 'Данные пользователей, турниров и задач успешно очищены'
         })
     except Exception as e:
         db.session.rollback()
