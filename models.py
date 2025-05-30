@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 Base = declarative_base()
 
 # Создаем движок базы данных
-engine = create_engine('sqlite:///school_tournaments.db')
+engine = create_engine('postgresql://postgres:postgres@localhost:5432/school_tournaments')
 SessionLocal = sessionmaker(bind=engine)
 
 # Создаем контекст для хеширования паролей

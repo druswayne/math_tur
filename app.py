@@ -27,7 +27,7 @@ thread_pool = ThreadPoolExecutor(max_workers=CPU_COUNT * 2)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/school_tournaments.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_PERMANENT'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
