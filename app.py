@@ -29,6 +29,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(32).hex()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 20,  # Размер пула соединений
+    'max_overflow': 10,  # Максимальное количество дополнительных соединений
+    'pool_timeout': 30,  # Таймаут ожидания соединения из пула
+    'pool_recycle': 1800,  # Пересоздание соединений каждые 30 минут
+    'pool_pre_ping': True,  # Проверка соединений перед использованием
+    'echo': False  # Отключение вывода SQL-запросов в консоль
+}
 app.config['SESSION_PERMANENT'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
 
