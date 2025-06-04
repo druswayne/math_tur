@@ -148,7 +148,10 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('home') }}">BrainLeague</a>
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('home') }}">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Логотип" width="60" height="60" class="me-2" style="object-fit:contain;">
+                ЭрудитБаттл
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -205,6 +208,14 @@
                 <div class="col-md-6 text-md-end">
                     <h5>Контакты</h5>
                     <p>Email: info@school-tournaments.ru</p>
+                    <div class="mt-2">
+                        <a href="https://t.me/your_telegram" target="_blank" class="text-light me-3" title="Telegram">
+                            <i class="fab fa-telegram fa-2x"></i>
+                        </a>
+                        <a href="https://instagram.com/your_instagram" target="_blank" class="text-light" title="Instagram">
+                            <i class="fab fa-instagram fa-2x"></i>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

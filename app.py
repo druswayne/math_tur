@@ -397,11 +397,15 @@ class ShopSettings(db.Model):
     is_open = db.Column(db.Boolean, default=True)
     # Процент лучших пользователей для каждой категории
     top_users_percentage_1_2 = db.Column(db.Integer, default=100)  # 1-2 классы
-    top_users_percentage_3_4 = db.Column(db.Integer, default=100)  # 3-4 классы
-    top_users_percentage_5_6 = db.Column(db.Integer, default=100)  # 5-6 классы
-    top_users_percentage_7_8 = db.Column(db.Integer, default=100)  # 7-8 классы
+    top_users_percentage_3 = db.Column(db.Integer, default=100)    # 3 класс
+    top_users_percentage_4 = db.Column(db.Integer, default=100)    # 4 класс
+    top_users_percentage_5 = db.Column(db.Integer, default=100)    # 5 класс
+    top_users_percentage_6 = db.Column(db.Integer, default=100)    # 6 класс
+    top_users_percentage_7 = db.Column(db.Integer, default=100)    # 7 класс
+    top_users_percentage_8 = db.Column(db.Integer, default=100)    # 8 класс
     top_users_percentage_9 = db.Column(db.Integer, default=100)    # 9 класс
-    top_users_percentage_10_11 = db.Column(db.Integer, default=100)  # 10-11 классы
+    top_users_percentage_10 = db.Column(db.Integer, default=100)   # 10 класс
+    top_users_percentage_11 = db.Column(db.Integer, default=100)   # 11 класс
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     @staticmethod
@@ -785,8 +789,8 @@ def admin_add_user():
         flash('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger')
         return redirect(url_for('admin_users'))
     
-    if category not in ['1-2', '3-4', '5-6', '7-8', '9', '10-11']:
-        flash('Некорректная категория', 'danger')
+    if category not in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
+        flash('Неверная категория', 'error')
         return redirect(url_for('admin_users'))
     
     user = User(
@@ -1578,7 +1582,7 @@ def register():
             flash('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger')
             return redirect(url_for('register'))
 
-        if not category or category not in ['1-2', '3-4', '5-6', '7-8', '9', '10-11']:
+        if not category or category not in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
             flash('Пожалуйста, выберите группу', 'danger')
             return redirect(url_for('register'))
 
@@ -2202,9 +2206,12 @@ def submit_task_answer(tournament_id, task_id):
 def tournament_results(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Получаем все задачи турнира
-    all_tasks = Task.query.filter_by(tournament_id=tournament_id).all()
-    total_tasks = len(all_tasks)
+    # Получаем все задачи турнира для категории пользователя
+    user_tasks = Task.query.filter_by(
+        tournament_id=tournament_id,
+        category=current_user.category
+    ).all()
+    user_tasks_count = len(user_tasks)
     
     # Получаем решенные задачи пользователя
     solved_tasks = SolvedTask.query.filter_by(
@@ -2232,12 +2239,10 @@ def tournament_results(tournament_id):
         # Добавляем время к общему времени участия в турнирах
         current_user.total_tournament_time += int(time_spent)
         db.session.commit()
-        
-
     
     return render_template('tournament_results.html',
                          tournament=tournament,
-                         total_tasks=total_tasks,
+                         user_tasks_count=user_tasks_count,
                          solved_count=solved_count,
                          earned_points=earned_points,
                          current_balance=current_user.balance)
@@ -2314,7 +2319,7 @@ def rating():
     from sqlalchemy import func, case
 
     users_by_category = {}
-    categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
+    categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     for category in categories:
         users_stats = (
             db.session.query(
@@ -2983,4 +2988,4 @@ if __name__ == '__main__':
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
 
-    app.run(host='0.0.0.0', port=8000,  debug=False)
+    app.run(host='0.0.0.0', port=8000,  debug=True)

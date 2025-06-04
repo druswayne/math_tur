@@ -136,7 +136,7 @@ main {
 .navbar {
     background-color: white;
     box-shadow: var(--box-shadow);
-    padding: 1rem 0;
+    padding: 0.3rem 0 !important;
 }
 
 .navbar-brand {

@@ -47,77 +47,19 @@
                             <input type="email" class="form-control" id="email" name="email" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Выберите группу</label>
-                            <div class="category-cards">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <div class="category-card">
-                                            <input type="radio" class="btn-check" name="category" id="category1-2" value="1-2" required>
-                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category1-2">
-                                                <div class="text-center">
-                                                    <i class="fas fa-child fa-2x mb-2"></i>
-                                                    <div>1-2 класс</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="category-card">
-                                            <input type="radio" class="btn-check" name="category" id="category3-4" value="3-4" required>
-                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category3-4">
-                                                <div class="text-center">
-                                                    <i class="fas fa-child fa-2x mb-2"></i>
-                                                    <div>3-4 класс</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="category-card">
-                                            <input type="radio" class="btn-check" name="category" id="category5-6" value="5-6" required>
-                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category5-6">
-                                                <div class="text-center">
-                                                    <i class="fas fa-child fa-2x mb-2"></i>
-                                                    <div>5-6 класс</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="category-card">
-                                            <input type="radio" class="btn-check" name="category" id="category7-8" value="7-8" required>
-                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category7-8">
-                                                <div class="text-center">
-                                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
-                                                    <div>7-8 класс</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="category-card">
-                                            <input type="radio" class="btn-check" name="category" id="category9" value="9" required>
-                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category9">
-                                                <div class="text-center">
-                                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
-                                                    <div>9 класс</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="category-card">
-                                            <input type="radio" class="btn-check" name="category" id="category10-11" value="10-11" required>
-                                            <label class="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center" for="category10-11">
-                                                <div class="text-center">
-                                                    <i class="fas fa-user-graduate fa-2x mb-2"></i>
-                                                    <div>10-11 класс</div>
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <label for="category" class="form-label">Категория</label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="1-2">1-2 класс</option>
+                                <option value="3">3 класс</option>
+                                <option value="4">4 класс</option>
+                                <option value="5">5 класс</option>
+                                <option value="6">6 класс</option>
+                                <option value="7">7 класс</option>
+                                <option value="8">8 класс</option>
+                                <option value="9">9 класс</option>
+                                <option value="10">10 класс</option>
+                                <option value="11">11 класс</option>
+                            </select>
                         </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="agree" name="agree" required>
