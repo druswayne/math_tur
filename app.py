@@ -2962,4 +2962,6 @@ if __name__ == '__main__':
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
 
+
+
     app.run(host='0.0.0.0', port=8000,  debug=False)
