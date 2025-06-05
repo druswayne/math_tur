@@ -19,6 +19,7 @@ from email_sender import add_to_queue, start_email_worker
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 import threading
+from s3_utils import upload_file_to_s3, delete_file_from_s3, get_s3_url
 
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
@@ -964,10 +965,7 @@ def admin_add_tournament():
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
-        image_filename = generate_unique_filename(secure_filename(image.filename))
-        image_path = os.path.join(app.static_folder, 'uploads', image_filename)
-        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-        image.save(image_path)
+        image_filename = upload_file_to_s3(image, 'tournaments')
     
     tournament = Tournament(
         title=title,
@@ -1004,15 +1002,10 @@ def admin_edit_tournament(tournament_id):
     if image and image.filename:
         # Удаляем старое изображение
         if tournament.image:
-            old_image_path = os.path.join(app.static_folder, 'uploads', tournament.image)
-            if os.path.exists(old_image_path):
-                os.remove(old_image_path)
+            delete_file_from_s3(tournament.image, 'tournaments')
         
-        # Сохраняем новое изображение с уникальным именем
-        image_filename = generate_unique_filename(secure_filename(image.filename))
-        image_path = os.path.join(app.static_folder, 'uploads', image_filename)
-        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-        image.save(image_path)
+        # Загружаем новое изображение
+        image_filename = upload_file_to_s3(image, 'tournaments')
         tournament.image = image_filename
     
     db.session.commit()
@@ -1081,9 +1074,7 @@ def admin_delete_tournament(tournament_id):
     
     # Удаляем изображение
     if tournament.image:
-        image_path = os.path.join(app.static_folder, 'uploads', tournament.image)
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        delete_file_from_s3(tournament.image, 'tournaments')
     
     db.session.delete(tournament)
     db.session.commit()
@@ -1280,7 +1271,7 @@ def admin_add_prize():
     description = request.form.get('description')
     points_cost = request.form.get('points_cost', type=int)
     quantity = request.form.get('quantity', type=int, default=0)
-    is_unique = 'is_unique' in request.form  # Получаем значение флага уникальности
+    is_unique = 'is_unique' in request.form
     
     if not all([name, description, points_cost]):
         flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -1294,10 +1285,7 @@ def admin_add_prize():
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
-        image_filename = generate_unique_filename(secure_filename(image.filename))
-        image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
-        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-        image.save(image_path)
+        image_filename = upload_file_to_s3(image, 'prizes')
     
     prize = Prize(
         name=name,
@@ -1325,9 +1313,7 @@ def admin_delete_prize(prize_id):
     try:
         # Удаляем изображение
         if prize.image:
-            image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
-            if os.path.exists(image_path):
-                os.remove(image_path)
+            delete_file_from_s3(prize.image, 'prizes')
         
         # Деактивируем приз
         prize.is_active = False
@@ -1366,16 +1352,12 @@ def admin_edit_prize(prize_id):
         # Обработка изображения
         image = request.files.get('image')
         if image and image.filename:
-            # Удаляем старое изображение, если оно есть
+            # Удаляем старое изображение
             if prize.image:
-                old_image_path = os.path.join(app.static_folder, 'uploads', 'prizes', prize.image)
-                if os.path.exists(old_image_path):
-                    os.remove(old_image_path)
+                delete_file_from_s3(prize.image, 'prizes')
             
-            image_filename = generate_unique_filename(secure_filename(image.filename))
-            image_path = os.path.join(app.static_folder, 'uploads', 'prizes', image_filename)
-            os.makedirs(os.path.dirname(image_path), exist_ok=True)
-            image.save(image_path)
+            # Загружаем новое изображение
+            image_filename = upload_file_to_s3(image, 'prizes')
             prize.image = image_filename
         
         prize.name = name
@@ -1414,9 +1396,9 @@ def add_tournament_task(tournament_id):
     description = request.form.get('description')
     points = request.form.get('points')
     correct_answer = request.form.get('correct_answer')
-    category = request.form.get('category')  # Получаем категорию из формы
+    category = request.form.get('category')
     
-    if not all([title, description, points, correct_answer, category]):  # Проверяем наличие категории
+    if not all([title, description, points, correct_answer, category]):
         flash('Все поля должны быть заполнены', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
@@ -1432,10 +1414,7 @@ def add_tournament_task(tournament_id):
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
-        image_filename = generate_unique_filename(secure_filename(image.filename))
-        image_path = os.path.join(app.static_folder, 'uploads', 'tasks', image_filename)
-        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-        image.save(image_path)
+        image_filename = upload_file_to_s3(image, 'tasks')
     
     task = Task(
         tournament_id=tournament_id,
@@ -1444,7 +1423,7 @@ def add_tournament_task(tournament_id):
         image=image_filename,
         points=points,
         correct_answer=correct_answer,
-        category=category  # Добавляем категорию при создании задачи
+        category=category
     )
     
     db.session.add(task)
@@ -1489,15 +1468,10 @@ def edit_tournament_task(tournament_id, task_id):
     if image and image.filename:
         # Удаляем старое изображение
         if task.image:
-            old_image_path = os.path.join(app.static_folder, 'uploads', 'tasks', task.image)
-            if os.path.exists(old_image_path):
-                os.remove(old_image_path)
+            delete_file_from_s3(task.image, 'tasks')
         
-        # Сохраняем новое изображение с уникальным именем
-        image_filename = generate_unique_filename(secure_filename(image.filename))
-        image_path = os.path.join(app.static_folder, 'uploads', 'tasks', image_filename)
-        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-        image.save(image_path)
+        # Загружаем новое изображение
+        image_filename = upload_file_to_s3(image, 'tasks')
         task.image = image_filename
     
     task.title = title
@@ -1526,9 +1500,7 @@ def delete_tournament_task(tournament_id, task_id):
     
     # Удаляем изображение
     if task.image:
-        image_path = os.path.join(app.static_folder, 'uploads', 'tasks', task.image)
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        delete_file_from_s3(task.image, 'tasks')
     
     db.session.delete(task)
     db.session.commit()
@@ -2990,4 +2962,4 @@ if __name__ == '__main__':
         cleanup_scheduler_jobs()  # Сначала очищаем все задачи
         restore_scheduler_jobs()  # Затем восстанавливаем нужные
 
-    app.run(host='0.0.0.0', port=8000,  debug=True)
+    app.run(host='0.0.0.0', port=8000,  debug=False)
