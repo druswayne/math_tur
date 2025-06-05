@@ -26,8 +26,9 @@ CPU_COUNT = multiprocessing.cpu_count()
 thread_pool = ThreadPoolExecutor(max_workers=CPU_COUNT * 2)
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(32).hex()
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
+#app.config['SECRET_KEY'] = os.urandom(32).hex()
+app.config['SECRET_KEY'] = '1234'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:2i}XvY.G0\dZEs@188.225.83.44:5432/school_tournaments'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 20,  # Размер пула соединений
