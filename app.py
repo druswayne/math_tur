@@ -41,7 +41,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'echo': False  # Отключение вывода SQL-запросов в консоль
 }
 app.config['SESSION_PERMANENT'] = False
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=1)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
 
 # Настройки для многопоточности
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -88,7 +88,7 @@ def check_user_activity():
         return False
     
     last_activity = datetime.fromisoformat(last_activity)
-    if datetime.utcnow() - last_activity > timedelta(days=1):
+    if datetime.utcnow() - last_activity > timedelta(minutes=5):
         session.clear()
         return False
     return True
