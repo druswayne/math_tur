@@ -40,8 +40,8 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_pre_ping': True,  # Проверка соединений перед использованием
     'echo': False  # Отключение вывода SQL-запросов в консоль
 }
-app.config['SESSION_PERMANENT'] = False
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Увеличим время жизни сессии до 30 минут
 
 # Настройки для многопоточности
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -76,22 +76,54 @@ def get_db():
         thread_local.db = db.create_scoped_session()
     return thread_local.db
 
-def update_user_activity():
-    """Обновление времени последней активности в сессии"""
-    session['last_activity'] = datetime.utcnow().isoformat()
-    session.permanent = True
-
-def check_user_activity():
-    """Проверка активности пользователя"""
-    last_activity = session.get('last_activity')
-    if not last_activity:
-        return False
+def update_tournament_status():
+    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
+    tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
     
-    last_activity = datetime.fromisoformat(last_activity)
-    if datetime.utcnow() - last_activity > timedelta(minutes=5):
-        session.clear()
-        return False
-    return True
+    for tournament in tournaments:
+        if tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
+            tournament.status = 'started'
+        elif now > tournament.start_date + timedelta(minutes=tournament.duration):
+            tournament.status = 'finished'
+    
+    db.session.commit()
+
+def restore_scheduler_jobs():
+    """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
+    # Получаем все активные турниры
+    active_tournaments = Tournament.query.filter_by(is_active=True).all()
+    
+    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
+    restored_jobs = 0
+    
+    for tournament in active_tournaments:
+        # Если турнир еще не начался
+        if tournament.start_date > now:
+            add_scheduler_job(start_tournament_job, tournament.start_date, tournament.id, 'start')
+            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+            add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
+            restored_jobs += 2
+            
+        # Если турнир уже идет
+        elif tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
+            tournament.status = 'started'
+            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+            add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
+            restored_jobs += 1
+            
+        # Если турнир уже должен был закончиться
+        else:
+            tournament.status = 'finished'
+            tournament.is_active = False
+    
+    db.session.commit()
+
+def cleanup_scheduler_jobs():
+    """Очищает все задачи планировщика перед восстановлением"""
+    try:
+        scheduler.remove_all_jobs()
+    except Exception as e:
+        pass
 
 @app.before_request
 def before_request():
@@ -99,12 +131,6 @@ def before_request():
     # Создаем сессию базы данных для текущего потока
     thread_local.db = db.create_scoped_session()
     update_tournament_status()
-    if current_user.is_authenticated:
-        if not check_user_activity():
-            logout_user()
-            flash('Ваша сессия была завершена из-за длительного отсутствия активности', 'warning')
-            return redirect(url_for('login'))
-        update_user_activity()
 
 @app.teardown_request
 def teardown_request(exception=None):
@@ -657,7 +683,6 @@ def login():
             
             # Сохраняем токен в сессии
             session['session_token'] = session_token
-            update_user_activity()  # Добавляем обновление активности
             
             login_user(user)
             
