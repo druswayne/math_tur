@@ -33,12 +33,13 @@ app.config['SECRET_KEY'] = '1234'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCKZjwz12@188.225.83.44:5432/school_tournaments'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 20,  # Размер пула соединений
-    'max_overflow': 10,  # Максимальное количество дополнительных соединений
-    'pool_timeout': 30,  # Таймаут ожидания соединения из пула
+    'pool_size': 200,  # Базовый размер пула для 2000 пользователей
+    'max_overflow': 100,  # Дополнительные соединения при пиковой нагрузке
+    'pool_timeout': 60,  # Таймаут ожидания соединения из пула
     'pool_recycle': 1800,  # Пересоздание соединений каждые 30 минут
     'pool_pre_ping': True,  # Проверка соединений перед использованием
-    'echo': False  # Отключение вывода SQL-запросов в консоль
+    'echo': False,  # Отключение вывода SQL-запросов в консоль
+    'pool_use_lifo': True  # Используем LIFO для пула соединений
 }
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Увеличим время жизни сессии до 30 минут

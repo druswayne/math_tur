@@ -1,6 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Оверлей загрузки -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Подготовка турнира...</p>
+    </div>
+</div>
+
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
@@ -21,7 +31,9 @@
                     </div>
                     
                     <div class="text-center">
-                        <a href="{{ url_for('start_tournament', tournament_id=tournament.id) }}" class="btn btn-primary btn-lg">
+                        <a href="{{ url_for('start_tournament', tournament_id=tournament.id) }}" 
+                           class="btn btn-primary btn-lg"
+                           id="startTournamentBtn">
                             Начать турнир
                         </a>
                     </div>
@@ -30,4 +42,25 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startTournamentBtn = document.getElementById('startTournamentBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    startTournamentBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        // Показываем оверлей
+        loadingOverlay.style.display = 'flex';
+        // Даем время для применения display: flex
+        setTimeout(() => {
+            loadingOverlay.style.opacity = '1';
+            // Переходим по ссылке
+            window.location.href = this.href;
+        }, 50);
+    });
+});
+</script>
 {% endblock %} 
