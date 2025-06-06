@@ -17,7 +17,7 @@
                         {% endif %}
                     {% endwith %}
                     
-                    <form method="POST" action="{{ url_for('register') }}">
+                    <form method="POST" action="{{ url_for('register') }}" id="registerForm">
                         <div class="mb-3">
                             <label for="username" class="form-label">Логин</label>
                             <input type="text" class="form-control" id="username" name="username" required>
@@ -69,7 +69,7 @@
                             </label>
                         </div>
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                            <button type="submit" class="btn btn-primary" id="registerButton">Зарегистрироваться</button>
                         </div>
                     </form>
                     <div class="text-center mt-3">
@@ -78,6 +78,17 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Оверлей для регистрации -->
+<div id="registerOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Выполняется регистрация...</p>
+        <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
     </div>
 </div>
 
@@ -118,4 +129,22 @@
     margin-bottom: 0.5rem;
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const registerOverlay = document.getElementById('registerOverlay');
+    const registerButton = document.getElementById('registerButton');
+
+    registerForm.addEventListener('submit', function(e) {
+        // Показываем оверлей
+        registerOverlay.style.display = 'flex';
+        // Блокируем кнопку
+        registerButton.disabled = true;
+    });
+});
+</script>
 {% endblock %} 

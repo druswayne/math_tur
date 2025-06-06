@@ -4,10 +4,11 @@
 <!-- Оверлей загрузки -->
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner">
-        <div class="spinner-border text-primary" role="status">
+        <div class="spinner-border" role="status">
             <span class="visually-hidden">Загрузка...</span>
         </div>
-        <p class="mt-3">Подготовка турнира...</p>
+        <p class="mt-3">Идет загрузка турнира...</p>
+        <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
     </div>
 </div>
 
@@ -52,13 +53,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
     startTournamentBtn.addEventListener('click', function(e) {
         e.preventDefault();
+        
         // Показываем оверлей
         loadingOverlay.style.display = 'flex';
+        
         // Даем время для применения display: flex
         setTimeout(() => {
             loadingOverlay.style.opacity = '1';
-            // Переходим по ссылке
-            window.location.href = this.href;
+            
+            // Переходим по ссылке через небольшую задержку
+            setTimeout(() => {
+                window.location.href = this.href;
+            }, 500);
         }, 50);
     });
 });

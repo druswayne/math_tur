@@ -1,6 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Оверлей загрузки -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Идет загрузка турнира...</p>
+        <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
+    </div>
+</div>
+
 <div class="container mt-4">
     {% if next_tournament %}
     <div class="card mb-4">
@@ -41,7 +52,9 @@
                 </div>
                 <div class="text-center">
                     {% if next_tournament.start_date <= now %}
-                    <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" class="btn btn-primary btn-lg">
+                    <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" 
+                       class="btn btn-primary btn-lg"
+                       id="participateBtn">
                         Участвовать
                     </a>
                     {% else %}
@@ -249,6 +262,31 @@ if (startDate > now) {
         location.reload();
     }, timeToStart);
 }
+
+// Обработчик для кнопки "Участвовать"
+document.addEventListener('DOMContentLoaded', function() {
+    const participateBtn = document.getElementById('participateBtn');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    if (participateBtn) {
+        participateBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Показываем оверлей
+            loadingOverlay.style.display = 'flex';
+            
+            // Даем время для применения display: flex
+            setTimeout(() => {
+                loadingOverlay.style.opacity = '1';
+                
+                // Переходим по ссылке через небольшую задержку
+                setTimeout(() => {
+                    window.location.href = this.href;
+                }, 500);
+            }, 50);
+        });
+    }
+});
 </script>
 {% endif %}
 
