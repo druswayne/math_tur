@@ -140,10 +140,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerButton = document.getElementById('registerButton');
 
     registerForm.addEventListener('submit', function(e) {
+        e.preventDefault();
         // Показываем оверлей
         registerOverlay.style.display = 'flex';
         // Блокируем кнопку
         registerButton.disabled = true;
+        
+        // Даем время для применения display: flex
+        setTimeout(() => {
+            registerOverlay.style.opacity = '1';
+            
+            // Отправляем форму через небольшую задержку
+            setTimeout(() => {
+                registerForm.submit();
+            }, 200);
+        }, 50);
     });
 });
 </script>

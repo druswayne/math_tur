@@ -65,10 +65,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginButton = document.getElementById('loginButton');
 
     loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
         // Показываем оверлей
         loginOverlay.style.display = 'flex';
         // Блокируем кнопку
         loginButton.disabled = true;
+        
+        // Даем время для применения display: flex
+        setTimeout(() => {
+            loginOverlay.style.opacity = '1';
+            
+            // Отправляем форму через небольшую задержку
+            setTimeout(() => {
+                loginForm.submit();
+            }, 200);
+        }, 50);
     });
 
     // Проверяем, было ли уже дано согласие
