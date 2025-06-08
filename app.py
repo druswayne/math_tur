@@ -30,7 +30,7 @@ app = Flask(__name__)
 #app.config['SECRET_KEY'] = os.urandom(32).hex()
 app.config['SECRET_KEY'] = '1234'
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCKZjwz12@188.225.83.44:5432/school_tournaments'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCkZjwz12@89.223.64.134:5432/school_tournaments'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 200,  # Базовый размер пула для 2000 пользователей
