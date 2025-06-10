@@ -20,6 +20,11 @@ import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 import threading
 from s3_utils import upload_file_to_s3, delete_file_from_s3, get_s3_url
+import platform
+import re
+import atexit
+import signal
+
 
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
@@ -30,7 +35,7 @@ app = Flask(__name__)
 #app.config['SECRET_KEY'] = os.urandom(32).hex()
 app.config['SECRET_KEY'] = '1234'
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCkZjwz12@89.223.64.134:5432/school_tournaments'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCkZjwz12@89.223.64.134:5432/school_tournaments?client_encoding=utf8'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 200,  # Базовый размер пула для 2000 пользователей
@@ -42,7 +47,7 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_use_lifo': True  # Используем LIFO для пула соединений
 }
 app.config['SESSION_PERMANENT'] = True
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)  # Увеличим время жизни сессии до 30 минут
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет - практически неограниченное время
 
 # Настройки для многопоточности
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -60,6 +65,48 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+def generate_session_token():
+    """Генерирует уникальный токен сессии"""
+    return secrets.token_urlsafe(32)
+
+def create_user_session(user_id, device_info=None):
+    """Создает новую сессию пользователя"""
+    # Деактивируем все существующие сессии пользователя
+    UserSession.query.filter_by(user_id=user_id).update({'is_active': False})
+    
+    # Создаем новую сессию
+    session_token = generate_session_token()
+    new_session = UserSession(
+        user_id=user_id,
+        is_active=True,
+        session_token=session_token,
+        device_info=device_info
+    )
+    db.session.add(new_session)
+    db.session.commit()
+    return session_token
+
+def deactivate_user_session(user_id):
+    """Деактивирует все сессии пользователя"""
+    UserSession.query.filter_by(user_id=user_id).update({'is_active': False})
+    db.session.commit()
+
+def is_session_active(user_id, session_token):
+    """Проверяет, активна ли сессия пользователя"""
+    session = UserSession.query.filter_by(
+        user_id=user_id,
+        session_token=session_token,
+        is_active=True
+    ).first()
+    return session is not None
+
+def update_session_activity(session_token):
+    """Обновляет время последней активности сессии"""
+    session = UserSession.query.filter_by(session_token=session_token).first()
+    if session:
+        session.update_last_active()
+        db.session.commit()
 
 # Инициализация планировщика
 scheduler = BackgroundScheduler(timezone='Europe/Moscow')
@@ -131,7 +178,23 @@ def before_request():
     """Инициализация перед каждым запросом"""
     # Создаем сессию базы данных для текущего потока
     thread_local.db = db.create_scoped_session()
+    
+    # Обновляем статус турниров
     update_tournament_status()
+    
+    # Проверяем сессию для авторизованных пользователей
+    if current_user.is_authenticated:
+        session_token = session.get('session_token')
+        if not session_token or not is_session_active(current_user.id, session_token):
+            # Если сессия недействительна, выходим из системы
+            deactivate_user_session(current_user.id)
+            session.pop('session_token', None)
+            logout_user()
+            flash('Ваша сессия истекла или была завершена на другом устройстве. Пожалуйста, войдите снова.', 'error')
+            return redirect(url_for('login'))
+        else:
+            # Обновляем время последней активности
+            update_session_activity(session_token)
 
 @app.teardown_request
 def teardown_request(exception=None):
@@ -649,74 +712,110 @@ def home():
 def about():
     return render_template('about.html', title='О нас')
 
+def parse_user_agent(user_agent_string):
+    """Парсит User-Agent строку и возвращает информацию об устройстве в читаемом формате"""
+    # Определяем операционную систему
+    os_info = "Неизвестная ОС"
+    if "Windows" in user_agent_string:
+        os_info = "Windows"
+        if "Windows NT 10.0" in user_agent_string:
+            os_info = "Windows 10"
+        elif "Windows NT 6.3" in user_agent_string:
+            os_info = "Windows 8.1"
+        elif "Windows NT 6.2" in user_agent_string:
+            os_info = "Windows 8"
+        elif "Windows NT 6.1" in user_agent_string:
+            os_info = "Windows 7"
+    elif "Mac OS X" in user_agent_string:
+        os_info = "macOS"
+    elif "Linux" in user_agent_string:
+        os_info = "Linux"
+    elif "Android" in user_agent_string:
+        os_info = "Android"
+    elif "iPhone" in user_agent_string or "iPad" in user_agent_string:
+        os_info = "iOS"
+
+    # Определяем браузер
+    browser = "Неизвестный браузер"
+    if "Chrome" in user_agent_string and "Chromium" not in user_agent_string:
+        browser = "Chrome"
+    elif "Firefox" in user_agent_string:
+        browser = "Firefox"
+    elif "Safari" in user_agent_string and "Chrome" not in user_agent_string:
+        browser = "Safari"
+    elif "Edge" in user_agent_string:
+        browser = "Microsoft Edge"
+    elif "Opera" in user_agent_string or "OPR" in user_agent_string:
+        browser = "Opera"
+
+    # Определяем тип устройства
+    device_type = "Компьютер"
+    if "Mobile" in user_agent_string:
+        device_type = "Мобильный телефон"
+    elif "Tablet" in user_agent_string or "iPad" in user_agent_string:
+        device_type = "Планшет"
+
+    return {
+        "os": os_info,
+        "browser": browser,
+        "device_type": device_type,
+        "full_info": user_agent_string
+    }
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Получаем количество попыток из куки
-        login_attempts = int(request.cookies.get('login_attempts', 0))
-        
-        # Если превышено максимальное количество попыток
-        if login_attempts >= 5:
-            flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут или восстановите пароль.', 'danger')
-            return redirect(url_for('login'))
-        
         username = request.form.get('username')
         password = request.form.get('password')
-        # Ищем пользователя без учета регистра
-        user = User.query.filter(User.username.ilike(username)).first()
+        device_info = request.user_agent.string
+
+        user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
             if user.is_blocked:
-                block_message = f'Ваш аккаунт заблокирован администратором.'
-                if user.block_reason:
-                    block_message += f' Причина: {user.block_reason}'
-                block_message += ' Для разблокировки обратитесь к администратору по email: admin@school-tournaments.ru'
-                flash(block_message, 'danger')
+                flash('Ваш аккаунт заблокирован. Причина: ' + user.block_reason, 'error')
                 return redirect(url_for('login'))
+            
             if not user.is_active:
-                flash('Пожалуйста, подтвердите ваш email перед входом', 'warning')
+                flash('Пожалуйста, подтвердите ваш email перед входом.', 'error')
                 return redirect(url_for('login'))
             
-            # Генерируем новый токен сессии
-            session_token = secrets.token_urlsafe(32)
-            user.session_token = session_token
-            db.session.commit()
+            # Проверяем, есть ли активная сессия
+            active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
+            if active_session:
+                # Парсим информацию об устройстве
+                device_details = parse_user_agent(active_session.device_info or "Неизвестное устройство")
+                flash(f'Вы уже вошли в систему с другого устройства. Информация об устройстве: {device_details["os"]}, {device_details["browser"]}, {device_details["device_type"]}', 'error')
+                return redirect(url_for('login'))
             
-            # Сохраняем токен в сессии
+            # Создаем новую сессию
+            session_token = create_user_session(user.id, device_info)
+            
+            # Сохраняем токен в сессии Flask
             session['session_token'] = session_token
             
             login_user(user)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
             
-            # Создаем ответ с очисткой куки попыток входа
-            response = redirect(url_for('home'))
-            response.set_cookie('login_attempts', '0', max_age=0)
-            return response
+            flash('Вы успешно вошли в систему!', 'success')
+            return redirect(url_for('home'))
         else:
-            # Увеличиваем счетчик попыток
-            login_attempts += 1
-            
-            # Создаем ответ с обновлением куки
-            response = redirect(url_for('login'))
-            response.set_cookie('login_attempts', str(login_attempts), max_age=900)  # 15 минут
-            
-            if login_attempts >= 5:
-                flash('Слишком много неудачных попыток входа. Пожалуйста, подождите 15 минут или восстановите пароль.', 'danger')
-            else:
-                flash('Неверный логин или пароль', 'danger')
-            
-            return response
+            flash('Неверное имя пользователя или пароль', 'error')
     
     return render_template('login.html')
 
 @app.route('/logout')
 @login_required
 def logout():
-    # Очищаем токен сессии
-    current_user.session_token = None
-    db.session.commit()
+    # Деактивируем сессию пользователя
+    deactivate_user_session(current_user.id)
+    
+    # Очищаем сессию Flask
     session.pop('session_token', None)
-    session.pop('last_activity', None)  # Очищаем время последней активности
+    
     logout_user()
+    flash('Вы успешно вышли из системы', 'success')
     return redirect(url_for('home'))
 
 @app.route('/admin')
@@ -2981,10 +3080,64 @@ def admin_clear_user_data():
             'message': f'Произошла ошибка при очистке данных: {str(e)}'
         }), 500
 
+@app.route('/logout-all-devices', methods=['POST'])
+@login_required
+def logout_all_devices():
+    """Принудительный выход из всех устройств"""
+    # Деактивируем все сессии пользователя
+    deactivate_user_session(current_user.id)
+    
+    # Очищаем текущую сессию
+    session.pop('session_token', None)
+    logout_user()
+    
+    flash('Вы успешно вышли из всех устройств', 'success')
+    return redirect(url_for('login'))
+
+class UserSession(db.Model):
+    __tablename__ = "user_sessions"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    is_active = db.Column(db.Boolean, default=False)
+    session_token = db.Column(db.String(255), unique=True, index=True)
+    device_info = db.Column(db.String(255), nullable=True)
+    last_active = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', backref=db.backref('sessions', lazy=True))
+
+    def update_last_active(self):
+        self.last_active = datetime.utcnow()
+
+def cleanup_all_sessions():
+    """Деактивирует все активные сессии при перезагрузке сервера"""
+    try:
+        UserSession.query.filter_by(is_active=True).update({'is_active': False})
+        db.session.commit()
+    except Exception as e:
+        print(f"Ошибка при очистке сессий: {e}")
+
+@atexit.register
+def cleanup_on_exit():
+    """Вызывается при завершении работы приложения"""
+    cleanup_all_sessions()
+
+def signal_handler(signum, frame):
+    """Обработчик сигналов завершения"""
+    print(f"Получен сигнал {signum}, завершаем работу...")
+    cleanup_all_sessions()
+    exit(0)
+
+# Регистрируем обработчики сигналов
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         create_admin_user()
-        cleanup_scheduler_jobs()  # Сначала очищаем все задачи
-        restore_scheduler_jobs()  # Затем восстанавливаем нужные
+        cleanup_scheduler_jobs()
+        # Очищаем все сессии при запуске
+        cleanup_all_sessions()
     app.run(host='0.0.0.0', port=8000,  debug=False)

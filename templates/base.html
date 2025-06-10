@@ -59,6 +59,78 @@
             font-size: 0.9rem;
         }
 
+        /* Стили для всплывающих сообщений */
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .flash-message {
+            margin-bottom: 10px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideIn 0.5s ease-out;
+            border: none;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .flash-message.alert-error {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .flash-message.alert-success {
+            background-color: #198754;
+            color: white;
+        }
+
+        .flash-message.alert-warning {
+            background-color: #ffc107;
+            color: #000;
+        }
+
+        .flash-message .btn-close {
+            color: white;
+            opacity: 0.8;
+            margin-left: 15px;
+        }
+
+        .flash-message .btn-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .flash-messages {
+                width: 95%;
+                top: 10px;
+            }
+            
+            .flash-message {
+                padding: 12px 15px;
+                font-size: 0.95rem;
+            }
+        }
+
         .cookie-banner {
             position: fixed;
             left: 50%;

@@ -7,8 +7,11 @@ from passlib.context import CryptContext
 # Создаем базовый класс для моделей
 Base = declarative_base()
 
-# Создаем движок базы данных
-engine = create_engine('postgresql://postgres:postgres@localhost:5432/school_tournaments')
+# Создаем движок базы данных с явным указанием кодировки
+engine = create_engine(
+    'postgresql://gen_user:qNCkZjwz12@89.223.64.134:5432/school_tournaments',
+    connect_args={'client_encoding': 'utf8'}
+)
 SessionLocal = sessionmaker(bind=engine)
 
 # Создаем контекст для хеширования паролей
