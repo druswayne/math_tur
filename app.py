@@ -60,6 +60,13 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
 app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
+# Настройки сессии
+app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
+app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное имя куки
+
 mail = Mail(app)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -195,6 +202,8 @@ def before_request():
         else:
             # Обновляем время последней активности
             update_session_activity(session_token)
+            # Делаем сессию постоянной
+            session.permanent = True
 
 @app.teardown_request
 def teardown_request(exception=None):
@@ -791,8 +800,9 @@ def login():
             # Создаем новую сессию
             session_token = create_user_session(user.id, device_info)
             
-            # Сохраняем токен в сессии Flask
+            # Сохраняем токен в сессии Flask и делаем её постоянной
             session['session_token'] = session_token
+            session.permanent = True
             
             login_user(user)
             user.last_login = datetime.utcnow()
@@ -3133,11 +3143,33 @@ def signal_handler(signum, frame):
 signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
+def cleanup_old_sessions():
+    """Удаляет устаревшие сессии из базы данных"""
+    try:
+        # Удаляем сессии старше 30 дней
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        UserSession.query.filter(
+            UserSession.created_at < thirty_days_ago,
+            UserSession.is_active == False
+        ).delete()
+        db.session.commit()
+    except Exception as e:
+        print(f"Ошибка при очистке устаревших сессий: {e}")
+
+# Настраиваем периодическую очистку сессий
+scheduler.add_job(
+    func=cleanup_old_sessions,
+    trigger='interval',
+    hours=12,  # Запуск раз в сутки
+    id='cleanup_sessions',
+    replace_existing=True
+)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         create_admin_user()
-        cleanup_scheduler_jobs()
+        #cleanup_scheduler_jobs()
         # Очищаем все сессии при запуске
         cleanup_all_sessions()
     app.run(host='0.0.0.0', port=8000,  debug=False)
