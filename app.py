@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from sqlalchemy.testing import fails
@@ -61,7 +61,7 @@ app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
 app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -773,6 +773,14 @@ def parse_user_agent(user_agent_string):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Проверяем, не заблокирован ли вход
+    if is_login_blocked():
+        blocked_until = datetime.fromtimestamp(float(request.cookies.get(LOGIN_BLOCKED_UNTIL_COOKIE)))
+        remaining_time = blocked_until - datetime.utcnow()
+        minutes = int(remaining_time.total_seconds() / 60)
+        flash(f'Слишком много неудачных попыток входа. Попробуйте снова через {minutes} минут.', 'error')
+        return render_template('login.html')
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -783,11 +791,11 @@ def login():
         if user and user.check_password(password):
             if user.is_blocked:
                 flash('Ваш аккаунт заблокирован. Причина: ' + user.block_reason, 'error')
-                return redirect(url_for('login'))
+                return increment_login_attempts()
             
             if not user.is_active:
                 flash('Пожалуйста, подтвердите ваш email перед входом.', 'error')
-                return redirect(url_for('login'))
+                return increment_login_attempts()
             
             # Проверяем, есть ли активная сессия
             active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
@@ -795,7 +803,7 @@ def login():
                 # Парсим информацию об устройстве
                 device_details = parse_user_agent(active_session.device_info or "Неизвестное устройство")
                 flash(f'Вы уже вошли в систему с другого устройства. Информация об устройстве: {device_details["os"]}, {device_details["browser"]}, {device_details["device_type"]}', 'error')
-                return redirect(url_for('login'))
+                return increment_login_attempts()
             
             # Создаем новую сессию
             session_token = create_user_session(user.id, device_info)
@@ -809,9 +817,16 @@ def login():
             db.session.commit()
             
             flash('Вы успешно вошли в систему!', 'success')
-            return redirect(url_for('home'))
+            response = reset_login_attempts()
+            return response
         else:
-            flash('Неверное имя пользователя или пароль', 'error')
+            attempts = get_login_attempts() + 1
+            if attempts >= MAX_LOGIN_ATTEMPTS:
+                flash(f'Слишком много неудачных попыток входа. Попробуйте снова через {LOGIN_TIMEOUT // 60} минут.', 'error')
+                return block_login()
+            else:
+                flash(f'Неверное имя пользователя или пароль. Осталось попыток: {MAX_LOGIN_ATTEMPTS - attempts}', 'error')
+                return increment_login_attempts()
     
     return render_template('login.html')
 
@@ -3164,6 +3179,81 @@ scheduler.add_job(
     id='cleanup_sessions',
     replace_existing=True
 )
+
+# Константы для защиты от брутфорса
+MAX_LOGIN_ATTEMPTS = 5  # Максимальное количество попыток
+LOGIN_TIMEOUT = 1800  # Время блокировки в секундах (30 минут)
+LOGIN_ATTEMPTS_COOKIE = 'login_attempts'
+LOGIN_BLOCKED_UNTIL_COOKIE = 'login_blocked_until'
+
+def get_login_attempts():
+    """Получает количество попыток входа из куки"""
+    attempts = request.cookies.get(LOGIN_ATTEMPTS_COOKIE)
+    try:
+        return int(attempts) if attempts else 0
+    except (ValueError, TypeError):
+        return 0
+
+def increment_login_attempts():
+    """Увеличивает счетчик попыток входа"""
+    attempts = get_login_attempts() + 1
+    response = make_response(redirect(url_for('login')))
+    response.set_cookie(
+        LOGIN_ATTEMPTS_COOKIE,
+        str(attempts),
+        max_age=LOGIN_TIMEOUT,
+        secure=False,  # Изменено на False, так как SESSION_COOKIE_SECURE тоже False
+        httponly=True,
+        samesite='Lax'
+    )
+    return response
+
+def reset_login_attempts():
+    """Сбрасывает счетчик попыток входа"""
+    response = make_response(redirect(url_for('home')))
+    response.set_cookie(
+        LOGIN_ATTEMPTS_COOKIE,
+        '0',  # Явно устанавливаем 0
+        max_age=0,
+        secure=False,  # Изменено на False
+        httponly=True,
+        samesite='Lax'
+    )
+    response.set_cookie(
+        LOGIN_BLOCKED_UNTIL_COOKIE,
+        '',
+        max_age=0,
+        secure=False,  # Изменено на False
+        httponly=True,
+        samesite='Lax'
+    )
+    return response
+
+def is_login_blocked():
+    """Проверяет, заблокирован ли вход"""
+    blocked_until = request.cookies.get(LOGIN_BLOCKED_UNTIL_COOKIE)
+    if blocked_until:
+        try:
+            blocked_time = datetime.fromtimestamp(float(blocked_until))
+            if datetime.utcnow() < blocked_time:
+                return True
+        except (ValueError, TypeError):
+            pass
+    return False
+
+def block_login():
+    """Блокирует вход на определенное время"""
+    blocked_until = datetime.utcnow() + timedelta(seconds=LOGIN_TIMEOUT)
+    response = make_response(redirect(url_for('login')))
+    response.set_cookie(
+        LOGIN_BLOCKED_UNTIL_COOKIE,
+        str(blocked_until.timestamp()),
+        max_age=LOGIN_TIMEOUT,
+        secure=False,  # Изменено на False
+        httponly=True,
+        samesite='Lax'
+    )
+    return response
 
 if __name__ == '__main__':
     with app.app_context():

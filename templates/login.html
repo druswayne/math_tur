@@ -14,33 +14,13 @@
                                 {% for category, message in messages %}
                                     {% if 'другого устройства' in message %}
                                         <div class="alert alert-warning border-warning" style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-exclamation-triangle me-3" style="font-size: 24px; color: #ffc107;"></i>
-                                                <div>
-                                                    <h5 class="alert-heading mb-2" style="color: #856404;">Внимание!</h5>
-                                                    <p class="mb-0" style="color: #856404;">
-                                                        {% set device_info = message.split('Информация об устройстве: ')[1] %}
-                                                        {% set device_parts = device_info.split(', ') %}
-                                                        Вы уже вошли в систему с другого устройства.<br>
-                                                        <strong>Информация об устройстве:</strong><br>
-                                                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 5px 0;">
-
-                                                            <div class="d-flex align-items-center mb-2">
-                                                                <i class="fas fa-globe me-2"></i>
-                                                                <span><strong>Браузер:</strong> {{ device_parts[1] }}</span>
-                                                            </div>
-                                                            <div class="d-flex align-items-center">
-                                                                <i class="fas fa-mobile-alt me-2"></i>
-                                                                <span><strong>Тип устройства:</strong> {{ device_parts[2] }}</span>
-                                                            </div>
-                                                        </div>
-                                                        Пожалуйста, выйдите из него перед входом с нового устройства.
-                                                        <br><br>
-                                                        <i class="fas fa-info-circle me-1"></i>
-                                                        <span style="font-size: 0.9em;">Если у вас нет доступа к устройству, сбросьте пароль используя функцию <a href="/forgot-password" class="alert-link">"Забыли пароль"</a></span>
-                                                    </p>
-                                                </div>
-                                            </div>
+                                            <i class="fas fa-exclamation-triangle me-2"></i>
+                                            {{ message }}
+                                        </div>
+                                    {% elif 'Слишком много неудачных попыток' in message %}
+                                        <div class="alert alert-danger border-danger" style="background-color: #f8d7da; border: 2px solid #dc3545; padding: 15px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                            <i class="fas fa-lock me-2"></i>
+                                            {{ message }}
                                         </div>
                                     {% else %}
                                         <div class="alert alert-{{ category }}">{{ message }}</div>
