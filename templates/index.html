@@ -80,13 +80,20 @@
 
 {% if next_tournament %}
 <script>
+let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
+
+function getServerTime() {
+    const clientNow = new Date();
+    return new Date(clientNow.getTime() + serverTimeOffset);
+}
+
 function updateCountdown() {
     const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
     const duration = {{ next_tournament.duration }}; // длительность в минутах
-    const now = new Date();
+    const serverNow = getServerTime();
     
     let targetDate;
-    let isStarted = startDate <= now;
+    let isStarted = startDate <= serverNow;
     
     if (!isStarted) {
         // Если турнир еще не начался, показываем время до начала
@@ -98,7 +105,7 @@ function updateCountdown() {
         document.querySelector('.text-muted.mb-3').textContent = 'До окончания турнира осталось:';
     }
     
-    const diff = targetDate - now;
+    const diff = targetDate - serverNow;
     
     // Если время истекло, перезагружаем страницу
     if (diff <= 0) {
@@ -120,19 +127,25 @@ function updateCountdown() {
     document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
 }
 
-// Обновляем таймер каждую секунду
-setInterval(updateCountdown, 1000);
-updateCountdown(); // Запускаем сразу
-
-// Добавляем дополнительную проверку для начала турнира
-const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
-const now = new Date();
-if (startDate > now) {
-    const timeToStart = startDate - now;
-    setTimeout(() => {
-        location.reload();
-    }, timeToStart);
-}
+// Инициализация смещения времени при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    const serverNow = new Date("{{ now.isoformat() }}");
+    const clientNow = new Date();
+    serverTimeOffset = serverNow.getTime() - clientNow.getTime();
+    
+    // Запускаем таймер
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    
+    // Проверка начала турнира
+    const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
+    if (startDate > serverNow) {
+        const timeToStart = startDate - serverNow;
+        setTimeout(() => {
+            location.reload();
+        }, timeToStart);
+    }
+});
 
 // Обработчик для кнопки "Участвовать"
 document.addEventListener('DOMContentLoaded', function() {
