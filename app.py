@@ -35,7 +35,7 @@ app = Flask(__name__)
 #app.config['SECRET_KEY'] = os.urandom(32).hex()
 app.config['SECRET_KEY'] = '1234'
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCkZjwz12@89.223.64.134:5432/school_tournaments?client_encoding=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCkZjwz12@94.228.115.69:5432/school_tournaments?client_encoding=utf8'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 200,  # Базовый размер пула для 2000 пользователей
@@ -319,6 +319,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     hashed_password = db.Column(db.String(128), nullable=False, index=True)
     phone = db.Column(db.String(20), unique=True, nullable=True)
+    student_name = db.Column(db.String(100), nullable=True)  # Фамилия и имя учащегося
     parent_name = db.Column(db.String(100), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
     is_active = db.Column(db.Boolean, default=False, index=True)
@@ -570,6 +571,7 @@ def create_admin_user():
             username='admin',
             email='admin@school-tournaments.ru',
             phone='+375000000000',  # Добавляем номер телефона
+            student_name='Администратор',  # Добавляем имя учащегося
             parent_name='Администратор',  # Добавляем имя представителя
             category='11',  # Исправляем категорию на допустимую
             is_admin=True,
@@ -919,11 +921,12 @@ def admin_add_user():
     email = request.form.get('email')
     password = request.form.get('password')
     phone = request.form.get('phone')
+    student_name = request.form.get('student_name')  # Добавляем поле для имени учащегося
     parent_name = request.form.get('parent_name')
     category = request.form.get('category')
     is_admin = 'is_admin' in request.form
     
-    if not all([username, email, password, phone, parent_name, category]):
+    if not all([username, email, password, phone, student_name, parent_name, category]):
         flash('Все поля должны быть заполнены', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -952,6 +955,7 @@ def admin_add_user():
         username=username,
         email=email,
         phone=phone,
+        student_name=student_name,  # Добавляем имя учащегося
         parent_name=parent_name,
         category=category,
         is_admin=is_admin,
@@ -975,6 +979,10 @@ def admin_edit_user(user_id):
     user = User.query.get_or_404(user_id)
     username = request.form.get('username')
     email = request.form.get('email')
+    student_name = request.form.get('student_name')
+    parent_name = request.form.get('parent_name')
+    phone = request.form.get('phone')
+    category = request.form.get('category')
     password = request.form.get('password')
     is_admin = 'is_admin' in request.form
     tickets = request.form.get('tickets')
@@ -987,6 +995,10 @@ def admin_edit_user(user_id):
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
+    if phone != user.phone and User.query.filter_by(phone=phone).first():
+        flash('Пользователь с таким номером телефона уже существует', 'danger')
+        return redirect(url_for('admin_users'))
+    
     try:
         tickets = int(tickets)
         if tickets < 0:
@@ -997,6 +1009,10 @@ def admin_edit_user(user_id):
     
     user.username = username
     user.email = email
+    user.student_name = student_name
+    user.parent_name = parent_name
+    user.phone = phone
+    user.category = category
     user.is_admin = is_admin
     user.tickets = tickets
     
@@ -1687,6 +1703,7 @@ def register():
         username = request.form.get('username')
         email = request.form.get('email')
         phone = request.form.get('phone')
+        student_name = request.form.get('student_name')  # Добавляем поле для имени учащегося
         parent_name = request.form.get('parent_name')
         category = request.form.get('category')
         password = request.form.get('password')
@@ -1729,6 +1746,7 @@ def register():
             username=username,
             email=email,
             phone=phone,
+            student_name=student_name,  # Добавляем имя учащегося
             parent_name=parent_name,
             category=category
         )
@@ -3019,12 +3037,14 @@ def update_profile():
     data = request.get_json()
     
     # Получаем данные из запроса
+    student_name = data.get('student_name')
+    parent_name = data.get('parent_name')
     phone = data.get('phone')
     category = data.get('category')
     new_password = data.get('new_password')
     
     # Проверяем обязательные поля
-    if not phone or not category:
+    if not student_name or not parent_name or not phone or not category:
         return jsonify({'success': False, 'message': 'Пожалуйста, заполните все обязательные поля'})
     
     # Проверяем формат телефона
@@ -3043,6 +3063,8 @@ def update_profile():
     
     try:
         # Обновляем данные пользователя
+        current_user.student_name = student_name
+        current_user.parent_name = parent_name
         current_user.phone = phone
         current_user.category = category
         

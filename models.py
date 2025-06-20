@@ -9,7 +9,7 @@ Base = declarative_base()
 
 # Создаем движок базы данных с явным указанием кодировки
 engine = create_engine(
-    'postgresql://gen_user:qNCkZjwz12@89.223.64.134:5432/school_tournaments',
+    'postgresql://gen_user:qNCkZjwz12@94.228.115.69:5432/school_tournaments',
     connect_args={'client_encoding': 'utf8'}
 )
 SessionLocal = sessionmaker(bind=engine)

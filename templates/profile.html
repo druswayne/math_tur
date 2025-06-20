@@ -77,6 +77,12 @@
                 <div class="card-body">
                     <h5>{{ current_user.username }}</h5>
                     <p class="text-muted">{{ current_user.email }}</p>
+                    {% if current_user.student_name %}
+                    <p><strong>Учащийся:</strong> {{ current_user.student_name }}</p>
+                    {% endif %}
+                    {% if current_user.parent_name %}
+                    <p><strong>Законный представитель:</strong> {{ current_user.parent_name }}</p>
+                    {% endif %}
                     <p>Дата регистрации: {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
                     <p>Телефон: {{ current_user.phone }}</p>
                     <p>Группа: {{ current_user.category }}</p>
@@ -158,6 +164,16 @@
             </div>
             <div class="modal-body">
                 <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label for="studentName" class="form-label">Фамилия и имя учащегося</label>
+                        <input type="text" class="form-control" id="studentName" value="{{ current_user.student_name or '' }}" required>
+                        <small class="text-muted">Введите фамилию и имя учащегося</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="parentName" class="form-label">ФИО законного представителя</label>
+                        <input type="text" class="form-control" id="parentName" value="{{ current_user.parent_name or '' }}" required>
+                        <small class="text-muted">Введите фамилию, имя и отчество законного представителя</small>
+                    </div>
                     <div class="mb-3">
                         <label for="phone" class="form-label">Номер телефона</label>
                         <input type="tel" class="form-control" id="phone" value="{{ current_user.phone }}" required>
@@ -296,12 +312,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <script>
 function updateProfile() {
+    const studentName = document.getElementById('studentName').value;
+    const parentName = document.getElementById('parentName').value;
     const phone = document.getElementById('phone').value;
     const category = document.getElementById('category').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
-    if (!phone || !category) {
+    if (!studentName || !parentName || !phone || !category) {
         showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
         return;
     }
@@ -317,6 +335,8 @@ function updateProfile() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+            student_name: studentName,
+            parent_name: parentName,
             phone: phone,
             category: category,
             new_password: newPassword
