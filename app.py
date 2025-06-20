@@ -3165,10 +3165,10 @@ signal.signal(signal.SIGINT, signal_handler)
 def cleanup_old_sessions():
     """Удаляет устаревшие сессии из базы данных"""
     try:
-        # Удаляем сессии старше 30 дней
-        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        # Удаляем сессии старше 1 недели
+        one_week_ago = datetime.utcnow() - timedelta(days=7)
         UserSession.query.filter(
-            UserSession.created_at < thirty_days_ago,
+            UserSession.created_at < one_week_ago,
             UserSession.is_active == False
         ).delete()
         db.session.commit()
@@ -3179,7 +3179,7 @@ def cleanup_old_sessions():
 scheduler.add_job(
     func=cleanup_old_sessions,
     trigger='interval',
-    hours=12,  # Запуск раз в сутки
+    hours=24,  # Запуск раз в сутки
     id='cleanup_sessions',
     replace_existing=True
 )
