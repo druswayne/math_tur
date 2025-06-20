@@ -44,31 +44,61 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="topUsersPercentage3_4" class="form-label">3-4 классы</label>
+                            <label for="topUsersPercentage3" class="form-label">3 класс</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="topUsersPercentage3_4" 
-                                       name="top_users_percentage_3_4" min="1" max="100" 
-                                       value="{{ settings.top_users_percentage_3_4 }}">
+                                <input type="number" class="form-control" id="topUsersPercentage3" 
+                                       name="top_users_percentage_3" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_3 }}">
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="topUsersPercentage5_6" class="form-label">5-6 классы</label>
+                            <label for="topUsersPercentage4" class="form-label">4 класс</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="topUsersPercentage5_6" 
-                                       name="top_users_percentage_5_6" min="1" max="100" 
-                                       value="{{ settings.top_users_percentage_5_6 }}">
+                                <input type="number" class="form-control" id="topUsersPercentage4" 
+                                       name="top_users_percentage_4" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_4 }}">
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="topUsersPercentage7_8" class="form-label">7-8 классы</label>
+                            <label for="topUsersPercentage5" class="form-label">5 класс</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="topUsersPercentage7_8" 
-                                       name="top_users_percentage_7_8" min="1" max="100" 
-                                       value="{{ settings.top_users_percentage_7_8 }}">
+                                <input type="number" class="form-control" id="topUsersPercentage5" 
+                                       name="top_users_percentage_5" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_5 }}">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="topUsersPercentage6" class="form-label">6 класс</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="topUsersPercentage6" 
+                                       name="top_users_percentage_6" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_6 }}">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="topUsersPercentage7" class="form-label">7 класс</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="topUsersPercentage7" 
+                                       name="top_users_percentage_7" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_7 }}">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="topUsersPercentage8" class="form-label">8 класс</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="topUsersPercentage8" 
+                                       name="top_users_percentage_8" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_8 }}">
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
@@ -84,11 +114,21 @@
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="topUsersPercentage10_11" class="form-label">10-11 классы</label>
+                            <label for="topUsersPercentage10" class="form-label">10 класс</label>
                             <div class="input-group">
-                                <input type="number" class="form-control" id="topUsersPercentage10_11" 
-                                       name="top_users_percentage_10_11" min="1" max="100" 
-                                       value="{{ settings.top_users_percentage_10_11 }}">
+                                <input type="number" class="form-control" id="topUsersPercentage10" 
+                                       name="top_users_percentage_10" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_10 }}">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="topUsersPercentage11" class="form-label">11 класс</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="topUsersPercentage11" 
+                                       name="top_users_percentage_11" min="1" max="100" 
+                                       value="{{ settings.top_users_percentage_11 }}">
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
@@ -110,11 +150,15 @@
                             Доступ к покупкам по категориям:
                             <ul>
                                 <li>1-2 классы: {{ settings.top_users_percentage_1_2 }}%</li>
-                                <li>3-4 классы: {{ settings.top_users_percentage_3_4 }}%</li>
-                                <li>5-6 классы: {{ settings.top_users_percentage_5_6 }}%</li>
-                                <li>7-8 классы: {{ settings.top_users_percentage_7_8 }}%</li>
+                                <li>3 класс: {{ settings.top_users_percentage_3 }}%</li>
+                                <li>4 класс: {{ settings.top_users_percentage_4 }}%</li>
+                                <li>5 класс: {{ settings.top_users_percentage_5 }}%</li>
+                                <li>6 класс: {{ settings.top_users_percentage_6 }}%</li>
+                                <li>7 класс: {{ settings.top_users_percentage_7 }}%</li>
+                                <li>8 класс: {{ settings.top_users_percentage_8 }}%</li>
                                 <li>9 класс: {{ settings.top_users_percentage_9 }}%</li>
-                                <li>10-11 классы: {{ settings.top_users_percentage_10_11 }}%</li>
+                                <li>10 класс: {{ settings.top_users_percentage_10 }}%</li>
+                                <li>11 класс: {{ settings.top_users_percentage_11 }}%</li>
                             </ul>
                         </li>
                     </ul>

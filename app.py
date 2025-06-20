@@ -571,7 +571,7 @@ def create_admin_user():
             email='admin@school-tournaments.ru',
             phone='+375000000000',  # Добавляем номер телефона
             parent_name='Администратор',  # Добавляем имя представителя
-            category='10-11',  # Добавляем категорию
+            category='11',  # Исправляем категорию на допустимую
             is_admin=True,
             is_active=True  # Устанавливаем is_active=True для администратора
         )
@@ -2978,7 +2978,8 @@ def privacy_policy():
 
 def update_category_ranks():
     """Обновляет рейтинг пользователей внутри их возрастных категорий"""
-    categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
+    # Используем те же категории, что и в интерфейсе рейтинга
+    categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     
     for category in categories:
         # Получаем всех пользователей данной категории, отсортированных по балансу и времени
@@ -3031,7 +3032,7 @@ def update_profile():
         return jsonify({'success': False, 'message': 'Неверный формат номера телефона'})
     
     # Проверяем категорию
-    valid_categories = ['1-2', '3-4', '5-6', '7-8', '9', '10-11']
+    valid_categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     if category not in valid_categories:
         return jsonify({'success': False, 'message': 'Неверная категория'})
     
