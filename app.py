@@ -61,7 +61,7 @@ app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
 app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -786,7 +786,8 @@ def login():
         password = request.form.get('password')
         device_info = request.user_agent.string
 
-        user = User.query.filter_by(username=username).first()
+        # Изменяем поиск пользователя на регистронезависимый
+        user = User.query.filter(User.username.ilike(username)).first()
         
         if user and user.check_password(password):
             if user.is_blocked:
@@ -926,7 +927,8 @@ def admin_add_user():
         flash('Все поля должны быть заполнены', 'danger')
         return redirect(url_for('admin_users'))
     
-    if User.query.filter_by(username=username).first():
+    # Изменяем проверку уникальности логина на регистронезависимую
+    if User.query.filter(User.username.ilike(username)).first():
         flash('Пользователь с таким логином уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -977,7 +979,7 @@ def admin_edit_user(user_id):
     is_admin = 'is_admin' in request.form
     tickets = request.form.get('tickets')
     
-    if username != user.username and User.query.filter_by(username=username).first():
+    if username != user.username and User.query.filter(User.username.ilike(username)).first():
         flash('Пользователь с таким логином уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -1710,7 +1712,8 @@ def register():
             flash('Пожалуйста, выберите группу', 'danger')
             return redirect(url_for('register'))
 
-        if User.query.filter_by(username=username).first():
+        # Изменяем проверку уникальности логина на регистронезависимую
+        if User.query.filter(User.username.ilike(username)).first():
             flash('Пользователь с таким логином уже существует', 'danger')
             return redirect(url_for('register'))
 
