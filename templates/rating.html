@@ -16,9 +16,24 @@
         <div class="card-body">
             <h2 class="card-title mb-4">Рейтинг участников</h2>
             
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle me-2"></i>
+                В каждой группе отображаются только <strong>10 лучших участников</strong>. 
+                {% if current_user.is_authenticated and not current_user.is_admin %}
+                Если вы не входите в топ-10 своей группы, ваша запись будет выделена отдельно.
+                {% endif %}
+            </div>
+            
             <!-- Поиск -->
             <div class="mb-4">
-                <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени пользователя...">
+                <div class="input-group">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени пользователя">
+                    <div style="width: 8px;"></div>
+                    <button type="button" id="resetSearchBtn" class="btn btn-outline-secondary" style="display: none; height: 38px; width: 38px; padding: 0;">
+                        <i class="bi bi-x-circle"></i>
+                    </button>
+                </div>
+                <small class="form-text text-muted">Введите минимум 2 символа для поиска по всем пользователям</small>
             </div>
 
             <!-- Кнопки выбора группы (десктоп) -->
@@ -70,9 +85,15 @@
                             </thead>
                             <tbody id="table-{{ category }}">
                                 {% for user in users_by_category[category]['users'] %}
-                                <tr>
+                                <tr {% if user.is_current_user %}class="table-warning"{% endif %}>
                                     <td>{{ user.category_rank }}</td>
-                                    <td>{{ user.username }}</td>
+                                    <td>
+                                        {% if user.is_current_user %}
+                                            <strong>{{ user.student_name or user.username }}</strong> <span class="badge bg-warning">Вы</span>
+                                        {% else %}
+                                            {{ user.student_name or user.username }}
+                                        {% endif %}
+                                    </td>
                                     <td>{{ user.balance }}</td>
                                     <td>{{ user.solved_tasks_count }}</td>
                                     <td>{{ user.success_rate }}%</td>
@@ -82,13 +103,11 @@
                                 {% endfor %}
                             </tbody>
                         </table>
-                        <div class="text-center mt-3" id="load-more-{{ category }}">
-                            {% if users_by_category[category]['has_next'] %}
-                            <button class="btn btn-outline-primary load-more-btn" data-category="{{ category }}" data-page="2">
-                                Загрузить еще
-                            </button>
-                            {% endif %}
+                        {% if users_by_category[category]['users']|length == 0 %}
+                        <div class="text-center mt-3">
+                            <p class="text-muted">В данной категории пока нет участников</p>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -136,6 +155,21 @@
 .table th {
     background-color: #f8f9fa;
     font-weight: 600;
+}
+
+/* Стили для выделения текущего пользователя */
+.table-warning {
+    background-color: #fff3cd !important;
+}
+
+.table-warning:hover {
+    background-color: #ffeaa7 !important;
+}
+
+.badge.bg-warning {
+    color: #000;
+    font-size: 0.75em;
+    margin-left: 5px;
 }
 
 #searchInput {
@@ -246,7 +280,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const categoryButtons = document.querySelectorAll('[data-category]');
     const categorySelect = document.getElementById('categorySelect');
     const searchInput = document.getElementById('searchInput');
-    let currentPage = {};
+    const resetSearchBtn = document.getElementById('resetSearchBtn');
+    let searchTimeout;
+    let isSearchMode = false;
+    let originalTableContents = {}; // Сохраняем оригинальное содержимое таблиц
+    
+    // Сохраняем оригинальное содержимое всех таблиц
+    document.querySelectorAll('.tab-pane').forEach(tab => {
+        const tbody = tab.querySelector('tbody');
+        if (tbody) {
+            originalTableContents[tab.id] = tbody.innerHTML;
+        }
+    });
     
     function switchTab(category) {
         // Обновляем активную кнопку (для десктопа)
@@ -274,78 +319,99 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Сбрасываем поиск при смене категории
         searchInput.value = '';
-        filterTable(category);
+        isSearchMode = false;
+        resetSearchBtn.style.display = 'none';
+        resetSearchBtn.style.visibility = 'hidden';
+        showDefaultTables();
     }
     
-    function filterTable(category) {
-        const searchText = searchInput.value.toLowerCase();
-        const table = document.querySelector(`#tab-${category} tbody`);
-        const rows = table.getElementsByTagName('tr');
-        
-        for (let row of rows) {
-            const username = row.getElementsByTagName('td')[1].textContent.toLowerCase();
-            if (username.includes(searchText)) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+    function resetSearch() {
+        searchInput.value = '';
+        isSearchMode = false;
+        resetSearchBtn.style.display = 'none';
+        resetSearchBtn.style.visibility = 'hidden';
+        showDefaultTables();
+    }
+    
+    function showDefaultTables() {
+        // Восстанавливаем оригинальное содержимое активной таблицы
+        const activeTab = document.querySelector('.tab-pane.show');
+        if (activeTab && originalTableContents[activeTab.id]) {
+            const tbody = activeTab.querySelector('tbody');
+            tbody.innerHTML = originalTableContents[activeTab.id];
         }
     }
     
-    function loadMoreUsers(category, page) {
-        const button = document.querySelector(`#load-more-${category} .load-more-btn`);
-        button.disabled = true;
-        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Загрузка...';
+    function performSearch() {
+        const query = searchInput.value.trim();
+        const activeCategory = document.querySelector('.btn-outline-primary.active')?.dataset.category || categorySelect.value;
         
-        fetch(`/rating/load-more?category=${category}&page=${page}`)
+        if (query.length < 2) {
+            isSearchMode = false;
+            resetSearchBtn.style.display = 'none';
+            resetSearchBtn.style.visibility = 'hidden';
+            showDefaultTables();
+            return;
+        }
+        
+        isSearchMode = true;
+        resetSearchBtn.style.display = 'block';
+        resetSearchBtn.style.visibility = 'visible';
+        
+        // Показываем индикатор загрузки
+        const activeTab = document.querySelector('.tab-pane.show');
+        const tbody = activeTab.querySelector('tbody');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Поиск...</td></tr>';
+        
+        // Выполняем AJAX запрос
+        fetch(`/rating/search?q=${encodeURIComponent(query)}&category=${encodeURIComponent(activeCategory)}`)
             .then(response => response.json())
             .then(data => {
-                const table = document.querySelector(`#table-${category}`);
-                const startIndex = (page - 1) * 20 + 1;
-                
-                // Проверяем, есть ли уже загруженные пользователи
-                const existingUsernames = new Set();
-                table.querySelectorAll('tr').forEach(row => {
-                    const username = row.getElementsByTagName('td')[1].textContent;
-                    existingUsernames.add(username);
-                });
-                
-                let addedCount = 0;
-                data.users.forEach((user, index) => {
-                    // Проверяем, не загружен ли уже этот пользователь
-                    if (!existingUsernames.has(user.username)) {
-                        const hours = Math.floor(user.total_tournament_time / 3600);
-                        const minutes = Math.floor((user.total_tournament_time % 3600) / 60);
-                        const seconds = user.total_tournament_time % 60;
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${user.category_rank}</td>
-                            <td>${user.username}</td>
-                            <td>${user.balance}</td>
-                            <td>${user.solved_tasks_count}</td>
-                            <td>${user.success_rate}%</td>
-                            <td>${user.tournaments_count}</td>
-                            <td>${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}</td>
-                        `;
-                        table.appendChild(row);
-                        existingUsernames.add(user.username);
-                        addedCount++;
-                    }
-                });
-                
-                button.disabled = false;
-                button.innerHTML = 'Загрузить еще';
-                button.dataset.page = page + 1;
-                
-                if (!data.has_next || addedCount === 0) {
-                    button.style.display = 'none';
-                }
+                displaySearchResults(data.users, activeTab);
             })
             .catch(error => {
-                console.error('Error:', error);
-                button.disabled = false;
-                button.innerHTML = 'Загрузить еще';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Ошибка при поиске</td></tr>';
             });
+    }
+    
+    function displaySearchResults(users, tabElement) {
+        const tbody = tabElement.querySelector('tbody');
+        
+        if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Пользователи не найдены</td></tr>';
+            return;
+        }
+        
+        let html = '';
+        users.forEach(user => {
+            const timeStr = formatTime(user.total_tournament_time);
+            const isCurrentUser = user.is_current_user ? 'table-warning' : '';
+            const displayName = user.student_name || user.username;
+            const usernameDisplay = user.is_current_user 
+                ? `<strong>${displayName}</strong> <span class="badge bg-warning">Вы</span>`
+                : displayName;
+            
+            html += `
+                <tr class="${isCurrentUser}">
+                    <td>${user.category_rank}</td>
+                    <td>${usernameDisplay}</td>
+                    <td>${user.balance}</td>
+                    <td>${user.solved_tasks_count}</td>
+                    <td>${user.success_rate}%</td>
+                    <td>${user.tournaments_count}</td>
+                    <td>${timeStr}</td>
+                </tr>
+            `;
+        });
+        
+        tbody.innerHTML = html;
+    }
+    
+    function formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     
     // Обработчики событий
@@ -358,18 +424,22 @@ document.addEventListener('DOMContentLoaded', function() {
         categorySelect.addEventListener('change', () => switchTab(categorySelect.value));
     }
     
+    // Обработчик поиска с задержкой
     searchInput.addEventListener('input', () => {
-        const activeCategory = document.querySelector('.btn-outline-primary.active')?.dataset.category || categorySelect.value;
-        filterTable(activeCategory);
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(performSearch, 300); // Задержка 300мс
     });
     
-    // Обработчики для кнопок "Загрузить еще"
-    document.querySelectorAll('.load-more-btn').forEach(button => {
-        button.addEventListener('click', () => {
-            const category = button.dataset.category;
-            const page = parseInt(button.dataset.page);
-            loadMoreUsers(category, page);
-        });
+    // Обработчик кнопки сброса
+    resetSearchBtn.addEventListener('click', () => {
+        resetSearch();
+    });
+    
+    // Обработчик очистки поиска по Escape
+    searchInput.addEventListener('keyup', (e) => {
+        if (e.key === 'Escape') {
+            resetSearch();
+        }
     });
 });
 </script>

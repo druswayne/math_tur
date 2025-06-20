@@ -2457,16 +2457,14 @@ def tournament_history():
 
 @app.route('/rating')
 def rating():
-    # Получаем параметр страницы
-    page = request.args.get('page', 1, type=int)
-    per_page = 20  # количество пользователей на страницу для каждой категории
-
     from sqlalchemy import func, case
 
     users_by_category = {}
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+    
     for category in categories:
-        users_stats = (
+        # Получаем топ-10 пользователей для категории
+        top_users_stats = (
             db.session.query(
                 User,
                 func.count(SolvedTask.id).label('solved_tasks_count'),
@@ -2476,19 +2474,54 @@ def rating():
             .filter(User.is_admin == False, User.category == category)
             .group_by(User.id)
             .order_by(User.balance.desc())
-            .limit(per_page)
-            .offset((page - 1) * per_page)
+            .limit(10)
             .all()
         )
-        # users_stats: [(User, solved_tasks_count, correct_tasks_count), ...]
-        users = []
-        for user, solved_tasks_count, correct_tasks_count in users_stats:
+        
+        # Обрабатываем статистику для топ-10 пользователей
+        top_users = []
+        for user, solved_tasks_count, correct_tasks_count in top_users_stats:
             user.solved_tasks_count = correct_tasks_count or 0
             user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
-            users.append(user)
+            user.is_current_user = False  # По умолчанию не текущий пользователь
+            top_users.append(user)
+        
+        # Проверяем, нужно ли добавить текущего пользователя
+        current_user_in_top = False
+        if current_user.is_authenticated and not current_user.is_admin and current_user.category == category:
+            # Проверяем, есть ли текущий пользователь в топ-10
+            current_user_in_top = any(user.id == current_user.id for user in top_users)
+            
+            if not current_user_in_top:
+                # Получаем статистику для текущего пользователя
+                current_user_stats = (
+                    db.session.query(
+                        User,
+                        func.count(SolvedTask.id).label('solved_tasks_count'),
+                        func.sum(case((SolvedTask.is_correct == True, 1), else_=0)).label('correct_tasks_count')
+                    )
+                    .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
+                    .filter(User.id == current_user.id)
+                    .group_by(User.id)
+                    .first()
+                )
+                
+                if current_user_stats:
+                    user, solved_tasks_count, correct_tasks_count = current_user_stats
+                    user.solved_tasks_count = correct_tasks_count or 0
+                    user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
+                    user.is_current_user = True  # Флаг для выделения текущего пользователя
+                    top_users.append(user)
+            else:
+                # Если текущий пользователь в топ-10, помечаем его
+                for user in top_users:
+                    if user.id == current_user.id:
+                        user.is_current_user = True
+                        break
+        
         users_by_category[category] = {
-            'users': users,
-            'has_next': len(users) == per_page
+            'users': top_users,
+            'has_next': False  # Убираем пагинацию, так как показываем только топ-10
         }
 
     user_rank = None
@@ -2501,12 +2534,14 @@ def rating():
         return jsonify({
             'users': [{
                 'username': user.username,
+                'student_name': user.student_name,
                 'balance': user.balance,
                 'solved_tasks_count': user.solved_tasks_count,
                 'success_rate': user.success_rate,
                 'tournaments_count': user.tournaments_count,
                 'category_rank': user.category_rank,
-                'total_tournament_time': user.total_tournament_time
+                'total_tournament_time': user.total_tournament_time,
+                'is_current_user': getattr(user, 'is_current_user', False)
             } for user in users_data['users']],
             'has_next': users_data['has_next']
         })
@@ -2517,34 +2552,10 @@ def rating():
 
 @app.route('/rating/load-more')
 def load_more_users():
-    page = request.args.get('page', 1, type=int)
-    category = request.args.get('category', '1-2')
-    per_page = 20
-    
-    # Получаем пользователей для указанной категории
-    users_query = User.query.filter_by(is_admin=False, category=category).order_by(User.balance.desc())
-    users = users_query.paginate(page=page, per_page=per_page, error_out=False)
-    
-    # Для каждого пользователя считаем статистику
-    for user in users.items:
-        solved_tasks = SolvedTask.query.filter_by(user_id=user.id).all()
-        total_attempts = len(solved_tasks)
-        correct_attempts = sum(1 for task in solved_tasks if task.is_correct)
-        
-        user.solved_tasks_count = correct_attempts
-        user.success_rate = round((correct_attempts / total_attempts * 100) if total_attempts > 0 else 0, 1)
-    
+    # Пагинация больше не используется, так как показываем только топ-10
     return jsonify({
-        'users': [{
-            'username': user.username,
-            'balance': user.balance,
-            'solved_tasks_count': user.solved_tasks_count,
-            'success_rate': user.success_rate,
-            'tournaments_count': user.tournaments_count,
-            'category_rank': user.category_rank,
-            'total_tournament_time': user.total_tournament_time
-        } for user in users.items],
-        'has_next': users.has_next
+        'users': [],
+        'has_next': False
     })
 
 @app.route('/shop')
@@ -3280,6 +3291,74 @@ def block_login():
         samesite='Lax'
     )
     return response
+
+@app.route('/rating/search')
+def rating_search():
+    query = request.args.get('q', '').strip()
+    category = request.args.get('category', '')
+    
+    if not query:
+        return jsonify({'users': []})
+    
+    # Базовый запрос для поиска
+    search_query = (
+        db.session.query(
+            User,
+            func.count(SolvedTask.id).label('solved_tasks_count'),
+            func.sum(case((SolvedTask.is_correct == True, 1), else_=0)).label('correct_tasks_count')
+        )
+        .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
+        .filter(User.is_admin == False)
+        .filter(
+            db.or_(
+                User.username.ilike(f'%{query}%'),
+                User.student_name.ilike(f'%{query}%')
+            )
+        )
+    )
+    
+    # Фильтруем по категории, если указана
+    if category:
+        search_query = search_query.filter(User.category == category)
+    
+    # Группируем и сортируем
+    search_results = (
+        search_query
+        .group_by(User.id)
+        .order_by(User.balance.desc())
+        .limit(10)  # Ограничиваем результаты до 10
+        .all()
+    )
+    
+    # Обрабатываем результаты
+    users = []
+    for user, solved_tasks_count, correct_tasks_count in search_results:
+        user.solved_tasks_count = correct_tasks_count or 0
+        user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
+        user.is_current_user = False
+        
+        # Получаем ранг пользователя в его категории
+        user.category_rank = get_user_rank(user.id)
+        
+        # Используем поля из модели User для статистики турниров
+        user.tournaments_count = user.tournaments_count or 0
+        user.total_tournament_time = user.total_tournament_time or 0
+        
+        users.append({
+            'id': user.id,
+            'username': user.username,
+            'student_name': user.student_name,
+            'category': user.category,
+            'balance': user.balance,
+            'solved_tasks_count': user.solved_tasks_count,
+            'success_rate': user.success_rate,
+            'category_rank': user.category_rank,
+            'tournaments_count': user.tournaments_count,
+            'total_tournament_time': user.total_tournament_time,
+            'is_current_user': user.id == current_user.id if current_user.is_authenticated else False
+        })
+    
+    return jsonify({'users': users})
 
 if __name__ == '__main__':
     with app.app_context():
