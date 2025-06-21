@@ -723,6 +723,34 @@ def home():
 def about():
     return render_template('about.html', title='О нас')
 
+@app.route('/news')
+def news():
+    # Получаем номер страницы из параметров запроса
+    page = request.args.get('page', 1, type=int)
+    per_page = 5  # Количество новостей на странице
+    
+    # Получаем опубликованные новости с пагинацией, отсортированные по дате создания (новые сначала)
+    pagination = News.query.filter_by(is_published=True).order_by(News.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    news_list = pagination.items
+    
+    return render_template('news.html', title='Новости', news_list=news_list, pagination=pagination, now=datetime.now())
+
+@app.route('/news/<int:news_id>')
+def news_detail(news_id):
+    # Получаем конкретную новость по ID
+    news_item = News.query.filter_by(id=news_id, is_published=True).first_or_404()
+    
+    # Получаем список других новостей для боковой панели
+    other_news = News.query.filter(
+        News.is_published == True,
+        News.id != news_id
+    ).order_by(News.created_at.desc()).limit(5).all()
+    
+    return render_template('news_detail.html', title=news_item.title, news=news_item, news_list=other_news)
+
 def parse_user_agent(user_agent_string):
     """Парсит User-Agent строку и возвращает информацию об устройстве в читаемом формате"""
     # Определяем операционную систему
@@ -2953,14 +2981,115 @@ def tournament_settings():
     settings = TournamentSettings.get_settings()
     
     if request.method == 'POST':
-        settings.is_season_active = request.form.get('is_season_active') == 'on'
-        settings.closed_season_message = request.form.get('closed_season_message')
-        settings.updated_at = datetime.utcnow()
+        settings.is_season_active = 'is_season_active' in request.form
+        settings.closed_season_message = request.form.get('closed_season_message', '')
         db.session.commit()
-        flash('Настройки турниров успешно обновлены', 'success')
+        flash('Настройки турниров обновлены', 'success')
         return redirect(url_for('tournament_settings'))
     
     return render_template('admin/tournament_settings.html', settings=settings)
+
+@app.route('/admin/news')
+@login_required
+def admin_news():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    news_list = News.query.order_by(News.created_at.desc()).all()
+    return render_template('admin/news.html', news_list=news_list)
+
+@app.route('/admin/news/add', methods=['GET', 'POST'])
+@login_required
+def admin_add_news():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        short_description = request.form.get('short_description')
+        full_content = request.form.get('full_content')
+        is_published = 'is_published' in request.form
+        
+        if not title or not short_description or not full_content:
+            flash('Все поля обязательны для заполнения', 'error')
+            return render_template('admin/add_news.html')
+        
+        # Обработка загрузки изображения в S3
+        image_filename = None
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                image_filename = upload_file_to_s3(file, 'news')
+        
+        news = News(
+            title=title,
+            short_description=short_description,
+            full_content=full_content,
+            image=image_filename,
+            is_published=is_published
+        )
+        
+        db.session.add(news)
+        db.session.commit()
+        
+        flash('Новость успешно добавлена', 'success')
+        return redirect(url_for('admin_news'))
+    
+    return render_template('admin/add_news.html')
+
+@app.route('/admin/news/<int:news_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_edit_news(news_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    news = News.query.get_or_404(news_id)
+    
+    if request.method == 'POST':
+        news.title = request.form.get('title')
+        news.short_description = request.form.get('short_description')
+        news.full_content = request.form.get('full_content')
+        news.is_published = 'is_published' in request.form
+        
+        # Обработка загрузки нового изображения в S3
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                # Удаляем старое изображение из S3
+                if news.image:
+                    delete_file_from_s3(news.image, 'news')
+                
+                # Загружаем новое изображение в S3
+                image_filename = upload_file_to_s3(file, 'news')
+                news.image = image_filename
+        
+        db.session.commit()
+        flash('Новость успешно обновлена', 'success')
+        return redirect(url_for('admin_news'))
+    
+    return render_template('admin/edit_news.html', news=news)
+
+@app.route('/admin/news/<int:news_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_news(news_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой страницы', 'danger')
+        return redirect(url_for('home'))
+    
+    news = News.query.get_or_404(news_id)
+    
+    # Удаляем изображение из S3
+    if news.image:
+        delete_file_from_s3(news.image, 'news')
+    
+    db.session.delete(news)
+    db.session.commit()
+    
+    flash('Новость успешно удалена', 'success')
+    return redirect(url_for('admin_news'))
 
 @app.before_first_request
 def clear_sessions():
@@ -3171,6 +3300,19 @@ class UserSession(db.Model):
 
     def update_last_active(self):
         self.last_active = datetime.utcnow()
+        db.session.commit()
+
+class News(db.Model):
+    __tablename__ = "news"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    short_description = db.Column(db.Text, nullable=False)
+    full_content = db.Column(db.Text, nullable=False)
+    image = db.Column(db.String(500), nullable=True)  # Путь к изображению
+    is_published = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
@@ -3359,6 +3501,13 @@ def rating_search():
         })
     
     return jsonify({'users': users})
+
+@app.context_processor
+def inject_s3_utils():
+    """Добавляет функции S3 в контекст шаблонов"""
+    return {
+        'get_s3_url': get_s3_url
+    }
 
 if __name__ == '__main__':
     with app.app_context():

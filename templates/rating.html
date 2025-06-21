@@ -381,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Пользователи не найдены</td></tr>';
             return;
         }
-        
+                
         let html = '';
         users.forEach(user => {
             const timeStr = formatTime(user.total_tournament_time);
@@ -393,15 +393,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <tr class="${isCurrentUser}">
-                    <td>${user.category_rank}</td>
+                            <td>${user.category_rank}</td>
                     <td>${usernameDisplay}</td>
-                    <td>${user.balance}</td>
-                    <td>${user.solved_tasks_count}</td>
-                    <td>${user.success_rate}%</td>
-                    <td>${user.tournaments_count}</td>
+                            <td>${user.balance}</td>
+                            <td>${user.solved_tasks_count}</td>
+                            <td>${user.success_rate}%</td>
+                            <td>${user.tournaments_count}</td>
                     <td>${timeStr}</td>
                 </tr>
-            `;
+                        `;
         });
         
         tbody.innerHTML = html;

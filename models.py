@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -34,6 +34,18 @@ class User(Base):
     @staticmethod
     def get_password_hash(password):
         return pwd_context.hash(password)
+
+class News(Base):
+    __tablename__ = "news"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    short_description = Column(Text, nullable=False)
+    full_content = Column(Text, nullable=False)
+    image = Column(String(500), nullable=True)  # Путь к изображению
+    is_published = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 # Создаем таблицы в базе данных
 Base.metadata.create_all(bind=engine)
