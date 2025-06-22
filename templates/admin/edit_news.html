@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_news') }}">Новости</a></li>
+            <li class="breadcrumb-item active">Редактировать новость</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Редактировать новость</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Заголовок *</label>
+                            <input type="text" class="form-control" id="title" name="title" value="{{ news.title }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="short_description" class="form-label">Краткое описание *</label>
+                            <textarea class="form-control" id="short_description" name="short_description" rows="3" required>{{ news.short_description }}</textarea>
+                            <div class="form-text">Краткое описание, которое будет отображаться в списке новостей</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="full_content" class="form-label">Полное содержание *</label>
+                            <textarea class="form-control" id="full_content" name="full_content" rows="15" required>{{ news.full_content }}</textarea>
+                            <div class="form-text">Полное содержание новости. Поддерживается HTML-разметка</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Изображения</label>
+                            
+                            <!-- Существующие изображения -->
+                            {% if news.images %}
+                            <div class="existing-images mb-3">
+                                <h6>Текущие изображения:</h6>
+                                {% for image in news.images %}
+                                <div class="existing-image-item mb-2 p-2 border rounded">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-2">
+                                            <img src="{{ get_s3_url(image.image_filename, 'news') }}" 
+                                                 alt="Изображение {{ loop.index }}" 
+                                                 class="img-thumbnail" style="max-width: 80px;">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   name="existing_captions" 
+                                                   value="{{ image.caption or '' }}" 
+                                                   placeholder="Подпись к изображению">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="main_image_index" 
+                                                       value="{{ loop.index0 }}" 
+                                                       id="main_existing_{{ loop.index0 }}"
+                                                       {% if image.is_main %}checked{% endif %}>
+                                                <label class="form-check-label" for="main_existing_{{ loop.index0 }}">
+                                                    Главное
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="existing_image_ids" 
+                                                       value="{{ image.id }}" 
+                                                       id="keep_image_{{ image.id }}" checked>
+                                                <label class="form-check-label" for="keep_image_{{ image.id }}">
+                                                    Сохранить
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Новые изображения -->
+                            <div id="imageUploads">
+                                <div class="image-upload-item mb-3">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <input type="file" class="form-control" name="images" accept="image/*">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control" name="captions" placeholder="Подпись к изображению">
+                                        </div>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="radio" name="main_image_index" value="{{ news.images|length }}" id="main_new_0">
+                                        <label class="form-check-label" for="main_new_0">
+                                            Главное изображение
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addImageUpload()">
+                                <i class="bi bi-plus-circle me-2"></i>Добавить еще изображение
+                            </button>
+                            <div class="form-text">Отметьте изображения, которые хотите сохранить, и выберите главное</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_published" name="is_published" {% if news.is_published %}checked{% endif %}>
+                                <label class="form-check-label" for="is_published">
+                                    Опубликована
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_news') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>Сохранить изменения
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Информация о новости</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>ID:</strong> {{ news.id }}</p>
+                    <p><strong>Создана:</strong> {{ news.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    <p><strong>Обновлена:</strong> {{ news.updated_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    <p><strong>Статус:</strong> 
+                        {% if news.is_published %}
+                        <span class="badge bg-success">Опубликована</span>
+                        {% else %}
+                        <span class="badge bg-warning">Черновик</span>
+                        {% endif %}
+                    </p>
+                    
+                    <hr>
+                    
+                    <h6>HTML-теги для форматирования:</h6>
+                    <ul class="list-unstyled">
+                        <li><code>&lt;h2&gt;</code> - Заголовок 2 уровня</li>
+                        <li><code>&lt;h3&gt;</code> - Заголовок 3 уровня</li>
+                        <li><code>&lt;p&gt;</code> - Параграф</li>
+                        <li><code>&lt;ul&gt;</code> - Маркированный список</li>
+                        <li><code>&lt;ol&gt;</code> - Нумерованный список</li>
+                        <li><code>&lt;li&gt;</code> - Элемент списка</li>
+                        <li><code>&lt;strong&gt;</code> - Жирный текст</li>
+                        <li><code>&lt;em&gt;</code> - Курсив</li>
+                        <li><code>&lt;blockquote&gt;</code> - Цитата</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Предварительный просмотр</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('news_detail', news_id=news.id) }}" class="btn btn-outline-primary btn-sm" target="_blank">
+                        <i class="bi bi-eye me-2"></i>Открыть на сайте
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin/news-images.js') }}"></script>
+
+<style>
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+textarea {
+    resize: vertical;
+}
+
+code {
+    color: #e83e8c;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.image-upload-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.image-upload-item:hover {
+    border-color: #007bff;
+    background-color: #f0f8ff;
+}
+
+.existing-image-item {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+    .col-lg-4 {
+        margin-top: 2rem;
+    }
+    
+    .image-upload-item .row {
+        margin: 0;
+    }
+    
+    .image-upload-item .col-md-8,
+    .image-upload-item .col-md-4 {
+        padding: 0.5rem;
+    }
+}
+</style>
+{% endblock %} 

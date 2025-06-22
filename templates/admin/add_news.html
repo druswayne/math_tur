@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_news') }}">Новости</a></li>
+            <li class="breadcrumb-item active">Добавить новость</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">Добавить новость</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="newsForm">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Заголовок *</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="short_description" class="form-label">Краткое описание *</label>
+                            <textarea class="form-control" id="short_description" name="short_description" rows="3" required></textarea>
+                            <div class="form-text">Краткое описание, которое будет отображаться в списке новостей</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="full_content" class="form-label">Полное содержание *</label>
+                            <textarea class="form-control" id="full_content" name="full_content" rows="15" required></textarea>
+                            <div class="form-text">Полное содержание новости. Поддерживается HTML-разметка</div>
+                        </div>
+
+                        <!-- Секция изображений -->
+                        <div class="mb-3">
+                            <label class="form-label">Изображения</label>
+                            <div id="imageUploads">
+                                <div class="image-upload-item mb-3">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <input type="file" class="form-control" name="images" accept="image/*">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <input type="text" class="form-control" name="captions" placeholder="Подпись к изображению">
+                                        </div>
+                                    </div>
+                                    <div class="form-check mt-2">
+                                        <input class="form-check-input" type="radio" name="main_image_index" value="0" id="main_image_0" checked>
+                                        <label class="form-check-label" for="main_image_0">
+                                            Главное изображение
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addImageUpload()">
+                                <i class="bi bi-plus-circle me-2"></i>Добавить еще изображение
+                            </button>
+                            <div class="form-text">Первое изображение будет использоваться как главное в списке новостей</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_published" name="is_published" checked>
+                                <label class="form-check-label" for="is_published">
+                                    Опубликована
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('admin_news') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>Добавить новость
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Предварительный просмотр изображений</h5>
+                </div>
+                <div class="card-body">
+                    <div id="imagePreview" class="text-center">
+                        <p class="text-muted">Загрузите изображения для предварительного просмотра</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">HTML-теги для форматирования</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><code>&lt;h2&gt;</code> - Заголовок 2 уровня</li>
+                        <li><code>&lt;h3&gt;</code> - Заголовок 3 уровня</li>
+                        <li><code>&lt;p&gt;</code> - Параграф</li>
+                        <li><code>&lt;ul&gt;</code> - Маркированный список</li>
+                        <li><code>&lt;ol&gt;</code> - Нумерованный список</li>
+                        <li><code>&lt;li&gt;</code> - Элемент списка</li>
+                        <li><code>&lt;strong&gt;</code> - Жирный текст</li>
+                        <li><code>&lt;em&gt;</code> - Курсив</li>
+                        <li><code>&lt;blockquote&gt;</code> - Цитата</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/admin/news-images.js') }}"></script>
+
+<style>
+.image-upload-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.image-upload-item:hover {
+    border-color: #007bff;
+    background-color: #f0f8ff;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+textarea {
+    resize: vertical;
+}
+
+code {
+    color: #e83e8c;
+}
+
+@media (max-width: 768px) {
+    .col-lg-4 {
+        margin-top: 2rem;
+    }
+    
+    .image-upload-item .row {
+        margin: 0;
+    }
+    
+    .image-upload-item .col-md-8,
+    .image-upload-item .col-md-4 {
+        padding: 0.5rem;
+    }
+}
+</style>
+{% endblock %} 

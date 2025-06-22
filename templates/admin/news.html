@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+            <li class="breadcrumb-item active">Новости</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Управление новостями</h2>
+        <a href="{{ url_for('admin_add_news') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Добавить новость
+        </a>
+    </div>
+
+    {% if news_list %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Заголовок</th>
+                            <th>Краткое описание</th>
+                            <th>Статус</th>
+                            <th>Дата создания</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for news in news_list %}
+                        <tr>
+                            <td>{{ news.id }}</td>
+                            <td>
+                                <strong>{{ news.title }}</strong>
+                                {% if news.image %}
+                                <br><small class="text-muted">Есть изображение</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ news.short_description[:100] }}{% if news.short_description|length > 100 %}...{% endif %}</td>
+                            <td>
+                                {% if news.is_published %}
+                                <span class="badge bg-success">Опубликована</span>
+                                {% else %}
+                                <span class="badge bg-warning">Черновик</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ news.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('news_detail', news_id=news.id) }}" class="btn btn-sm btn-outline-primary" title="Просмотр">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('admin_edit_news', news_id=news.id) }}" class="btn btn-sm btn-outline-secondary" title="Редактировать">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Удалить" 
+                                            onclick="confirmDelete({{ news.id }}, '{{ news.title }}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center">
+            <i class="bi bi-newspaper display-1 text-muted mb-3"></i>
+            <h4>Новостей пока нет</h4>
+            <p class="text-muted">Создайте первую новость, чтобы начать публикации</p>
+            <a href="{{ url_for('admin_add_news') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Добавить новость
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Модальное окно подтверждения удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Подтверждение удаления</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы действительно хотите удалить новость "<span id="newsTitle"></span>"?</p>
+                <p class="text-danger"><small>Это действие нельзя отменить.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(newsId, newsTitle) {
+    document.getElementById('newsTitle').textContent = newsTitle;
+    document.getElementById('deleteForm').action = `/admin/news/${newsId}/delete`;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+
+<style>
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+</style>
+{% endblock %} 
