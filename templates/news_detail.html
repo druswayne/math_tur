@@ -49,7 +49,7 @@
                                      data-image-caption="{{ image.caption or '' }}">
                                 {% if image.caption %}
                                 <div class="carousel-caption d-none d-md-block">
-                                    <h5 class="carousel-caption-title">{{ image.caption }}</h5>
+                                    <h5 class="carousel-caption-title carousel-caption-text-white">{{ image.caption }}</h5>
                                 </div>
                                 {% endif %}
                             </div>
@@ -92,7 +92,7 @@
 
                 <footer class="news-footer mt-5">
                     <div class="d-flex justify-content-between align-items-center">
-                        <a href="{{ url_for('news') }}" class="btn btn-outline-primary">
+                        <a href="{{ url_for('news') }}" class="btn btn-primary">
                             <i class="bi bi-arrow-left me-2"></i>Назад к новостям
                         </a>
                     </div>
@@ -255,6 +255,7 @@
 .news-footer {
     border-top: 1px solid #e9ecef;
     padding-top: 2rem;
+    background: transparent;
 }
 
 .breadcrumb {
@@ -264,7 +265,7 @@
 }
 
 .breadcrumb-item a {
-    color: #007bff;
+    color: #000;
     text-decoration: none;
 }
 
@@ -286,17 +287,6 @@
     font-size: 0.9rem;
     margin-bottom: 0.25rem;
     font-weight: 600;
-}
-
-.btn-outline-primary {
-    border-color: #007bff;
-    color: #007bff;
-}
-
-.btn-outline-primary:hover {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
 }
 
 .news-share .btn {
@@ -418,6 +408,11 @@
     font-size: 1.1rem;
     margin: 0;
     font-weight: 600;
+    color: white;
+}
+
+.carousel-caption-text-white {
+    color: white !important;
 }
 
 /* Мобильные стили для карусели */
@@ -462,6 +457,7 @@
     
     .carousel-caption-title {
         font-size: 0.9rem;
+        color: white;
     }
     
     /* Одиночное изображение на мобильных */
