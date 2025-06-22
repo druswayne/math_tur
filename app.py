@@ -61,7 +61,7 @@ app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
 app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
