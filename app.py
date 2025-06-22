@@ -61,7 +61,7 @@ app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
 app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -3003,7 +3003,7 @@ def admin_news():
 @login_required
 def admin_add_news():
     if not current_user.is_admin:
-        flash('У вас нет доступа к этой странице', 'danger')
+        flash('У вас нет доступа к этой страницы', 'danger')
         return redirect(url_for('home'))
     
     if request.method == 'POST':
@@ -3016,22 +3016,48 @@ def admin_add_news():
             flash('Все поля обязательны для заполнения', 'error')
             return render_template('admin/add_news.html')
         
-        # Обработка загрузки изображения в S3
-        image_filename = None
-        if 'image' in request.files:
-            file = request.files['image']
-            if file and file.filename:
-                image_filename = upload_file_to_s3(file, 'news')
-        
+        # Создаем новость
         news = News(
             title=title,
             short_description=short_description,
             full_content=full_content,
-            image=image_filename,
             is_published=is_published
         )
         
         db.session.add(news)
+        db.session.flush()  # Получаем ID новости
+        
+        # Обработка множественных изображений
+        uploaded_files = request.files.getlist('images')
+        captions = request.form.getlist('captions')
+        main_image_index = request.form.get('main_image_index', type=int)
+        
+        for i, file in enumerate(uploaded_files):
+            if file and file.filename:
+                # Загружаем изображение в S3
+                image_filename = upload_file_to_s3(file, 'news')
+                if image_filename:
+                    # Получаем подпись для изображения
+                    caption = captions[i] if i < len(captions) else None
+                    
+                    # Определяем, является ли это главным изображением
+                    is_main = (i == main_image_index) if main_image_index is not None else (i == 0)
+                    
+                    # Создаем запись об изображении
+                    news_image = NewsImage(
+                        news_id=news.id,
+                        image_filename=image_filename,
+                        caption=caption,
+                        order_index=i,
+                        is_main=is_main
+                    )
+                    
+                    db.session.add(news_image)
+                    
+                    # Если это главное изображение, сохраняем его в поле image для обратной совместимости
+                    if is_main:
+                        news.image = image_filename
+        
         db.session.commit()
         
         flash('Новость успешно добавлена', 'success')
@@ -3043,7 +3069,7 @@ def admin_add_news():
 @login_required
 def admin_edit_news(news_id):
     if not current_user.is_admin:
-        flash('У вас нет доступа к этой странице', 'danger')
+        flash('У вас нет доступа к этой страницы', 'danger')
         return redirect(url_for('home'))
     
     news = News.query.get_or_404(news_id)
@@ -3054,17 +3080,63 @@ def admin_edit_news(news_id):
         news.full_content = request.form.get('full_content')
         news.is_published = 'is_published' in request.form
         
-        # Обработка загрузки нового изображения в S3
-        if 'image' in request.files:
-            file = request.files['image']
+        # Обработка удаления существующих изображений
+        existing_image_ids = request.form.getlist('existing_image_ids')
+        
+        for image in news.images:
+            if str(image.id) not in existing_image_ids:
+                # Удаляем изображение из S3
+                delete_file_from_s3(image.image_filename, 'news')
+                # Удаляем запись из базы
+                db.session.delete(image)
+        
+        # Обработка новых изображений
+        uploaded_files = request.files.getlist('images')
+        captions = request.form.getlist('captions')
+        main_image_index = request.form.get('main_image_index', type=int)
+        
+        # Получаем текущий максимальный order_index
+        max_order = db.session.query(db.func.max(NewsImage.order_index)).filter_by(news_id=news.id).scalar() or -1
+        
+        new_images_added = False
+        for i, file in enumerate(uploaded_files):
             if file and file.filename:
-                # Удаляем старое изображение из S3
-                if news.image:
-                    delete_file_from_s3(news.image, 'news')
-                
-                # Загружаем новое изображение в S3
+                # Загружаем изображение в S3
                 image_filename = upload_file_to_s3(file, 'news')
-                news.image = image_filename
+                if image_filename:
+                    new_images_added = True
+                    # Получаем подпись для изображения
+                    caption = captions[i] if i < len(captions) else None
+                    
+                    # Определяем, является ли это главным изображением
+                    is_main = (i == main_image_index) if main_image_index is not None else False
+                    
+                    # Создаем запись об изображении
+                    news_image = NewsImage(
+                        news_id=news.id,
+                        image_filename=image_filename,
+                        caption=caption,
+                        order_index=max_order + 1 + i,
+                        is_main=is_main
+                    )
+                    
+                    db.session.add(news_image)
+                    
+                    # Если это главное изображение, обновляем поле image
+                    if is_main:
+                        news.image = image_filename
+        
+        # Обновляем главное изображение среди существующих
+        if main_image_index is not None and not new_images_added:
+            # Сбрасываем все флаги is_main
+            NewsImage.query.filter_by(news_id=news.id).update({'is_main': False})
+            
+            # Устанавливаем новый главный флаг
+            remaining_images = news.images
+            if main_image_index < len(remaining_images):
+                main_image = remaining_images[main_image_index]
+                main_image.is_main = True
+                news.image = main_image.image_filename
         
         db.session.commit()
         flash('Новость успешно обновлена', 'success')
@@ -3081,7 +3153,11 @@ def admin_delete_news(news_id):
     
     news = News.query.get_or_404(news_id)
     
-    # Удаляем изображение из S3
+    # Удаляем все изображения из S3
+    for image in news.images:
+        delete_file_from_s3(image.image_filename, 'news')
+    
+    # Удаляем главное изображение из S3 (для обратной совместимости)
     if news.image:
         delete_file_from_s3(news.image, 'news')
     
@@ -3309,10 +3385,24 @@ class News(db.Model):
     title = db.Column(db.String(200), nullable=False)
     short_description = db.Column(db.Text, nullable=False)
     full_content = db.Column(db.Text, nullable=False)
-    image = db.Column(db.String(500), nullable=True)  # Путь к изображению
+    image = db.Column(db.String(500), nullable=True)  # Главное изображение (для обратной совместимости)
     is_published = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Связь с изображениями
+    images = db.relationship('NewsImage', backref='news', lazy=True, cascade='all, delete-orphan', order_by='NewsImage.order_index')
+
+class NewsImage(db.Model):
+    __tablename__ = "news_images"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    news_id = db.Column(db.Integer, db.ForeignKey('news.id', ondelete='CASCADE'), nullable=False)
+    image_filename = db.Column(db.String(500), nullable=False)  # Имя файла в S3
+    caption = db.Column(db.String(200), nullable=True)  # Подпись к изображению
+    order_index = db.Column(db.Integer, default=0)  # Порядок отображения
+    is_main = db.Column(db.Boolean, default=False)  # Главное изображение
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
