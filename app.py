@@ -2490,9 +2490,22 @@ def rating():
     users_by_category = {}
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     
+    # Проверяем, должен ли показываться полный рейтинг
+    show_full_rating = False
+    if current_user.is_authenticated and not current_user.is_admin:
+        # Проверяем, участвовал ли пользователь хотя бы в одном турнире
+        show_full_rating = current_user.tournaments_count > 0
+    elif current_user.is_authenticated and current_user.is_admin:
+        # Для администраторов проверяем параметр режима
+        mode = request.args.get('mode')
+        show_full_rating = mode == 'full'
+    
     for category in categories:
-        # Получаем топ-10 пользователей для категории
-        top_users_stats = (
+        # Определяем лимит пользователей
+        user_limit = None if show_full_rating else 10
+        
+        # Получаем пользователей для категории
+        users_stats = (
             db.session.query(
                 User,
                 func.count(SolvedTask.id).label('solved_tasks_count'),
@@ -2502,25 +2515,28 @@ def rating():
             .filter(User.is_admin == False, User.category == category)
             .group_by(User.id)
             .order_by(User.balance.desc())
-            .limit(10)
-            .all()
         )
         
-        # Обрабатываем статистику для топ-10 пользователей
-        top_users = []
-        for user, solved_tasks_count, correct_tasks_count in top_users_stats:
+        # Применяем лимит только если не показываем полный рейтинг
+        if user_limit:
+            users_stats = users_stats.limit(user_limit)
+        
+        users_stats = users_stats.all()
+        
+        # Обрабатываем статистику для пользователей
+        users = []
+        for user, solved_tasks_count, correct_tasks_count in users_stats:
             user.solved_tasks_count = correct_tasks_count or 0
             user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
             user.is_current_user = False  # По умолчанию не текущий пользователь
-            top_users.append(user)
+            users.append(user)
         
-        # Проверяем, нужно ли добавить текущего пользователя
-        current_user_in_top = False
-        if current_user.is_authenticated and not current_user.is_admin and current_user.category == category:
-            # Проверяем, есть ли текущий пользователь в топ-10
-            current_user_in_top = any(user.id == current_user.id for user in top_users)
+        # Проверяем, нужно ли добавить текущего пользователя (только для топ-10)
+        if not show_full_rating and current_user.is_authenticated and not current_user.is_admin and current_user.category == category:
+            # Проверяем, есть ли текущий пользователь в списке
+            current_user_in_list = any(user.id == current_user.id for user in users)
             
-            if not current_user_in_top:
+            if not current_user_in_list:
                 # Получаем статистику для текущего пользователя
                 current_user_stats = (
                     db.session.query(
@@ -2539,17 +2555,18 @@ def rating():
                     user.solved_tasks_count = correct_tasks_count or 0
                     user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
                     user.is_current_user = True  # Флаг для выделения текущего пользователя
-                    top_users.append(user)
+                    users.append(user)
             else:
-                # Если текущий пользователь в топ-10, помечаем его
-                for user in top_users:
+                # Если текущий пользователь в списке, помечаем его
+                for user in users:
                     if user.id == current_user.id:
                         user.is_current_user = True
                         break
         
         users_by_category[category] = {
-            'users': top_users,
-            'has_next': False  # Убираем пагинацию, так как показываем только топ-10
+            'users': users,
+            'has_next': False,  # Убираем пагинацию
+            'show_full_rating': show_full_rating
         }
 
     user_rank = None
@@ -2576,7 +2593,8 @@ def rating():
 
     return render_template('rating.html', 
                          users_by_category=users_by_category,
-                         user_rank=user_rank)
+                         user_rank=user_rank,
+                         show_full_rating=show_full_rating)
 
 @app.route('/rating/load-more')
 def load_more_users():
@@ -3532,6 +3550,15 @@ def rating_search():
     if not query:
         return jsonify({'users': []})
     
+    # Проверяем, должен ли показываться полный рейтинг
+    show_full_rating = False
+    if current_user.is_authenticated and not current_user.is_admin:
+        show_full_rating = current_user.tournaments_count > 0
+    elif current_user.is_authenticated and current_user.is_admin:
+        # Для администраторов проверяем параметр режима
+        mode = request.args.get('mode')
+        show_full_rating = mode == 'full'
+    
     # Базовый запрос для поиска
     search_query = (
         db.session.query(
@@ -3554,13 +3581,13 @@ def rating_search():
         search_query = search_query.filter(User.category == category)
     
     # Группируем и сортируем
-    search_results = (
-        search_query
-        .group_by(User.id)
-        .order_by(User.balance.desc())
-        .limit(10)  # Ограничиваем результаты до 10
-        .all()
-    )
+    search_query = search_query.group_by(User.id).order_by(User.balance.desc())
+    
+    # Применяем лимит в зависимости от прав пользователя
+    if show_full_rating:
+        search_results = search_query.limit(50).all()  # Больше результатов для полного рейтинга
+    else:
+        search_results = search_query.limit(10).all()  # Стандартный лимит
     
     # Обрабатываем результаты
     users = []
