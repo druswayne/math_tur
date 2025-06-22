@@ -219,16 +219,16 @@
                     <div class="mb-3">
                         <label for="category{{ user.id }}" class="form-label">Группа</label>
                         <select class="form-control" id="category{{ user.id }}" name="category" required>
-                            <option value="1-2" {% if user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
-                            <option value="3" {% if user.category == '3' %}selected{% endif %}>3 класс</option>
-                            <option value="4" {% if user.category == '4' %}selected{% endif %}>4 класс</option>
-                            <option value="5" {% if user.category == '5' %}selected{% endif %}>5 класс</option>
-                            <option value="6" {% if user.category == '6' %}selected{% endif %}>6 класс</option>
-                            <option value="7" {% if user.category == '7' %}selected{% endif %}>7 класс</option>
-                            <option value="8" {% if user.category == '8' %}selected{% endif %}>8 класс</option>
-                            <option value="9" {% if user.category == '9' %}selected{% endif %}>9 класс</option>
-                            <option value="10" {% if user.category == '10' %}selected{% endif %}>10 класс</option>
-                            <option value="11" {% if user.category == '11' %}selected{% endif %}>11 класс</option>
+                            <option value="1-2" ${user.category === '1-2' ? 'selected' : ''}>1-2 класс</option>
+                            <option value="3" ${user.category === '3' ? 'selected' : ''}>3 класс</option>
+                            <option value="4" ${user.category === '4' ? 'selected' : ''}>4 класс</option>
+                            <option value="5" ${user.category === '5' ? 'selected' : ''}>5 класс</option>
+                            <option value="6" ${user.category === '6' ? 'selected' : ''}>6 класс</option>
+                            <option value="7" ${user.category === '7' ? 'selected' : ''}>7 класс</option>
+                            <option value="8" ${user.category === '8' ? 'selected' : ''}>8 класс</option>
+                            <option value="9" ${user.category === '9' ? 'selected' : ''}>9 класс</option>
+                            <option value="10" ${user.category === '10' ? 'selected' : ''}>10 класс</option>
+                            <option value="11" ${user.category === '11' ? 'selected' : ''}>11 класс</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -596,16 +596,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <div class="mb-3">
                                     <label for="category${user.id}" class="form-label">Группа</label>
                                     <select class="form-control" id="category${user.id}" name="category" required>
-                                        <option value="1-2" {% if user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
-                                        <option value="3" {% if user.category == '3' %}selected{% endif %}>3 класс</option>
-                                        <option value="4" {% if user.category == '4' %}selected{% endif %}>4 класс</option>
-                                        <option value="5" {% if user.category == '5' %}selected{% endif %}>5 класс</option>
-                                        <option value="6" {% if user.category == '6' %}selected{% endif %}>6 класс</option>
-                                        <option value="7" {% if user.category == '7' %}selected{% endif %}>7 класс</option>
-                                        <option value="8" {% if user.category == '8' %}selected{% endif %}>8 класс</option>
-                                        <option value="9" {% if user.category == '9' %}selected{% endif %}>9 класс</option>
-                                        <option value="10" {% if user.category == '10' %}selected{% endif %}>10 класс</option>
-                                        <option value="11" {% if user.category == '11' %}selected{% endif %}>11 класс</option>
+                                        <option value="1-2" ${user.category === '1-2' ? 'selected' : ''}>1-2 класс</option>
+                                        <option value="3" ${user.category === '3' ? 'selected' : ''}>3 класс</option>
+                                        <option value="4" ${user.category === '4' ? 'selected' : ''}>4 класс</option>
+                                        <option value="5" ${user.category === '5' ? 'selected' : ''}>5 класс</option>
+                                        <option value="6" ${user.category === '6' ? 'selected' : ''}>6 класс</option>
+                                        <option value="7" ${user.category === '7' ? 'selected' : ''}>7 класс</option>
+                                        <option value="8" ${user.category === '8' ? 'selected' : ''}>8 класс</option>
+                                        <option value="9" ${user.category === '9' ? 'selected' : ''}>9 класс</option>
+                                        <option value="10" ${user.category === '10' ? 'selected' : ''}>10 класс</option>
+                                        <option value="11" ${user.category === '11' ? 'selected' : ''}>11 класс</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
