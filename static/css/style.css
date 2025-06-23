@@ -1,25 +1,25 @@
 /* Базовые стили */
 :root {
-    --primary-color: #2779a7;
-    --primary-dark: #1e5f8a;
-    --primary-light: #3a8bc4;
-    --secondary-color: #FF9398;
-    --secondary-dark: #ff7a80;
-    --secondary-light: #ffb0b5;
-    --accent-color: #000;
-    --accent-light: #333;
+    --primary-color: #FFD700; /* Ярко-жёлтый */
+    --primary-dark: #FFC000; /* Темнее жёлтый */
+    --primary-light: #FFE44D; /* Светлее жёлтый */
+    --secondary-color: #FF8C00; /* Оранжевый */
+    --secondary-dark: #E67E00; /* Темнее оранжевый */
+    --secondary-light: #FFA500; /* Светлее оранжевый */
+    --accent-color: #747b8e; /* Синий */
+    --accent-light: #8a92a8; /* Светлее синий */
     --success-color: #28a745;
-    --warning-color: #ffc107;
+    --warning-color: #FF8C00; /* Оранжевый */
     --danger-color: #dc3545;
-    --light-bg: #f8f9fa;
-    --dark-bg: #000;
-    --text-color: #000;
-    --text-light: #666;
-    --text-muted: #999;
-    --border-color: #e9ecef;
+    --light-bg: #F5F5F5; /* Светло-серый */
+    --dark-bg: #333333; /* Темно-серый */
+    --text-color: #333333; /* Темно-серый */
+    --text-light: #666666;
+    --text-muted: #999999;
+    --border-color: #E0E0E0;
     --border-radius: 12px;
-    --box-shadow: 0 2px 8px rgba(39, 121, 167, 0.1);
-    --box-shadow-hover: 0 4px 16px rgba(39, 121, 167, 0.2);
+    --box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15);
+    --box-shadow-hover: 0 4px 16px rgba(255, 215, 0, 0.25);
     --transition: all 0.3s ease;
 }
 
@@ -51,7 +51,7 @@ main {
 
 .hero-section {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
+    color: var(--text-color);
     flex: 1;
     display: flex;
     align-items: center;
@@ -61,7 +61,7 @@ main {
     flex: 1;
     display: flex;
     align-items: center;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    background: linear-gradient(135deg, var(--light-bg) 0%, #FFFFFF 100%);
 }
 
 .auth-section .card {
@@ -83,30 +83,33 @@ main {
     border-radius: var(--border-radius);
     font-weight: 500;
     transition: var(--transition);
-    color: white;
+    color: var(--text-color);
 }
 
 .auth-section .btn-primary:hover {
     background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
     box-shadow: var(--box-shadow-hover);
     transform: translateY(-1px);
+    color: var(--text-color);
 }
 
 .hero-section h1 {
     font-weight: 700;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 1.5rem;
+    color: var(--text-color);
 }
 
 .hero-section .lead {
     font-size: 1.5rem;
     margin-bottom: 2rem;
     opacity: 0.95;
+    color: var(--text-color);
 }
 
 .hero-section .btn-primary {
-    background: linear-gradient(135deg, white 0%, #f8f9fa 100%);
-    color: var(--primary-color);
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
+    color: var(--text-color);
     border: none;
     padding: 15px 40px;
     font-size: 1.2rem;
@@ -117,10 +120,10 @@ main {
 }
 
 .hero-section .btn-primary:hover {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    background: linear-gradient(135deg, var(--light-bg) 0%, #E0E0E0 100%);
     box-shadow: var(--box-shadow-hover);
     transform: translateY(-2px);
-    color: var(--primary-dark);
+    color: var(--text-color);
 }
 
 .card {
@@ -175,7 +178,7 @@ main {
 }
 
 .navbar {
-    background: linear-gradient(135deg, white 0%, #f8f9fa 100%);
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
     box-shadow: var(--box-shadow);
     padding: 0.25rem 0 !important;
     border-bottom: 1px solid var(--border-color);
@@ -194,7 +197,7 @@ main {
 }
 
 .navbar-brand img {
-    max-height: 100px;
+    max-height: 60px;
     width: auto;
     object-fit: contain;
     margin: 0;
@@ -207,63 +210,68 @@ main {
     padding: 0.5rem 1rem !important;
     border-radius: var(--border-radius);
     margin: 0 0.25rem;
-    position: relative;
 }
 
 .nav-link:hover {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white !important;
+    color: var(--primary-color) !important;
+    background: var(--light-bg);
     transform: translateY(-1px);
 }
 
 .nav-link.active {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white !important;
+    color: var(--text-color) !important;
     box-shadow: var(--box-shadow);
 }
 
 footer {
-    margin-top: auto;
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-    color: #fff;
+    background: linear-gradient(135deg, #474753 0%, #333333 100%);
+    color: white;
     padding: 2rem 0;
-    border-top: 1px solid #1a252f;
+    margin-top: auto;
 }
 
 footer h5 {
-    color: #fff;
+    color: var(--primary-color);
     font-weight: 600;
+    margin-bottom: 1rem;
 }
 
 footer p {
-    color: #fff;
+    color: #CCCCCC;
+    margin-bottom: 0.5rem;
 }
 
 footer a {
-    color: #fff !important;
+    color: #CCCCCC;
+    text-decoration: none;
+    transition: var(--transition);
 }
 
 footer a:hover {
-    color: #f8f9fa !important;
+    color: var(--primary-color);
     text-decoration: none;
 }
 
 footer i {
-    color: #fff !important;
+    color: var(--primary-color);
+    margin-right: 0.5rem;
 }
 
 footer a:hover i {
-    color: #f8f9fa !important;
+    color: var(--secondary-color);
 }
 
 /* Стили для админ-панели */
 .admin-card {
-    transition: transform 0.3s ease;
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
     border: none;
-    box-shadow: var(--box-shadow);
     border-radius: var(--border-radius);
-    position: relative;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
     overflow: hidden;
+    position: relative;
+    height: 100%;
 }
 
 .admin-card::before {
@@ -288,16 +296,18 @@ footer a:hover i {
 }
 
 .admin-card .bi {
+    font-size: 2.5rem;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    margin-bottom: 1rem;
 }
 
 .admin-card .card-title {
     color: var(--text-color);
-    margin-bottom: 1rem;
     font-weight: 600;
+    margin-bottom: 1rem;
 }
 
 .admin-card .card-text {
@@ -306,17 +316,15 @@ footer a:hover i {
 }
 
 .admin-card .btn-primary {
-    background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border: none;
-    padding: 0.5rem 2rem;
-    border-radius: var(--border-radius);
+    color: var(--text-color);
     font-weight: 500;
     transition: var(--transition);
-    color: white;
 }
 
 .admin-card .btn-primary:hover {
-    background: linear-gradient(45deg, var(--primary-dark), var(--secondary-dark));
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
     transform: translateY(-1px);
     box-shadow: var(--box-shadow-hover);
 }
@@ -327,33 +335,37 @@ footer a:hover i {
     border-radius: var(--border-radius);
     overflow: hidden;
     box-shadow: var(--box-shadow);
+    margin-bottom: 2rem;
 }
 
 .table-admin thead {
-    background: linear-gradient(135deg, var(--light-bg) 0%, #e9ecef 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
 }
 
 .table-admin th {
+    color: var(--text-color);
+    font-weight: 600;
     border: none;
     padding: 1rem;
-    font-weight: 600;
-    color: var(--text-color);
-    border-bottom: 1px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.875rem;
 }
 
 .table-admin td {
     padding: 1rem;
-    border: none;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
+    color: var(--text-color);
 }
 
 /* Стили для форм в админ-панели */
 .admin-form {
-    background: white;
-    padding: 2rem;
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
+    border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
+    padding: 2rem;
     position: relative;
     overflow: hidden;
 }
@@ -366,48 +378,58 @@ footer a:hover i {
     right: 0;
     height: 4px;
     background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.admin-form:hover::before {
+    opacity: 1;
 }
 
 .admin-form .form-label {
-    font-weight: 600;
     color: var(--text-color);
+    font-weight: 600;
     margin-bottom: 0.5rem;
 }
 
 .admin-form .form-control {
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: 0.75rem;
     transition: var(--transition);
+    background: white;
 }
 
 .admin-form .form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(39, 121, 167, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25);
 }
 
 /* Стили для кнопок действий */
 .btn-action {
     padding: 0.5rem 1rem;
+    border: none;
     border-radius: var(--border-radius);
     font-weight: 500;
     transition: var(--transition);
-    border: none;
+    text-decoration: none;
+    display: inline-block;
+    margin: 0.25rem;
 }
 
 .btn-action.edit {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
     color: white;
 }
 
 .btn-action.delete {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #e74c3c 100%);
+    background: linear-gradient(135deg, var(--danger-color) 0%, #c82333 100%);
     color: white;
 }
 
 .btn-action:hover {
     transform: translateY(-1px);
-    box-shadow: var(--box-shadow-hover);
+    box-shadow: var(--box-shadow);
 }
 
 .btn-action.activate {
@@ -416,33 +438,25 @@ footer a:hover i {
 }
 
 .btn-action.deactivate {
-    background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
-    color: #212529;
-}
-
-.btn-action.stats {
-    background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--warning-color) 0%, var(--secondary-color) 100%);
+    color: var(--text-color);
 }
 
 .btn-action.activate:hover,
-.btn-action.deactivate:hover,
-.btn-action.stats:hover {
+.btn-action.deactivate:hover {
     transform: translateY(-1px);
-    box-shadow: var(--box-shadow-hover);
-    color: white;
+    box-shadow: var(--box-shadow);
 }
 
 .btn-action.configure {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
-    font-weight: 500;
+    color: var(--text-color);
 }
 
 .btn-action.configure:hover {
     background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
     transform: translateY(-1px);
-    box-shadow: var(--box-shadow-hover);
+    box-shadow: var(--box-shadow);
 }
 
 /* Стили для уведомлений */
@@ -455,27 +469,31 @@ footer a:hover i {
 }
 
 .alert-success {
-    background-color: #d4edda;
-    color: #155724;
-    border-left: 4px solid var(--success-color);
+    background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
 }
 
 .alert-danger {
-    background-color: #f8d7da;
-    color: #721c24;
-    border-left: 4px solid var(--danger-color);
+    background: linear-gradient(135deg, var(--danger-color) 0%, #c82333 100%);
+    border: none;
+    color: white;
+    border-radius: var(--border-radius);
 }
 
 .alert-warning {
-    background-color: #fff3cd;
-    color: #856404;
-    border-left: 4px solid var(--warning-color);
+    background: linear-gradient(135deg, var(--warning-color) 0%, var(--secondary-color) 100%);
+    border: none;
+    color: var(--text-color);
+    border-radius: var(--border-radius);
 }
 
 .alert-info {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border-left: 4px solid #17a2b8;
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
+    border: none;
+    color: #fff;
+    border-radius: var(--border-radius);
 }
 
 /* Стили для списка турниров */
@@ -894,17 +912,26 @@ main {
     border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow-hover);
+    background: white;
 }
 
 .modal-header {
-    border-bottom: 1px solid var(--border-color);
-    background-color: var(--light-bg);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--text-color);
+    border-bottom: none;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.modal-footer {
+    background: var(--light-bg);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
 /* Стили для форм */
 .form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(33, 160, 56, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25);
 }
 
 /* Стили для счетчика */
@@ -941,7 +968,7 @@ main {
 .alert-info {
     background-color: #e8f4f8;
     border-color: #bee5eb;
-    color: #0c5460;
+    color: #fff;
 }
 
 /* Стили для таблиц */
@@ -951,8 +978,15 @@ main {
 }
 
 .table th {
-    background-color: #f8f9fa;
-    font-weight: 500;
+    background: linear-gradient(135deg, var(--light-bg) 0%, #FFFFFF 100%);
+    color: var(--text-color);
+    font-weight: 600;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.table-hover tbody tr:hover {
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--light-bg) 100%);
+    color: var(--text-color);
 }
 
 /* Стили для бейджей */
@@ -963,25 +997,49 @@ main {
 
 /* Стили для карточек статистики */
 .stats-card {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 1.5rem;
-    text-align: center;
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    overflow: hidden;
+    position: relative;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    opacity: 0;
+    transition: var(--transition);
+}
+
+.stats-card:hover::before {
+    opacity: 1;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-hover);
 }
 
 .stats-card .card-title {
-    color: #6c757d;
-    font-size: 1rem;
+    color: var(--text-color);
+    font-weight: 600;
     margin-bottom: 0.5rem;
 }
 
 .stats-card .card-value {
     font-size: 2rem;
-    font-weight: bold;
-    margin-bottom: 0.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 /* Стили для изображений */
@@ -1056,13 +1114,12 @@ main {
 
 /* Стили для карточек призов */
 .prize-card {
-    background: white;
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
     border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
     transition: var(--transition);
     overflow: hidden;
-    height: 100%;
     position: relative;
 }
 
@@ -1083,15 +1140,13 @@ main {
 }
 
 .prize-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: var(--box-shadow-hover);
 }
 
 .prize-card .card-img-top {
     height: 200px;
     object-fit: cover;
-    border-top-left-radius: var(--border-radius);
-    border-top-right-radius: var(--border-radius);
     transition: var(--transition);
 }
 
@@ -1101,36 +1156,31 @@ main {
 
 .prize-card .card-body {
     padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: calc(100% - 200px);
 }
 
 .prize-card .card-title {
-    font-size: 1.25rem;
-    font-weight: 600;
     color: var(--text-color);
+    font-weight: 600;
     margin-bottom: 0.75rem;
+    font-size: 1.25rem;
 }
 
 .prize-card .card-text {
     color: var(--text-light);
     margin-bottom: 1rem;
-    flex-grow: 1;
 }
 
 .prize-card .badge {
-    align-self: flex-start;
-    margin-bottom: 1rem;
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--text-color);
 }
 
 .prize-card .btn-primary {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border: none;
-    border-radius: var(--border-radius);
+    color: var(--text-color);
     font-weight: 500;
-    color: white;
+    transition: var(--transition);
 }
 
 .prize-card .btn-primary:hover {
@@ -1242,14 +1292,15 @@ main {
 }
 
 .profile-stat-card {
-    background: white;
-    padding: 1.5rem;
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
+    border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
-    text-align: center;
     transition: var(--transition);
-    position: relative;
     overflow: hidden;
+    position: relative;
+    padding: 1.5rem;
+    text-align: center;
 }
 
 .profile-stat-card::before {
@@ -1258,73 +1309,82 @@ main {
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 4px;
     background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    opacity: 0;
+    transition: var(--transition);
 }
 
 .profile-stat-card:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: var(--box-shadow-hover);
 }
 
+.profile-stat-card:hover::before {
+    opacity: 1;
+}
+
 .profile-stat-value {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     margin-bottom: 0.5rem;
+    display: block;
 }
 
 .profile-stat-label {
     color: var(--text-light);
-    font-weight: 500;
+    font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    font-weight: 500;
 }
 
 /* Стили для профиля */
 .profile-header {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
+    color: var(--text-color);
     padding: 2rem;
     border-radius: var(--border-radius);
-    margin-bottom: 2rem;
-    box-shadow: var(--box-shadow);
     position: relative;
     overflow: hidden;
+    margin-bottom: 2rem;
 }
 
 .profile-header::before {
     content: '';
     position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-    animation: rotate 20s linear infinite;
-}
-
-@keyframes rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="60" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="40" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+    opacity: 0.3;
 }
 
 .profile-avatar {
-    width: 100px;
-    height: 100px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     border: 4px solid white;
     box-shadow: var(--box-shadow);
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    color: white;
+    font-weight: 700;
     position: relative;
     z-index: 1;
 }
 
 /* Стили для турниров */
 .tournament-card {
-    background: white;
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
     border: none;
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow);
@@ -1349,6 +1409,11 @@ main {
     opacity: 1;
 }
 
+.tournament-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-hover);
+}
+
 .tournament-status {
     position: absolute;
     top: 1rem;
@@ -1359,7 +1424,7 @@ main {
     font-size: 0.875rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    z-index: 10;
+    box-shadow: var(--box-shadow);
 }
 
 .status-active {
@@ -1368,8 +1433,8 @@ main {
 }
 
 .status-upcoming {
-    background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
-    color: #212529;
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
+    color: white;
 }
 
 .status-finished {
@@ -1427,7 +1492,7 @@ main {
 .card-title.mb-4 {
     font-size: 2.5rem;
     font-weight: 600;
-    color: #212529;
+    color: #5d636a;
     margin-bottom: 0.5rem !important;
 }
 
@@ -1531,64 +1596,63 @@ main {
 .btn-primary {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border: none;
-    border-radius: var(--border-radius);
+    color: var(--text-color);
     font-weight: 500;
     transition: var(--transition);
-    color: white;
+    box-shadow: var(--box-shadow);
 }
 
 .btn-primary:hover,
 .btn-primary:focus {
     background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
-    transform: translateY(-1px);
+    color: var(--text-color);
     box-shadow: var(--box-shadow-hover);
+    transform: translateY(-1px);
 }
 
 .btn-outline-primary {
-    color: var(--primary-color);
     border: 2px solid var(--primary-color);
-    border-radius: var(--border-radius);
+    color: var(--primary-color);
+    background: transparent;
     font-weight: 500;
     transition: var(--transition);
-    background: transparent;
 }
 
 .btn-outline-primary:hover {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    border-color: transparent;
+    background: var(--primary-color);
+    color: var(--text-color);
+    box-shadow: var(--box-shadow);
     transform: translateY(-1px);
-    box-shadow: var(--box-shadow-hover);
-    color: white;
 }
 
 .btn-success {
     background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
     border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
     color: white;
+    font-weight: 500;
+    transition: var(--transition);
 }
 
 .btn-warning {
-    background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
+    background: linear-gradient(135deg, var(--warning-color) 0%, var(--secondary-color) 100%);
     border: none;
-    border-radius: var(--border-radius);
+    color: var(--text-color);
     font-weight: 500;
-    color: #212529;
+    transition: var(--transition);
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #e74c3c 100%);
+    background: linear-gradient(135deg, var(--danger-color) 0%, #c82333 100%);
     border: none;
-    border-radius: var(--border-radius);
-    font-weight: 500;
     color: white;
+    font-weight: 500;
+    transition: var(--transition);
 }
 
 /* Стили для бейджей */
 .badge-primary {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
+    color: var(--text-color);
 }
 
 .badge-success {
@@ -1597,96 +1661,91 @@ main {
 }
 
 .badge-warning {
-    background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
-    color: #212529;
+    background: linear-gradient(135deg, var(--warning-color) 0%, var(--secondary-color) 100%);
+    color: var(--text-color);
 }
 
 .badge-danger {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #e74c3c 100%);
+    background: linear-gradient(135deg, var(--danger-color) 0%, #c82333 100%);
     color: white;
 }
 
 /* Стили для навигации */
 .nav-pills .nav-link.active {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
+    color: var(--text-color);
 }
 
 .nav-pills .nav-link {
     color: var(--text-color);
-    border-radius: var(--border-radius);
-    margin: 0 0.25rem;
+    border: 2px solid var(--border-color);
     transition: var(--transition);
 }
 
 .nav-pills .nav-link:hover {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
-    transform: translateY(-1px);
+    background: var(--light-bg);
+    border-color: var(--primary-color);
+    color: var(--text-color);
 }
 
 /* Стили для пагинации */
 .page-link {
-    color: #000;
-    border-color: var(--border-color);
-    border-radius: var(--border-radius);
-    margin: 0 0.125rem;
+    color: var(--primary-color);
+    border: 1px solid var(--border-color);
     transition: var(--transition);
 }
 
 .page-link:hover {
-    color: var(--secondary-color);
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    background: var(--primary-color);
+    color: var(--text-color);
     border-color: var(--primary-color);
-    color: white;
 }
 
 .page-item.active .page-link {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border-color: var(--primary-color);
-    color: white;
+    color: var(--text-color);
 }
 
 /* Стили для прогресс-баров */
 .progress {
-    border-radius: var(--border-radius);
     background-color: var(--light-bg);
+    border-radius: var(--border-radius);
     overflow: hidden;
 }
 
 .progress-bar {
-    background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    transition: var(--transition);
 }
 
 /* Стили для списков */
 .list-group-item {
-    border-color: var(--border-color);
-    border-radius: var(--border-radius);
-    margin-bottom: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: white;
     transition: var(--transition);
 }
 
 .list-group-item:hover {
-    background: linear-gradient(135deg, var(--light-bg) 0%, #e9ecef 100%);
-    transform: translateX(5px);
+    background: var(--light-bg);
+    border-color: var(--primary-color);
 }
 
 .list-group-item.active {
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
     border-color: var(--primary-color);
-    color: white;
+    color: var(--text-color);
 }
 
 /* Стили для форм */
 .form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(39, 121, 167, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25);
 }
 
 .form-select:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(39, 121, 167, 0.25);
+    box-shadow: 0 0 0 0.2rem rgba(255, 215, 0, 0.25);
 }
 
 @media (max-width: 480px) {
@@ -1709,4 +1768,119 @@ main {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(0, 0, 0, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='3' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
     width: 1.5em;
     height: 1.5em;
+}
+
+/* Дополнительные стили для новой цветовой схемы */
+
+/* Анимация для карточек */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card, .admin-card, .stats-card, .tournament-card, .prize-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Улучшенные эффекты наведения */
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-hover);
+}
+
+/* Стили для выделения важных элементов */
+.highlight {
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--secondary-light) 100%);
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* Стили для уведомлений */
+.notification {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    color: var(--text-color);
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--box-shadow);
+}
+
+/* Стили для счетчиков */
+.counter {
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
+    color: white;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* Стили для статусов */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.success {
+    background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+    color: white;
+}
+
+.status-badge.warning {
+    background: linear-gradient(135deg, var(--warning-color) 0%, var(--secondary-color) 100%);
+    color: var(--text-color);
+}
+
+.status-badge.info {
+    background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-light) 100%);
+    color: white;
+}
+
+/* Стили для разделителей */
+.divider {
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    margin: 2rem 0;
+    border-radius: 1px;
+}
+
+/* Стили для иконок */
+.icon-gradient {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Стили для загрузки */
+.loading-gradient {
+    background: linear-gradient(90deg, var(--light-bg) 25%, var(--primary-light) 50%, var(--light-bg) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
 } 
