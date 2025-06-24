@@ -757,6 +757,41 @@ footer a:hover i {
     .navbar {
         padding-top: 0.75rem;
     }
+
+    /* Позиционирование бургер-меню по правому краю */
+    .navbar .navbar-toggler {
+        margin-left: auto;
+        order: 2;
+    }
+    
+    .navbar .navbar-brand {
+        order: 1;
+    }
+    
+    .navbar .navbar-collapse {
+        order: 3;
+    }
+    
+    .navbar .navbar-nav {
+        margin-left: 0;
+        margin-right: 0;
+    }
+}
+
+/* Дополнительные стили для очень маленьких экранов */
+@media (max-width: 576px) {
+    .navbar .navbar-toggler {
+        padding: 0.375rem 0.5rem;
+        font-size: 1.25rem;
+    }
+    
+    .navbar .navbar-brand {
+        font-size: 1rem;
+    }
+    
+    .navbar .navbar-brand img {
+        max-height: 50px;
+    }
 }
 
 /* Общие стили */
