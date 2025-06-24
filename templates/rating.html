@@ -34,13 +34,13 @@
             <!-- Поиск -->
             <div class="mb-4">
                 <div class="input-group">
-                    <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени пользователя">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Поиск по имени участника">
                     <div style="width: 8px;"></div>
                     <button type="button" id="resetSearchBtn" class="btn btn-outline-secondary" style="display: none; height: 38px; width: 38px; padding: 0;">
                         <i class="bi bi-x-circle"></i>
                     </button>
                 </div>
-                <small class="form-text text-muted">Введите минимум 2 символа для поиска по всем пользователям</small>
+                <small class="form-text text-muted">Введите минимум 2 символа для поиска по всем участникам</small>
             </div>
 
             <!-- Кнопка переключения режима для администраторов -->
@@ -95,7 +95,7 @@
                             <thead>
                                 <tr>
                                     <th>Место</th>
-                                    <th>Пользователь</th>
+                                    <th>Участник</th>
                                     <th>Баллы</th>
                                     <th>Решено задач</th>
                                     <th>Успешность</th>
@@ -127,6 +127,73 @@
                         <div class="text-center mt-3">
                             <p class="text-muted">В данной категории пока нет участников</p>
                         </div>
+                        {% endif %}
+                        
+                        <!-- Пагинация для полного рейтинга -->
+                        {% if users_by_category[category]['show_full_rating'] and users_by_category[category]['total_pages'] > 1 %}
+                        <nav aria-label="Навигация по страницам рейтинга" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                <!-- Кнопка "Предыдущая" -->
+                                {% if users_by_category[category]['has_prev'] %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('rating', page=users_by_category[category]['current_page'] - 1) }}" aria-label="Предыдущая">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link" aria-hidden="true">&laquo;</span>
+                                </li>
+                                {% endif %}
+                                
+                                <!-- Номера страниц -->
+                                {% set current_page = users_by_category[category]['current_page'] %}
+                                {% set total_pages = users_by_category[category]['total_pages'] %}
+                                
+                                {% for page_num in range(1, total_pages + 1) %}
+                                    {% if page_num == current_page %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                    {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= current_page - 1 and page_num <= current_page + 1) %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('rating', page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                    {% elif page_num == 4 and current_page > 6 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% elif page_num == total_pages - 3 and current_page < total_pages - 5 %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <!-- Кнопка "Следующая" -->
+                                {% if users_by_category[category]['has_next'] %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('rating', page=users_by_category[category]['current_page'] + 1) }}" aria-label="Следующая">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link" aria-hidden="true">&raquo;</span>
+                                </li>
+                                {% endif %}
+                            </ul>
+                            
+                            <!-- Информация о страницах -->
+                            <div class="text-center mt-2">
+                                <small class="text-muted">
+                                    Страница {{ users_by_category[category]['current_page'] }} из {{ users_by_category[category]['total_pages'] }}
+                                    {% if users_by_category[category]['total_pages'] > 1 %}
+                                    ({{ users_by_category[category]['users']|length }} участников на странице)
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </nav>
                         {% endif %}
                     </div>
                 </div>
@@ -177,7 +244,7 @@
     font-weight: 600;
 }
 
-/* Стили для выделения текущего пользователя */
+/* Стили для выделения текущего участника */
 .table-warning {
     background-color: #fff3cd !important;
 }
@@ -343,6 +410,13 @@ document.addEventListener('DOMContentLoaded', function() {
         resetSearchBtn.style.display = 'none';
         resetSearchBtn.style.visibility = 'hidden';
         showDefaultTables();
+        
+        // Показываем пагинацию обратно при смене категории
+        const activeTab = document.querySelector('.tab-pane.show');
+        const pagination = activeTab.querySelector('nav');
+        if (pagination) {
+            pagination.style.display = 'block';
+        }
     }
     
     function resetSearch() {
@@ -351,6 +425,13 @@ document.addEventListener('DOMContentLoaded', function() {
         resetSearchBtn.style.display = 'none';
         resetSearchBtn.style.visibility = 'hidden';
         showDefaultTables();
+        
+        // Показываем пагинацию обратно
+        const activeTab = document.querySelector('.tab-pane.show');
+        const pagination = activeTab.querySelector('nav');
+        if (pagination) {
+            pagination.style.display = 'block';
+        }
     }
     
     function showDefaultTables() {
@@ -383,6 +464,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = activeTab.querySelector('tbody');
         tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Поиск...</td></tr>';
         
+        // Скрываем пагинацию при поиске
+        const pagination = activeTab.querySelector('nav');
+        if (pagination) {
+            pagination.style.display = 'none';
+        }
+        
         // Выполняем AJAX запрос
         fetch(`/rating/search?q=${encodeURIComponent(query)}&category=${encodeURIComponent(activeCategory)}`)
             .then(response => response.json())
@@ -398,7 +485,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = tabElement.querySelector('tbody');
         
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Пользователи не найдены</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Участники не найдены</td></tr>';
             return;
         }
                 

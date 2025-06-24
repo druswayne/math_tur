@@ -61,7 +61,7 @@ app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
 app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -2490,6 +2490,10 @@ def rating():
     users_by_category = {}
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     
+    # Получаем параметры пагинации
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Количество записей на странице
+    
     # Проверяем, должен ли показываться полный рейтинг
     show_full_rating = False
     if current_user.is_authenticated and not current_user.is_admin:
@@ -2501,10 +2505,7 @@ def rating():
         show_full_rating = mode == 'full'
     
     for category in categories:
-        # Определяем лимит пользователей
-        user_limit = None if show_full_rating else 10
-        
-        # Получаем пользователей для категории
+        # Базовый запрос для получения пользователей категории
         users_stats = (
             db.session.query(
                 User,
@@ -2517,11 +2518,21 @@ def rating():
             .order_by(User.balance.desc())
         )
         
-        # Применяем лимит только если не показываем полный рейтинг
-        if user_limit:
-            users_stats = users_stats.limit(user_limit)
-        
-        users_stats = users_stats.all()
+        if show_full_rating:
+            # Для полного рейтинга применяем пагинацию
+            total_users = users_stats.count()
+            total_pages = (total_users + per_page - 1) // per_page
+            
+            # Получаем записи для текущей страницы
+            users_stats = users_stats.offset((page - 1) * per_page).limit(per_page).all()
+            
+            has_next = page < total_pages
+            has_prev = page > 1
+        else:
+            # Для топ-10 ограничиваем количество
+            users_stats = users_stats.limit(10).all()
+            has_next = False
+            has_prev = False
         
         # Обрабатываем статистику для пользователей
         users = []
@@ -2565,8 +2576,11 @@ def rating():
         
         users_by_category[category] = {
             'users': users,
-            'has_next': False,  # Убираем пагинацию
-            'show_full_rating': show_full_rating
+            'has_next': has_next,
+            'has_prev': has_prev,
+            'show_full_rating': show_full_rating,
+            'current_page': page if show_full_rating else 1,
+            'total_pages': (total_users + per_page - 1) // per_page if show_full_rating else 1
         }
 
     user_rank = None
@@ -2588,13 +2602,17 @@ def rating():
                 'total_tournament_time': user.total_tournament_time,
                 'is_current_user': getattr(user, 'is_current_user', False)
             } for user in users_data['users']],
-            'has_next': users_data['has_next']
+            'has_next': users_data['has_next'],
+            'has_prev': users_data.get('has_prev', False),
+            'current_page': users_data.get('current_page', 1),
+            'total_pages': users_data.get('total_pages', 1)
         })
 
     return render_template('rating.html', 
                          users_by_category=users_by_category,
                          user_rank=user_rank,
-                         show_full_rating=show_full_rating)
+                         show_full_rating=show_full_rating,
+                         current_page=page)
 
 @app.route('/rating/load-more')
 def load_more_users():
