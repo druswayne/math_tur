@@ -9,10 +9,10 @@
         </a>
     </div>
 
-    <!-- Покупки билетов -->
+    <!-- Покупки жетонов участника -->
     <div class="card mb-4">
         <div class="card-header">
-            <h4 class="mb-0">История покупки билетов</h4>
+            <h4 class="mb-0">История покупки жетонов участника</h4>
         </div>
         <div class="card-body">
             <div class="ticket-history-container">
@@ -40,10 +40,10 @@
         </div>
     </div>
 
-    <!-- Покупки товаров -->
-    <div class="card">
+    <!-- Покупки призов -->
+    <div class="card mb-4">
         <div class="card-header">
-            <h4 class="mb-0">История покупки товаров</h4>
+            <h4 class="mb-0">История покупки призов</h4>
         </div>
         <div class="card-body">
             {% if prize_purchases.items %}
@@ -110,7 +110,7 @@
             </div>
             {% else %}
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок товаров
+                <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок призов
             </div>
             {% endif %}
         </div>
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentTicketPage = 1;
     let currentPrizePage = 1;
 
-    // Функция для загрузки дополнительных билетов
+    // Функция для загрузки дополнительных жетонов участника
     async function loadMoreTickets() {
         if (isLoadingTickets) return;
         isLoadingTickets = true;
@@ -278,8 +278,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentTicketPage++;
             }
         } catch (error) {
-            console.error('Ошибка при загрузке билетов:', error);
-            showNotification('Произошла ошибка при загрузке билетов', 'danger');
+            console.error('Ошибка при загрузке жетонов участника:', error);
+            showNotification('Произошла ошибка при загрузке жетонов участника', 'danger');
         } finally {
             isLoadingTickets = false;
         }

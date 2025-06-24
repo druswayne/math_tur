@@ -3,9 +3,9 @@
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Управление билетами</h1>
+        <h1>Управление жетонами участника</h1>
         <a href="{{ url_for('admin_shop') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left me-2"></i>Назад в магазин
+            <i class="fas fa-arrow-left me-2"></i>Назад в лавку призов
         </a>
     </div>
 
@@ -13,10 +13,10 @@
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">Базовая цена билета</h5>
+                    <h5 class="card-title">Базовая цена жетона участника</h5>
                     <form method="POST" action="{{ url_for('admin_set_ticket_price') }}">
                         <div class="mb-3">
-                            <label for="price" class="form-label">Цена за 1 билет (₽)</label>
+                            <label for="price" class="form-label">Цена за 1 жетон участника (₽)</label>
                             <input type="number" class="form-control" id="price" name="price" 
                                    value="{{ base_price.price if base_price else '' }}" 
                                    step="0.01" min="0" required>
@@ -35,14 +35,14 @@
                     <h5 class="card-title">Добавить скидку</h5>
                     <form method="POST" action="{{ url_for('admin_add_ticket_discount') }}">
                         <div class="mb-3">
-                            <label for="min_quantity" class="form-label">Минимальное количество билетов</label>
+                            <label for="min_quantity" class="form-label">Минимальное количество жетонов участника</label>
                             <input type="number" class="form-control" id="min_quantity" name="min_quantity" 
-                                   min="1" required>
+                                   min="2" required>
                         </div>
                         <div class="mb-3">
                             <label for="discount" class="form-label">Скидка (%)</label>
                             <input type="number" class="form-control" id="discount" name="discount" 
-                                   min="0" max="100" required>
+                                   min="1" max="99" required>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-plus me-2"></i>Добавить скидку
@@ -61,7 +61,7 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Количество билетов</th>
+                            <th>Количество жетонов участника</th>
                             <th>Скидка</th>
                             <th>Действия</th>
                         </tr>
@@ -69,7 +69,7 @@
                     <tbody>
                         {% for discount in discounts %}
                         <tr>
-                            <td>от {{ discount.min_quantity }}</td>
+                            <td>от {{ discount.min_quantity }} жетонов</td>
                             <td>{{ discount.discount }}%</td>
                             <td>
                                 <form method="POST" action="{{ url_for('admin_delete_ticket_discount', discount_id=discount.id) }}" 

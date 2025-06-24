@@ -3,10 +3,10 @@
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Управление магазином</h1>
+        <h1>Управление лавкой призов</h1>
         <div>
             <a href="{{ url_for('admin_shop_settings') }}" class="btn btn-info me-2">
-                <i class="fas fa-cog me-2"></i>Настройки магазина
+                <i class="fas fa-cog me-2"></i>Настройки лавки призов
             </a>
             <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Назад в панель управления
@@ -15,14 +15,14 @@
     </div>
     
     <div class="row">
-        <!-- Раздел билетов -->
+        <!-- Раздел жетонов участника -->
         <div class="col-md-6 mb-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Управление билетами</h5>
-                    <p class="card-text">Настройка цен и количества билетов для продажи</p>
+                    <h5 class="card-title">Управление жетонами участника</h5>
+                    <p class="card-text">Настройка цен и количества жетонов участника для продажи</p>
                     <a href="{{ url_for('admin_tickets') }}" class="btn btn-primary">
-                        <i class="fas fa-ticket-alt me-2"></i>Управление билетами
+                        <i class="fas fa-ticket-alt me-2"></i>Управление жетонами участника
                     </a>
                 </div>
             </div>
@@ -33,7 +33,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">Управление призами</h5>
-                    <p class="card-text">Настройка призов и их стоимости в билетах</p>
+                    <p class="card-text">Настройка призов и их стоимости в жетонах участника</p>
                     <a href="{{ url_for('admin_prizes') }}" class="btn btn-primary">
                         <i class="fas fa-gift me-2"></i>Управление призами
                     </a>
