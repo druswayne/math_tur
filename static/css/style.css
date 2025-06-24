@@ -563,7 +563,7 @@ footer a:hover i {
 
 .countdown-item {
     text-align: center;
-    min-width: 80px;
+    min-width: 91px;
     background: rgba(255, 255, 255, 0.5);
     padding: 1rem;
     border-radius: var(--border-radius);
@@ -652,13 +652,14 @@ footer a:hover i {
     }
 
     .countdown-item {
-        min-width: 45px;
+
+        min-width: 60px;
         padding: 0.25rem;
         margin: 0;
     }
 
     .countdown-number {
-        font-size: 1.2rem;
+        font-size: 2rem;
         margin-bottom: 0.15rem;
     }
 
@@ -982,22 +983,9 @@ main {
     gap: 1rem;
 }
 
-.countdown-item {
-    text-align: center;
-    min-width: 60px;
-}
 
-.countdown-number {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #000;
-}
 
-.countdown-label {
-    font-size: 0.875rem;
-    color: #000;
-    text-transform: uppercase;
-}
+
 
 /* Стили для предупреждений */
 .alert-info {

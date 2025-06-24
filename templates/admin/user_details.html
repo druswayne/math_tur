@@ -18,8 +18,9 @@
                     <p><strong>Email:</strong> {{ user.email }}</p>
                     <p><strong>Телефон:</strong> {{ user.phone or 'Не указан' }}</p>
                     <p><strong>Группа:</strong> {{ user.category }}</p>
-                    <p><strong>Жетоны участника:</strong> {{ user.tickets }}</p>
+                    <p><strong>Жетоны:</strong> {{ user.tickets }}</p>
                     <p><strong>Баланс:</strong> {{ user.balance }}</p>
+                    <p><strong>Место в категории:</strong> {{ user.category_rank }}</p>
                     <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
                     <p><strong>Статус:</strong> 
                         {% if user.is_active %}
@@ -37,7 +38,7 @@
                 </div>
                 <div class="col-md-6">
                     <h5>Статистика</h5>
-                    <p><strong>Всего куплено жетонов участника:</strong> {{ total_tickets_purchased }}</p>
+                    <p><strong>Всего куплено жетонов:</strong> {{ total_tickets_purchased }}</p>
                     <p><strong>Участий в турнирах:</strong> {{ total_tournaments_participated }}</p>
                     <p><strong>Побед в турнирах:</strong> {{ total_tournaments_won }}</p>
                     <p><strong>Средний балл за турнир:</strong> {{ average_tournament_score }}</p>
@@ -48,7 +49,7 @@
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header">
-                            <h5 class="mb-0">История покупки жетонов участника</h5>
+                            <h5 class="mb-0">История покупки жетонов</h5>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">

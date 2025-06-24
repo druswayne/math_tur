@@ -236,7 +236,7 @@
                         <input type="password" class="form-control" id="password{{ user.id }}" name="password">
                     </div>
                     <div class="mb-3">
-                        <label for="tickets{{ user.id }}" class="form-label">Количество жетонов участника</label>
+                        <label for="tickets{{ user.id }}" class="form-label">Количество жетонов</label>
                         <input type="number" class="form-control" id="tickets{{ user.id }}" name="tickets" value="{{ user.tickets }}" min="0" required>
                     </div>
                     <div class="mb-3">
@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <input type="password" class="form-control" id="password${user.id}" name="password">
                                 </div>
                                 <div class="mb-3">
-                                    <label for="tickets${user.id}" class="form-label">Количество жетонов участника</label>
+                                    <label for="tickets${user.id}" class="form-label">Количество жетонов</label>
                                     <input type="number" class="form-control" id="tickets${user.id}" name="tickets" value="${user.tickets || 0}" min="0">
                                     <small class="form-text text-muted">Укажите новое количество жетонов для пользователя</small>
                                 </div>

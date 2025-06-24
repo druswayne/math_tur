@@ -9,10 +9,10 @@
         </a>
     </div>
 
-    <!-- Покупки жетонов участника -->
+    <!-- Покупки жетонов -->
     <div class="card mb-4">
         <div class="card-header">
-            <h4 class="mb-0">История покупки жетонов участника</h4>
+            <h4 class="mb-0">История покупки жетонов</h4>
         </div>
         <div class="card-body">
             <div class="ticket-history-container">
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentTicketPage = 1;
     let currentPrizePage = 1;
 
-    // Функция для загрузки дополнительных жетонов участника
+    // Функция для загрузки дополнительных жетонов
     async function loadMoreTickets() {
         if (isLoadingTickets) return;
         isLoadingTickets = true;
@@ -278,8 +278,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentTicketPage++;
             }
         } catch (error) {
-            console.error('Ошибка при загрузке жетонов участника:', error);
-            showNotification('Произошла ошибка при загрузке жетонов участника', 'danger');
+            console.error('Ошибка при загрузке жетонов:', error);
+            showNotification('Произошла ошибка при загрузке жетонов', 'danger');
         } finally {
             isLoadingTickets = false;
         }

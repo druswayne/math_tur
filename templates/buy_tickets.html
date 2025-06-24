@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Покупка жетонов участника</h1>
+        <h1>Покупка жетонов</h1>
         <a href="{{ url_for('profile') }}" class="btn btn-secondary">
             <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
         </a>
@@ -13,10 +13,10 @@
         <div class="col-md-8">
             <div class="card mb-4">
                 <div class="card-body">
-                    <h5 class="card-title">Выберите количество жетонов участника</h5>
+                    <h5 class="card-title">Выберите количество жетонов</h5>
                     <form id="purchaseForm" method="POST" action="{{ url_for('process_ticket_purchase') }}">
                         <div class="mb-3">
-                            <label for="quantity" class="form-label">Количество жетонов участника</label>
+                            <label for="quantity" class="form-label">Количество жетонов</label>
                             <input type="number" class="form-control" id="quantity" name="quantity" 
                                    min="1" required onchange="updatePrice()">
                         </div>
@@ -25,7 +25,7 @@
                         <div class="mb-3">
                             <h6>Информация о скидках:</h6>
                             <div id="discountInfo" class="alert alert-info">
-                                Выберите количество жетонов участника, чтобы увидеть доступную скидку
+                                Выберите количество жетонов, чтобы увидеть доступную скидку
                             </div>
                         </div>
                         {% endif %}
@@ -39,12 +39,12 @@
                 <div class="card-body">
                     <h5 class="card-title">Ваш заказ</h5>
                     <div class="mb-3">
-                        <label class="form-label">Количество жетонов участника</label>
+                        <label class="form-label">Количество жетонов</label>
                         <p id="selectedQuantity" class="form-text">-</p>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Базовая цена</label>
-                        <p id="basePrice" class="form-text">{{ base_price.price }} ₽ за жетон участника</p>
+                        <p id="basePrice" class="form-text">{{ base_price.price }} ₽ за жетон</p>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Скидка</label>
@@ -88,9 +88,9 @@ function updatePrice() {
             const nextDiscount = getNextDiscount(quantity);
             if (nextDiscount) {
                 if (maxDiscount > 0) {
-                    discountInfo.textContent = `Ваша скидка: ${maxDiscount}%. Добавьте еще ${nextDiscount.min_quantity - quantity} жетонов участника для получения скидки ${nextDiscount.discount}%`;
+                    discountInfo.textContent = `Ваша скидка: ${maxDiscount}%. Добавьте еще ${nextDiscount.min_quantity - quantity} жетонов для получения скидки ${nextDiscount.discount}%`;
                 } else {
-                    discountInfo.textContent = `Добавьте еще ${nextDiscount.min_quantity - quantity} жетонов участника для получения скидки ${nextDiscount.discount}%`;
+                    discountInfo.textContent = `Добавьте еще ${nextDiscount.min_quantity - quantity} жетонов для получения скидки ${nextDiscount.discount}%`;
                 }
             } else {
                 discountInfo.textContent = `Ваша максимальная скидка: ${maxDiscount}%`;
@@ -102,7 +102,7 @@ function updatePrice() {
         document.getElementById('discount').textContent = '0%';
         document.getElementById('totalPrice').textContent = '-';
         if (discountInfo) {
-            discountInfo.textContent = 'Выберите количество жетонов участника, чтобы увидеть доступную скидку';
+            discountInfo.textContent = 'Выберите количество жетонов, чтобы увидеть доступную скидку';
         }
     }
 }
