@@ -30,10 +30,11 @@ import uuid
 import json
 import hashlib
 import smtplib
-
+from dotenv import load_dotenv
+load_dotenv()
 # Переменная окружения для уникального идентификатора сервера
 # В продакшене должна быть установлена в .env файле
-SERVER_ID = os.environ.get('SERVER_ID', 'default_server_001')
+SERVER_ID = os.environ.get('SERVER_ID')
 
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
@@ -42,9 +43,9 @@ thread_pool = ThreadPoolExecutor(max_workers=CPU_COUNT * 2)
 
 app = Flask(__name__)
 #app.config['SECRET_KEY'] = os.urandom(32).hex()
-app.config['SECRET_KEY'] = '1234'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://gen_user:qNCkZjwz12@94.228.115.69:5432/school_tournaments?client_encoding=utf8'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 200,  # Базовый размер пула для 2000 пользователей
@@ -66,8 +67,8 @@ app.config['THREAD_POOL_SIZE'] = CPU_COUNT * 2
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'mazaxak2@gmail.com'
-app.config['MAIL_PASSWORD'] = 'qqwaijdvsxozzbys'
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
 app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
