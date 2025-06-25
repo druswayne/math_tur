@@ -24,7 +24,16 @@ import platform
 import re
 import atexit
 import signal
+import subprocess
+import socket
+import uuid
+import json
+import hashlib
+import smtplib
 
+# Переменная окружения для уникального идентификатора сервера
+# В продакшене должна быть установлена в .env файле
+SERVER_ID = os.environ.get('SERVER_ID', 'default_server_001')
 
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
@@ -132,7 +141,7 @@ def get_db():
     return thread_local.db
 
 def update_tournament_status():
-    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
+    now = datetime.now()  # Московское время
     tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
     
     for tournament in tournaments:
@@ -143,35 +152,7 @@ def update_tournament_status():
     
     db.session.commit()
 
-def restore_scheduler_jobs():
-    """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
-    # Получаем все активные турниры
-    active_tournaments = Tournament.query.filter_by(is_active=True).all()
-    
-    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
-    restored_jobs = 0
-    
-    for tournament in active_tournaments:
-        # Если турнир еще не начался
-        if tournament.start_date > now:
-            add_scheduler_job(start_tournament_job, tournament.start_date, tournament.id, 'start')
-            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-            add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
-            restored_jobs += 2
-            
-        # Если турнир уже идет
-        elif tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
-            tournament.status = 'started'
-            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-            add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
-            restored_jobs += 1
-            
-        # Если турнир уже должен был закончиться
-        else:
-            tournament.status = 'finished'
-            tournament.is_active = False
-    
-    db.session.commit()
+
 
 def cleanup_scheduler_jobs():
     """Очищает все задачи планировщика перед восстановлением"""
@@ -235,7 +216,7 @@ def update_user_activity_async(user_id):
         with app.app_context():
             user = User.query.get(user_id)
             if user:
-                user.last_activity = datetime.utcnow()
+                user.last_activity = datetime.now()
                 db.session.commit()
     return run_in_thread(_update)
 
@@ -246,8 +227,17 @@ def start_tournament_job(tournament_id):
             if tournament:
                 tournament.status = 'started'
                 db.session.commit()
+                
+                # Удаляем запись о задаче из БД после выполнения
+                job_id = f'start_tournament_{tournament_id}'
+                scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
+                if scheduler_job:
+                    db.session.delete(scheduler_job)
+                    db.session.commit()
+                    
     except Exception as e:
-        pass
+        db.session.rollback()
+        print(f"Ошибка в start_tournament_job: {e}")
 
 def update_global_ranks():
     """Обновляет места пользователей в общей таблице на основе их баланса"""
@@ -274,7 +264,7 @@ def end_tournament_job(tournament_id):
                 # Обновляем места участников в турнире
                 participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
                 
-                current_time = datetime.utcnow() + timedelta(hours=3)
+                current_time = datetime.now()
                 
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
@@ -284,34 +274,83 @@ def end_tournament_job(tournament_id):
                 update_category_ranks()
                 
                 db.session.commit()
+                
+                # Удаляем запись о задаче из БД после выполнения
+                job_id = f'end_tournament_{tournament_id}'
+                scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
+                if scheduler_job:
+                    db.session.delete(scheduler_job)
+                    db.session.commit()
+                    
     except Exception as e:
         db.session.rollback()
+        print(f"Ошибка в end_tournament_job: {e}")
 
-def add_scheduler_job(job_func, run_date, tournament_id, job_type):
-    """Добавляет задачу в планировщик"""
-    job_id = f'{job_type}_tournament_{tournament_id}'
-    tournament = Tournament.query.get(tournament_id)
+def add_scheduler_job(job_func, run_date, tournament_id, job_type, interval_hours=None):
+    """Добавляет задачу в планировщик и сохраняет информацию в БД"""
+    job_id = f'{job_type}_tournament_{tournament_id}' if tournament_id else f'{job_type}'
     
     try:
-        scheduler.add_job(
-            job_func,
-            trigger=DateTrigger(run_date=run_date),
-            args=[tournament_id],
-            id=job_id,
-            replace_existing=True
+        # Проверяем, не существует ли уже такая задача в БД
+        existing_job = SchedulerJob.query.filter_by(job_id=job_id).first()
+        if existing_job:
+            # Задача уже существует, не добавляем дубликат
+            return False
+        
+        if interval_hours:
+            # Интервальная задача (например, очистка сессий)
+            scheduler.add_job(
+                job_func,
+                trigger='interval',
+                hours=interval_hours,
+                id=job_id,
+                replace_existing=True
+            )
+        else:
+            # Обычная задача с конкретным временем выполнения
+            scheduler.add_job(
+                job_func,
+                trigger=DateTrigger(run_date=run_date),
+                args=[tournament_id] if tournament_id else [],
+                id=job_id,
+                replace_existing=True
+            )
+        
+        # Сохраняем информацию о задаче в БД
+        scheduler_job = SchedulerJob(
+            job_id=job_id,
+            job_type=job_type,
+            tournament_id=tournament_id,
+            run_date=run_date,
+            is_active=True,
+            server_id=SERVER_ID
         )
+        db.session.add(scheduler_job)
+        db.session.commit()
+        
+        return True
     except Exception as e:
-        pass
+        db.session.rollback()
+        print(f"Ошибка при добавлении задачи в планировщик: {e}")
+        return False
 
 def remove_scheduler_job(tournament_id, job_type):
-    """Удаляет задачу из планировщика"""
+    """Удаляет задачу из планировщика и БД"""
     job_id = f'{job_type}_tournament_{tournament_id}'
-    tournament = Tournament.query.get(tournament_id)
     
     try:
+        # Удаляем задачу из планировщика
         scheduler.remove_job(job_id)
+        
+        # Удаляем запись из БД
+        scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
+        if scheduler_job:
+            db.session.delete(scheduler_job)
+            db.session.commit()
+            
     except Exception as e:
-        pass
+        db.session.rollback()
+        print(f"Ошибка при удалении задачи из планировщика: {e}")
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -610,7 +649,7 @@ def send_credentials_email(user, password):
 def send_reset_password_email(user):
     token = secrets.token_urlsafe(32)
     user.reset_password_token = token
-    user.reset_password_token_expires = datetime.utcnow() + timedelta(hours=1)
+    user.reset_password_token_expires = datetime.now() + timedelta(hours=1)
     db.session.commit()
     
     msg = Message('Сброс пароля',
@@ -645,7 +684,7 @@ def forgot_password():
 def reset_password(token):
     user = User.query.filter_by(reset_password_token=token).first()
     
-    if not user or not user.reset_password_token_expires or user.reset_password_token_expires < datetime.utcnow():
+    if not user or not user.reset_password_token_expires or user.reset_password_token_expires < datetime.now():
         flash('Недействительная или устаревшая ссылка для сброса пароля', 'danger')
         return redirect(url_for('login'))
     
@@ -686,7 +725,7 @@ def home():
     settings = TournamentSettings.get_settings()
     if settings.is_season_active:
         # Получаем текущее время
-        current_time = datetime.utcnow() + timedelta(hours=3)
+        current_time = datetime.now()
         
         # Сначала ищем текущий активный турнир
         active_tournaments = Tournament.query.filter(
@@ -806,7 +845,7 @@ def login():
     # Проверяем, не заблокирован ли вход
     if is_login_blocked():
         blocked_until = datetime.fromtimestamp(float(request.cookies.get(LOGIN_BLOCKED_UNTIL_COOKIE)))
-        remaining_time = blocked_until - datetime.utcnow()
+        remaining_time = blocked_until - datetime.now()
         minutes = int(remaining_time.total_seconds() / 60)
         flash(f'Слишком много неудачных попыток входа. Попробуйте снова через {minutes} минут.', 'error')
         return render_template('login.html')
@@ -844,7 +883,7 @@ def login():
             session.permanent = True
             
             login_user(user)
-            user.last_login = datetime.utcnow()
+            user.last_login = datetime.now()
             db.session.commit()
             
             flash('Вы успешно вошли в систему!', 'success')
@@ -1141,7 +1180,7 @@ def generate_unique_filename(filename):
     # Получаем расширение файла
     ext = os.path.splitext(filename)[1]
     # Генерируем уникальное имя с использованием timestamp и случайной строки
-    unique_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(8)}{ext}"
+    unique_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secrets.token_hex(8)}{ext}"
     return unique_name
 
 @app.route('/admin/tournaments/add', methods=['POST'])
@@ -1224,7 +1263,7 @@ def admin_activate_tournament(tournament_id):
         return redirect(url_for('admin_tournaments'))
     
     # Проверяем, не начался ли уже турнир
-    if tournament.start_date <= datetime.utcnow():
+    if tournament.start_date <= datetime.now():
         flash('Нельзя активировать турнир, который уже должен был начаться', 'danger')
         return redirect(url_for('admin_tournaments'))
     
@@ -1833,7 +1872,7 @@ def profile():
         return redirect(url_for('admin_dashboard'))
     
     # Получаем текущее время
-    current_time = datetime.utcnow() + timedelta(hours=3)
+    current_time = datetime.now()
     
     # Сначала ищем будущие турниры
     next_tournament = Tournament.query.filter(
@@ -2159,7 +2198,7 @@ def admin_user_details(user_id):
                          tournament_participations=tournament_participations)
 
 def update_tournament_status():
-    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
+    now = datetime.now()  # Московское время
     tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
     
     for tournament in tournaments:
@@ -2171,34 +2210,73 @@ def update_tournament_status():
     db.session.commit()
 
 def restore_scheduler_jobs():
-    """Восстанавливает задачи планировщика для активных турниров при запуске приложения"""
-    # Получаем все активные турниры
-    active_tournaments = Tournament.query.filter_by(is_active=True).all()
-    
-    now = datetime.utcnow() + timedelta(hours=3)  # Московское время
-    restored_jobs = 0
-    
-    for tournament in active_tournaments:
-        # Если турнир еще не начался
-        if tournament.start_date > now:
-            add_scheduler_job(start_tournament_job, tournament.start_date, tournament.id, 'start')
-            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-            add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
-            restored_jobs += 2
-            
-        # Если турнир уже идет
-        elif tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
-            tournament.status = 'started'
-            end_time = tournament.start_date + timedelta(minutes=tournament.duration)
-            add_scheduler_job(end_tournament_job, end_time, tournament.id, 'end')
-            restored_jobs += 1
-            
-        # Если турнир уже должен был закончиться
-        else:
-            tournament.status = 'finished'
-            tournament.is_active = False
-    
-    db.session.commit()
+    """Восстанавливает задачи планировщика из БД при запуске приложения"""
+    try:
+        # Получаем только задачи текущего сервера
+        active_jobs = SchedulerJob.query.filter_by(
+            is_active=True, 
+            server_id=SERVER_ID
+        ).all()
+        restored_count = 0
+        
+        for job in active_jobs:
+            try:
+                # Определяем функцию и аргументы в зависимости от типа задачи
+                if job.job_type == 'start':
+                    job_func = start_tournament_job
+                    args = [job.tournament_id]
+                    interval_hours = None
+                elif job.job_type == 'end':
+                    job_func = end_tournament_job
+                    args = [job.tournament_id]
+                    interval_hours = None
+                elif job.job_type == 'cleanup_sessions':
+                    job_func = cleanup_old_sessions
+                    args = []
+                    interval_hours = 24  # Интервальная задача каждые 24 часа
+                else:
+                    # Неизвестный тип задачи, пропускаем
+                    continue
+                
+                # Проверяем, не истекло ли время выполнения (только для обычных задач)
+                if interval_hours is None and job.run_date <= datetime.now():
+                    # Время истекло, удаляем задачу из БД
+                    db.session.delete(job)
+                    db.session.commit()
+                    continue
+                
+                # Добавляем задачу в планировщик
+                if interval_hours:
+                    # Интервальная задача
+                    scheduler.add_job(
+                        job_func,
+                        trigger='interval',
+                        hours=interval_hours,
+                        id=job.job_id,
+                        replace_existing=True
+                    )
+                else:
+                    # Обычная задача
+                    scheduler.add_job(
+                        job_func,
+                        trigger=DateTrigger(run_date=job.run_date),
+                        args=args,
+                        id=job.job_id,
+                        replace_existing=True
+                    )
+                
+                restored_count += 1
+                
+            except Exception as e:
+                print(f"Ошибка при восстановлении задачи {job.job_id}: {e}")
+                # Удаляем проблемную задачу из БД
+                db.session.delete(job)
+                db.session.commit()
+        
+        print(f"Восстановлено {restored_count} задач планировщика для сервера {SERVER_ID}")
+        
+    except Exception as e:
+        print(f"Ошибка при восстановлении задач планировщика: {e}")
 
 def cleanup_scheduler_jobs():
     """Очищает все задачи планировщика перед восстановлением"""
@@ -2218,7 +2296,7 @@ def tournament_task(tournament_id):
         return redirect(url_for('home'))
     
     # Проверяем, что турнир еще не закончился
-    if datetime.utcnow() > tournament.start_date + timedelta(minutes=tournament.duration):
+    if datetime.now() > tournament.start_date + timedelta(minutes=tournament.duration):
         flash('Турнир уже закончился', 'warning')
         return redirect(url_for('home'))
     
@@ -3206,8 +3284,18 @@ def admin_delete_news(news_id):
 @app.before_first_request
 def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
-    User.query.update({User.session_token: None})
-    db.session.commit()
+    cleanup_all_sessions()
+    
+    # Добавляем задачу очистки сессий (только на одном сервере)
+    add_scheduler_job(
+        cleanup_old_sessions,
+        datetime.now() + timedelta(hours=24),  # run_date не используется для interval
+        None,
+        'cleanup_sessions',
+        interval_hours=24  # Интервальная задача каждые 24 часа
+    )
+    
+
 
 @app.route('/change-password', methods=['POST'])
 @login_required
@@ -3411,7 +3499,7 @@ class UserSession(db.Model):
     user = db.relationship('User', backref=db.backref('sessions', lazy=True))
 
     def update_last_active(self):
-        self.last_active = datetime.utcnow()
+        self.last_active = datetime.now()
         db.session.commit()
 
 class News(db.Model):
@@ -3440,6 +3528,22 @@ class NewsImage(db.Model):
     is_main = db.Column(db.Boolean, default=False)  # Главное изображение
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+class SchedulerJob(db.Model):
+    __tablename__ = "scheduler_jobs"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    job_id = db.Column(db.String(100), unique=True, nullable=False, index=True)  # Уникальный ID задачи
+    job_type = db.Column(db.String(50), nullable=False)  # Тип задачи (start_tournament, end_tournament, cleanup_sessions)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id'), nullable=True)  # ID турнира (если применимо)
+    run_date = db.Column(db.DateTime, nullable=False)  # Время выполнения
+    is_active = db.Column(db.Boolean, default=True)  # Активна ли задача
+    server_id = db.Column(db.String(100), nullable=False, index=True)  # Уникальный ID сервера
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Связь с турниром (если задача связана с турниром)
+    tournament = db.relationship('Tournament', backref=db.backref('scheduler_jobs', lazy=True))
+
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
     try:
@@ -3467,23 +3571,27 @@ def cleanup_old_sessions():
     """Удаляет устаревшие сессии из базы данных"""
     try:
         # Удаляем сессии старше 1 недели
-        one_week_ago = datetime.utcnow() - timedelta(days=7)
+        one_week_ago = datetime.now() - timedelta(days=7)
         UserSession.query.filter(
             UserSession.created_at < one_week_ago,
             UserSession.is_active == False
         ).delete()
         db.session.commit()
+        
+        # НЕ удаляем запись о задаче из БД, так как это интервальная задача
+        # которая должна выполняться каждые 24 часа
+        
     except Exception as e:
+        db.session.rollback()
         print(f"Ошибка при очистке устаревших сессий: {e}")
 
 # Настраиваем периодическую очистку сессий
-scheduler.add_job(
-    func=cleanup_old_sessions,
-    trigger='interval',
-    hours=24,  # Запуск раз в сутки
-    id='cleanup_sessions',
-    replace_existing=True
-)
+#add_scheduler_job(
+#    cleanup_old_sessions,
+#    datetime.now() + timedelta(hours=24),  # Первый запуск через 24 часа
+#    None,
+#    'cleanup_sessions'
+#)
 
 # Константы для защиты от брутфорса
 MAX_LOGIN_ATTEMPTS = 5  # Максимальное количество попыток
@@ -3540,7 +3648,7 @@ def is_login_blocked():
     if blocked_until:
         try:
             blocked_time = datetime.fromtimestamp(float(blocked_until))
-            if datetime.utcnow() < blocked_time:
+            if datetime.now() < blocked_time:
                 return True
         except (ValueError, TypeError):
             pass
@@ -3548,7 +3656,7 @@ def is_login_blocked():
 
 def block_login():
     """Блокирует вход на определенное время"""
-    blocked_until = datetime.utcnow() + timedelta(seconds=LOGIN_TIMEOUT)
+    blocked_until = datetime.now() + timedelta(seconds=LOGIN_TIMEOUT)
     response = make_response(redirect(url_for('login')))
     response.set_cookie(
         LOGIN_BLOCKED_UNTIL_COOKIE,
@@ -3644,11 +3752,36 @@ def inject_s3_utils():
         'get_s3_url': get_s3_url
     }
 
+
+
+def cleanup_other_servers_jobs():
+    """Удаляет задачи других серверов, которые могли остаться после перезапуска"""
+    try:
+        # Удаляем задачи других серверов, которые старше 1 часа
+        one_hour_ago = datetime.now() - timedelta(hours=1)
+        other_servers_jobs = SchedulerJob.query.filter(
+            SchedulerJob.server_id != SERVER_ID,
+            SchedulerJob.created_at < one_hour_ago
+        ).all()
+        
+        for job in other_servers_jobs:
+            db.session.delete(job)
+        
+        if other_servers_jobs:
+            db.session.commit()
+            print(f"Удалено {len(other_servers_jobs)} задач других серверов")
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при очистке задач других серверов: {e}")
+
+
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         create_admin_user()
-        #cleanup_scheduler_jobs()
         # Очищаем все сессии при запуске
         cleanup_all_sessions()
-    app.run(host='0.0.0.0', port=8000,  debug=False)
+        restore_scheduler_jobs()
+    app.run(host='0.0.0.0', port=8000, debug=False)
