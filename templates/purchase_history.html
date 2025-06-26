@@ -15,7 +15,8 @@
             <h4 class="mb-0">История покупки жетонов</h4>
         </div>
         <div class="card-body">
-            <div class="ticket-history-container">
+            {% if ticket_purchases.items %}
+            <div class="table-responsive">
                 <table class="table table-hover" id="ticketTable">
                     <thead>
                         <tr>
@@ -30,13 +31,82 @@
                         <tr>
                             <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>{{ purchase.quantity }}</td>
-                            <td>{{ "%.2f"|format(purchase.amount) }} ₽</td>
+                            <td>{{ "%.2f"|format(purchase.amount) }} BYN</td>
                             <td>{{ purchase.discount }}%</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Пагинация для покупок жетонов -->
+            {% if ticket_purchases.pages > 1 %}
+            <nav aria-label="Навигация по страницам покупок жетонов" class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <!-- Кнопка "Предыдущая" -->
+                    {% if ticket_purchases.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('purchase_history', ticket_page=ticket_purchases.prev_num, prize_page=prize_purchases.page) }}">
+                            <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                        </span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Номера страниц -->
+                    {% for page_num in ticket_purchases.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+                        {% if page_num %}
+                            {% if page_num != ticket_purchases.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('purchase_history', ticket_page=page_num, prize_page=prize_purchases.page) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled d-none d-md-block">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Кнопка "Следующая" -->
+                    {% if ticket_purchases.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('purchase_history', ticket_page=ticket_purchases.next_num, prize_page=prize_purchases.page) }}">
+                            <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                        </span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            
+            <!-- Информация о страницах -->
+            <div class="text-center text-muted mt-3">
+                <small>
+                    Страница {{ ticket_purchases.page }} из {{ ticket_purchases.pages }} 
+                    (всего {{ ticket_purchases.total }} покупок)
+                </small>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок жетонов
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -47,7 +117,7 @@
         </div>
         <div class="card-body">
             {% if prize_purchases.items %}
-            <div class="prize-history-container">
+            <div class="table-responsive">
                 <table class="table table-hover" id="prizeTable">
                     <thead>
                         <tr>
@@ -108,6 +178,70 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Пагинация для покупок призов -->
+            {% if prize_purchases.pages > 1 %}
+            <nav aria-label="Навигация по страницам покупок призов" class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <!-- Кнопка "Предыдущая" -->
+                    {% if prize_purchases.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('purchase_history', ticket_page=ticket_purchases.page, prize_page=prize_purchases.prev_num) }}">
+                            <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                        </span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Номера страниц -->
+                    {% for page_num in prize_purchases.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+                        {% if page_num %}
+                            {% if page_num != prize_purchases.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('purchase_history', ticket_page=ticket_purchases.page, prize_page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled d-none d-md-block">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Кнопка "Следующая" -->
+                    {% if prize_purchases.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('purchase_history', ticket_page=ticket_purchases.page, prize_page=prize_purchases.next_num) }}">
+                            <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                        </span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            
+            <!-- Информация о страницах -->
+            <div class="text-center text-muted mt-3">
+                <small>
+                    Страница {{ prize_purchases.page }} из {{ prize_purchases.pages }} 
+                    (всего {{ prize_purchases.total }} покупок)
+                </small>
+            </div>
+            {% endif %}
             {% else %}
             <div class="alert alert-info">
                 <i class="fas fa-info-circle me-2"></i>У вас пока нет покупок призов
@@ -250,85 +384,5 @@ function showNotification(message, type = 'info') {
         setTimeout(() => messageDiv.remove(), 500);
     }, 5000);
 }
-
-// Добавляем новый код для бесконечного скроллинга
-document.addEventListener('DOMContentLoaded', function() {
-    const ticketTable = document.getElementById('ticketTable');
-    const prizeTable = document.getElementById('prizeTable');
-    let isLoadingTickets = false;
-    let isLoadingPrizes = false;
-    let currentTicketPage = 1;
-    let currentPrizePage = 1;
-
-    // Функция для загрузки дополнительных жетонов
-    async function loadMoreTickets() {
-        if (isLoadingTickets) return;
-        isLoadingTickets = true;
-
-        try {
-            const response = await fetch(`/purchase-history?ticket_page=${currentTicketPage + 1}`);
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            const newRows = doc.querySelectorAll('#ticketTable tbody tr');
-            if (newRows.length > 0) {
-                const tbody = ticketTable.querySelector('tbody');
-                newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
-                currentTicketPage++;
-            }
-        } catch (error) {
-            console.error('Ошибка при загрузке жетонов:', error);
-            showNotification('Произошла ошибка при загрузке жетонов', 'danger');
-        } finally {
-            isLoadingTickets = false;
-        }
-    }
-
-    // Функция для загрузки дополнительных товаров
-    async function loadMorePrizes() {
-        if (isLoadingPrizes) return;
-        isLoadingPrizes = true;
-
-        try {
-            const response = await fetch(`/purchase-history?prize_page=${currentPrizePage + 1}`);
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            
-            const newRows = doc.querySelectorAll('#prizeTable tbody tr');
-            if (newRows.length > 0) {
-                const tbody = prizeTable.querySelector('tbody');
-                newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
-                currentPrizePage++;
-            }
-        } catch (error) {
-            console.error('Ошибка при загрузке товаров:', error);
-            showNotification('Произошла ошибка при загрузке товаров', 'danger');
-        } finally {
-            isLoadingPrizes = false;
-        }
-    }
-
-    // Добавляем бесконечный скроллинг
-    const ticketContainer = document.querySelector('.ticket-history-container');
-    const prizeContainer = document.querySelector('.prize-history-container');
-
-    if (ticketContainer) {
-        ticketContainer.addEventListener('scroll', function() {
-            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 100) {
-                loadMoreTickets();
-            }
-        });
-    }
-
-    if (prizeContainer) {
-        prizeContainer.addEventListener('scroll', function() {
-            if (this.scrollTop + this.clientHeight >= this.scrollHeight - 100) {
-                loadMorePrizes();
-            }
-        });
-    }
-});
 </script>
 {% endblock %} 

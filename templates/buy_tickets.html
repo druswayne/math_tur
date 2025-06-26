@@ -44,7 +44,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Базовая цена</label>
-                        <p id="basePrice" class="form-text">{{ base_price.price }} ₽ за жетон</p>
+                        <p id="basePrice" class="form-text">{{ base_price.price }} BYN за жетон</p>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Скидка</label>
@@ -81,7 +81,7 @@ function updatePrice() {
         
         // Обновляем отображение скидки и цены
         document.getElementById('discount').textContent = maxDiscount + '%';
-        document.getElementById('totalPrice').textContent = totalPrice.toFixed(2) + ' ₽';
+        document.getElementById('totalPrice').textContent = totalPrice.toFixed(2) + ' BYN';
         
         // Обновляем информацию о скидках
         if (discountInfo) {

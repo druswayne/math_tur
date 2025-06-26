@@ -15,16 +15,22 @@
                 <div class="card-body">
                     <h5 class="card-title">Базовая цена жетона участника</h5>
                     <form method="POST" action="{{ url_for('admin_set_ticket_price') }}">
-                        <div class="mb-3">
-                            <label for="price" class="form-label">Цена за 1 жетон (₽)</label>
-                            <input type="number" class="form-control" id="price" name="price" 
-                                   value="{{ base_price.price if base_price else '' }}" 
-                                   step="0.01" min="0" required>
-                        </div>
-                        <div class="col-md-6 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Сохранить цену
-                            </button>
+                        <div class="row align-items-end">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="price" class="form-label">Цена за 1 жетон (BYN)</label>
+                                    <input type="number" class="form-control" id="price" name="price" 
+                                           value="{{ base_price.price if base_price else '' }}" 
+                                           step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-save me-2"></i>Сохранить цену
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -36,7 +42,7 @@
                 <div class="card-body">
                     <h5 class="card-title">Добавить скидку</h5>
                     <form method="POST" action="{{ url_for('admin_add_ticket_discount') }}" class="mb-4">
-                        <div class="row">
+                        <div class="row align-items-end">
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label for="min_quantity" class="form-label">Минимальное количество жетонов</label>
@@ -51,10 +57,12 @@
                                            min="1" max="99" required>
                                 </div>
                             </div>
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="submit" class="btn btn-success">
-                                    <i class="fas fa-plus me-2"></i>Добавить скидку
-                                </button>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="fas fa-plus me-2"></i>Добавить скидку
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>

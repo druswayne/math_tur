@@ -1984,7 +1984,7 @@ def process_ticket_purchase():
     db.session.add(purchase)
     db.session.commit()
     
-    flash(f'Успешно куплено {quantity} билетов', 'success')
+    flash(f'Успешно куплено {quantity} жетонов', 'success')
     return redirect(url_for('profile'))
 
 @app.route('/purchase-history')
