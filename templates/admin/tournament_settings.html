@@ -30,6 +30,19 @@
                 </div>
 
                 <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="allow_category_change" name="allow_category_change" 
+                               {% if settings.allow_category_change %}checked{% endif %}>
+                        <label class="form-check-label" for="allow_category_change">
+                            <h5 class="mb-0">Разрешить пользователям изменять группу</h5>
+                        </label>
+                    </div>
+                    <div class="form-text">
+                        Когда отключено, пользователи не смогут изменять свою группу в личном кабинете
+                    </div>
+                </div>
+
+                <div class="mb-4">
                     <label for="closed_season_message" class="form-label">
                         <h5>Сообщение для закрытого сезона</h5>
                     </label>

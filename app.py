@@ -593,6 +593,7 @@ class ShopSettings(db.Model):
 class TournamentSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_season_active = db.Column(db.Boolean, default=True)
+    allow_category_change = db.Column(db.Boolean, default=True)  # Разрешить изменение группы
     closed_season_message = db.Column(db.Text, nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -3145,6 +3146,7 @@ def tournament_settings():
     
     if request.method == 'POST':
         settings.is_season_active = 'is_season_active' in request.form
+        settings.allow_category_change = 'allow_category_change' in request.form
         settings.closed_season_message = request.form.get('closed_season_message', '')
         db.session.commit()
         flash('Настройки турниров обновлены', 'success')
@@ -3448,7 +3450,11 @@ def update_profile():
     # Проверяем статус сезона
     settings = TournamentSettings.get_settings()
     if settings.is_season_active and category != current_user.category:
-        return jsonify({'success': False, 'message': 'Изменение группы недоступно во время активного сезона'})
+        if not settings.allow_category_change:
+            if not settings.allow_category_change:
+                return jsonify({'success': False, 'message': 'Изменение группы временно недоступно'})
+            else:
+                return jsonify({'success': False, 'message': 'Изменение группы недоступно во время активного сезона'})
     
     try:
         # Обновляем данные пользователя
