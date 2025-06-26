@@ -1496,10 +1496,21 @@ def admin_prizes():
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
-    prizes = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).all()
+    # Получаем номер страницы из параметров запроса
+    page = request.args.get('page', 1, type=int)
+    per_page = 12  # Количество призов на странице (3x4 сетка)
+    
+    # Получаем активные призы с пагинацией, отсортированные по стоимости
+    pagination = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    prizes = pagination.items
+    
     return render_template('admin/prizes.html', 
                          title='Управление призами',
-                         prizes=prizes)
+                         prizes=prizes,
+                         pagination=pagination)
 
 @app.route('/admin/shop/prizes/add', methods=['POST'])
 @login_required

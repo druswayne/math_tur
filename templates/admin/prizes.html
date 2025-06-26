@@ -91,6 +91,70 @@
                 </div>
                 {% endfor %}
             </div>
+            
+            <!-- Пагинация -->
+            {% if pagination.pages > 1 %}
+            <nav aria-label="Навигация по страницам призов" class="mt-4">
+                <ul class="pagination justify-content-center flex-wrap">
+                    <!-- Кнопка "Предыдущая" -->
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin_prizes', page=pagination.prev_num) }}">
+                            <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                        </span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Номера страниц -->
+                    {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+                        {% if page_num %}
+                            {% if page_num != pagination.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('admin_prizes', page=page_num) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="page-item disabled d-none d-md-block">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Кнопка "Следующая" -->
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin_prizes', page=pagination.next_num) }}">
+                            <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">
+                            <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                        </span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            
+            <!-- Информация о страницах -->
+            <div class="text-center text-muted mt-3">
+                <small>
+                    Страница {{ pagination.page }} из {{ pagination.pages }} 
+                    (всего {{ pagination.total }} призов)
+                </small>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
