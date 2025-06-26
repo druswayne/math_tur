@@ -58,38 +58,38 @@
 
             <!-- Кнопки выбора группы (десктоп) -->
             <div class="nav nav-pills mb-4 d-none d-md-flex" id="categoryTabs" role="tablist">
-                <button class="btn btn-outline-primary me-2 active" data-category="1-2" role="tab">1-2 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="3" role="tab">3 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="4" role="tab">4 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="5" role="tab">5 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="6" role="tab">6 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="7" role="tab">7 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="8" role="tab">8 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="9" role="tab">9 класс</button>
-                <button class="btn btn-outline-primary me-2" data-category="10" role="tab">10 класс</button>
-                <button class="btn btn-outline-primary" data-category="11" role="tab">11 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '1-2' %}active{% endif %}" data-category="1-2" role="tab">1-2 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '3' %}active{% endif %}" data-category="3" role="tab">3 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '4' %}active{% endif %}" data-category="4" role="tab">4 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '5' %}active{% endif %}" data-category="5" role="tab">5 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '6' %}active{% endif %}" data-category="6" role="tab">6 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '7' %}active{% endif %}" data-category="7" role="tab">7 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '8' %}active{% endif %}" data-category="8" role="tab">8 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '9' %}active{% endif %}" data-category="9" role="tab">9 класс</button>
+                <button class="btn btn-outline-primary me-2 {% if selected_category == '10' %}active{% endif %}" data-category="10" role="tab">10 класс</button>
+                <button class="btn btn-outline-primary {% if selected_category == '11' %}active{% endif %}" data-category="11" role="tab">11 класс</button>
             </div>
 
             <!-- Выпадающий список (мобильная версия) -->
             <div class="mb-4 d-md-none">
                 <select class="form-select" id="categorySelect">
-                    <option value="1-2">1-2 класс</option>
-                    <option value="3">3 класс</option>
-                    <option value="4">4 класс</option>
-                    <option value="5">5 класс</option>
-                    <option value="6">6 класс</option>
-                    <option value="7">7 класс</option>
-                    <option value="8">8 класс</option>
-                    <option value="9">9 класс</option>
-                    <option value="10">10 класс</option>
-                    <option value="11">11 класс</option>
+                    <option value="1-2" {% if selected_category == '1-2' %}selected{% endif %}>1-2 класс</option>
+                    <option value="3" {% if selected_category == '3' %}selected{% endif %}>3 класс</option>
+                    <option value="4" {% if selected_category == '4' %}selected{% endif %}>4 класс</option>
+                    <option value="5" {% if selected_category == '5' %}selected{% endif %}>5 класс</option>
+                    <option value="6" {% if selected_category == '6' %}selected{% endif %}>6 класс</option>
+                    <option value="7" {% if selected_category == '7' %}selected{% endif %}>7 класс</option>
+                    <option value="8" {% if selected_category == '8' %}selected{% endif %}>8 класс</option>
+                    <option value="9" {% if selected_category == '9' %}selected{% endif %}>9 класс</option>
+                    <option value="10" {% if selected_category == '10' %}selected{% endif %}>10 класс</option>
+                    <option value="11" {% if selected_category == '11' %}selected{% endif %}>11 класс</option>
                 </select>
             </div>
 
             <!-- Таблицы для каждой группы -->
             <div class="tab-content">
                 {% for category in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11'] %}
-                <div class="tab-pane fade {% if category == '1-2' %}show active{% endif %}" id="tab-{{ category }}" role="tabpanel">
+                <div class="tab-pane fade {% if category == selected_category %}show active{% endif %}" id="tab-{{ category }}" role="tabpanel">
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
@@ -136,7 +136,7 @@
                                 <!-- Кнопка "Предыдущая" -->
                                 {% if users_by_category[category]['has_prev'] %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('rating', page=users_by_category[category]['current_page'] - 1) }}" aria-label="Предыдущая">
+                                    <a class="page-link" href="{{ url_for('rating', **{('page_' + category): users_by_category[category]['current_page'] - 1, 'category': category}) }}" aria-label="Предыдущая">
                                         <span aria-hidden="true">&laquo;</span>
                                     </a>
                                 </li>
@@ -157,7 +157,7 @@
                                     </li>
                                     {% elif page_num <= 3 or page_num > total_pages - 3 or (page_num >= current_page - 1 and page_num <= current_page + 1) %}
                                     <li class="page-item">
-                                        <a class="page-link" href="{{ url_for('rating', page=page_num) }}">{{ page_num }}</a>
+                                        <a class="page-link" href="{{ url_for('rating', **{('page_' + category): page_num, 'category': category}) }}">{{ page_num }}</a>
                                     </li>
                                     {% elif page_num == 4 and current_page > 6 %}
                                     <li class="page-item disabled">
@@ -173,7 +173,7 @@
                                 <!-- Кнопка "Следующая" -->
                                 {% if users_by_category[category]['has_next'] %}
                                 <li class="page-item">
-                                    <a class="page-link" href="{{ url_for('rating', page=users_by_category[category]['current_page'] + 1) }}" aria-label="Следующая">
+                                    <a class="page-link" href="{{ url_for('rating', **{('page_' + category): users_by_category[category]['current_page'] + 1, 'category': category}) }}" aria-label="Следующая">
                                         <span aria-hidden="true">&raquo;</span>
                                     </a>
                                 </li>
@@ -417,6 +417,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (pagination) {
             pagination.style.display = 'block';
         }
+        
+        // Обновляем URL с параметром категории, сохраняя текущие параметры пагинации
+        const url = new URL(window.location);
+        url.searchParams.set('category', category);
+        
+        // Сохраняем параметры пагинации для всех групп
+        const urlParams = new URLSearchParams(window.location.search);
+        for (const [key, value] of urlParams.entries()) {
+            if (key.startsWith('page_')) {
+                url.searchParams.set(key, value);
+            }
+        }
+        
+        // Обновляем URL без перезагрузки страницы
+        window.history.pushState({}, '', url.toString());
     }
     
     function resetSearch() {
@@ -560,6 +575,15 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 url.searchParams.delete('mode');
             }
+            
+            // Сохраняем параметры пагинации для всех групп
+            const urlParams = new URLSearchParams(window.location.search);
+            for (const [key, value] of urlParams.entries()) {
+                if (key.startsWith('page_') || key === 'category') {
+                    url.searchParams.set(key, value);
+                }
+            }
+            
             window.location.href = url.toString();
         });
     });

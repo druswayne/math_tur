@@ -2585,8 +2585,8 @@ def rating():
     users_by_category = {}
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     
-    # Получаем параметры пагинации
-    page = request.args.get('page', 1, type=int)
+    # Получаем параметры пагинации и категории
+    selected_category = request.args.get('category', '1-2')
     per_page = 20  # Количество записей на странице
     
     # Проверяем, должен ли показываться полный рейтинг
@@ -2600,6 +2600,9 @@ def rating():
         show_full_rating = mode == 'full'
     
     for category in categories:
+        # Получаем номер страницы для конкретной категории
+        page = request.args.get(f'page_{category}', 1, type=int)
+        
         # Базовый запрос для получения пользователей категории
         users_stats = (
             db.session.query(
@@ -2628,6 +2631,7 @@ def rating():
             users_stats = users_stats.limit(10).all()
             has_next = False
             has_prev = False
+            total_pages = 1
         
         # Обрабатываем статистику для пользователей
         users = []
@@ -2675,7 +2679,7 @@ def rating():
             'has_prev': has_prev,
             'show_full_rating': show_full_rating,
             'current_page': page if show_full_rating else 1,
-            'total_pages': (total_users + per_page - 1) // per_page if show_full_rating else 1
+            'total_pages': total_pages
         }
 
     user_rank = None
@@ -2707,7 +2711,7 @@ def rating():
                          users_by_category=users_by_category,
                          user_rank=user_rank,
                          show_full_rating=show_full_rating,
-                         current_page=page)
+                         selected_category=selected_category)
 
 @app.route('/rating/load-more')
 def load_more_users():
