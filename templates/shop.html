@@ -97,6 +97,22 @@
 .notification.fade-out {
     animation: fadeOut 0.3s ease-out forwards;
 }
+
+/* Стили для адаптивности селектора сортировки */
+@media (max-width: 768px) {
+    #sort-select {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+    
+    .card-body .d-flex {
+        gap: 10px;
+    }
+    
+    .form-label {
+        font-size: 14px;
+    }
+}
 </style>
 
 <!-- Контейнер для уведомлений -->
@@ -123,6 +139,35 @@
                 <span class="badge bg-danger ms-2">{{ cart_items_count }}</span>
                 {% endif %}
             </a>
+        </div>
+    </div>
+
+    <!-- Панель сортировки -->
+    <div class="row mb-4">
+        <div class="col-12 col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center flex-wrap">
+                        <label for="sort-select" class="form-label mb-0 me-3 mb-2 mb-md-0">
+                            <i class="fas fa-sort me-2"></i>Сортировка:
+                        </label>
+                        <select id="sort-select" class="form-select" style="min-width: 200px; max-width: 100%;">
+                            <option value="price_asc" {% if current_sort == 'price_asc' %}selected{% endif %}>
+                                По стоимости (дешевые → дорогие)
+                            </option>
+                            <option value="price_desc" {% if current_sort == 'price_desc' %}selected{% endif %}>
+                                По стоимости (дорогие → дешевые)
+                            </option>
+                            <option value="name_asc" {% if current_sort == 'name_asc' %}selected{% endif %}>
+                                По названию (А → Я)
+                            </option>
+                            <option value="name_desc" {% if current_sort == 'name_desc' %}selected{% endif %}>
+                                По названию (Я → А)
+                            </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -179,6 +224,70 @@
             </div>
             {% endfor %}
         </div>
+        
+        <!-- Пагинация -->
+        {% if pagination.pages > 1 %}
+        <nav aria-label="Навигация по страницам призов" class="mt-4">
+            <ul class="pagination justify-content-center flex-wrap">
+                <!-- Кнопка "Предыдущая" -->
+                {% if pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('shop', page=pagination.prev_num, sort=current_sort) }}">
+                        <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        <i class="fas fa-chevron-left"></i><span class="d-none d-sm-inline"> Предыдущая</span>
+                    </span>
+                </li>
+                {% endif %}
+                
+                <!-- Номера страниц -->
+                {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
+                    {% if page_num %}
+                        {% if page_num != pagination.page %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('shop', page=page_num, sort=current_sort) }}">{{ page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                    <li class="page-item disabled d-none d-md-block">
+                        <span class="page-link">...</span>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                <!-- Кнопка "Следующая" -->
+                {% if pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('shop', page=pagination.next_num, sort=current_sort) }}">
+                        <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        <span class="d-none d-sm-inline">Следующая </span><i class="fas fa-chevron-right"></i>
+                    </span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        
+        <!-- Информация о страницах -->
+        <div class="text-center text-muted mt-3">
+            <small>
+                Страница {{ pagination.page }} из {{ pagination.pages }} 
+                (всего {{ pagination.total }} призов)
+            </small>
+        </div>
+        {% endif %}
     {% endif %}
 </div>
 
@@ -256,6 +365,18 @@ function showNotification(title, message, type = 'info') {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Обработчик для селектора сортировки
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            const selectedSort = this.value;
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('sort', selectedSort);
+            currentUrl.searchParams.set('page', '1'); // Сбрасываем на первую страницу при смене сортировки
+            window.location.href = currentUrl.toString();
+        });
+    }
+
     // Обработчики для кнопок изменения количества
     document.querySelectorAll('.decrease-quantity').forEach(button => {
         button.addEventListener('click', function() {

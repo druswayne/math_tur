@@ -48,13 +48,18 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 200,  # Базовый размер пула для 2000 пользователей
-    'max_overflow': 100,  # Дополнительные соединения при пиковой нагрузке
-    'pool_timeout': 60,  # Таймаут ожидания соединения из пула
+    'pool_size': 300,  # Увеличиваем базовый размер пула для 2000+ пользователей
+    'max_overflow': 200,  # Увеличиваем дополнительные соединения при пиковой нагрузке
+    'pool_timeout': 30,  # Уменьшаем таймаут ожидания соединения из пула
     'pool_recycle': 1800,  # Пересоздание соединений каждые 30 минут
     'pool_pre_ping': True,  # Проверка соединений перед использованием
     'echo': False,  # Отключение вывода SQL-запросов в консоль
-    'pool_use_lifo': True  # Используем LIFO для пула соединений
+    'pool_use_lifo': True,  # Используем LIFO для пула соединений
+    'connect_args': {
+        'connect_timeout': 10,  # Таймаут подключения к БД
+        'application_name': 'math_tur_app',  # Имя приложения для мониторинга
+        'options': '-c statement_timeout=30000 -c lock_timeout=10000'  # Устанавливаем таймауты на уровне соединения
+    }
 }
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет - практически неограниченное время
@@ -2704,15 +2709,43 @@ def load_more_users():
 @app.route('/shop')
 @login_required
 def shop():
-    prizes = Prize.query.filter(Prize.is_active == True).all()
+    # Получаем параметры из запроса
+    page = request.args.get('page', 1, type=int)
+    sort = request.args.get('sort', 'price_asc')  # По умолчанию сортировка по цене по возрастанию
+    per_page = 9  # Количество призов на странице (3x3 сетка)
+    
+    # Базовый запрос
+    query = Prize.query.filter(Prize.is_active == True)
+    
+    # Применяем сортировку
+    if sort == 'price_asc':
+        query = query.order_by(Prize.points_cost.asc())
+    elif sort == 'price_desc':
+        query = query.order_by(Prize.points_cost.desc())
+    elif sort == 'name_asc':
+        query = query.order_by(Prize.name.asc())
+    elif sort == 'name_desc':
+        query = query.order_by(Prize.name.desc())
+    else:
+        # По умолчанию сортировка по цене по возрастанию
+        query = query.order_by(Prize.points_cost.asc())
+    
+    # Получаем активные призы с пагинацией
+    pagination = query.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    prizes = pagination.items
     settings = ShopSettings.get_settings()
     can_shop = settings.can_user_shop(current_user)
     
     return render_template('shop.html', 
                          prizes=prizes,
+                         pagination=pagination,
                          settings=settings,
                          can_shop=can_shop,
-                         cart_items_count=len(current_user.cart_items))
+                         cart_items_count=len(current_user.cart_items),
+                         current_sort=sort)
 
 @app.route('/cart')
 @login_required
