@@ -999,6 +999,224 @@ main {
     margin: 1rem 0;
 }
 
+/* Стили для информационного окна */
+.top-players-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.top-player-item {
+    padding: 0.4rem;
+    border-radius: 8px;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
+
+.top-player-item:hover {
+    background-color: var(--light-bg);
+    border-color: var(--border-color);
+}
+
+.player-rank .badge {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.bg-bronze {
+    background-color: #cd7f32 !important;
+    color: white !important;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.stat-item {
+    padding: 0.75rem;
+    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, var(--light-bg) 0%, #ffffff 100%);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow);
+}
+
+.stat-icon {
+    opacity: 0.8;
+}
+
+.stat-icon i {
+    font-size: 1.5rem !important;
+}
+
+.stat-value {
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+    font-size: 1.25rem !important;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    line-height: 1.2;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+    
+    .stat-item {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .stat-icon i {
+        font-size: 1.2rem !important;
+    }
+    
+    .stat-value {
+        font-size: 1rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+    }
+    
+    .top-players-list {
+        max-height: 250px;
+    }
+    
+    .top-player-item {
+        padding: 0.3rem;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .player-rank .badge {
+        width: 22px;
+        height: 22px;
+        font-size: 0.7rem;
+    }
+    
+    .player-name {
+        font-size: 0.9rem;
+    }
+    
+    .player-category {
+        font-size: 0.75rem;
+    }
+    
+    .player-score .score-value {
+        font-size: 0.9rem;
+    }
+    
+    .player-score .score-label {
+        font-size: 0.7rem;
+    }
+    
+    .card-header h5 {
+        font-size: 1rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+}
+
+/* Адаптация для очень маленьких экранов */
+@media (max-width: 576px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.4rem;
+    }
+    
+    .stat-item {
+        padding: 0.4rem;
+    }
+    
+    .stat-icon i {
+        font-size: 1rem !important;
+    }
+    
+    .stat-value {
+        font-size: 0.9rem !important;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    .top-players-list {
+        max-height: 200px;
+    }
+    
+    .top-player-item {
+        padding: 0.25rem;
+    }
+    
+    .player-rank .badge {
+        width: 20px;
+        height: 20px;
+        font-size: 0.65rem;
+    }
+    
+    .player-name {
+        font-size: 0.85rem;
+    }
+    
+    .player-category {
+        font-size: 0.7rem;
+    }
+    
+    .player-score .score-value {
+        font-size: 0.85rem;
+    }
+    
+    .player-score .score-label {
+        font-size: 0.65rem;
+    }
+    
+    .card-header h5 {
+        font-size: 0.9rem;
+    }
+    
+    .card-body {
+        padding: 0.5rem;
+    }
+}
+
+/* Стили для информации о счете игрока */
+.player-score {
+    text-align: right;
+}
+
+.player-score .score-value {
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.player-score .score-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.player-score .category-rank {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
 .countdown-items {
     display: flex;
     gap: 1rem;

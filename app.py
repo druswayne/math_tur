@@ -758,10 +758,37 @@ def home():
                 Tournament.is_active == True
             ).order_by(Tournament.start_date.asc()).first()
         
+        # Получаем статистику для информационного окна
+        # Топ-10 лучших игроков по общему счету (balance)
+        top_players = User.query.filter(
+            User.is_active == True,
+            User.is_admin == False
+        ).order_by(User.balance.desc()).limit(10).all()
+        
+        # Общая статистика
+        total_tournaments = Tournament.query.filter(
+            Tournament.status == 'finished'
+        ).count()
+        
+        avg_tournament_score = db.session.query(db.func.avg(TournamentParticipation.score)).scalar() or 0
+        
+        max_tournament_score = db.session.query(db.func.max(TournamentParticipation.score)).scalar() or 0
+        
+        total_solved_tasks = SolvedTask.query.filter(
+            SolvedTask.is_correct == True
+        ).count()
+        
+
+        
         return render_template('index.html',
                              next_tournament=next_tournament,
                              now=current_time,
-                             is_tournament_running=is_tournament_running)
+                             is_tournament_running=is_tournament_running,
+                             top_players=top_players,
+                             total_tournaments=total_tournaments,
+                             avg_tournament_score=round(avg_tournament_score, 1),
+                             max_tournament_score=max_tournament_score,
+                             total_solved_tasks=total_solved_tasks)
     else:
         return render_template('index_close.html', message=settings.closed_season_message)
 

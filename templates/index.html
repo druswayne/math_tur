@@ -13,69 +13,167 @@
 </div>
 
 <div class="container mt-5">
-    {% if next_tournament %}
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="text-center">
-                <h3 class="card-title mb-4">{{ next_tournament.title }}</h3>
-                <div class="tournament-description mb-4">
-                    <p>{{ next_tournament.description }}</p>
-                </div>
-                <p class="text-muted mb-3">
-                    {% if next_tournament.start_date > now %}
-                        До начала турнира осталось:
-                    {% else %}
-                        До окончания турнира осталось:
-                    {% endif %}
-                </p>
-                <div class="countdown-timer mb-4" 
-                     data-start="{{ next_tournament.start_date.isoformat() }}"
-                     data-duration="{{ next_tournament.duration }}">
-                    <div class="countdown-items">
-                        <div class="countdown-item">
-                            <div class="countdown-number" id="days">00</div>
-                            <div class="countdown-label">дней</div>
+    <div class="row">
+        <!-- Основной контент с турниром -->
+        <div class="col-lg-8 col-12">
+            {% if next_tournament %}
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="text-center">
+                        <h3 class="card-title mb-4">{{ next_tournament.title }}</h3>
+                        <div class="tournament-description mb-4">
+                            <p>{{ next_tournament.description }}</p>
                         </div>
-                        <div class="countdown-item">
-                            <div class="countdown-number" id="hours">00</div>
-                            <div class="countdown-label">часов</div>
+                        <p class="text-muted mb-3">
+                            {% if next_tournament.start_date > now %}
+                                До начала турнира осталось:
+                            {% else %}
+                                До окончания турнира осталось:
+                            {% endif %}
+                        </p>
+                        <div class="countdown-timer mb-4" 
+                             data-start="{{ next_tournament.start_date.isoformat() }}"
+                             data-duration="{{ next_tournament.duration }}">
+                            <div class="countdown-items">
+                                <div class="countdown-item">
+                                    <div class="countdown-number" id="days">00</div>
+                                    <div class="countdown-label">дней</div>
+                                </div>
+                                <div class="countdown-item">
+                                    <div class="countdown-number" id="hours">00</div>
+                                    <div class="countdown-label">часов</div>
+                                </div>
+                                <div class="countdown-item">
+                                    <div class="countdown-number" id="minutes">00</div>
+                                    <div class="countdown-label">минут</div>
+                                </div>
+                                <div class="countdown-item">
+                                    <div class="countdown-number" id="seconds">00</div>
+                                    <div class="countdown-label">секунд</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="countdown-item">
-                            <div class="countdown-number" id="minutes">00</div>
-                            <div class="countdown-label">минут</div>
-                        </div>
-                        <div class="countdown-item">
-                            <div class="countdown-number" id="seconds">00</div>
-                            <div class="countdown-label">секунд</div>
+                        <div class="text-center">
+                            {% if is_tournament_running %}
+                            <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" 
+                               class="btn btn-primary btn-lg"
+                               id="participateBtn">
+                                Участвовать
+                            </a>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    {% if next_tournament.start_date > now %}
+                                        Турнир начнется в {{ next_tournament.start_date.strftime('%d.%m.%Y в %H:%M') }}
+                                    {% else %}
+                                        Турнир завершен
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="text-center">
-                    {% if is_tournament_running %}
-                    <a href="{{ url_for('join_tournament', tournament_id=next_tournament.id) }}" 
-                       class="btn btn-primary btn-lg"
-                       id="participateBtn">
-                        Участвовать
-                    </a>
-                    {% else %}
-                        <div class="alert alert-info">
-                            {% if next_tournament.start_date > now %}
-                                Турнир начнется в {{ next_tournament.start_date.strftime('%d.%m.%Y в %H:%M') }}
-                            {% else %}
-                                Турнир завершен
-                            {% endif %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <h4 class="alert-heading">Нет активных турниров</h4>
+                <p>В данный момент нет запланированных турниров. Следите за обновлениями!</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Боковая панель со статистикой -->
+        <div class="col-lg-4 col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-trophy text-warning me-2"></i>
+                        Лучшие участники
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if top_players %}
+                        <div class="top-players-list">
+                            {% for player in top_players %}
+                            <div class="top-player-item d-flex align-items-center mb-3">
+                                <div class="player-rank me-3">
+                                    <span class="badge {% if loop.index == 1 %}bg-warning{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}bg-bronze{% else %}bg-light text-dark{% endif %} rounded-circle">
+                                        {{ loop.index }}
+                                    </span>
+                                </div>
+                                <div class="player-info flex-grow-1">
+                                    <div class="player-name fw-bold">{{ player.student_name or player.username }}</div>
+                                    <div class="player-category text-muted small">
+                                        {% if player.category %}
+                                            {{ player.category }} класс
+                                        {% else %}
+                                            Группа не указана
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="player-score text-end">
+                                    <div class="score-value fw-bold">{{ player.balance }}</div>
+                                    <div class="score-label text-muted small">баллов</div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('rating') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-list me-1"></i>
+                                Полный рейтинг
+                            </a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">Пока нет данных о рейтинге</p>
                     {% endif %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-bar text-info me-2"></i>
+                        Статистика проекта
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-trophy text-warning fa-2x"></i>
+                            </div>
+                            <div class="stat-value fw-bold fs-4">{{ total_tournaments }}</div>
+                            <div class="stat-label text-muted">Проведено турниров</div>
+                        </div>
+                        
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-chart-line text-primary fa-2x"></i>
+                            </div>
+                            <div class="stat-value fw-bold fs-4">{{ avg_tournament_score }}</div>
+                            <div class="stat-label text-muted">Средний балл за турнир</div>
+                        </div>
+                        
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-star text-success fa-2x"></i>
+                            </div>
+                            <div class="stat-value fw-bold fs-4">{{ max_tournament_score }}</div>
+                            <div class="stat-label text-muted">Максимальный результат за турнир</div>
+                        </div>
+                        
+                        <div class="stat-item text-center mb-3">
+                            <div class="stat-icon mb-2">
+                                <i class="fas fa-check-circle text-info fa-2x"></i>
+                            </div>
+                            <div class="stat-value fw-bold fs-4">{{ total_solved_tasks }}</div>
+                            <div class="stat-label text-muted">Решено задач</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="alert alert-info">
-        <h4 class="alert-heading">Нет активных турниров</h4>
-        <p>В данный момент нет запланированных турниров. Следите за обновлениями!</p>
-    </div>
-    {% endif %}
 </div>
 
 {% if next_tournament %}
@@ -89,7 +187,7 @@ function getServerTime() {
 
 function updateCountdown() {
     const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
-    const duration = {{ next_tournament.duration }}; // длительность в минутах
+    const tournamentDuration = {{ next_tournament.duration }}; // длительность в минутах
     const serverNow = getServerTime();
     
     let targetDate;
@@ -101,7 +199,7 @@ function updateCountdown() {
         document.querySelector('.text-muted.mb-3').textContent = 'До начала турнира осталось:';
     } else {
         // Если турнир уже начался, показываем время до окончания
-        targetDate = new Date(startDate.getTime() + duration * 60000);
+        targetDate = new Date(startDate.getTime() + tournamentDuration * 60000);
         document.querySelector('.text-muted.mb-3').textContent = 'До окончания турнира осталось:';
     }
     
