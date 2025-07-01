@@ -381,8 +381,8 @@ class User(UserMixin, db.Model):
     tickets = db.Column(db.Integer, default=0)
     tournaments_count = db.Column(db.Integer, default=0)
     total_tournament_time = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now())
     
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -419,8 +419,8 @@ class Tournament(db.Model):
     duration = db.Column(db.Integer, nullable=False)  # в минутах
     is_active = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(20), default='pending')  # pending, started, finished
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
 
     # Добавляем отношения
     participants = db.relationship('User',
@@ -441,8 +441,8 @@ class Task(db.Model):
     points = db.Column(db.Integer, nullable=False)
     correct_answer = db.Column(db.String(200), nullable=False)
     category = db.Column(db.String(10), nullable=False)  # Добавляем поле для категории
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
 
     tournament = db.relationship('Tournament', backref=db.backref('tasks', lazy=True))
 
@@ -452,7 +452,7 @@ class TicketPurchase(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     amount = db.Column(db.Float, nullable=False)
     discount = db.Column(db.Integer, default=0)  # Скидка в процентах
-    purchase_date = db.Column(db.DateTime, default=datetime.utcnow)
+    purchase_date = db.Column(db.DateTime, default=datetime.now())
     
     user = db.relationship('User', backref=db.backref('ticket_purchases', lazy=True))
 
@@ -462,8 +462,8 @@ class TournamentParticipation(db.Model):
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id', ondelete='CASCADE'), nullable=False)
     score = db.Column(db.Integer, default=0)
     place = db.Column(db.Integer)
-    participation_date = db.Column(db.DateTime, default=datetime.utcnow)
-    start_time = db.Column(db.DateTime, default=datetime.utcnow)  # Время начала участия в турнире
+    participation_date = db.Column(db.DateTime, default=datetime.now())
+    start_time = db.Column(db.DateTime, default=datetime.now())  # Время начала участия в турнире
     
     user = db.relationship('User', 
                          back_populates='tournament_participations',
@@ -476,7 +476,7 @@ class SolvedTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
-    solved_at = db.Column(db.DateTime, default=datetime.utcnow)
+    solved_at = db.Column(db.DateTime, default=datetime.now())
     is_correct = db.Column(db.Boolean, default=False)
     
     user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
@@ -486,14 +486,14 @@ class TicketPackage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     price = db.Column(db.Float, nullable=False)  # Базовая цена за 1 билет
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
 
 class TicketDiscount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     min_quantity = db.Column(db.Integer, nullable=False)  # Минимальное количество билетов для скидки
     discount = db.Column(db.Integer, nullable=False)  # Скидка в процентах
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
 
     @staticmethod
     def get_discount_for_quantity(quantity):
@@ -513,7 +513,7 @@ class Prize(db.Model):
     quantity = db.Column(db.Integer, default=0)  # 0 означает неограниченное количество
     is_active = db.Column(db.Boolean, default=True)
     is_unique = db.Column(db.Boolean, default=False)  # Флаг уникального приза
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
 
 class PrizePurchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -525,7 +525,7 @@ class PrizePurchase(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     address = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     
     user = db.relationship('User', backref=db.backref('prize_purchases', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('purchases', lazy=True))
@@ -535,7 +535,7 @@ class CartItem(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
     
     user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('cart_items', lazy=True))
@@ -554,7 +554,7 @@ class ShopSettings(db.Model):
     top_users_percentage_9 = db.Column(db.Integer, default=100)    # 9 класс
     top_users_percentage_10 = db.Column(db.Integer, default=100)   # 10 класс
     top_users_percentage_11 = db.Column(db.Integer, default=100)   # 11 класс
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
 
     @staticmethod
     def get_settings():
@@ -595,7 +595,7 @@ class TournamentSettings(db.Model):
     is_season_active = db.Column(db.Boolean, default=True)
     allow_category_change = db.Column(db.Boolean, default=True)  # Разрешить изменение группы
     closed_season_message = db.Column(db.Text, nullable=True)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.now())
 
     @staticmethod
     def get_settings():
@@ -2813,6 +2813,11 @@ def add_to_cart():
     if current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
     
+    # Проверяем, открыт ли магазин
+    settings = ShopSettings.get_settings()
+    if not settings.is_open:
+        return jsonify({'success': False, 'message': 'Магазин временно закрыт'})
+    
     data = request.get_json()
     prize_id = data.get('prize_id')
     quantity = data.get('quantity', 1)
@@ -2882,6 +2887,11 @@ def update_cart():
     if current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
     
+    # Проверяем, открыт ли магазин
+    settings = ShopSettings.get_settings()
+    if not settings.is_open:
+        return jsonify({'success': False, 'message': 'Магазин временно закрыт'})
+    
     data = request.get_json()
     prize_id = data.get('prize_id')
     quantity = data.get('quantity', 1)
@@ -2922,6 +2932,11 @@ def update_cart():
 def remove_from_cart():
     if current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
+    
+    # Проверяем, открыт ли магазин
+    settings = ShopSettings.get_settings()
+    if not settings.is_open:
+        return jsonify({'success': False, 'message': 'Магазин временно закрыт'})
     
     data = request.get_json()
     prize_id = data.get('prize_id')
@@ -3022,8 +3037,14 @@ def admin_orders():
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
-    # Получаем все заявки, отсортированные по дате (новые сверху)
-    orders = PrizePurchase.query.order_by(PrizePurchase.created_at.desc()).all()
+    # Получаем параметр страницы
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # количество записей на странице
+    
+    # Получаем заявки с пагинацией, отсортированные по дате (новые сверху)
+    orders = PrizePurchase.query.order_by(PrizePurchase.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
     
     return render_template('admin/orders.html', 
                          title='Управление заявками',
@@ -3575,8 +3596,8 @@ class UserSession(db.Model):
     is_active = db.Column(db.Boolean, default=False)
     session_token = db.Column(db.String(255), unique=True, index=True)
     device_info = db.Column(db.String(255), nullable=True)
-    last_active = db.Column(db.DateTime, default=datetime.utcnow)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_active = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now())
 
     user = db.relationship('User', backref=db.backref('sessions', lazy=True))
 
@@ -3620,8 +3641,8 @@ class SchedulerJob(db.Model):
     run_date = db.Column(db.DateTime, nullable=False)  # Время выполнения
     is_active = db.Column(db.Boolean, default=True)  # Активна ли задача
     server_id = db.Column(db.String(100), nullable=False, index=True)  # Уникальный ID сервера
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
     
     # Связь с турниром (если задача связана с турниром)
     tournament = db.relationship('Tournament', backref=db.backref('scheduler_jobs', lazy=True))
