@@ -1809,6 +1809,32 @@ def is_valid_username(username):
         return False
     return True
 
+@app.route('/check-username', methods=['POST'])
+def check_username():
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    
+    if not username:
+        return jsonify({'available': False})
+    
+    # Проверяем, существует ли пользователь с таким логином
+    existing_user = User.query.filter_by(username=username).first()
+    
+    return jsonify({'available': existing_user is None})
+
+@app.route('/check-email', methods=['POST'])
+def check_email():
+    data = request.get_json()
+    email = data.get('email', '').strip()
+    
+    if not email:
+        return jsonify({'available': False})
+    
+    # Проверяем, существует ли пользователь с таким email
+    existing_user = User.query.filter_by(email=email).first()
+    
+    return jsonify({'available': existing_user is None})
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -1833,8 +1859,24 @@ def register():
             flash('Пароли не совпадают', 'danger')
             return redirect(url_for('register'))
 
-        if not re.match(r'^\+375[0-9]{9}$', phone):
-            flash('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger')
+        # Получаем код страны и номер телефона
+        phone_country = request.form.get('phone_country', '+375')
+        phone_number = phone.strip()
+        
+        # Формируем полный номер телефона
+        full_phone = phone_country + phone_number
+        
+        # Проверяем формат номера в зависимости от страны
+        if phone_country == '+375':
+            if not re.match(r'^[0-9]{9}$', phone_number):
+                flash('Номер телефона Беларуси должен содержать 9 цифр', 'danger')
+                return redirect(url_for('register'))
+        elif phone_country == '+7':
+            if not re.match(r'^[0-9]{10}$', phone_number):
+                flash('Номер телефона России должен содержать 10 цифр', 'danger')
+                return redirect(url_for('register'))
+        else:
+            flash('Неподдерживаемый код страны', 'danger')
             return redirect(url_for('register'))
 
         if not category or category not in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
@@ -1850,14 +1892,14 @@ def register():
             flash('Пользователь с таким email уже существует', 'danger')
             return redirect(url_for('register'))
 
-        if User.query.filter_by(phone=phone).first():
+        if User.query.filter_by(phone=full_phone).first():
             flash('Пользователь с таким номером телефона уже существует', 'danger')
             return redirect(url_for('register'))
 
         user = User(
             username=username,
             email=email,
-            phone=phone,
+            phone=full_phone,
             student_name=student_name,  # Добавляем имя учащегося
             parent_name=parent_name,
             category=category
