@@ -76,7 +76,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -3518,19 +3518,53 @@ def update_profile():
     data = request.get_json()
     
     # Получаем данные из запроса
-    student_name = data.get('student_name')
-    parent_name = data.get('parent_name')
-    phone = data.get('phone')
+    student_name = data.get('student_name', '').strip()
+    parent_name = data.get('parent_name', '').strip()
+    phone = data.get('phone', '').strip()
     category = data.get('category')
-    new_password = data.get('new_password')
+    new_password = data.get('new_password', '').strip()
     
     # Проверяем обязательные поля
-    if not student_name or not parent_name or not phone or not category:
-        return jsonify({'success': False, 'message': 'Пожалуйста, заполните все обязательные поля'})
+    if not student_name:
+        return jsonify({'success': False, 'message': 'Пожалуйста, введите фамилию и имя учащегося'})
     
-    # Проверяем формат телефона
-    if not re.match(r'^\+375\d{9}$', phone):
+    if not parent_name:
+        return jsonify({'success': False, 'message': 'Пожалуйста, введите ФИО законного представителя'})
+    
+    if not phone:
+        return jsonify({'success': False, 'message': 'Пожалуйста, введите номер телефона'})
+    
+    if not category:
+        return jsonify({'success': False, 'message': 'Пожалуйста, выберите группу'})
+    
+    # Валидация имени учащегося
+    if len(student_name) < 2:
+        return jsonify({'success': False, 'message': 'Фамилия и имя учащегося должны содержать минимум 2 символа'})
+    
+    if not re.match(r'^[а-яёА-ЯЁ\s]+$', student_name):
+        return jsonify({'success': False, 'message': 'Фамилия и имя учащегося должны содержать только русские буквы'})
+    
+    # Валидация имени родителя
+    if len(parent_name) < 2:
+        return jsonify({'success': False, 'message': 'ФИО законного представителя должно содержать минимум 2 символа'})
+    
+    if not re.match(r'^[а-яёА-ЯЁ\s]+$', parent_name):
+        return jsonify({'success': False, 'message': 'ФИО законного представителя должно содержать только русские буквы'})
+    
+    # Валидация телефона
+    if phone.startswith('+375'):
+        if not re.match(r'^\+375\d{9}$', phone):
+            return jsonify({'success': False, 'message': 'Неверный формат номера телефона для Беларуси (+375XXXXXXXXX)'})
+    elif phone.startswith('+7'):
+        if not re.match(r'^\+7\d{10}$', phone):
+            return jsonify({'success': False, 'message': 'Неверный формат номера телефона для России (+7XXXXXXXXXX)'})
+    else:
         return jsonify({'success': False, 'message': 'Неверный формат номера телефона'})
+    
+    # Проверяем, не занят ли телефон другим пользователем
+    existing_user = User.query.filter_by(phone=phone).first()
+    if existing_user and existing_user.id != current_user.id:
+        return jsonify({'success': False, 'message': 'Этот номер телефона уже используется другим пользователем'})
     
     # Проверяем категорию
     valid_categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
@@ -3541,10 +3575,20 @@ def update_profile():
     settings = TournamentSettings.get_settings()
     if settings.is_season_active and category != current_user.category:
         if not settings.allow_category_change:
-            if not settings.allow_category_change:
-                return jsonify({'success': False, 'message': 'Изменение группы временно недоступно'})
-            else:
-                return jsonify({'success': False, 'message': 'Изменение группы недоступно во время активного сезона'})
+            return jsonify({'success': False, 'message': 'Изменение группы временно недоступно'})
+        else:
+            return jsonify({'success': False, 'message': 'Изменение группы недоступно во время активного сезона'})
+    
+    # Валидация пароля
+    if new_password:
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'message': 'Пароль должен содержать минимум 8 символов'})
+        
+        if not re.search(r'[a-zA-Z]', new_password):
+            return jsonify({'success': False, 'message': 'Пароль должен содержать хотя бы одну букву'})
+        
+        if not re.search(r'\d', new_password):
+            return jsonify({'success': False, 'message': 'Пароль должен содержать хотя бы одну цифру'})
     
     try:
         # Обновляем данные пользователя

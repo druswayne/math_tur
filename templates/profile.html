@@ -166,19 +166,44 @@
                 <form id="changePasswordForm">
                     <div class="mb-3">
                         <label for="studentName" class="form-label">Фамилия и имя учащегося</label>
+                        <div class="input-group">
                         <input type="text" class="form-control" id="studentName" value="{{ current_user.student_name or '' }}" required>
-                        <small class="text-muted">Введите фамилию и имя учащегося</small>
+                            <span class="input-group-text validation-icon" id="studentName-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
+                        </div>
+                        <div class="form-text">Введите фамилию и имя учащегося на русском языке. Минимум 2 символа.</div>
                     </div>
                     <div class="mb-3">
                         <label for="parentName" class="form-label">ФИО законного представителя</label>
+                        <div class="input-group">
                         <input type="text" class="form-control" id="parentName" value="{{ current_user.parent_name or '' }}" required>
-                        <small class="text-muted">Введите фамилию, имя и отчество законного представителя</small>
+                            <span class="input-group-text validation-icon" id="parentName-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
+                        </div>
+                        <div class="form-text">Введите фамилию, имя и отчество законного представителя на русском языке. Минимум 2 символа.</div>
                     </div>
                     <div class="mb-3">
                         <label for="phone" class="form-label">Номер телефона</label>
-                        <input type="tel" class="form-control" id="phone" value="{{ current_user.phone }}" required>
+                        <div class="input-group">
+                            <select class="form-select" id="phone_country" style="max-width: 120px;">
+                                <option value="+375" {% if current_user.phone.startswith('+375') %}selected{% endif %}>🇧🇾 +375</option>
+                                <option value="+7" {% if current_user.phone.startswith('+7') %}selected{% endif %}>🇷🇺 +7</option>
+                            </select>
+                            <input type="tel" class="form-control" id="phone" 
+                                   value="{% if current_user.phone.startswith('+375') %}{{ current_user.phone[4:] }}{% elif current_user.phone.startswith('+7') %}{{ current_user.phone[2:] }}{% else %}{{ current_user.phone }}{% endif %}" 
+                                   placeholder="XXXXXXXXX" required>
+                            <span class="input-group-text validation-icon" id="phone-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
+                        </div>
+                        <div class="form-text">Введите номер телефона без кода страны (код выбран выше)</div>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group mb-3">
                         <label for="category">Группа</label>
                         <select class="form-control" id="category" name="category" {% if settings.is_season_active or not settings.allow_category_change %}disabled{% endif %}>
                             <option value="1-2" {% if current_user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
@@ -200,18 +225,30 @@
                     </div>
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">Новый пароль</label>
+                        <div class="input-group">
                         <input type="password" class="form-control" id="newPassword">
-                        <small class="text-muted">Оставьте пустым, если не хотите менять пароль</small>
+                            <span class="input-group-text validation-icon" id="newPassword-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
+                        </div>
+                        <div class="form-text">Оставьте пустым, если не хотите менять пароль. Пароль должен содержать минимум 8 символов, включая цифры и буквы</div>
                     </div>
                     <div class="mb-3">
                         <label for="confirmPassword" class="form-label">Подтвердите новый пароль</label>
+                        <div class="input-group">
                         <input type="password" class="form-control" id="confirmPassword">
+                            <span class="input-group-text validation-icon" id="confirmPassword-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" onclick="updateProfile()">Сохранить</button>
+                <button type="button" class="btn btn-primary" id="saveProfileBtn" onclick="updateProfile()">Сохранить</button>
             </div>
         </div>
     </div>
@@ -312,14 +349,340 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {% endif %}
 
+<style>
+/* Стили для индикаторов валидации */
+.validation-icon {
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.validation-icon i {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Стили для правильного заполнения */
+.input-group .form-control.is-valid {
+    border-color: #198754;
+    border-width: 2px;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: none;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.input-group .input-group-text.is-valid {
+    border-color: #198754;
+    border-width: 2px;
+    color: #198754;
+    background-color: rgba(25, 135, 84, 0.1);
+    font-weight: bold;
+}
+
+/* Стили для неправильного заполнения */
+.input-group .form-control.is-invalid {
+    border-color: #dc3545;
+    border-width: 2px;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: none;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.input-group .input-group-text.is-invalid {
+    border-color: #dc3545;
+    border-width: 2px;
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+    font-weight: bold;
+}
+
+/* Анимация при изменении состояния */
+.input-group .form-control,
+.input-group .input-group-text {
+    transition: all 0.3s ease;
+}
+
+/* Дополнительная подсветка для селектора страны */
+.input-group .form-select.is-valid {
+    border-color: #198754;
+    border-width: 2px;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.input-group .form-select.is-invalid {
+    border-color: #dc3545;
+    border-width: 2px;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+/* Стили для кнопки сохранения */
+#saveProfileBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+#saveProfileBtn:not(:disabled) {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    transition: all 0.3s ease;
+}
+
+#saveProfileBtn:not(:disabled):hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.4);
+    transform: translateY(-1px);
+}
+
+/* Анимация для иконок валидации */
+.validation-icon i {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+</style>
+
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Элементы для валидации
+    const studentNameInput = document.getElementById('studentName');
+    const parentNameInput = document.getElementById('parentName');
+    const phoneInput = document.getElementById('phone');
+    const phoneCountrySelect = document.getElementById('phone_country');
+    const newPasswordInput = document.getElementById('newPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
+
+    // Состояние валидации
+    let validationState = {
+        studentName: false,
+        parentName: false,
+        phone: false,
+        newPassword: true, // По умолчанию true, так как пароль необязателен
+        confirmPassword: true // По умолчанию true, так как пароль необязателен
+    };
+
+    // Функция для показа индикатора
+    function showValidationIcon(fieldId, isValid) {
+        const iconContainer = document.getElementById(fieldId + '-icon');
+        const input = document.getElementById(fieldId);
+        
+        if (!iconContainer || !input) {
+            console.warn(`Elements not found for field: ${fieldId}`);
+            return;
+        }
+        
+        // Скрываем все иконки
+        iconContainer.querySelectorAll('i').forEach(icon => icon.style.display = 'none');
+        
+        if (isValid) {
+            const checkIcon = iconContainer.querySelector('.fa-check');
+            if (checkIcon) checkIcon.style.display = 'inline-block';
+            input.classList.add('is-valid');
+            input.classList.remove('is-invalid');
+            iconContainer.classList.add('is-valid');
+            iconContainer.classList.remove('is-invalid');
+        } else {
+            const timesIcon = iconContainer.querySelector('.fa-times');
+            if (timesIcon) timesIcon.style.display = 'inline-block';
+            input.classList.add('is-invalid');
+            input.classList.remove('is-valid');
+            iconContainer.classList.add('is-invalid');
+            iconContainer.classList.remove('is-valid');
+        }
+    }
+
+    // Функция для проверки имени учащегося
+    function validateStudentName(name) {
+        if (!studentNameInput) return;
+        
+        const isValid = name.trim().length >= 2 && /^[а-яёА-ЯЁ\s]+$/.test(name);
+        showValidationIcon('studentName', isValid);
+        validationState.studentName = isValid;
+    }
+
+    // Функция для проверки имени родителя
+    function validateParentName(name) {
+        if (!parentNameInput) return;
+        
+        const isValid = name.trim().length >= 2 && /^[а-яёА-ЯЁ\s]+$/.test(name);
+        showValidationIcon('parentName', isValid);
+        validationState.parentName = isValid;
+    }
+
+    // Функция для проверки телефона
+    function validatePhone(phone) {
+        if (!phoneInput || !phoneCountrySelect) return;
+        
+        const countryCode = phoneCountrySelect.value;
+        let phoneRegex;
+        
+        if (countryCode === '+375') {
+            // Беларусь: +375 + 9 цифр
+            phoneRegex = /^[0-9]{9}$/;
+        } else if (countryCode === '+7') {
+            // Россия: +7 + 10 цифр
+            phoneRegex = /^[0-9]{10}$/;
+        } else {
+            showValidationIcon('phone', false);
+            validationState.phone = false;
+            return;
+        }
+        
+        const isValid = phoneRegex.test(phone);
+        showValidationIcon('phone', isValid);
+        
+        // Применяем стили к селектору страны
+        if (isValid) {
+            phoneCountrySelect.classList.add('is-valid');
+            phoneCountrySelect.classList.remove('is-invalid');
+        } else {
+            phoneCountrySelect.classList.add('is-invalid');
+            phoneCountrySelect.classList.remove('is-valid');
+        }
+        
+        validationState.phone = isValid;
+    }
+
+    // Функция для проверки пароля
+    function validatePassword(password) {
+        if (!newPasswordInput) return;
+        
+        // Если пароль пустой, считаем его валидным (необязательное поле)
+        if (!password) {
+            showValidationIcon('newPassword', true);
+            validationState.newPassword = true;
+            return;
+        }
+        
+        const hasMinLength = password.length >= 8;
+        const hasLetter = /[a-zA-Z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        
+        const isValid = hasMinLength && hasLetter && hasNumber;
+        showValidationIcon('newPassword', isValid);
+        validationState.newPassword = isValid;
+        
+        // Проверяем совпадение паролей
+        if (confirmPasswordInput && confirmPasswordInput.value) {
+            validateConfirmPassword();
+        }
+    }
+
+    // Функция для проверки подтверждения пароля
+    function validateConfirmPassword() {
+        if (!newPasswordInput || !confirmPasswordInput) return;
+        
+        const newPassword = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        // Если новый пароль пустой, подтверждение тоже валидно
+        if (!newPassword) {
+            showValidationIcon('confirmPassword', true);
+            validationState.confirmPassword = true;
+            return;
+        }
+        
+        const isValid = newPassword === confirmPassword && newPassword.length > 0;
+        showValidationIcon('confirmPassword', isValid);
+        validationState.confirmPassword = isValid;
+    }
+
+    // Функция для проверки всей формы
+    function validateForm() {
+        const allValid = Object.values(validationState).every(state => state === true);
+        if (saveProfileBtn) {
+            saveProfileBtn.disabled = !allValid;
+        }
+        return allValid;
+    }
+
+    // Обработчики событий
+    if (studentNameInput) {
+        studentNameInput.addEventListener('input', function() {
+            validateStudentName(this.value);
+            validateForm();
+        });
+    }
+
+    if (parentNameInput) {
+        parentNameInput.addEventListener('input', function() {
+            validateParentName(this.value);
+            validateForm();
+        });
+    }
+
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function() {
+            validatePhone(this.value);
+            validateForm();
+        });
+    }
+
+    if (phoneCountrySelect) {
+        phoneCountrySelect.addEventListener('change', function() {
+            validatePhone(phoneInput.value);
+            validateForm();
+        });
+    }
+
+    if (newPasswordInput) {
+        newPasswordInput.addEventListener('input', function() {
+            validatePassword(this.value);
+            validateForm();
+        });
+    }
+
+    if (confirmPasswordInput) {
+        confirmPasswordInput.addEventListener('input', function() {
+            validateConfirmPassword();
+            validateForm();
+        });
+    }
+
+    // Инициализация валидации при загрузке модального окна
+    const modal = document.getElementById('changePasswordModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', function() {
+            // Валидируем все поля при открытии модального окна
+            validateStudentName(studentNameInput ? studentNameInput.value : '');
+            validateParentName(parentNameInput ? parentNameInput.value : '');
+            validatePhone(phoneInput ? phoneInput.value : '');
+            validatePassword(newPasswordInput ? newPasswordInput.value : '');
+            validateConfirmPassword();
+            validateForm();
+        });
+    }
+});
+
 function updateProfile() {
     const studentName = document.getElementById('studentName').value;
     const parentName = document.getElementById('parentName').value;
+    const phoneCountry = document.getElementById('phone_country').value;
     const phone = document.getElementById('phone').value;
     const category = document.getElementById('category').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    // Формируем полный номер телефона
+    const fullPhone = phoneCountry + phone;
     
     if (!studentName || !parentName || !phone || !category) {
         showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
@@ -339,7 +702,7 @@ function updateProfile() {
         body: JSON.stringify({
             student_name: studentName,
             parent_name: parentName,
-            phone: phone,
+            phone: fullPhone,
             category: category,
             new_password: newPassword
         })
