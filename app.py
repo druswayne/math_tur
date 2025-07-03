@@ -76,7 +76,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -267,13 +267,16 @@ def end_tournament_job(tournament_id):
                 tournament.status = 'finished'
                 tournament.is_active = False
                 
-                # Обновляем места участников в турнире
+                # Обновляем места участников в турнире и устанавливаем время окончания
                 participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
                 
                 current_time = datetime.now()
                 
                 for rank, participation in enumerate(participations, 1):
                     participation.place = rank
+                    # Устанавливаем время окончания участия, если оно еще не установлено
+                    if not participation.end_time:
+                        participation.end_time = current_time
 
                 
                 # Обновляем рейтинги в категориях
@@ -444,6 +447,9 @@ class Task(db.Model):
     points = db.Column(db.Integer, nullable=False)
     correct_answer = db.Column(db.String(200), nullable=False)
     category = db.Column(db.String(10), nullable=False)  # Добавляем поле для категории
+    topic = db.Column(db.String(200), nullable=True)  # Тема задачи
+    solution_text = db.Column(db.Text, nullable=True)  # Текст решения
+    solution_image = db.Column(db.String(200), nullable=True)  # Изображение решения
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now())
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
 
@@ -467,6 +473,7 @@ class TournamentParticipation(db.Model):
     place = db.Column(db.Integer)
     participation_date = db.Column(db.DateTime, default=datetime.now())
     start_time = db.Column(db.DateTime, default=datetime.now())  # Время начала участия в турнире
+    end_time = db.Column(db.DateTime, nullable=True)  # Время окончания участия в турнире
     
     user = db.relationship('User', 
                          back_populates='tournament_participations',
@@ -481,6 +488,7 @@ class SolvedTask(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
     solved_at = db.Column(db.DateTime, default=datetime.now())
     is_correct = db.Column(db.Boolean, default=False)
+    user_answer = db.Column(db.String(200), nullable=True)  # Ответ пользователя
     
     user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
     task = db.relationship('Task', backref=db.backref('solutions', lazy=True, cascade='all, delete-orphan'))
@@ -1680,9 +1688,11 @@ def add_tournament_task(tournament_id):
     points = request.form.get('points')
     correct_answer = request.form.get('correct_answer')
     category = request.form.get('category')
+    topic = request.form.get('topic')
+    solution_text = request.form.get('solution_text')
     
     if not all([title, description, points, correct_answer, category]):
-        flash('Все поля должны быть заполнены', 'danger')
+        flash('Все обязательные поля должны быть заполнены', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
     try:
@@ -1693,11 +1703,17 @@ def add_tournament_task(tournament_id):
         flash('Количество баллов должно быть положительным числом', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
-    # Обработка изображения
+    # Обработка изображения задачи
     image = request.files.get('image')
     image_filename = None
     if image and image.filename:
         image_filename = upload_file_to_s3(image, 'tasks')
+    
+    # Обработка изображения решения
+    solution_image = request.files.get('solution_image')
+    solution_image_filename = None
+    if solution_image and solution_image.filename:
+        solution_image_filename = upload_file_to_s3(solution_image, 'tasks')
     
     task = Task(
         tournament_id=tournament_id,
@@ -1706,7 +1722,10 @@ def add_tournament_task(tournament_id):
         image=image_filename,
         points=points,
         correct_answer=correct_answer,
-        category=category
+        category=category,
+        topic=topic,
+        solution_text=solution_text,
+        solution_image=solution_image_filename
     )
     
     db.session.add(task)
@@ -1733,9 +1752,11 @@ def edit_tournament_task(tournament_id, task_id):
     description = request.form.get('description')
     points = request.form.get('points')
     correct_answer = request.form.get('correct_answer')
+    topic = request.form.get('topic')
+    solution_text = request.form.get('solution_text')
     
     if not all([title, description, points, correct_answer]):
-        flash('Все поля должны быть заполнены', 'danger')
+        flash('Все обязательные поля должны быть заполнены', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
     try:
@@ -1746,7 +1767,7 @@ def edit_tournament_task(tournament_id, task_id):
         flash('Количество баллов должно быть положительным числом', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
-    # Обработка изображения
+    # Обработка изображения задачи
     image = request.files.get('image')
     if image and image.filename:
         # Удаляем старое изображение
@@ -1757,10 +1778,23 @@ def edit_tournament_task(tournament_id, task_id):
         image_filename = upload_file_to_s3(image, 'tasks')
         task.image = image_filename
     
+    # Обработка изображения решения
+    solution_image = request.files.get('solution_image')
+    if solution_image and solution_image.filename:
+        # Удаляем старое изображение решения
+        if task.solution_image:
+            delete_file_from_s3(task.solution_image, 'tasks')
+        
+        # Загружаем новое изображение решения
+        solution_image_filename = upload_file_to_s3(solution_image, 'tasks')
+        task.solution_image = solution_image_filename
+    
     task.title = title
     task.description = description
     task.points = points
     task.correct_answer = correct_answer
+    task.topic = topic
+    task.solution_text = solution_text
     
     db.session.commit()
     
@@ -1781,9 +1815,13 @@ def delete_tournament_task(tournament_id, task_id):
         flash('Задача не принадлежит указанному турниру', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
-    # Удаляем изображение
+    # Удаляем изображение задачи
     if task.image:
         delete_file_from_s3(task.image, 'tasks')
+    
+    # Удаляем изображение решения
+    if task.solution_image:
+        delete_file_from_s3(task.solution_image, 'tasks')
     
     db.session.delete(task)
     db.session.commit()
@@ -2500,9 +2538,14 @@ def submit_task_answer(tournament_id, task_id):
     solution = SolvedTask(
         user_id=current_user.id,
         task_id=task_id,
-        is_correct=is_correct
+        is_correct=is_correct,
+        user_answer=user_answer
     )
     db.session.add(solution)
+    
+    # Обновляем время окончания участия в турнире
+    if participation and not participation.end_time:
+        participation.end_time = current_time
     
     if is_correct:
         # Добавляем баллы к общему счету
@@ -2564,46 +2607,89 @@ def submit_task_answer(tournament_id, task_id):
 def tournament_results(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Получаем все задачи турнира для категории пользователя
-    user_tasks = Task.query.filter_by(
-        tournament_id=tournament_id,
-        category=current_user.category
-    ).all()
-    user_tasks_count = len(user_tasks)
-    
-    # Получаем решенные задачи пользователя
-    solved_tasks = SolvedTask.query.filter_by(
-        user_id=current_user.id,
-        is_correct=True
-    ).join(Task).filter(Task.tournament_id == tournament_id).all()
-    
-    # Считаем статистику
-    solved_count = len(solved_tasks)
-    earned_points = sum(task.task.points for task in solved_tasks)
-    
-    # Получаем участие пользователя в турнире
+    # Проверяем, участвовал ли пользователь в этом турнире
     participation = TournamentParticipation.query.filter_by(
         user_id=current_user.id,
         tournament_id=tournament_id
     ).first()
     
-    if participation:
-        # Вычисляем общее время участия в турнире
-        current_time = datetime.now()  # Используем локальное время
-        time_spent = (current_time - participation.start_time).total_seconds()
-        minutes = int(time_spent // 60)
-        seconds = int(time_spent % 60)
-        
-        # Добавляем время к общему времени участия в турнирах
-        current_user.total_tournament_time += int(time_spent)
-        db.session.commit()
+    if not participation:
+        flash('Вы не участвовали в этом турнире', 'danger')
+        return redirect(url_for('tournament_history'))
+    
+    # Получаем все задачи турнира для категории пользователя
+    user_tasks = Task.query.filter_by(
+        tournament_id=tournament_id,
+        category=current_user.category
+    ).order_by(Task.id).all()
+    
+    # Получаем решенные задачи пользователя
+    solved_tasks = SolvedTask.query.filter_by(
+        user_id=current_user.id
+    ).join(Task).filter(Task.tournament_id == tournament_id).all()
+    
+    # Создаем словарь решенных задач для быстрого поиска
+    solved_tasks_dict = {task.task_id: task for task in solved_tasks}
+    
+    # Подготавливаем данные о задачах
+    tasks_data = []
+    for task in user_tasks:
+        solved_task = solved_tasks_dict.get(task.id)
+        tasks_data.append({
+            'task': task,
+            'is_solved': solved_task is not None,
+            'is_correct': solved_task.is_correct if solved_task else False,
+            'user_answer': solved_task.user_answer if solved_task else None,
+            'solved_at': solved_task.solved_at if solved_task else None
+        })
+    
+    # Считаем статистику
+    solved_count = len([t for t in tasks_data if t['is_solved']])
+    correct_count = len([t for t in tasks_data if t['is_correct']])
+    earned_points = sum(t['task'].points for t in tasks_data if t['is_correct'])
+    total_points = sum(t['task'].points for t in tasks_data)
+    
+    # Вычисляем процент правильных ответов
+    success_rate = round((correct_count / len(tasks_data)) * 100, 1) if tasks_data and len(tasks_data) > 0 else 0
+    
+    # Вычисляем время участия
+    if participation.end_time:
+        # Если есть время окончания, используем его
+        time_spent = (participation.end_time - participation.start_time).total_seconds()
+    else:
+        # Если нет времени окончания, используем текущее время
+        time_spent = (datetime.now() - participation.start_time).total_seconds()
+    
+    # Собираем темы для повторения
+    topics_to_review = set()  # Темы неправильно решенных задач
+    additional_topics = set()  # Темы нерешенных задач
+    
+    for task_data in tasks_data:
+        task = task_data['task']
+        if task.topic:  # Проверяем, что тема указана
+            if task_data['is_solved'] and not task_data['is_correct']:
+                # Неправильно решенная задача - добавляем в обязательное повторение
+                topics_to_review.add(task.topic)
+            elif not task_data['is_solved']:
+                # Нерешенная задача - добавляем в дополнительное повторение
+                additional_topics.add(task.topic)
+    
+    # Убираем дубликаты из дополнительных тем (если тема уже в обязательных)
+    additional_topics = additional_topics - topics_to_review
     
     return render_template('tournament_results.html',
                          tournament=tournament,
-                         user_tasks_count=user_tasks_count,
+                         tasks_data=tasks_data,
                          solved_count=solved_count,
+                         correct_count=correct_count,
                          earned_points=earned_points,
-                         current_balance=current_user.balance)
+                         total_points=total_points,
+                         success_rate=success_rate,
+                         participation=participation,
+                         time_spent=time_spent,
+                         topics_to_review=sorted(list(topics_to_review)),
+                         additional_topics=sorted(list(additional_topics)),
+                         now=datetime.now())
 
 @app.route('/tournament/history')
 @login_required

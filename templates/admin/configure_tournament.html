@@ -39,9 +39,11 @@
                                 <tr>
                                     <th>№</th>
                                     <th>Название</th>
+                                    <th>Тема</th>
                                     <th>Описание</th>
                                     <th>Категория</th>
                                     <th>Изображение</th>
+                                    <th>Решение</th>
                                     <th>Баллы</th>
                                     <th>Действия</th>
                                 </tr>
@@ -51,6 +53,7 @@
                                 <tr>
                                     <td>{{ loop.index }}</td>
                                     <td>{{ task.title }}</td>
+                                    <td>{{ task.topic or 'Не указана' }}</td>
                                     <td>{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</td>
                                     <td>{{ task.category }}</td>
                                     <td>
@@ -62,6 +65,13 @@
                                         <span class="text-muted">Нет изображения</span>
                                         {% endif %}
                                     </td>
+                                    <td>
+                                        {% if task.solution_text or task.solution_image %}
+                                            <span class="badge bg-success">Есть</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Нет</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ task.points }}</td>
                                     <td>
                                         <div class="btn-group">
@@ -69,7 +79,8 @@
                                                     data-id="{{ task.id }}" data-title="{{ task.title }}" 
                                                     data-description="{{ task.description }}" data-points="{{ task.points }}"
                                                     data-image="{{ task.image }}" data-correct-answer="{{ task.correct_answer }}"
-                                                    data-category="{{ task.category }}">
+                                                    data-category="{{ task.category }}" data-topic="{{ task.topic or '' }}"
+                                                    data-solution-text="{{ task.solution_text or '' }}" data-solution-image="{{ task.solution_image or '' }}">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <button type="button" class="btn btn-action delete" data-bs-toggle="modal" data-bs-target="#deleteTaskModal" 
@@ -100,15 +111,19 @@
             <form action="{{ url_for('add_tournament_task', tournament_id=tournament.id) }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="title" class="form-label">Название задачи</label>
+                        <label for="title" class="form-label">Название задачи *</label>
                         <input type="text" class="form-control" id="title" name="title" required>
                     </div>
                     <div class="mb-3">
-                        <label for="description" class="form-label">Описание задачи</label>
+                        <label for="topic" class="form-label">Тема задачи</label>
+                        <input type="text" class="form-control" id="topic" name="topic" placeholder="Например: Алгебра, Геометрия, Арифметика">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Описание задачи *</label>
                         <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label for="category" class="form-label">Категория</label>
+                        <label for="category" class="form-label">Категория *</label>
                         <select class="form-select" id="category" name="category" required>
                             <option value="">Выберите категорию</option>
                             <option value="1-2">1-2 класс</option>
@@ -124,16 +139,26 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="image" class="form-label">Изображение</label>
+                        <label for="image" class="form-label">Изображение задачи</label>
                         <input type="file" class="form-control" id="image" name="image" accept="image/*">
                     </div>
                     <div class="mb-3">
-                        <label for="points" class="form-label">Баллы за решение</label>
+                        <label for="points" class="form-label">Баллы за решение *</label>
                         <input type="number" class="form-control" id="points" name="points" min="1" required>
                     </div>
                     <div class="mb-3">
-                        <label for="correct_answer" class="form-label">Правильный ответ</label>
+                        <label for="correct_answer" class="form-label">Правильный ответ *</label>
                         <input type="text" class="form-control" id="correct_answer" name="correct_answer" required>
+                    </div>
+                    <hr>
+                    <h6>Решение задачи</h6>
+                    <div class="mb-3">
+                        <label for="solution_text" class="form-label">Текст решения</label>
+                        <textarea class="form-control" id="solution_text" name="solution_text" rows="4" placeholder="Подробное решение задачи"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="solution_image" class="form-label">Изображение решения</label>
+                        <input type="file" class="form-control" id="solution_image" name="solution_image" accept="image/*">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -156,15 +181,19 @@
             <form id="editTaskForm" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="edit_title" class="form-label">Название задачи</label>
+                        <label for="edit_title" class="form-label">Название задачи *</label>
                         <input type="text" class="form-control" id="edit_title" name="title" required>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_description" class="form-label">Описание задачи</label>
+                        <label for="edit_topic" class="form-label">Тема задачи</label>
+                        <input type="text" class="form-control" id="edit_topic" name="topic" placeholder="Например: Алгебра, Геометрия, Арифметика">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Описание задачи *</label>
                         <textarea class="form-control" id="edit_description" name="description" rows="5" required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_category" class="form-label">Категория</label>
+                        <label for="edit_category" class="form-label">Категория *</label>
                         <select class="form-select" id="edit_category" name="category" required>
                             <option value="">Выберите категорию</option>
                             <option value="1-2">1-2 класс</option>
@@ -180,17 +209,28 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_image" class="form-label">Изображение</label>
+                        <label for="edit_image" class="form-label">Изображение задачи</label>
                         <input type="file" class="form-control" id="edit_image" name="image" accept="image/*">
                         <div id="current_image" class="mt-2"></div>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_points" class="form-label">Баллы за решение</label>
+                        <label for="edit_points" class="form-label">Баллы за решение *</label>
                         <input type="number" class="form-control" id="edit_points" name="points" min="1" required>
                     </div>
                     <div class="mb-3">
-                        <label for="edit_correct_answer" class="form-label">Правильный ответ</label>
+                        <label for="edit_correct_answer" class="form-label">Правильный ответ *</label>
                         <input type="text" class="form-control" id="edit_correct_answer" name="correct_answer" required>
+                    </div>
+                    <hr>
+                    <h6>Решение задачи</h6>
+                    <div class="mb-3">
+                        <label for="edit_solution_text" class="form-label">Текст решения</label>
+                        <textarea class="form-control" id="edit_solution_text" name="solution_text" rows="4" placeholder="Подробное решение задачи"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_solution_image" class="form-label">Изображение решения</label>
+                        <input type="file" class="form-control" id="edit_solution_image" name="solution_image" accept="image/*">
+                        <div id="current_solution_image" class="mt-2"></div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -236,25 +276,44 @@ document.addEventListener('DOMContentLoaded', function() {
         const image = button.getAttribute('data-image');
         const correctAnswer = button.getAttribute('data-correct-answer');
         const category = button.getAttribute('data-category');
+        const topic = button.getAttribute('data-topic');
+        const solutionText = button.getAttribute('data-solution-text');
+        const solutionImage = button.getAttribute('data-solution-image');
 
         const form = this.querySelector('#editTaskForm');
         form.action = `/admin/tournaments/{{ tournament.id }}/tasks/${taskId}/edit`;
         form.querySelector('#edit_title').value = title;
+        form.querySelector('#edit_topic').value = topic || '';
         form.querySelector('#edit_description').value = description;
         form.querySelector('#edit_points').value = points;
         form.querySelector('#edit_correct_answer').value = correctAnswer;
         form.querySelector('#edit_category').value = category;
+        form.querySelector('#edit_solution_text').value = solutionText || '';
 
+        // Отображение текущего изображения задачи
         const currentImageDiv = form.querySelector('#current_image');
         if (image) {
             currentImageDiv.innerHTML = `
-                <p>Текущее изображение:</p>
+                <p>Текущее изображение задачи:</p>
                 <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/${image}" 
                      alt="${title}" 
                      style="max-width: 200px; max-height: 200px; object-fit: contain;">
             `;
         } else {
-            currentImageDiv.innerHTML = '<p class="text-muted">Нет изображения</p>';
+            currentImageDiv.innerHTML = '<p class="text-muted">Нет изображения задачи</p>';
+        }
+
+        // Отображение текущего изображения решения
+        const currentSolutionImageDiv = form.querySelector('#current_solution_image');
+        if (solutionImage) {
+            currentSolutionImageDiv.innerHTML = `
+                <p>Текущее изображение решения:</p>
+                <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/${solutionImage}" 
+                     alt="Решение ${title}" 
+                     style="max-width: 200px; max-height: 200px; object-fit: contain;">
+            `;
+        } else {
+            currentSolutionImageDiv.innerHTML = '<p class="text-muted">Нет изображения решения</p>';
         }
     });
 

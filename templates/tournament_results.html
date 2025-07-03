@@ -14,32 +14,46 @@
 
 <div class="container mt-5">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="card">
-                <div class="card-body text-center">
-                    <h2 class="card-title mb-4">Результаты турнира "{{ tournament.title }}"</h2>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="card-title mb-0">Результаты турнира "{{ tournament.title }}"</h2>
+                        <a href="{{ url_for('tournament_history') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Назад к истории
+                        </a>
+                    </div>
                     
+                    <!-- Статистика турнира -->
                     <div class="results-stats mb-4">
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card bg-light">
-                                    <div class="card-body">
+                                    <div class="card-body text-center">
                                         <h5 class="card-title">Всего задач</h5>
-                                        <h2 class="text-primary">{{ user_tasks_count }}</h2>
+                                        <h2 class="text-primary">{{ tasks_data|length }}</h2>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card bg-light">
-                                    <div class="card-body">
+                                    <div class="card-body text-center">
                                         <h5 class="card-title">Решено задач</h5>
-                                        <h2 class="text-success">{{ solved_count }}</h2>
+                                        <h2 class="text-info">{{ solved_count }}</h2>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card bg-light">
-                                    <div class="card-body">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Правильно</h5>
+                                        <h2 class="text-success">{{ correct_count }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
                                         <h5 class="card-title">Заработано баллов</h5>
                                         <h2 class="text-warning">{{ earned_points }}</h2>
                                     </div>
@@ -48,13 +62,192 @@
                         </div>
                     </div>
                     
-                    <div class="current-balance mb-4">
-                        <h4>Ваш общий счет: <span class="text-primary">{{ current_balance }}</span></h4>
+                    <!-- Дополнительная статистика -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Процент правильных ответов</h6>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: {{ success_rate }}%" 
+                                             aria-valuenow="{{ success_rate }}" 
+                                             aria-valuemin="0" aria-valuemax="100">
+                                            {{ success_rate }}%
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ correct_count }} из {{ tasks_data|length }} задач решено правильно</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Общий результат</h6>
+                                    <p class="mb-1"><strong>Заработано баллов:</strong> {{ earned_points }} из {{ total_points }} возможных</p>
+                                    <p class="mb-1"><strong>Время участия:</strong> 
+                                        {% if participation %}
+                                            {% set minutes = (time_spent // 60)|int %}
+                                            {% set seconds = (time_spent % 60)|int %}
+                                            {{ minutes }} мин {{ seconds }} сек
+                                        {% else %}
+                                            Неизвестно
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="actions">
-                        <a href="{{ url_for('home') }}" class="btn btn-primary btn-lg">
-                            Вернуться на главную
+                    <!-- Рекомендации по повторению -->
+                    {% if topics_to_review or additional_topics %}
+                    <div class="recommendations mb-4">
+                        <div class="card border-primary">
+                            <div class="card-header  text-white">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-lightbulb me-2"></i>Рекомендации по повторению
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                {% if topics_to_review %}
+                                <div class="mb-3">
+                                    <h6 class="text-danger">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Обязательно повторите:
+                                    </h6>
+                                    <p class="text-muted small mb-2">Темы задач, которые вы решили неправильно:</p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for topic in topics_to_review %}
+                                        <span class="badge bg-danger">{{ topic }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if additional_topics %}
+                                <div class="mb-3">
+                                    <h6 class="text-warning">
+                                        <i class="fas fa-book me-2"></i>Рекомендуется повторить:
+                                    </h6>
+                                    <p class="text-muted small mb-2">Темы задач, которые вы не решали:</p>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for topic in additional_topics %}
+                                        <span class="badge bg-warning text-dark">{{ topic }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Совет:</strong> Регулярное повторение этих тем поможет улучшить ваши результаты в будущих турнирах!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Список задач -->
+                    <div class="tasks-list">
+                        <h4 class="mb-3">Список задач турнира</h4>
+                        
+                        {% if tasks_data %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="5%">№</th>
+                                        <th width="20%">Название</th>
+                                        <th width="15%">Тема</th>
+                                        <th width="25%">Описание</th>
+                                        <th width="10%">Баллы</th>
+                                        <th width="15%">Ваш ответ</th>
+                                        <th width="10%">Результат</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for task_data in tasks_data %}
+                                    <tr class="{% if task_data.is_solved %}{% if task_data.is_correct %}table-success{% else %}table-danger{% endif %}{% endif %}">
+                                        <td>{{ loop.index }}</td>
+                                        <td>
+                                            <strong>{{ task_data.task.title }}</strong>
+                                            {% if task_data.task.image %}
+                                            <br><small class="text-muted">
+                                                <i class="fas fa-image me-1"></i>Есть изображение
+                                            </small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if task_data.task.topic %}
+                                                {{ task_data.task.topic }}
+                                            {% else %}
+                                                <span class="text-muted">Не указана</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="task-description">
+                                                {{ task_data.task.description[:100] }}{% if task_data.task.description|length > 100 %}...{% endif %}
+                                            </div>
+                                            {% if task_data.task.image %}
+                                            <div class="mt-2">
+                                                <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task_data.task.image }}" 
+                                                     alt="Изображение задачи" 
+                                                     class="img-thumbnail" 
+                                                     style="max-height: 60px; max-width: 100px;">
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ task_data.task.points }}</span>
+                                        </td>
+                                        <td>
+                                            {% if task_data.is_solved %}
+                                                <span class="fw-bold">{{ task_data.user_answer or 'Пустой ответ' }}</span>
+                                                {% if task_data.solved_at %}
+                                                <br><small class="text-muted">
+                                                    {{ task_data.solved_at.strftime('%H:%M:%S') if task_data.solved_at else '' }}
+                                                </small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Не решена</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if task_data.is_solved %}
+                                                {% if task_data.is_correct %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-check me-1"></i>Правильно
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-times me-1"></i>Неправильно
+                                                    </span>
+                                                    <br><small class="text-muted">
+                                                        Правильный: {{ task_data.task.correct_answer }}
+                                                    </small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-secondary">Не решена</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>Для вашей категории в этом турнире нет доступных задач.
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Кнопки действий -->
+                    <div class="actions mt-4 text-center">
+                        <a href="{{ url_for('tournament_history') }}" class="btn btn-primary">
+                            <i class="fas fa-history me-2"></i>Вернуться к истории турниров
+                        </a>
+                        <a href="{{ url_for('home') }}" class="btn btn-secondary ms-2">
+                            <i class="fas fa-home me-2"></i>На главную
                         </a>
                     </div>
                 </div>
@@ -75,6 +268,14 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingOverlay.style.display = 'none';
         }, 300);
     }
+    
+    // Добавляем всплывающие подсказки для длинных описаний
+    const taskDescriptions = document.querySelectorAll('.task-description');
+    taskDescriptions.forEach(desc => {
+        if (desc.textContent.length > 100) {
+            desc.title = desc.textContent;
+        }
+    });
 });
 </script>
 {% endblock %} 
