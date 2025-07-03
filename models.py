@@ -27,6 +27,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
+    educational_institution_id = Column(Integer, nullable=True)  # Временно, связь добавим ниже
 
     def verify_password(self, password):
         return pwd_context.verify(password, self.hashed_password)
@@ -77,4 +78,8 @@ def create_admin_user():
     except Exception as e:
         print(f"Ошибка при создании администратора: {e}")
     finally:
-        db.close() 
+        db.close()
+
+# Добавляем связь после определения обеих моделей
+# ... после определения класса EducationalInstitution ...
+# User.educational_institution = relationship('EducationalInstitution', backref='users') 

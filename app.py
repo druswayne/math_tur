@@ -396,6 +396,9 @@ class User(UserMixin, db.Model):
                                              back_populates='user',
                                              cascade='all, delete-orphan',
                                              overlaps="tournaments,participants")
+    
+    educational_institution_id = db.Column(db.Integer, db.ForeignKey('educational_institutions.id'), nullable=True)
+    educational_institution = db.relationship('EducationalInstitution', backref=db.backref('users', lazy=True))
 
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)
@@ -1846,6 +1849,8 @@ def register():
         category = request.form.get('category')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
+        edu_id = request.form.get('educational_institution_id')
+        edu_name = request.form.get('educational_institution_name')
 
         if not is_valid_username(username):
             flash('Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.', 'danger')
@@ -1906,6 +1911,21 @@ def register():
         )
         user.set_password(password)
         user.temp_password = password
+        
+        # Обрабатываем учреждение образования
+        if edu_id:
+            user.educational_institution_id = int(edu_id)
+        elif edu_name:
+            # Проверяем, есть ли уже такое учреждение (на всякий случай)
+            existing = EducationalInstitution.query.filter_by(name=edu_name).first()
+            if existing:
+                user.educational_institution_id = existing.id
+            else:
+                new_edu = EducationalInstitution(name=edu_name, address='')
+                db.session.add(new_edu)
+                db.session.commit()
+                user.educational_institution_id = new_edu.id
+        
         db.session.add(user)
         db.session.commit()
 
@@ -3522,6 +3542,8 @@ def update_profile():
     parent_name = data.get('parent_name', '').strip()
     phone = data.get('phone', '').strip()
     category = data.get('category')
+    educational_institution_name = data.get('educational_institution_name', '').strip()
+    educational_institution_id = data.get('educational_institution_id', '').strip()
     new_password = data.get('new_password', '').strip()
     
     # Проверяем обязательные поля
@@ -3536,6 +3558,9 @@ def update_profile():
     
     if not category:
         return jsonify({'success': False, 'message': 'Пожалуйста, выберите группу'})
+    
+    if not educational_institution_name:
+        return jsonify({'success': False, 'message': 'Пожалуйста, введите учреждение образования'})
     
     # Валидация имени учащегося
     if len(student_name) < 2:
@@ -3591,6 +3616,25 @@ def update_profile():
             return jsonify({'success': False, 'message': 'Пароль должен содержать хотя бы одну цифру'})
     
     try:
+        # Обрабатываем учреждение образования
+        if educational_institution_id:
+            # Если указан ID, используем существующее учреждение
+            current_user.educational_institution_id = int(educational_institution_id)
+        else:
+            # Если ID не указан, создаем новое учреждение или находим существующее
+            existing_institution = EducationalInstitution.query.filter_by(name=educational_institution_name).first()
+            if existing_institution:
+                current_user.educational_institution_id = existing_institution.id
+            else:
+                # Создаем новое учреждение
+                new_institution = EducationalInstitution(
+                    name=educational_institution_name,
+                    address=''  # Пустой адрес для новых учреждений
+                )
+                db.session.add(new_institution)
+                db.session.flush()  # Получаем ID нового учреждения
+                current_user.educational_institution_id = new_institution.id
+        
         # Обновляем данные пользователя
         current_user.student_name = student_name
         current_user.parent_name = parent_name
@@ -3732,6 +3776,15 @@ class SchedulerJob(db.Model):
     
     # Связь с турниром (если задача связана с турниром)
     tournament = db.relationship('Tournament', backref=db.backref('scheduler_jobs', lazy=True))
+
+class EducationalInstitution(db.Model):
+    __tablename__ = "educational_institutions"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    name = db.Column(db.String(500), nullable=False)  # Название учреждения образования
+    address = db.Column(db.Text, nullable=False)  # Адрес учреждения
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
 
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
@@ -3963,6 +4016,15 @@ def cleanup_other_servers_jobs():
     except Exception as e:
         db.session.rollback()
         print(f"Ошибка при очистке задач других серверов: {e}")
+
+@app.route('/api/search-educational-institutions')
+def search_educational_institutions():
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify({'institutions': []})
+    results = EducationalInstitution.query.filter(EducationalInstitution.name.ilike(f'%{query}%')).limit(10).all()
+    institutions = [{'id': inst.id, 'name': inst.name, 'address': inst.address} for inst in results]
+    return jsonify({'institutions': institutions})
 
 
 

@@ -86,6 +86,7 @@
                     <p>Дата регистрации: {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
                     <p>Телефон: {{ current_user.phone }}</p>
                     <p>Группа: {{ current_user.category }}</p>
+                    <p><strong>Учреждение образования:</strong> {{ current_user.educational_institution.name if current_user.educational_institution else '—' }}</p>
                     
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
                         Редактировать
@@ -222,6 +223,16 @@
                         {% elif not settings.allow_category_change %}
                         <small class="form-text text-muted">Изменение группы временно недоступно</small>
                         {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="educational_institution_name">Учреждение образования</label>
+                        <input type="text" class="form-control" id="educational_institution_name" name="educational_institution_name" 
+                               value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}" 
+                               autocomplete="off" required>
+                        <input type="hidden" id="educational_institution_id" name="educational_institution_id" 
+                               value="{{ current_user.educational_institution_id or '' }}">
+                        <div id="edu-institution-suggestions" class="autocomplete-suggestions" style="margin-top: 10px; margin-bottom: 10px;"></div>
+                        <div class="form-text">Начните вводить название своего учреждения и выберите из предложенных. Если вашего учреждения нет в списке, введите полное название школы.</div>
                     </div>
                     <div class="mb-3">
                         <label for="newPassword" class="form-label">Новый пароль</label>
@@ -405,19 +416,12 @@ document.addEventListener('DOMContentLoaded', function() {
     transition: all 0.3s ease;
 }
 
-/* Дополнительная подсветка для селектора страны */
-.input-group .form-select.is-valid {
-    border-color: #198754;
-    border-width: 2px;
-    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
-    background-color: rgba(25, 135, 84, 0.05);
-}
-
-.input-group .form-select.is-invalid {
-    border-color: #dc3545;
-    border-width: 2px;
-    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
-    background-color: rgba(220, 53, 69, 0.05);
+/* Стили для селектора страны (без валидации) */
+.input-group .form-select {
+    border-color: #dee2e6;
+    border-width: 1px;
+    box-shadow: none;
+    background-color: #fff;
 }
 
 /* Стили для кнопки сохранения */
@@ -456,6 +460,38 @@ document.addEventListener('DOMContentLoaded', function() {
         opacity: 1;
         transform: scale(1);
     }
+}
+
+/* Стили для автокомплита учреждений образования */
+.autocomplete-suggestions {
+    position: relative;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+}
+
+.autocomplete-suggestion {
+    padding: 10px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.autocomplete-suggestion:hover {
+    background-color: #f8f9fa;
+}
+
+.autocomplete-suggestion:last-child {
+    border-bottom: none;
+}
+
+.autocomplete-suggestion.selected {
+    background-color: #e9ecef;
 }
 </style>
 
@@ -549,14 +585,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const isValid = phoneRegex.test(phone);
         showValidationIcon('phone', isValid);
         
-        // Применяем стили к селектору страны
-        if (isValid) {
-            phoneCountrySelect.classList.add('is-valid');
-            phoneCountrySelect.classList.remove('is-invalid');
-        } else {
-            phoneCountrySelect.classList.add('is-invalid');
-            phoneCountrySelect.classList.remove('is-valid');
-        }
+        // Убираем стили валидации с селектора страны
+        phoneCountrySelect.classList.remove('is-valid', 'is-invalid');
         
         validationState.phone = isValid;
     }
@@ -668,6 +698,118 @@ document.addEventListener('DOMContentLoaded', function() {
             validatePassword(newPasswordInput ? newPasswordInput.value : '');
             validateConfirmPassword();
             validateForm();
+            
+            // Инициализируем автокомплит для учреждений образования
+            initEducationalInstitutionAutocomplete();
+        });
+    }
+    
+    // Функция для автокомплита учреждений образования
+    function initEducationalInstitutionAutocomplete() {
+        const input = document.getElementById('educational_institution_name');
+        const suggestionsDiv = document.getElementById('edu-institution-suggestions');
+        const hiddenInput = document.getElementById('educational_institution_id');
+        
+        if (!input || !suggestionsDiv || !hiddenInput) return;
+        
+        let selectedIndex = -1;
+        let suggestions = [];
+        
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                hiddenInput.value = '';
+                return;
+            }
+            
+            fetch(`/api/search-educational-institutions?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    suggestions = data.institutions || [];
+                    displaySuggestions();
+                })
+                .catch(error => {
+                    console.error('Error fetching suggestions:', error);
+                });
+        });
+        
+        function displaySuggestions() {
+            if (suggestions.length === 0) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+            
+            suggestionsDiv.innerHTML = '';
+            suggestions.forEach((institution, index) => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-suggestion';
+                div.textContent = institution.name;
+                div.dataset.id = institution.id;
+                div.dataset.name = institution.name;
+                
+                div.addEventListener('click', function() {
+                    input.value = this.dataset.name;
+                    hiddenInput.value = this.dataset.id;
+                    suggestionsDiv.style.display = 'none';
+                });
+                
+                div.addEventListener('mouseenter', function() {
+                    selectedIndex = index;
+                    updateSelection();
+                });
+                
+                suggestionsDiv.appendChild(div);
+            });
+            
+            suggestionsDiv.style.display = 'block';
+            selectedIndex = -1;
+        }
+        
+        function updateSelection() {
+            const items = suggestionsDiv.querySelectorAll('.autocomplete-suggestion');
+            items.forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        input.addEventListener('keydown', function(e) {
+            if (suggestionsDiv.style.display === 'none') return;
+            
+            const items = suggestionsDiv.querySelectorAll('.autocomplete-suggestion');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                updateSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelection();
+            } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                e.preventDefault();
+                const selectedItem = items[selectedIndex];
+                if (selectedItem) {
+                    input.value = selectedItem.dataset.name;
+                    hiddenInput.value = selectedItem.dataset.id;
+                    suggestionsDiv.style.display = 'none';
+                }
+            } else if (e.key === 'Escape') {
+                suggestionsDiv.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+        
+        // Скрываем подсказки при клике вне поля
+        document.addEventListener('click', function(e) {
+            if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.style.display = 'none';
+                selectedIndex = -1;
+            }
         });
     }
 });
@@ -678,13 +820,15 @@ function updateProfile() {
     const phoneCountry = document.getElementById('phone_country').value;
     const phone = document.getElementById('phone').value;
     const category = document.getElementById('category').value;
+    const educationalInstitutionName = document.getElementById('educational_institution_name').value;
+    const educationalInstitutionId = document.getElementById('educational_institution_id').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     
     // Формируем полный номер телефона
     const fullPhone = phoneCountry + phone;
     
-    if (!studentName || !parentName || !phone || !category) {
+    if (!studentName || !parentName || !phone || !category || !educationalInstitutionName) {
         showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
         return;
     }
@@ -704,6 +848,8 @@ function updateProfile() {
             parent_name: parentName,
             phone: fullPhone,
             category: category,
+            educational_institution_name: educationalInstitutionName,
+            educational_institution_id: educationalInstitutionId,
             new_password: newPassword
         })
     })
