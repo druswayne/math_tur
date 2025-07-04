@@ -2544,7 +2544,7 @@ def submit_task_answer(tournament_id, task_id):
     db.session.add(solution)
     
     # Обновляем время окончания участия в турнире
-    if participation and not participation.end_time:
+    if participation:
         participation.end_time = current_time
     
     if is_correct:
@@ -2606,6 +2606,11 @@ def submit_task_answer(tournament_id, task_id):
 @login_required
 def tournament_results(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
+    
+    # Проверяем, завершился ли турнир
+    if tournament.status != 'finished':
+        flash('Результаты турнира будут доступны только после его завершения', 'warning')
+        return redirect(url_for('tournament_history'))
     
     # Проверяем, участвовал ли пользователь в этом турнире
     participation = TournamentParticipation.query.filter_by(
@@ -2743,6 +2748,7 @@ def tournament_history():
             'id': tournament.id,
             'name': tournament.title,
             'start_date': tournament.start_date,
+            'status': tournament.status,
             'solved_tasks': solved_tasks or 0,
             'earned_points': earned_points or 0,
             'score': score or 0,

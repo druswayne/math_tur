@@ -56,18 +56,40 @@
                                     <td>{{ task.topic or 'Не указана' }}</td>
                                     <td>{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</td>
                                     <td>{{ task.category }}</td>
-                                    <td>
+                                    <td class="text-center">
                                         {% if task.image %}
                                         <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}" 
                                              alt="{{ task.title }}" 
-                                             style="max-width: 100px; max-height: 100px; object-fit: contain;">
+                                             class="task-image-preview"
+                                             style="max-width: 80px; max-height: 80px; object-fit: contain; cursor: pointer;"
+                                             data-bs-toggle="modal" 
+                                             data-bs-target="#imageModal"
+                                             data-image-src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
+                                             data-image-alt="Изображение задачи: {{ task.title }}">
+                                        <br><small class="text-muted">
+                                            <i class="fas fa-search me-1"></i>Просмотр
+                                        </small>
                                         {% else %}
-                                        <span class="text-muted">Нет изображения</span>
+                                        <div style="min-height: 80px; display: flex; align-items: center; justify-content: center;">
+                                            <span class="text-muted small">
+                                                <i class="fas fa-image me-1"></i>Нет
+                                            </span>
+                                        </div>
                                         {% endif %}
                                     </td>
                                     <td>
                                         {% if task.solution_text or task.solution_image %}
                                             <span class="badge bg-success">Есть</span>
+                                            <br>
+                                            <button type="button" 
+                                                    class="btn btn-outline-info btn-sm mt-1" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#adminSolutionModal"
+                                                    data-task-title="{{ task.title }}"
+                                                    data-solution-text="{{ task.solution_text or '' }}"
+                                                    data-solution-image="{{ task.solution_image or '' }}">
+                                                <i class="fas fa-eye me-1"></i>Просмотр
+                                            </button>
                                         {% else %}
                                             <span class="badge bg-secondary">Нет</span>
                                         {% endif %}
@@ -263,6 +285,44 @@
     </div>
 </div>
 
+<!-- Модальное окно для просмотра изображений -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Просмотр изображения</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="" class="img-fluid" style="max-height: 70vh;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра решения (админ) -->
+<div class="modal fade" id="adminSolutionModal" tabindex="-1" aria-labelledby="adminSolutionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="adminSolutionModalLabel">Решение задачи</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="adminSolutionContent">
+                    <!-- Здесь будет содержимое решения -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Обработка редактирования задачи
@@ -327,6 +387,81 @@ document.addEventListener('DOMContentLoaded', function() {
         this.querySelector('#deleteTaskTitle').textContent = title;
         this.querySelector('#deleteTaskForm').action = `/admin/tournaments/{{ tournament.id }}/tasks/${taskId}/delete`;
     });
+    
+    // Обработка кликов по изображениям задач
+    const taskImagePreviews = document.querySelectorAll('.task-image-preview');
+    taskImagePreviews.forEach(img => {
+        img.addEventListener('click', function() {
+            const imageSrc = this.getAttribute('data-image-src');
+            const imageAlt = this.getAttribute('data-image-alt');
+            
+            document.getElementById('modalImage').src = imageSrc;
+            document.getElementById('modalImage').alt = imageAlt;
+            document.getElementById('imageModalLabel').textContent = imageAlt;
+        });
+    });
+    
+    // Обработка кликов по кнопке "Просмотр решения" (админ)
+    const adminSolutionButtons = document.querySelectorAll('[data-bs-target="#adminSolutionModal"]');
+    adminSolutionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const taskTitle = this.getAttribute('data-task-title');
+            const solutionText = this.getAttribute('data-solution-text');
+            const solutionImage = this.getAttribute('data-solution-image');
+            
+            // Обновляем заголовок модального окна
+            document.getElementById('adminSolutionModalLabel').textContent = `Решение задачи: ${taskTitle}`;
+            
+            // Формируем содержимое решения
+            let solutionContent = '';
+            
+            if (solutionText) {
+                solutionContent += `<div class="mb-3">
+                    <h6><i class="fas fa-file-text me-2"></i>Текст решения:</h6>
+                    <div class="solution-text" style="white-space: pre-line; background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
+                        ${solutionText}
+                    </div>
+                </div>`;
+            }
+            
+            if (solutionImage) {
+                solutionContent += `<div class="mb-3">
+                    <h6><i class="fas fa-image me-2"></i>Изображение решения:</h6>
+                    <div class="text-center">
+                        <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/${solutionImage}" 
+                             alt="Изображение решения" 
+                             class="img-fluid solution-image" 
+                             style="max-height: 400px; cursor: pointer;"
+                             onclick="openAdminSolutionImageModal(this.src, 'Изображение решения: ${taskTitle}')">
+                        <br><small class="text-muted">
+                            <i class="fas fa-search me-1"></i>Нажмите для увеличения
+                        </small>
+                    </div>
+                </div>`;
+            }
+            
+            if (!solutionText && !solutionImage) {
+                solutionContent = '<div class="alert alert-info">Решение для этой задачи пока не добавлено.</div>';
+            }
+            
+            document.getElementById('adminSolutionContent').innerHTML = solutionContent;
+        });
+    });
 });
+
+// Функция для открытия изображения решения в отдельном модальном окне (админ)
+function openAdminSolutionImageModal(imageSrc, imageAlt) {
+    document.getElementById('modalImage').src = imageSrc;
+    document.getElementById('modalImage').alt = imageAlt;
+    document.getElementById('imageModalLabel').textContent = imageAlt;
+    
+    // Закрываем модальное окно с решением
+    const solutionModal = bootstrap.Modal.getInstance(document.getElementById('adminSolutionModal'));
+    solutionModal.hide();
+    
+    // Открываем модальное окно с изображением
+    const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+    imageModal.show();
+}
 </script>
 {% endblock %} 
