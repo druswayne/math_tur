@@ -254,6 +254,7 @@
     border-width: 2px;
     box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
     background-color: rgba(25, 135, 84, 0.05);
+    background-image: none; /* Убираем галочку */
 }
 
 .input-group .form-select.is-invalid {
@@ -261,6 +262,18 @@
     border-width: 2px;
     box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
     background-color: rgba(220, 53, 69, 0.05);
+    background-image: none; /* Убираем крестик */
+}
+
+/* Специальные стили для селектора страны телефона - убираем галочку и крестик */
+#phone_country.is-valid {
+    background-image: none !important;
+    padding-right: 0.375rem !important;
+}
+
+#phone_country.is-invalid {
+    background-image: none !important;
+    padding-right: 0.375rem !important;
 }
 
 /* Стили для кнопки регистрации */

@@ -76,7 +76,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -277,6 +277,12 @@ def end_tournament_job(tournament_id):
                     # Устанавливаем время окончания участия, если оно еще не установлено
                     if not participation.end_time:
                         participation.end_time = current_time
+                    
+                    # Вычисляем время участия в турнире и добавляем к общему времени пользователя
+                    if participation.start_time and participation.end_time:
+                        time_spent = (participation.end_time - participation.start_time).total_seconds()
+                        # Добавляем время участия к общему времени пользователя
+                        participation.user.total_tournament_time += int(time_spent)
 
                 
                 # Обновляем рейтинги в категориях
@@ -3902,22 +3908,34 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 def cleanup_old_sessions():
-    """Удаляет устаревшие сессии из базы данных"""
+    """Удаляет устаревшие сессии и пользователей с неподтвержденными email из базы данных"""
     try:
         # Удаляем сессии старше 1 недели
         one_week_ago = datetime.now() - timedelta(days=7)
-        UserSession.query.filter(
+        deleted_sessions = UserSession.query.filter(
             UserSession.created_at < one_week_ago,
             UserSession.is_active == False
         ).delete()
+        
+        # Удаляем пользователей с неподтвержденными email старше 3 дней
+        thirty_days_ago = datetime.now() - timedelta(days=3)
+        deleted_users = User.query.filter(
+            User.is_active == False,
+            User.email_confirmation_token.isnot(None),
+            User.created_at < thirty_days_ago,
+            User.is_admin == False  # Не удаляем администраторов
+        ).delete()
+        
         db.session.commit()
+        
+        print(f"Очистка завершена: удалено {deleted_sessions} сессий и {deleted_users} пользователей с неподтвержденными email")
         
         # НЕ удаляем запись о задаче из БД, так как это интервальная задача
         # которая должна выполняться каждые 24 часа
         
     except Exception as e:
         db.session.rollback()
-        print(f"Ошибка при очистке устаревших сессий: {e}")
+        print(f"Ошибка при очистке устаревших сессий и пользователей: {e}")
 
 # Настраиваем периодическую очистку сессий
 #add_scheduler_job(
