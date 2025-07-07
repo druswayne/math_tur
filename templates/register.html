@@ -107,7 +107,7 @@
                             <input type="text" class="form-control" id="educational_institution_name" name="educational_institution_name" autocomplete="off" required>
                             <input type="hidden" id="educational_institution_id" name="educational_institution_id">
 <div id="edu-institution-suggestions" class="autocomplete-suggestions" style="margin-top: 10px; margin-bottom: 10px;"></div>
-                                                        <div class="form-text">Начните вводить название своего учреждения и выберите из предложенных. Если вашего учреждения нет в списке, введите полное название школы.</div>
+                                                        <div class="form-text">Начните вводить название своего учреждения и выберите из предложенных. Если вашего учреждения нет в списке, введите полное название учреждения.</div>
 
                         </div>
                         <div class="mb-3">
@@ -533,15 +533,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const isValid = phoneRegex.test(phone);
         showValidationIcon('phone', isValid);
-        
-        // Применяем стили к селектору страны
-        if (isValid) {
-            phoneCountrySelect.classList.add('is-valid');
-            phoneCountrySelect.classList.remove('is-invalid');
-        } else {
-            phoneCountrySelect.classList.add('is-invalid');
-            phoneCountrySelect.classList.remove('is-valid');
-        }
         
         validationState.phone = isValid;
     }

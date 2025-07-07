@@ -4132,7 +4132,7 @@ def search_educational_institutions():
     query = request.args.get('q', '').strip()
     if not query:
         return jsonify({'institutions': []})
-    results = EducationalInstitution.query.filter(EducationalInstitution.name.ilike(f'%{query}%')).limit(10).all()
+    results = EducationalInstitution.query.filter(EducationalInstitution.name.ilike(f'%{query}%')).limit(50).all()
     institutions = [{'id': inst.id, 'name': inst.name, 'address': inst.address} for inst in results]
     return jsonify({'institutions': institutions})
 
