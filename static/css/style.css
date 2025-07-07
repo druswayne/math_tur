@@ -260,7 +260,7 @@ footer a:hover {
 }
 
 footer i {
-    color: var(--primary-color);
+    /*color: var(--primary-color);*/
     margin-right: 0.5rem;
 }
 
@@ -658,7 +658,6 @@ footer a:hover i {
     }
 
     .countdown-item {
-
         min-width: 60px;
         padding: 0.25rem;
         margin: 0;
@@ -725,24 +724,33 @@ footer a:hover i {
 
 /* Адаптивные стили для футера */
 @media (max-width: 768px) {
-    footer {
-        text-align: center;
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    footer .row {
+        flex-direction: column !important;
     }
-
+    footer .col-md-6 {
+        max-width: 100%;
+        flex: 0 0 100%;
+        text-align: center !important;
+        margin-bottom: 2rem;
+    }
     footer .text-md-end {
         text-align: center !important;
-        margin-top: 1rem;
+        margin-top: 2rem;
     }
-
+    footer .mt-3 {
+        justify-content: center;
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    footer .mt-3.text-md-end {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
     footer h5 {
-        font-size: 1.1rem;
-        color: #fff;
-    }
-
-    footer p {
-        font-size: 0.9rem;
-        color: #fff;
+        margin-top: 2rem;
     }
 }
 
@@ -1221,10 +1229,6 @@ main {
     display: flex;
     gap: 1rem;
 }
-
-
-
-
 
 /* Стили для предупреждений */
 .alert-info {
