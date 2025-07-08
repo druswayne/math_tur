@@ -4444,7 +4444,7 @@ def search_educational_institutions():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='errors.log',level=logging.DEBUG)
+    logging.basicConfig(filename='errors.log',level=logging.INFO)
     with app.app_context():
         db.create_all()
         create_admin_user()
