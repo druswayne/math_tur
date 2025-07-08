@@ -78,7 +78,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
