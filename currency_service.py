@@ -6,7 +6,7 @@
 import requests
 import json
 from datetime import datetime, timedelta
-from flask import current_app
+
 import logging
 
 class CurrencyService:
