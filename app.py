@@ -76,7 +76,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -468,6 +468,16 @@ class TicketPurchase(db.Model):
     amount = db.Column(db.Float, nullable=False)
     discount = db.Column(db.Integer, default=0)  # Скидка в процентах
     purchase_date = db.Column(db.DateTime, default=datetime.now())
+    
+    # Поля для платежей
+    payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa' или 'bepaid'
+    payment_id = db.Column(db.String(100), nullable=True, index=True)  # ID платежа в платежной системе
+    payment_status = db.Column(db.String(20), default='pending', index=True)  # pending, waiting_for_capture, succeeded, canceled, failed
+    payment_method = db.Column(db.String(50), nullable=True)  # Способ оплаты
+    currency = db.Column(db.String(3), default='RUB')  # Валюта платежа
+    payment_url = db.Column(db.String(500), nullable=True)  # URL для оплаты
+    payment_created_at = db.Column(db.DateTime(), nullable=True)  # Время создания платежа
+    payment_confirmed_at = db.Column(db.DateTime(), nullable=True)  # Время подтверждения платежа
     
     user = db.relationship('User', backref=db.backref('ticket_purchases', lazy=True))
 
@@ -2074,14 +2084,114 @@ def buy_tickets():
         'discount': discount.discount
     } for discount in discounts]
     
+    # Получаем курс валют
+    from currency_service import currency_service
+    currency_rate = currency_service.get_byn_to_rub_rate()
+    currency_rate_formatted = currency_service.get_formatted_rate()
+    
     return render_template('buy_tickets.html', 
                          title='Покупка билетов',
                          base_price=base_price,
-                         discounts=discounts_data)
+                         discounts=discounts_data,
+                         currency_rate=currency_rate,
+                         currency_rate_formatted=currency_rate_formatted)
+
+@app.route('/create-payment', methods=['POST'])
+@login_required
+def create_payment():
+    """Создание платежа для покупки жетонов"""
+    if current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Администраторы не могут покупать жетоны'})
+    
+    data = request.get_json()
+    quantity = data.get('quantity', 0)
+    payment_system = data.get('payment_system', '')
+    
+    if not quantity or quantity < 1:
+        return jsonify({'success': False, 'error': 'Укажите корректное количество жетонов'})
+    
+    if payment_system not in ['yukassa', 'bepaid']:
+        return jsonify({'success': False, 'error': 'Неверная платежная система'})
+    
+    base_price = TicketPackage.query.filter_by(is_active=True).first()
+    if not base_price:
+        return jsonify({'success': False, 'error': 'В данный момент покупка жетонов недоступна'})
+    
+    # Получаем скидку для указанного количества
+    discount = TicketDiscount.get_discount_for_quantity(quantity)
+    
+    # Рассчитываем итоговую стоимость в BYN
+    total_price_byn = base_price.price * quantity * (1 - discount / 100)
+    
+    # Конвертируем в RUB для ЮKassa
+    from currency_service import currency_service
+    if payment_system == 'yukassa':
+        total_price = currency_service.convert_byn_to_rub(total_price_byn)
+    else:
+        total_price = total_price_byn
+    
+    # Создаем запись о покупке
+    purchase = TicketPurchase(
+        user_id=current_user.id,
+        quantity=quantity,
+        amount=total_price_byn,  # Сохраняем сумму в BYN
+        discount=discount,
+        payment_system=payment_system,
+        payment_status='pending',
+        currency='RUB' if payment_system == 'yukassa' else 'BYN'
+    )
+    
+    db.session.add(purchase)
+    db.session.commit()
+    
+    try:
+        if payment_system == 'yukassa':
+            # Интеграция с ЮKassa
+            from yukassa_service import yukassa_service
+            
+            # Создаем описание платежа
+            description = f"Покупка {quantity} жетонов для участия в турнирах"
+            
+            # URL для возврата после оплаты
+            return_url = url_for('purchase_history', _external=True)
+            
+            # Создаем платеж в ЮKassa
+            payment_info = yukassa_service.create_payment(
+                amount=total_price,
+                description=description,
+                return_url=return_url,
+                capture=True  # Автоматическое списание
+            )
+            
+            # Сохраняем данные платежа
+            purchase.payment_id = payment_info['id']
+            purchase.payment_status = yukassa_service.get_payment_status(payment_info)
+            purchase.payment_url = payment_info['confirmation']['confirmation_url']
+            purchase.payment_created_at = datetime.now()
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Платеж создан успешно',
+                'payment_url': purchase.payment_url
+            })
+            
+        elif payment_system == 'bepaid':
+            # Заглушка для bePaid
+            return jsonify({
+                'success': False,
+                'error': 'Система bePaid пока не поддерживается'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'Ошибка при создании платежа: {str(e)}'})
 
 @app.route('/process-ticket-purchase', methods=['POST'])
 @login_required
 def process_ticket_purchase():
+    """Старый маршрут для обратной совместимости"""
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
@@ -2178,6 +2288,100 @@ def download_receipt(purchase_id):
     # TODO: Здесь будет интеграция с эквайрингом для получения чека
     flash('Функция получения чека временно недоступна', 'info')
     return redirect(url_for('purchase_history'))
+
+@app.route('/check-payment-status/<payment_id>')
+@login_required
+def check_payment_status(payment_id):
+    """Проверка статуса платежа"""
+    try:
+        # Находим покупку
+        purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+        if not purchase:
+            return jsonify({'error': 'Purchase not found'}), 404
+        
+        # Проверяем, что покупка принадлежит текущему пользователю
+        if purchase.user_id != current_user.id:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Получаем актуальную информацию о платеже от ЮKassa
+        from yukassa_service import yukassa_service
+        payment_info = yukassa_service.get_payment_info(payment_id)
+        
+        # Обновляем статус
+        old_status = purchase.payment_status
+        new_status = yukassa_service.get_payment_status(payment_info)
+        purchase.payment_status = new_status
+        
+        # Если платеж успешен, начисляем жетоны
+        if new_status == 'succeeded' and old_status != 'succeeded':
+            current_user.tickets += purchase.quantity
+            purchase.payment_confirmed_at = datetime.now()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'status': new_status,
+            'payment_id': payment_id,
+            'amount': purchase.amount,
+            'quantity': purchase.quantity
+        })
+        
+    except Exception as e:
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/yukassa-webhook', methods=['POST'])
+def yukassa_webhook():
+    """Обработка webhook'ов от ЮKassa"""
+    try:
+        # Логируем входящий webhook
+        print(f"Получен webhook от ЮKassa: {request.headers}")
+        
+        # Получаем данные от ЮKassa
+        data = request.get_json()
+        
+        if not data:
+            print("Webhook: пустое тело запроса")
+            return jsonify({'error': 'Empty request body'}), 400
+        
+        # Проверяем подпись (в тестовой среде пропускаем)
+        from yukassa_service import yukassa_service
+        
+        # Получаем информацию о платеже
+        payment_id = data.get('object', {}).get('id')
+        print(f"Webhook: обработка платежа {payment_id}")
+        
+        if not payment_id:
+            print("Webhook: отсутствует ID платежа")
+            return jsonify({'error': 'No payment ID'}), 400
+        
+        # Получаем актуальную информацию о платеже
+        payment_info = yukassa_service.get_payment_info(payment_id)
+        
+        # Находим покупку по ID платежа
+        purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+        if not purchase:
+            return jsonify({'error': 'Purchase not found'}), 404
+        
+        # Обновляем статус платежа
+        old_status = purchase.payment_status
+        new_status = yukassa_service.get_payment_status(payment_info)
+        purchase.payment_status = new_status
+        
+        # Если платеж успешен, начисляем жетоны
+        if new_status == 'succeeded' and old_status != 'succeeded':
+            user = User.query.get(purchase.user_id)
+            if user:
+                user.tickets += purchase.quantity
+                purchase.payment_confirmed_at = datetime.now()
+                print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+        
+        db.session.commit()
+        print(f"Webhook: статус платежа {payment_id} обновлен с {old_status} на {new_status}")
+        
+        return jsonify({'success': True}), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/completed-tournaments')
 @login_required
@@ -4104,7 +4308,10 @@ def inject_s3_utils():
         'get_s3_url': get_s3_url
     }
 
-
+@app.context_processor
+def inject_csrf_token():
+    """Добавляет CSRF токен в контекст шаблонов"""
+    return dict(csrf_token=lambda: secrets.token_urlsafe(32))
 
 def cleanup_other_servers_jobs():
     """Удаляет задачи других серверов, которые могли остаться после перезапуска"""

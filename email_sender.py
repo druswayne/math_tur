@@ -22,7 +22,7 @@ def process_email_queue():
             app, mail, msg = email_queue.get()
             send_email_async(app, mail, msg)
             email_queue.task_done()
-        time.sleep(0.1)  # Небольшая задержка для снижения нагрузки на CPU
+        time.sleep(10)  # Задержка 10 секунд между отправкой писем
 
 def add_to_queue(app, mail, msg):
     """Добавление письма в очередь"""

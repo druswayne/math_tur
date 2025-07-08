@@ -24,6 +24,7 @@
                             <th>Количество</th>
                             <th>Сумма</th>
                             <th>Скидка</th>
+                            <th>Статус</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -33,6 +34,27 @@
                             <td>{{ purchase.quantity }}</td>
                             <td>{{ "%.2f"|format(purchase.amount) }} BYN</td>
                             <td>{{ purchase.discount }}%</td>
+                            <td>
+                                <span class="badge purchase-history-badge 
+                                    {% if purchase.payment_status == 'succeeded' %}completed
+                                    {% elif purchase.payment_status == 'canceled' or purchase.payment_status == 'failed' %}cancelled
+                                    {% elif purchase.payment_status == 'waiting_for_capture' %}pending
+                                    {% else %}pending{% endif %}">
+                                    {% if purchase.payment_status == 'succeeded' %}
+                                        <i class="fas fa-check me-1"></i>Оплачено
+                                    {% elif purchase.payment_status == 'canceled' %}
+                                        <i class="fas fa-times me-1"></i>Отменено
+                                    {% elif purchase.payment_status == 'failed' %}
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Ошибка
+                                    {% elif purchase.payment_status == 'waiting_for_capture' %}
+                                        <i class="fas fa-clock me-1"></i>Ожидает подтверждения
+                                    {% elif purchase.payment_status == 'pending' %}
+                                        <i class="fas fa-clock me-1"></i>В обработке
+                                    {% else %}
+                                        <i class="fas fa-question me-1"></i>Неизвестно
+                                    {% endif %}
+                                </span>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
