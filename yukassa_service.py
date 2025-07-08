@@ -237,14 +237,87 @@ class YukassaService:
         
         # Маппинг статусов ЮKassa на наши статусы
         status_mapping = {
-            'pending': 'pending',
-            'waiting_for_capture': 'waiting_for_capture',
-            'succeeded': 'succeeded',
-            'canceled': 'canceled',
-            'failed': 'failed'
+            'pending': 'pending',                    # Ожидает оплаты
+            'waiting_for_capture': 'waiting_for_capture',  # Ожидает подтверждения
+            'succeeded': 'succeeded',                # Успешно оплачен
+            'canceled': 'canceled',                  # Отменен
+            'failed': 'failed'                       # Ошибка платежа
         }
         
         return status_mapping.get(status, 'unknown')
+    
+    def get_payment_status_description(self, status):
+        """
+        Получает описание статуса платежа для отображения пользователю
+        
+        Args:
+            status (str): Статус платежа
+        
+        Returns:
+            str: Описание статуса
+        """
+        descriptions = {
+            'pending': 'Ожидает оплаты',
+            'waiting_for_capture': 'Ожидает подтверждения',
+            'succeeded': 'Оплачено',
+            'canceled': 'Отменено',
+            'failed': 'Ошибка платежа',
+            'expired': 'Время платежа истекло',
+            'unknown': 'Неизвестный статус'
+        }
+        
+        return descriptions.get(status, 'Неизвестный статус')
+    
+    def is_payment_expired(self, payment_info):
+        """
+        Проверяет, истек ли платеж
+        
+        Args:
+            payment_info (dict): Информация о платеже от ЮKassa
+        
+        Returns:
+            bool: True если платеж истек
+        """
+        try:
+            # Получаем время создания платежа
+            created_at = payment_info.get('created_at')
+            if not created_at:
+                return False
+            
+            # Парсим время создания
+            from datetime import datetime
+            created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+            
+            # Время жизни платежа в ЮKassa - 24 часа
+            from datetime import timedelta
+            expiration_time = created_time + timedelta(hours=24)
+            
+            # Текущее время в UTC
+            current_time = datetime.utcnow().replace(tzinfo=created_time.tzinfo)
+            
+            return current_time > expiration_time
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка при проверке истечения платежа: {e}")
+            return False
+    
+    def get_payment_status_with_expiry(self, payment_info):
+        """
+        Получает статус платежа с учетом истечения времени
+        
+        Args:
+            payment_info (dict): Информация о платеже от ЮKassa
+        
+        Returns:
+            str: Статус платежа
+        """
+        status = self.get_payment_status(payment_info)
+        
+        # Если платеж в статусе pending и истек, меняем на expired
+        if status == 'pending' and self.is_payment_expired(payment_info):
+            return 'expired'
+        
+        return status
 
 # Создаем глобальный экземпляр сервиса
 yukassa_service = YukassaService() 

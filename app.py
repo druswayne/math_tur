@@ -469,7 +469,7 @@ class TicketPurchase(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     amount = db.Column(db.Float, nullable=False)
     discount = db.Column(db.Integer, default=0)  # Скидка в процентах
-    purchase_date = db.Column(db.DateTime, default=datetime.now())
+    purchase_date = db.Column(db.DateTime, default=datetime.now)
     
     # Поля для платежей
     payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa' или 'bepaid'
@@ -2309,26 +2309,33 @@ def check_payment_status(payment_id):
         from yukassa_service import yukassa_service
         payment_info = yukassa_service.get_payment_info(payment_id)
         
-        # Обновляем статус
+        # Обновляем статус с учетом истечения времени
         old_status = purchase.payment_status
-        new_status = yukassa_service.get_payment_status(payment_info)
+        new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
         purchase.payment_status = new_status
+        
+        # Получаем описание статуса
+        status_description = yukassa_service.get_payment_status_description(new_status)
         
         # Если платеж успешен, начисляем жетоны
         if new_status == 'succeeded' and old_status != 'succeeded':
             current_user.tickets += purchase.quantity
             purchase.payment_confirmed_at = datetime.now()
+            print(f"Проверка статуса: начислено {purchase.quantity} жетонов пользователю {current_user.id}")
         
         db.session.commit()
         
         return jsonify({
             'status': new_status,
+            'status_description': status_description,
             'payment_id': payment_id,
             'amount': purchase.amount,
-            'quantity': purchase.quantity
+            'quantity': purchase.quantity,
+            'old_status': old_status
         })
         
     except Exception as e:
+        print(f"Ошибка при проверке статуса платежа {payment_id}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/yukassa-webhook', methods=['POST'])
@@ -2337,6 +2344,7 @@ def yukassa_webhook():
     try:
         # Логируем входящий webhook
         print(f"Получен webhook от ЮKassa: {request.headers}")
+        print(f"Тело webhook: {request.get_json()}")
         
         # Получаем данные от ЮKassa
         data = request.get_json()
@@ -2350,7 +2358,8 @@ def yukassa_webhook():
         
         # Получаем информацию о платеже
         payment_id = data.get('object', {}).get('id')
-        print(f"Webhook: обработка платежа {payment_id}")
+        event_type = data.get('event', 'unknown')
+        print(f"Webhook: обработка платежа {payment_id}, событие: {event_type}")
         
         if not payment_id:
             print("Webhook: отсутствует ID платежа")
@@ -2362,20 +2371,49 @@ def yukassa_webhook():
         # Находим покупку по ID платежа
         purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
         if not purchase:
+            print(f"Webhook: покупка с payment_id {payment_id} не найдена")
             return jsonify({'error': 'Purchase not found'}), 404
         
-        # Обновляем статус платежа
+        # Обновляем статус платежа с учетом истечения времени
         old_status = purchase.payment_status
-        new_status = yukassa_service.get_payment_status(payment_info)
+        new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
         purchase.payment_status = new_status
         
-        # Если платеж успешен, начисляем жетоны
+        # Логируем детали платежа
+        print(f"Webhook: платеж {payment_id}")
+        print(f"  - Старый статус: {old_status}")
+        print(f"  - Новый статус: {new_status}")
+        print(f"  - Событие: {event_type}")
+        print(f"  - Сумма: {payment_info.get('amount', {}).get('value')} {payment_info.get('amount', {}).get('currency')}")
+        
+        # Обрабатываем разные статусы
         if new_status == 'succeeded' and old_status != 'succeeded':
+            # Платеж успешно завершен
             user = User.query.get(purchase.user_id)
             if user:
                 user.tickets += purchase.quantity
                 purchase.payment_confirmed_at = datetime.now()
                 print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+        
+        elif new_status == 'canceled':
+            # Платеж отменен
+            print(f"Webhook: платеж {payment_id} отменен")
+            
+        elif new_status == 'failed':
+            # Платеж завершился с ошибкой
+            print(f"Webhook: платеж {payment_id} завершился с ошибкой")
+            
+        elif new_status == 'pending':
+            # Платеж ожидает оплаты
+            print(f"Webhook: платеж {payment_id} ожидает оплаты")
+            
+        elif new_status == 'waiting_for_capture':
+            # Платеж ожидает подтверждения
+            print(f"Webhook: платеж {payment_id} ожидает подтверждения")
+            
+        elif new_status == 'expired':
+            # Платеж истек
+            print(f"Webhook: платеж {payment_id} истек (время ожидания превышено)")
         
         db.session.commit()
         print(f"Webhook: статус платежа {payment_id} обновлен с {old_status} на {new_status}")
@@ -2383,6 +2421,7 @@ def yukassa_webhook():
         return jsonify({'success': True}), 200
         
     except Exception as e:
+        print(f"Webhook: ошибка обработки: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/completed-tournaments')
@@ -2591,6 +2630,10 @@ def restore_scheduler_jobs():
                     job_func = cleanup_old_sessions
                     args = []
                     interval_hours = 24  # Интервальная задача каждые 24 часа
+                elif job.job_type == 'check_expired_payments':
+                    job_func = check_expired_payments
+                    args = []
+                    interval_hours = 1  # Интервальная задача каждый час
                 else:
                     # Неизвестный тип задачи, пропускаем
                     continue
@@ -4151,6 +4194,15 @@ def cleanup_old_sessions():
 #    'cleanup_sessions'
 #)
 
+# Настраиваем периодическую проверку истекших платежей
+add_scheduler_job(
+    check_expired_payments,
+    datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
+    None,
+    'check_expired_payments',
+    interval_hours=1  # Повторять каждый час
+)
+
 # Константы для защиты от брутфорса
 MAX_LOGIN_ATTEMPTS = 5  # Максимальное количество попыток
 LOGIN_TIMEOUT = 1800  # Время блокировки в секундах (30 минут)
@@ -4336,6 +4388,39 @@ def cleanup_other_servers_jobs():
         db.session.rollback()
         print(f"Ошибка при очистке задач других серверов: {e}")
 
+def check_expired_payments():
+    """Проверяет и обновляет статусы истекших платежей"""
+    try:
+        from yukassa_service import yukassa_service
+        
+        # Получаем все pending платежи
+        pending_purchases = TicketPurchase.query.filter_by(payment_status='pending').all()
+        
+        expired_count = 0
+        for purchase in pending_purchases:
+            if purchase.payment_id:
+                try:
+                    # Получаем актуальную информацию о платеже
+                    payment_info = yukassa_service.get_payment_info(purchase.payment_id)
+                    
+                    # Проверяем, истек ли платеж
+                    if yukassa_service.is_payment_expired(payment_info):
+                        purchase.payment_status = 'expired'
+                        expired_count += 1
+                        print(f"Платеж {purchase.payment_id} помечен как истекший")
+                        
+                except Exception as e:
+                    print(f"Ошибка при проверке платежа {purchase.payment_id}: {e}")
+                    continue
+        
+        if expired_count > 0:
+            db.session.commit()
+            print(f"Обновлено {expired_count} истекших платежей")
+        
+    except Exception as e:
+        print(f"Ошибка при проверке истекших платежей: {e}")
+        db.session.rollback()
+
 @app.route('/api/search-educational-institutions')
 def search_educational_institutions():
     query = request.args.get('q', '').strip()
@@ -4355,4 +4440,6 @@ if __name__ == '__main__':
         # Очищаем все сессии при запуске
         cleanup_all_sessions()
         restore_scheduler_jobs()
+        # Проверяем истекшие платежи при запуске
+        check_expired_payments()
     app.run(host='0.0.0.0', port=8000, debug=False)

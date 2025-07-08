@@ -38,20 +38,24 @@
                                 <span class="badge purchase-history-badge 
                                     {% if purchase.payment_status == 'succeeded' %}completed
                                     {% elif purchase.payment_status == 'canceled' or purchase.payment_status == 'failed' %}cancelled
+                                    {% elif purchase.payment_status == 'expired' %}expired
                                     {% elif purchase.payment_status == 'waiting_for_capture' %}pending
-                                    {% else %}pending{% endif %}">
+                                    {% elif purchase.payment_status == 'pending' %}pending
+                                    {% else %}unknown{% endif %}">
                                     {% if purchase.payment_status == 'succeeded' %}
                                         <i class="fas fa-check me-1"></i>Оплачено
                                     {% elif purchase.payment_status == 'canceled' %}
                                         <i class="fas fa-times me-1"></i>Отменено
                                     {% elif purchase.payment_status == 'failed' %}
-                                        <i class="fas fa-exclamation-triangle me-1"></i>Ошибка
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Ошибка платежа
+                                    {% elif purchase.payment_status == 'expired' %}
+                                        <i class="fas fa-hourglass-end me-1"></i>Время платежа истекло
                                     {% elif purchase.payment_status == 'waiting_for_capture' %}
                                         <i class="fas fa-clock me-1"></i>Ожидает подтверждения
                                     {% elif purchase.payment_status == 'pending' %}
-                                        <i class="fas fa-clock me-1"></i>В обработке
+                                        <i class="fas fa-clock me-1"></i>Ожидает оплаты
                                     {% else %}
-                                        <i class="fas fa-question me-1"></i>Неизвестно
+                                        <i class="fas fa-question me-1"></i>Неизвестный статус
                                     {% endif %}
                                 </span>
                             </td>

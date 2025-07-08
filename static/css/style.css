@@ -1741,6 +1741,16 @@ main {
     color: #000;
 }
 
+.purchase-history-badge.unknown {
+    background-color: #6c757d;
+    color: white;
+}
+
+.purchase-history-badge.expired {
+    background-color: #6f42c1;
+    color: white;
+}
+
 .purchase-history-actions {
     display: flex;
     gap: 0.5rem;
