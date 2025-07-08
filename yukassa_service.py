@@ -8,7 +8,7 @@ import json
 import uuid
 import os
 from datetime import datetime
-from flask import current_app, url_for
+# from flask import current_app, url_for  # Временно отключено
 import logging
 
 class YukassaService:
@@ -22,6 +22,18 @@ class YukassaService:
         self.logger = logging.getLogger(__name__)
     
     def create_payment(self, amount, description, return_url, capture=True):
+        """
+        Создает платеж в ЮKassa
+        
+        Args:
+            amount (float): Сумма в рублях
+            description (str): Описание платежа
+            return_url (str): URL для возврата после оплаты
+            capture (bool): Автоматическое списание (True) или двухстадийный платеж (False)
+        
+        Returns:
+            dict: Ответ от ЮKassa с данными платежа
+        """
         """
         Создает платеж в ЮKassa
         
