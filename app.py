@@ -5,6 +5,7 @@ from sqlalchemy.testing import fails
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
+import logging
 from werkzeug.utils import secure_filename
 import secrets
 from flask_mail import Mail, Message
@@ -32,6 +33,7 @@ import hashlib
 import smtplib
 from dotenv import load_dotenv
 load_dotenv()
+
 # Переменная окружения для уникального идентификатора сервера
 # В продакшене должна быть установлена в .env файле
 SERVER_ID = os.environ.get('SERVER_ID')
@@ -76,7 +78,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -4346,6 +4348,7 @@ def search_educational_institutions():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(filename='errors.log',level=logging.DEBUG)
     with app.app_context():
         db.create_all()
         create_admin_user()
