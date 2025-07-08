@@ -4194,14 +4194,7 @@ def cleanup_old_sessions():
 #    'cleanup_sessions'
 #)
 
-# Настраиваем периодическую проверку истекших платежей
-add_scheduler_job(
-    check_expired_payments,
-    datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
-    None,
-    'check_expired_payments',
-    interval_hours=1  # Повторять каждый час
-)
+
 
 # Константы для защиты от брутфорса
 MAX_LOGIN_ATTEMPTS = 5  # Максимальное количество попыток
@@ -4420,6 +4413,24 @@ def check_expired_payments():
     except Exception as e:
         print(f"Ошибка при проверке истекших платежей: {e}")
         db.session.rollback()
+
+# Настраиваем периодическую проверку истекших платежей (только если задача еще не существует)
+existing_job = SchedulerJob.query.filter_by(
+    job_type='check_expired_payments',
+    is_active=True
+).first()
+
+if not existing_job:
+    add_scheduler_job(
+        check_expired_payments,
+        datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
+        None,
+        'check_expired_payments',
+        interval_hours=1  # Повторять каждый час
+    )
+    print("Создана задача проверки истекших платежей")
+else:
+    print("Задача проверки истекших платежей уже существует")
 
 @app.route('/api/search-educational-institutions')
 def search_educational_institutions():
