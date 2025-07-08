@@ -288,9 +288,9 @@ class YukassaService:
             from datetime import datetime
             created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
             
-            # Время жизни платежа в ЮKassa - 24 часа
+            # Время жизни платежа в ЮKassa - 1 час
             from datetime import timedelta
-            expiration_time = created_time + timedelta(hours=24)
+            expiration_time = created_time + timedelta(hours=1)
             
             # Текущее время в UTC
             current_time = datetime.utcnow().replace(tzinfo=created_time.tzinfo)
