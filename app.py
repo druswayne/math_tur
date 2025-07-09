@@ -2193,45 +2193,9 @@ def create_payment():
 @app.route('/process-ticket-purchase', methods=['POST'])
 @login_required
 def process_ticket_purchase():
-    """Старый маршрут для обратной совместимости"""
-    if current_user.is_admin:
-        return redirect(url_for('admin_dashboard'))
-    
-    quantity = request.form.get('quantity', type=int)
-    if not quantity or quantity < 1:
-        flash('Укажите корректное количество билетов', 'danger')
-        return redirect(url_for('buy_tickets'))
-    
-    base_price = TicketPackage.query.filter_by(is_active=True).first()
-    if not base_price:
-        flash('В данный момент покупка билетов недоступна', 'warning')
-        return redirect(url_for('profile'))
-    
-    # Получаем скидку для указанного количества
-    discount = TicketDiscount.get_discount_for_quantity(quantity)
-    
-    # Рассчитываем итоговую стоимость
-    total_price = base_price.price * quantity * (1 - discount / 100)
-    
-    # Здесь должна быть интеграция с платежной системой
-    # Для демонстрации просто добавляем билеты пользователю
-    
-    # Создаем запись о покупке
-    purchase = TicketPurchase(
-        user_id=current_user.id,
-        quantity=quantity,
-        amount=total_price,
-        discount=discount
-    )
-    
-    # Добавляем билеты пользователю
-    current_user.tickets += quantity
-    
-    db.session.add(purchase)
-    db.session.commit()
-    
-    flash(f'Успешно куплено {quantity} жетонов', 'success')
-    return redirect(url_for('profile'))
+    """Старый маршрут отключен для безопасности - покупка только через платежные системы"""
+    flash('Покупка жетонов возможна только через платежные системы. Пожалуйста, используйте кнопку "Оформить покупку".', 'warning')
+    return redirect(url_for('buy_tickets'))
 
 @app.route('/purchase-history')
 @login_required
@@ -4444,7 +4408,7 @@ def search_educational_institutions():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='errors.log',level=logging.INFO)
+    logging.basicConfig(filename='errors.log',level=logging.ERROR)
     with app.app_context():
         db.create_all()
         create_admin_user()

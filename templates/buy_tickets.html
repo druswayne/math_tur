@@ -14,22 +14,20 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h5 class="card-title">Выберите количество жетонов</h5>
-                    <form id="purchaseForm" method="POST" action="{{ url_for('process_ticket_purchase') }}">
-                        <div class="mb-3">
-                            <label for="quantity" class="form-label">Количество жетонов</label>
-                            <input type="number" class="form-control" id="quantity" name="quantity" 
-                                   min="1" required onchange="updatePrice()">
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Количество жетонов</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" 
+                               min="1" required onchange="updatePrice()" onkeydown="preventEnterSubmit(event)">
+                    </div>
+                    
+                    {% if discounts %}
+                    <div class="mb-3">
+                        <h6>Информация о скидках:</h6>
+                        <div id="discountInfo" class="alert alert-info">
+                            Выберите количество жетонов, чтобы увидеть доступную скидку
                         </div>
-                        
-                        {% if discounts %}
-                        <div class="mb-3">
-                            <h6>Информация о скидках:</h6>
-                            <div id="discountInfo" class="alert alert-info">
-                                Выберите количество жетонов, чтобы увидеть доступную скидку
-                            </div>
-                        </div>
-                        {% endif %}
-                    </form>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -72,6 +70,13 @@
 </div>
 
 <script>
+function preventEnterSubmit(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        return false;
+    }
+}
+
 function updatePrice() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const basePrice = {{ base_price.price }};
