@@ -63,13 +63,14 @@ class ExpressPayService:
         
         return signature
     
-    def _make_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _make_request(self, endpoint: str, params: Dict[str, Any], method: str = "GET") -> Dict[str, Any]:
         """
         Выполнение HTTP-запроса к API
         
         Args:
             endpoint: Конечная точка API
             params: Параметры запроса
+            method: HTTP метод (GET или POST)
             
         Returns:
             Ответ от API
@@ -83,15 +84,33 @@ class ExpressPayService:
         # Генерируем подпись
         params["signature"] = self._generate_signature(params)
         
-        # URL-кодируем параметры
-        encoded_params = urllib.parse.urlencode(params)
-        url = f"{self.base_url}/{endpoint}?{encoded_params}"
-        
         try:
-            response = requests.get(url)
+            # Логируем запрос в тестовом режиме
+            if self.test_mode:
+                print(f"🧪 Тестовый режим ExpressPay.by")
+                print(f"Метод: {method}")
+                print(f"URL: {self.base_url}/{endpoint}")
+                print(f"Параметры: {params}")
+            
+            if method.upper() == "POST":
+                # Для POST-запросов отправляем данные в теле запроса
+                response = requests.post(
+                    f"{self.base_url}/{endpoint}",
+                    json=params,
+                    headers={"Content-Type": "application/json"}
+                )
+            else:
+                # Для GET-запросов отправляем параметры в URL
+                encoded_params = urllib.parse.urlencode(params)
+                url = f"{self.base_url}/{endpoint}?{encoded_params}"
+                response = requests.get(url)
             
             if response.status_code == 200:
                 result = response.json()
+                
+                # Логируем ответ в тестовом режиме
+                if self.test_mode:
+                    print(f"Ответ: {result}")
                 
                 # Проверяем наличие ошибки
                 if "Error" in result:
@@ -106,9 +125,17 @@ class ExpressPayService:
                     "data": result
                 }
             else:
+                error_text = f"HTTP ошибка: {response.status_code}"
+                try:
+                    error_data = response.json()
+                    if "Error" in error_data:
+                        error_text += f" - {error_data['Error']['Msg']}"
+                except:
+                    error_text += f" - {response.text}"
+                
                 return {
                     "success": False,
-                    "error": f"HTTP ошибка: {response.status_code}"
+                    "error": error_text
                 }
                 
         except Exception as e:
@@ -164,7 +191,10 @@ class ExpressPayService:
             "returnType": return_type
         }
         
-        result = self._make_request("v1/web_cardinvoices", params)
+        # Убираем пустые параметры
+        params = {k: v for k, v in params.items() if v}
+        
+        result = self._make_request("v1/web_cardinvoices", params, method="POST")
         
         if result["success"]:
             data = result["data"]
@@ -193,7 +223,7 @@ class ExpressPayService:
             "invoiceNo": invoice_no
         }
         
-        result = self._make_request("v1/web_cardinvoices/status", params)
+        result = self._make_request("v1/web_cardinvoices/status", params, method="GET")
         
         if result["success"]:
             data = result["data"]
@@ -223,7 +253,7 @@ class ExpressPayService:
             "invoiceNo": invoice_no
         }
         
-        result = self._make_request("v1/web_cardinvoices/cancel", params)
+        result = self._make_request("v1/web_cardinvoices/cancel", params, method="POST")
         return result
     
     def _get_status_description(self, status: str) -> str:
