@@ -89,6 +89,8 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+login_manager.login_message = 'Пожалуйста, войдите в систему для доступа к этой странице.'
+login_manager.login_message_category = 'info'
 
 def generate_session_token():
     """Генерирует уникальный токен сессии"""
@@ -951,7 +953,7 @@ def login():
             
             flash('Вы успешно вошли в систему!', 'success')
             response = reset_login_attempts()
-            return response
+            return redirect(url_for('profile'))
         else:
             attempts = get_login_attempts() + 1
             if attempts >= MAX_LOGIN_ATTEMPTS:
