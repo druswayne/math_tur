@@ -78,7 +78,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -4398,6 +4398,21 @@ if not existing_job:
 else:
     print("Задача проверки истекших платежей уже существует")
 
+@app.route('/reset-tutorial', methods=['POST'])
+@login_required
+def reset_tutorial():
+    """Сброс обучения для пользователя"""
+    response = make_response(jsonify({'success': True}))
+    
+    # Удаляем старый куки (для обратной совместимости)
+    response.delete_cookie('tutorial_completed')
+    
+    # Удаляем куки для конкретного пользователя
+    cookie_name = f'tutorial_completed_{current_user.id}'
+    response.delete_cookie(cookie_name)
+    
+    return response
+
 @app.route('/api/search-educational-institutions')
 def search_educational_institutions():
     query = request.args.get('q', '').strip()
@@ -4420,13 +4435,6 @@ if __name__ == '__main__':
         # Проверяем истекшие платежи при запуске
         check_expired_payments()
     
-    print("=" * 60)
-    print("🚀 СЕРВЕР ЗАПУЩЕН УСПЕШНО!")
-    print("=" * 60)
-    print("📍 Локальный доступ: http://localhost:8000")
-    print("🌐 Сетевой доступ: http://0.0.0.0:8000")
-    print("=" * 60)
-    print("Нажмите Ctrl+C для остановки сервера")
-    print("=" * 60)
+
     
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=False)

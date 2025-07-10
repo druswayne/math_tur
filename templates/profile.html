@@ -69,10 +69,14 @@
     {% endif %}
 
     <div class="row">
+
         <div class="col-md-4">
-            <div class="card mb-4">
-                <div class="card-header">
+             <div class="info_user">             <div class="card mb-4 profile-section">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">Профиль</h4>
+                    <button type="button" class="btn btn-sm btn-info" id="resetTutorialBtn" onclick="resetTutorial()">
+                        <i class="fas fa-graduation-cap"></i> Обучение
+                    </button>
                 </div>
                 <div class="card-body">
                     <h5>{{ current_user.username }}</h5>
@@ -92,7 +96,7 @@
                         Редактировать
                     </button>
                 </div>
-            </div>
+            </div></div>
         </div>
         <div class="col-md-8">
             <div class="card mb-4">
@@ -102,7 +106,7 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card bg-light mb-3 h-100">
+                            <div class="card bg-light mb-3 h-100 balance-section">
                                 <div class="card-body text-center d-flex flex-column justify-content-center">
                                     <h5 class="card-title">Общий счет</h5>
                                     <h2 class="text-primary">{{ current_user.balance }}</h2>
@@ -111,7 +115,7 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card bg-light mb-3 h-100">
+                            <div class="card bg-light mb-3 h-100 tickets-section">
                                 <div class="card-body text-center d-flex flex-column justify-content-center">
                                     <h5 class="card-title">Жетоны</h5>
                                     <h2 class="text-success">{{ current_user.tickets }}</h2>
@@ -129,22 +133,22 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('buy_tickets') }}" class="btn btn-primary btn-lg w-100">
+                            <a href="{{ url_for('buy_tickets') }}" class="btn btn-primary btn-lg w-100 buy-tickets-btn">
                                 <i class="fas fa-ticket-alt"></i> Купить жетоны
                             </a>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('shop') }}" class="btn btn-primary btn-lg w-100">
+                            <a href="{{ url_for('shop') }}" class="btn btn-primary btn-lg w-100 shop-btn">
                                 <i class="fas fa-shopping-cart"></i> Лавка призов
                             </a>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('purchase_history') }}" class="btn btn-primary btn-lg w-100">
+                            <a href="{{ url_for('purchase_history') }}" class="btn btn-primary btn-lg w-100 purchase-history-btn">
                                 <i class="fas fa-history"></i> История покупок
                             </a>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <a href="{{ url_for('tournament_history') }}" class="btn btn-primary btn-lg w-100">
+                            <a href="{{ url_for('tournament_history') }}" class="btn btn-primary btn-lg w-100 tournament-history-btn">
                                 <i class="fas fa-trophy"></i> История турниров
                             </a>
                         </div>
@@ -871,6 +875,27 @@ function updateProfile() {
     .catch(error => {
         console.error('Error:', error);
         showNotification('Произошла ошибка при обновлении профиля', 'danger');
+    });
+}
+
+function resetTutorial() {
+    fetch('/reset-tutorial', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Обучение сброшено. Перезагрузите страницу для начала обучения.', 'success');
+        } else {
+            showNotification('Ошибка при сбросе обучения', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Произошла ошибка при сбросе обучения', 'danger');
     });
 }
 
