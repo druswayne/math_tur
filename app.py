@@ -2190,6 +2190,13 @@ def create_payment():
             return_url = url_for('purchase_history', _external=True)
             fail_url = url_for('buy_tickets', _external=True)
             
+            print(f"🔧 Создание платежа ExpressPay.by:")
+            print(f"   Покупка ID: {purchase.id}")
+            print(f"   Сумма: {total_price_byn} BYN")
+            print(f"   Описание: {description}")
+            print(f"   Return URL: {return_url}")
+            print(f"   Fail URL: {fail_url}")
+            
             # Создаем платеж в ExpressPay.by
             payment_result = expresspay_service.create_card_invoice(
                 account_no=f"tickets_{purchase.id}",
@@ -2200,6 +2207,10 @@ def create_payment():
                 fail_url=fail_url
             )
             
+            print(f"🔧 Результат создания платежа ExpressPay.by:")
+            print(f"   Успех: {payment_result.get('success')}")
+            print(f"   Данные: {payment_result}")
+            
             if payment_result['success']:
                 # Сохраняем данные платежа
                 purchase.payment_id = payment_result['payment_id']
@@ -2209,6 +2220,10 @@ def create_payment():
                 
                 db.session.commit()
                 
+                print(f"🔧 Платеж сохранен в БД:")
+                print(f"   Payment ID: {purchase.payment_id}")
+                print(f"   Payment URL: {purchase.payment_url}")
+                
                 return jsonify({
                     'success': True,
                     'message': f'Платеж создан успешно',
@@ -2216,6 +2231,7 @@ def create_payment():
                 })
             else:
                 db.session.rollback()
+                print(f"❌ Ошибка создания платежа: {payment_result.get('error')}")
                 return jsonify({
                     'success': False,
                     'error': payment_result['error']

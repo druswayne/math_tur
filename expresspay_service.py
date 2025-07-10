@@ -196,17 +196,29 @@ class ExpressPayService:
         
         result = self._make_request("v1/web_cardinvoices", params, method="POST")
         
+        print(f"🔧 ExpressPay.by create_card_invoice результат:")
+        print(f"   Успех: {result.get('success')}")
+        print(f"   Данные: {result}")
+        
         if result["success"]:
             data = result["data"]
+            payment_id = data.get("InvoiceNo")
+            payment_url = data.get("FormUrl")
+            
+            print(f"🔧 Извлеченные данные:")
+            print(f"   InvoiceNo: {payment_id}")
+            print(f"   FormUrl: {payment_url}")
+            
             return {
                 "success": True,
-                "payment_id": data.get("InvoiceNo"),
-                "payment_url": data.get("FormUrl"),
+                "payment_id": payment_id,
+                "payment_url": payment_url,
                 "account_no": account_no,
                 "amount": amount,
                 "currency": currency
             }
         else:
+            print(f"❌ Ошибка ExpressPay.by: {result.get('error')}")
             return result
     
     def get_card_invoice_status(self, invoice_no: str) -> Dict[str, Any]:
