@@ -472,7 +472,7 @@ class TicketPurchase(db.Model):
     purchase_date = db.Column(db.DateTime, default=datetime.now)
     
     # Поля для платежей
-    payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa' или 'expresspay'
+    payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa' или 'bepaid'
     payment_id = db.Column(db.String(100), nullable=True, index=True)  # ID платежа в платежной системе
     payment_status = db.Column(db.String(20), default='pending', index=True)  # pending, waiting_for_capture, succeeded, canceled, failed
     payment_method = db.Column(db.String(50), nullable=True)  # Способ оплаты
@@ -2112,7 +2112,7 @@ def create_payment():
     if not quantity or quantity < 1:
         return jsonify({'success': False, 'error': 'Укажите корректное количество жетонов'})
     
-    if payment_system not in ['yukassa', 'expresspay']:
+    if payment_system not in ['yukassa', 'bepaid']:
         return jsonify({'success': False, 'error': 'Неверная платежная система'})
     
     base_price = TicketPackage.query.filter_by(is_active=True).first()
@@ -2179,63 +2179,12 @@ def create_payment():
                 'payment_url': purchase.payment_url
             })
             
-        elif payment_system == 'expresspay':
-            # Интеграция с ExpressPay.by
-            from expresspay_service import expresspay_service
-            
-            # Создаем описание платежа
-            description = f"Покупка {quantity} жетонов для участия в турнирах"
-            
-            # URL для возврата после оплаты
-            return_url = url_for('purchase_history', _external=True)
-            fail_url = url_for('buy_tickets', _external=True)
-            
-            print(f"🔧 Создание платежа ExpressPay.by:")
-            print(f"   Покупка ID: {purchase.id}")
-            print(f"   Сумма: {total_price_byn} BYN")
-            print(f"   Описание: {description}")
-            print(f"   Return URL: {return_url}")
-            print(f"   Fail URL: {fail_url}")
-            
-            # Создаем платеж в ExpressPay.by
-            payment_result = expresspay_service.create_card_invoice(
-                account_no=f"tickets_{purchase.id}",
-                amount=total_price_byn,
-                currency='933',  # BYN
-                info=description,
-                return_url=return_url,
-                fail_url=fail_url
-            )
-            
-            print(f"🔧 Результат создания платежа ExpressPay.by:")
-            print(f"   Успех: {payment_result.get('success')}")
-            print(f"   Данные: {payment_result}")
-            
-            if payment_result['success']:
-                # Сохраняем данные платежа
-                purchase.payment_id = payment_result['payment_id']
-                purchase.payment_status = 'pending'
-                purchase.payment_url = payment_result['payment_url']
-                purchase.payment_created_at = datetime.now()
-                
-                db.session.commit()
-                
-                print(f"🔧 Платеж сохранен в БД:")
-                print(f"   Payment ID: {purchase.payment_id}")
-                print(f"   Payment URL: {purchase.payment_url}")
-                
-                return jsonify({
-                    'success': True,
-                    'message': f'Платеж создан успешно',
-                    'payment_url': purchase.payment_url
-                })
-            else:
-                db.session.rollback()
-                print(f"❌ Ошибка создания платежа: {payment_result.get('error')}")
-                return jsonify({
-                    'success': False,
-                    'error': payment_result['error']
-                })
+        elif payment_system == 'bepaid':
+            # Заглушка для bePaid
+            return jsonify({
+                'success': False,
+                'error': 'Система bePaid пока не поддерживается'
+            })
             
     except Exception as e:
         db.session.rollback()
@@ -2320,44 +2269,23 @@ def check_payment_status(payment_id):
         if purchase.user_id != current_user.id:
             return jsonify({'error': 'Access denied'}), 403
         
-        # Определяем платежную систему и получаем статус
-        if purchase.payment_system == 'yukassa':
-            # Получаем актуальную информацию о платеже от ЮKassa
-            from yukassa_service import yukassa_service
-            payment_info = yukassa_service.get_payment_info(payment_id)
-            
-            # Обновляем статус с учетом истечения времени
-            old_status = purchase.payment_status
-            new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
-            purchase.payment_status = new_status
-            
-            # Получаем описание статуса
-            status_description = yukassa_service.get_payment_status_description(new_status)
-            
-            # Если платеж успешен, начисляем жетоны
-            if new_status == 'succeeded' and old_status != 'succeeded':
-                current_user.tickets += purchase.quantity
-                purchase.payment_confirmed_at = datetime.now()
-                print(f"Проверка статуса: начислено {purchase.quantity} жетонов пользователю {current_user.id}")
-                
-        elif purchase.payment_system == 'expresspay':
-            # Получаем статус платежа от ExpressPay.by
-            from expresspay_service import expresspay_service
-            payment_result = expresspay_service.get_card_invoice_status(payment_id)
-            
-            if payment_result['success']:
-                old_status = purchase.payment_status
-                new_status = payment_result['status']
-                purchase.payment_status = new_status
-                status_description = payment_result['status_description']
-                
-                # Если платеж успешен (статус "102"), начисляем жетоны
-                if new_status == "102" and old_status != "102":
-                    current_user.tickets += purchase.quantity
-                    purchase.payment_confirmed_at = datetime.now()
-                    print(f"Проверка статуса ExpressPay: начислено {purchase.quantity} жетонов пользователю {current_user.id}")
-            else:
-                return jsonify({'error': payment_result['error']}), 500
+        # Получаем актуальную информацию о платеже от ЮKassa
+        from yukassa_service import yukassa_service
+        payment_info = yukassa_service.get_payment_info(payment_id)
+        
+        # Обновляем статус с учетом истечения времени
+        old_status = purchase.payment_status
+        new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
+        purchase.payment_status = new_status
+        
+        # Получаем описание статуса
+        status_description = yukassa_service.get_payment_status_description(new_status)
+        
+        # Если платеж успешен, начисляем жетоны
+        if new_status == 'succeeded' and old_status != 'succeeded':
+            current_user.tickets += purchase.quantity
+            purchase.payment_confirmed_at = datetime.now()
+            print(f"Проверка статуса: начислено {purchase.quantity} жетонов пользователю {current_user.id}")
         
         db.session.commit()
         
@@ -2372,78 +2300,6 @@ def check_payment_status(payment_id):
         
     except Exception as e:
         print(f"Ошибка при проверке статуса платежа {payment_id}: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
-
-@app.route('/expresspay-webhook', methods=['POST'])
-def expresspay_webhook():
-    """Обработка webhook'ов от ExpressPay.by"""
-    try:
-        # Логируем входящий webhook
-        print(f"Получен webhook от ExpressPay.by: {request.headers}")
-        print(f"Тело webhook: {request.get_json()}")
-        
-        # Получаем данные от ExpressPay.by
-        data = request.get_json()
-        
-        if not data:
-            print("Webhook: пустое тело запроса")
-            return jsonify({'error': 'Empty request body'}), 400
-        
-        # Проверяем подпись (в тестовой среде пропускаем)
-        from expresspay_service import expresspay_service
-        
-        # Получаем информацию о платеже
-        payment_id = data.get('invoiceNo')
-        status = data.get('status')
-        order_id = data.get('accountNo')
-        
-        print(f"Webhook: обработка платежа {payment_id}, статус: {status}")
-        
-        if not payment_id:
-            print("Webhook: отсутствует ID платежа")
-            return jsonify({'error': 'No payment ID'}), 400
-        
-        # Находим покупку по ID платежа
-        purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
-        if not purchase:
-            print(f"Webhook: покупка с payment_id {payment_id} не найдена")
-            return jsonify({'error': 'Purchase not found'}), 404
-        
-        # Обновляем статус платежа
-        old_status = purchase.payment_status
-        purchase.payment_status = status
-        
-        # Логируем детали платежа
-        print(f"Webhook: платеж {payment_id}")
-        print(f"  - Старый статус: {old_status}")
-        print(f"  - Новый статус: {status}")
-        print(f"  - Заказ: {order_id}")
-        
-        # Обрабатываем разные статусы
-        if status == "102" and old_status != "102":  # Проведена полная авторизация
-            # Платеж успешно завершен
-            user = User.query.get(purchase.user_id)
-            if user:
-                user.tickets += purchase.quantity
-                purchase.payment_confirmed_at = datetime.now()
-                print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
-        
-        elif status == "103":  # Авторизация отменена
-            print(f"Webhook: платеж {payment_id} отменен")
-            
-        elif status == "106":  # Авторизация отклонена
-            print(f"Webhook: платеж {payment_id} отклонен")
-            
-        elif status == "100":  # Счет зарегистрирован, но не оплачен
-            print(f"Webhook: платеж {payment_id} ожидает оплаты")
-        
-        db.session.commit()
-        print(f"Webhook: статус платежа {payment_id} обновлен с {old_status} на {status}")
-        
-        return jsonify({'success': True}), 200
-        
-    except Exception as e:
-        print(f"Webhook: ошибка обработки: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/yukassa-webhook', methods=['POST'])
@@ -4552,7 +4408,7 @@ def search_educational_institutions():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(filename='errors.log',level=logging.ERROR)
+    #logging.basicConfig(level=logging.DEBUG)
     with app.app_context():
         db.create_all()
         create_admin_user()
@@ -4561,4 +4417,7 @@ if __name__ == '__main__':
         restore_scheduler_jobs()
         # Проверяем истекшие платежи при запуске
         check_expired_payments()
+    
+
+    
     app.run(host='0.0.0.0', port=8000, debug=False)

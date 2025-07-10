@@ -9,6 +9,37 @@
         </a>
     </div>
 
+    <!-- Информация о жетонах -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="p-4 mb-4 rounded" style="background: linear-gradient(90deg, #FFD700 0%, #FF8C00 100%); color: #333333;">
+                <h5 class="mb-3" style="font-weight: bold; letter-spacing: 1px;">
+                    <i class="fas fa-info-circle me-2"></i>Для чего нужны жетоны?
+                </h5>
+                <div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="mb-3" style="color: #333333;">
+                                <i class="fas fa-trophy me-2"></i>Жетоны дают возможность участвовать в турнирах
+                            </h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>1 жетон = 1 участие в турнире
+                                </li>
+
+                            </ul>
+                        </div>
+
+                    </div>
+                    <div class="alert alert-info mt-3 mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>Совет:</strong> Жетоны не имеют срока действия и накапливаются в вашем аккаунте. Покупайте больше жетонов сразу, чтобы получить скидку!
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-4">
@@ -175,8 +206,6 @@ function selectPaymentSystem(system) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
     modal.hide();
     
-    console.log('Создание платежа:', { quantity, payment_system: system });
-    
     // Отправляем запрос на создание платежа
     fetch('/create-payment', {
         method: 'POST',
@@ -190,30 +219,20 @@ function selectPaymentSystem(system) {
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Ответ сервера:', data);
-        
         if (data.success) {
-            console.log('Платеж создан успешно');
-            console.log('Payment URL:', data.payment_url);
-            console.log('Тип payment_url:', typeof data.payment_url);
-            
-            if (data.payment_url && data.payment_url.trim() !== '') {
-                console.log('Перенаправление на:', data.payment_url);
-                // Перенаправляем на страницу оплаты
+            if (data.payment_url) {
+                // Перенаправляем на страницу оплаты ЮKassa
                 window.location.href = data.payment_url;
             } else {
-                console.log('Платеж создан, но нет URL для оплаты');
-                console.log('Полный ответ сервера:', data);
-                alert('Платеж создан успешно, но URL для оплаты не получен. Обратитесь к администратору.');
+                alert('Платеж создан успешно!');
                 window.location.reload();
             }
         } else {
-            console.error('Ошибка создания платежа:', data.error);
             alert('Ошибка при создании платежа: ' + data.error);
         }
     })
     .catch(error => {
-        console.error('Ошибка запроса:', error);
+        console.error('Error:', error);
         alert('Произошла ошибка при создании платежа');
     });
 }
@@ -250,9 +269,9 @@ function selectPaymentSystem(system) {
                                     <i class="fas fa-university fa-3x text-secondary"></i>
                                 </div>
                                 <h6 class="card-title">Республика Беларусь</h6>
-                                <p class="card-text small text-muted">Оплата через ExpressPay.by</p>
-                                <button type="button" class="btn btn-secondary w-100" onclick="selectPaymentSystem('expresspay')">
-                                    Оплатить в BYN
+                                <p class="card-text small text-muted">Оплата через bePaid</p>
+                                <button type="button" class="btn btn-secondary w-100" onclick="selectPaymentSystem('bepaid')" disabled>
+                                    Оплатить в BYN (скоро)
                                 </button>
                             </div>
                         </div>
