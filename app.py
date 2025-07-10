@@ -78,7 +78,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -4408,7 +4408,7 @@ def search_educational_institutions():
 
 
 if __name__ == '__main__':
-    #logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
     with app.app_context():
         db.create_all()
         create_admin_user()
@@ -4418,6 +4418,13 @@ if __name__ == '__main__':
         # Проверяем истекшие платежи при запуске
         check_expired_payments()
     
-
+    print("=" * 60)
+    print("🚀 СЕРВЕР ЗАПУЩЕН УСПЕШНО!")
+    print("=" * 60)
+    print("📍 Локальный доступ: http://localhost:8000")
+    print("🌐 Сетевой доступ: http://0.0.0.0:8000")
+    print("=" * 60)
+    print("Нажмите Ctrl+C для остановки сервера")
+    print("=" * 60)
     
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=True)
