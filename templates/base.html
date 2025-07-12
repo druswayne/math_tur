@@ -213,66 +213,51 @@
         /* Анимация мерцания для кнопки "Войти" */
         @keyframes login-button-pulse {
             0% {
-                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.8);
+                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.7);
                 transform: scale(1);
-                background: linear-gradient(45deg, #FF8C00, #FFA500);
-                color: white;
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-            }
-            25% {
-                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.6);
-                transform: scale(1.02);
-                background: linear-gradient(45deg, #FFA500, #FF8C00);
             }
             50% {
-                box-shadow: 0 0 0 6px rgba(255, 140, 0, 0.4);
-                transform: scale(1.05);
-                background: linear-gradient(45deg, #FF8C00, #FFD700);
-            }
-            75% {
-                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.6);
+                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.8);
                 transform: scale(1.02);
-                background: linear-gradient(45deg, #FFD700, #FF8C00);
             }
             100% {
-                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.8);
+                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0);
                 transform: scale(1);
-                background: linear-gradient(45deg, #FF8C00, #FFA500);
-                color: white;
-                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
             }
         }
         
         .login-button-pulse {
-            animation: login-button-pulse 2.5s infinite;
-            border-radius: 8px;
-            padding: 10px 20px;
+            animation: login-button-pulse 2s infinite;
+            border-radius: 5px;
+            padding: 8px 16px;
             transition: all 0.3s ease;
-            border: none;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            position: relative;
-            overflow: hidden;
         }
         
-        .login-button-pulse::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-            transition: left 0.5s;
+        /* Анимация мерцания для кнопки-бургера */
+        @keyframes burger-button-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.7);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.8);
+                transform: scale(1.02);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0);
+                transform: scale(1);
+            }
         }
         
-        .login-button-pulse:hover::before {
-            left: 100%;
+        .burger-button-pulse {
+            animation: burger-button-pulse 2s infinite !important;
+            border-radius: 5px !important;
+            transition: all 0.3s ease !important;
+            border: 2px solid rgba(255, 140, 0, 0.3) !important;
         }
         
-        .login-button-pulse:hover {
-            transform: scale(1.1);
-            box-shadow: 0 0 20px rgba(255, 140, 0, 0.6);
+        .burger-button-pulse .navbar-toggler-icon {
+            background-color: rgba(255, 140, 0, 0.1) !important;
         }
     </style>
     {% block styles %}{% endblock %}
@@ -300,7 +285,7 @@
                 <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/static/logo.jpg" alt="Логотип" class="me-2">
             
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" id="burgerButton">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
@@ -442,6 +427,37 @@
                     loginButton.classList.add('login-button-pulse');
                 }, 1000);
             }
+            
+            // Мерцание кнопки-бургера в мобильной версии
+            const burgerButton = document.getElementById('burgerButton');
+            console.log('Burger button found:', burgerButton);
+            console.log('Window width:', window.innerWidth);
+            if (burgerButton && window.innerWidth <= 991) { // 991px - точка перелома Bootstrap lg
+                console.log('Adding pulse to burger button');
+                // Добавляем небольшую задержку перед началом мерцания
+                setTimeout(function() {
+                    burgerButton.classList.add('burger-button-pulse');
+                    console.log('Burger button classes:', burgerButton.className);
+                }, 1500); // Немного позже чем кнопка "Войти"
+            }
+            
+            // Обработчик изменения размера окна для бургера
+            window.addEventListener('resize', function() {
+                const burgerButton = document.getElementById('burgerButton');
+                if (burgerButton) {
+                    if (window.innerWidth <= 991) {
+                        // Мобильная версия - добавляем мерцание
+                        if (!burgerButton.classList.contains('burger-button-pulse')) {
+                            setTimeout(function() {
+                                burgerButton.classList.add('burger-button-pulse');
+                            }, 500);
+                        }
+                    } else {
+                        // Десктопная версия - убираем мерцание
+                        burgerButton.classList.remove('burger-button-pulse');
+                    }
+                }
+            });
         });
     </script>
     {% block scripts %}{% endblock %}

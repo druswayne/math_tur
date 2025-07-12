@@ -37,7 +37,8 @@ load_dotenv()
 # Переменная окружения для уникального идентификатора сервера
 # В продакшене должна быть установлена в .env файле
 SERVER_ID = os.environ.get('SERVER_ID')
-
+DEBAG = bool(os.environ.get('DEBAG'))
+print(DEBAG)
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
 # Создаем пул потоков
@@ -78,7 +79,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
 # Настройки сессии
-app.config['SESSION_COOKIE_SECURE'] = True  # Куки только по HTTPS
+app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('SESSION_COOKIE_SECURE'))  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
@@ -4437,4 +4438,4 @@ if __name__ == '__main__':
     
 
     
-    app.run(host='0.0.0.0', port=8000, debug=False)
+    app.run(host='0.0.0.0', port=8000, debug=DEBAG)
