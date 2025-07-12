@@ -72,9 +72,10 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['THREAD_POOL_SIZE'] = CPU_COUNT * 2
 
 # Настройки для отправки email
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_SERVER'] = 'mail.liga-znatokov.by'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_SSL'] = True  # Для порта 465 используется SSL, а не TLS
+app.config['MAIL_USE_TLS'] = False  # Отключаем TLS для порта 465
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
