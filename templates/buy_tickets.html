@@ -155,6 +155,12 @@
 .input-pulse {
     animation: input-pulse 2s infinite;
 }
+
+/* Черный текст на кнопках в модальном окне */
+#paymentModal .btn-primary {
+    color: #000000 !important;
+    font-weight: bold;
+}
 </style>
 
 <script>
@@ -328,12 +334,31 @@ function selectPaymentSystem(system) {
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <div class="mb-3">
-                                    <i class="fas fa-credit-card fa-3x text-primary"></i>
+                                    <i class="fas fa-university fa-3x text-primary"></i>
                                 </div>
-                                <h6 class="card-title">Российская Федерация</h6>
-                                <p class="card-text small text-muted">Оплата через ЮKassa</p>
-                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('yukassa')">
-                                    Оплатить в ₽
+                                <h6 class="card-title">Республика Беларусь</h6>
+                                <div class="mb-3">
+                                    <small class="text-muted">
+                                        <strong>Способы оплаты:</strong> ЕРИП, E-POS, WebPay*
+                                    </small>
+                                    <br>
+                                    <small class="text-muted">
+                                        <a href="#" data-bs-toggle="collapse" data-bs-target="#webpayInfo" aria-expanded="false" aria-controls="webpayInfo" style="color: #6c757d; text-decoration: none;">
+                                            <i class="fas fa-info-circle"></i> Подробнее о WebPay
+                                        </a>
+                                    </small>
+                                    <div class="collapse mt-2" id="webpayInfo">
+                                        <div class="card card-body" style="font-size: 0.8rem; background-color: #f8f9fa;">
+                                            Безопасный сервер WEBPAY устанавливает шифрованное соединение по защищенному протоколу TLS и конфиденциально принимает от клиента данные его платёжной карты (номер карты, имя держателя, дату окончания действия, и контрольный номер банковской карточке CVC/CVC2).<br>
+                                            После совершения оплаты с использованием банковской карты необходимо сохранять полученные карт-чеки (подтверждения об оплате) для сверки с выпиской из карт-счёта (с целью подтверждения совершённых операций в случае возникновения спорных ситуаций).<br>
+                                            В случае, если Вы не получили заказ (не оказана услуга), Вам необходимо обратиться (в службу технической поддержки) по телефонам +375 29 112-71-05, +7 910 113-05-33 или e-mail info@liga-znatokov.by. Менеджеры Вас проконсультируют.<br>
+                                            При оплате банковской платежной картой возврат денежных средств осуществляется на карточку, с которой была произведена оплата.<br>
+                                            <strong>Подробнее <a href="https://www.webpay.by" target="_blank" style="color: #007bff;">www.webpay.by</a></strong>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('bepaid')" disabled>
+                                    Оплатить в BYN (скоро)
                                 </button>
                             </div>
                         </div>
@@ -342,12 +367,12 @@ function selectPaymentSystem(system) {
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <div class="mb-3">
-                                    <i class="fas fa-university fa-3x text-secondary"></i>
+                                    <i class="fas fa-credit-card fa-3x text-primary"></i>
                                 </div>
-                                <h6 class="card-title">Республика Беларусь</h6>
-                                <p class="card-text small text-muted">Оплата через bePaid</p>
-                                <button type="button" class="btn btn-secondary w-100" onclick="selectPaymentSystem('bepaid')" disabled>
-                                    Оплатить в BYN (скоро)
+                                <h6 class="card-title">Российская Федерация</h6>
+                                <p class="card-text small text-muted">Оплата через ЮKassa</p>
+                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('yukassa')">
+                                    Оплатить в ₽
                                 </button>
                             </div>
                         </div>
