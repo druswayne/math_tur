@@ -1,11 +1,75 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+/* Стили для мобильной версии истории покупок */
+.purchase-card-mobile {
+    background-color: #fff;
+    transition: box-shadow 0.2s ease;
+}
+
+.purchase-card-mobile:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.purchase-history-badge.completed {
+    background-color: #28a745;
+    color: white;
+}
+
+.purchase-history-badge.cancelled {
+    background-color: #dc3545;
+    color: white;
+}
+
+.purchase-history-badge.pending {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.purchase-history-badge.expired {
+    background-color: #6c757d;
+    color: white;
+}
+
+.purchase-history-badge.unknown {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 767.98px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .pagination {
+        font-size: 0.875rem;
+    }
+    
+    .page-link {
+        padding: 0.375rem 0.75rem;
+    }
+}
+</style>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>История покупок</h1>
-        <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary d-none d-md-inline-flex">
             <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
+        </a>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary btn-sm d-md-none">
+            <i class="fas fa-arrow-left"></i>
         </a>
     </div>
 
@@ -16,7 +80,8 @@
         </div>
         <div class="card-body">
             {% if ticket_purchases.items %}
-            <div class="table-responsive">
+            <!-- Десктопная версия -->
+            <div class="table-responsive d-none d-md-block">
                 <table class="table table-hover" id="ticketTable">
                     <thead>
                         <tr>
@@ -63,6 +128,48 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Мобильная версия -->
+            <div class="d-md-none">
+                {% for purchase in ticket_purchases.items %}
+                <div class="purchase-card-mobile mb-3 p-3 border rounded">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1">{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</h6>
+                            <div class="text-muted small">
+                                {{ purchase.quantity }} жетонов • {{ "%.2f"|format(purchase.amount) }} BYN
+                                {% if purchase.discount > 0 %}
+                                <span class="text-success">• Скидка {{ purchase.discount }}%</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="badge purchase-history-badge 
+                            {% if purchase.payment_status == 'succeeded' %}completed
+                            {% elif purchase.payment_status == 'canceled' or purchase.payment_status == 'failed' %}cancelled
+                            {% elif purchase.payment_status == 'expired' %}expired
+                            {% elif purchase.payment_status == 'waiting_for_capture' %}pending
+                            {% elif purchase.payment_status == 'pending' %}pending
+                            {% else %}unknown{% endif %}">
+                            {% if purchase.payment_status == 'succeeded' %}
+                                <i class="fas fa-check me-1"></i>Оплачено
+                            {% elif purchase.payment_status == 'canceled' %}
+                                <i class="fas fa-times me-1"></i>Отменено
+                            {% elif purchase.payment_status == 'failed' %}
+                                <i class="fas fa-exclamation-triangle me-1"></i>Ошибка
+                            {% elif purchase.payment_status == 'expired' %}
+                                <i class="fas fa-hourglass-end me-1"></i>Истекло
+                            {% elif purchase.payment_status == 'waiting_for_capture' %}
+                                <i class="fas fa-clock me-1"></i>Ожидает
+                            {% elif purchase.payment_status == 'pending' %}
+                                <i class="fas fa-clock me-1"></i>Ожидает
+                            {% else %}
+                                <i class="fas fa-question me-1"></i>Неизвестно
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             
             <!-- Пагинация для покупок жетонов -->
@@ -143,7 +250,8 @@
         </div>
         <div class="card-body">
             {% if prize_purchases.items %}
-            <div class="table-responsive">
+            <!-- Десктопная версия -->
+            <div class="table-responsive d-none d-md-block">
                 <table class="table table-hover" id="prizeTable">
                     <thead>
                         <tr>
@@ -203,6 +311,54 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Мобильная версия -->
+            <div class="d-md-none">
+                {% for purchase in prize_purchases.items %}
+                <div class="purchase-card-mobile mb-3 p-3 border rounded">
+                    <div class="d-flex align-items-start mb-3">
+                        {% if purchase.prize.image %}
+                        <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/{{ purchase.prize.image }}" 
+                             alt="{{ purchase.prize.name }}" 
+                             class="me-3" 
+                             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ purchase.prize.name }}</h6>
+                            <small class="text-muted">{{ purchase.prize.description }}</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="text-muted small">
+                            {{ purchase.created_at.strftime('%d.%m.%Y %H:%M') }} • {{ purchase.quantity }} шт. • {{ purchase.points_cost }} баллов
+                        </div>
+                        <span class="badge purchase-history-badge {% if purchase.status == 'completed' %}completed{% elif purchase.status == 'cancelled' %}cancelled{% else %}pending{% endif %}">
+                            {% if purchase.status == 'completed' %}
+                                Обработана
+                            {% elif purchase.status == 'cancelled' %}
+                                Отменена
+                            {% else %}
+                                В обработке
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-info flex-fill" 
+                                onclick="showDeliveryDetails({{ purchase.id }})">
+                            <i class="fas fa-info-circle me-1"></i>Подробнее
+                        </button>
+                        {% if purchase.status == 'pending' %}
+                        <button class="btn btn-sm btn-outline-danger flex-fill" 
+                                onclick="showCancelConfirmation({{ purchase.id }})">
+                            <i class="fas fa-times me-1"></i>Отменить
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
             
             <!-- Пагинация для покупок призов -->

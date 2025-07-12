@@ -1,16 +1,99 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+/* Стили для мобильной версии истории турниров */
+.tournament-card-mobile {
+    background-color: #fff;
+    transition: box-shadow 0.2s ease;
+    border: 1px solid #dee2e6;
+}
+
+.tournament-card-mobile:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tournament-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.tournament-stat-item {
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.tournament-stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-bottom: 4px;
+}
+
+.tournament-stat-value {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.tournament-place-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.tournament-place-badge.gold {
+    background-color: #ffd700;
+    color: #212529;
+}
+
+.tournament-place-badge.silver {
+    background-color: #c0c0c0;
+    color: #212529;
+}
+
+.tournament-place-badge.bronze {
+    background-color: #cd7f32;
+    color: white;
+}
+
+.tournament-place-badge.other {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 767.98px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+</style>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>История турниров</h2>
-        <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary d-none d-md-inline-flex">
             <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
+        </a>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary btn-sm d-md-none">
+            <i class="fas fa-arrow-left"></i>
         </a>
     </div>
     
     {% if tournaments %}
-    <div class="rating-table-container">
+    <!-- Десктопная версия -->
+    <div class="rating-table-container d-none d-md-block">
         <table class="table table-hover">
             <thead>
                 <tr>
@@ -56,6 +139,74 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Мобильная версия -->
+    <div class="d-md-none">
+        {% for tournament in tournaments %}
+        <div class="tournament-card-mobile mb-3 p-3 rounded">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="flex-grow-1">
+                    <h6 class="mb-1">{{ tournament.name }}</h6>
+                    <div class="text-muted small">{{ tournament.start_date.strftime('%d.%m.%Y') }}</div>
+                </div>
+                <div class="text-end">
+                    {% if tournament.place %}
+                        {% if tournament.place == 1 %}
+                            <span class="tournament-place-badge gold">
+                                <i class="fas fa-trophy me-1"></i>{{ tournament.place }}
+                            </span>
+                        {% elif tournament.place == 2 %}
+                            <span class="tournament-place-badge silver">
+                                <i class="fas fa-medal me-1"></i>{{ tournament.place }}
+                            </span>
+                        {% elif tournament.place == 3 %}
+                            <span class="tournament-place-badge bronze">
+                                <i class="fas fa-medal me-1"></i>{{ tournament.place }}
+                            </span>
+                        {% else %}
+                            <span class="tournament-place-badge other">
+                                {{ tournament.place }}
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted small">-</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="tournament-stats-grid">
+                <div class="tournament-stat-item">
+                    <div class="tournament-stat-label">Решено задач</div>
+                    <div class="tournament-stat-value">{{ tournament.solved_tasks }}</div>
+                </div>
+                <div class="tournament-stat-item">
+                    <div class="tournament-stat-label">% решения</div>
+                    <div class="tournament-stat-value">{{ tournament.success_rate }}%</div>
+                </div>
+                <div class="tournament-stat-item">
+                    <div class="tournament-stat-label">Заработано очков</div>
+                    <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
+                </div>
+                <div class="tournament-stat-item">
+                    <div class="tournament-stat-label">Общий счет</div>
+                    <div class="tournament-stat-value">{{ tournament.score }}</div>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                {% if tournament.status == 'finished' %}
+                    <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-info-circle me-1"></i>Подробнее
+                    </a>
+                {% else %}
+                    <span class="text-muted">
+                        <i class="fas fa-clock me-1"></i>Ожидание завершения
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
     
     {% if pagination.has_next %}
     <div class="text-center mt-3">
@@ -85,10 +236,19 @@
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             
+            // Обновляем десктопную версию
             const newRows = doc.querySelectorAll('table tbody tr');
             const tbody = document.querySelector('table tbody');
+            if (tbody) {
+                newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+            }
             
-            newRows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+            // Обновляем мобильную версию
+            const newCards = doc.querySelectorAll('.tournament-card-mobile');
+            const mobileContainer = document.querySelector('.d-md-none');
+            if (mobileContainer) {
+                newCards.forEach(card => mobileContainer.appendChild(card.cloneNode(true)));
+            }
             
             const loadMoreButton = document.getElementById('loadMoreTournaments');
             if (loadMoreButton) {

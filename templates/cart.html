@@ -97,6 +97,59 @@
 .notification.fade-out {
     animation: fadeOut 0.3s ease-out forwards;
 }
+
+/* Стили для мобильной версии корзины */
+.cart-summary {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.cart-summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.cart-summary-item:last-child {
+    margin-bottom: 0;
+}
+
+.cart-summary-total {
+    font-weight: bold;
+    font-size: 1.1em;
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
+.cart-item-mobile:last-child {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 767.98px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    .input-group-sm {
+        width: 100px !important;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
 </style>
 
 <!-- Контейнер для уведомлений -->
@@ -105,13 +158,17 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Корзина</h2>
-        <a href="{{ url_for('shop') }}" class="btn btn-secondary">
+        <a href="{{ url_for('shop') }}" class="btn btn-secondary d-none d-md-inline-flex">
             <i class="fas fa-arrow-left me-2"></i>Вернуться в лавку призов
+        </a>
+        <a href="{{ url_for('shop') }}" class="btn btn-secondary btn-sm d-md-none">
+            <i class="fas fa-arrow-left"></i>
         </a>
     </div>
 
     {% if cart_items %}
-    <div class="row">
+    <!-- Десктопная версия -->
+    <div class="row d-none d-md-flex">
         <div class="col-md-8">
             <div class="card mb-4">
                 <div class="card-body">
@@ -231,6 +288,93 @@
             </div>
         </div>
     </div>
+
+    <!-- Мобильная версия -->
+    <div class="d-md-none">
+        <!-- Сводка корзины -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Сводка заказа</h6>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mobileCheckoutModal">
+                        Оформить заказ
+                    </button>
+                </div>
+                <div class="cart-summary">
+                    <div class="cart-summary-item">
+                        <span>Ваш баланс:</span>
+                        <span>{{ current_user.balance }} баллов</span>
+                    </div>
+                    <div class="cart-summary-item cart-summary-total">
+                        <span>Итого к оплате:</span>
+                        <span>{{ total_cost }} баллов</span>
+                    </div>
+                </div>
+                {% if current_user.balance < total_cost %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    <small>Недостаточно баллов для оформления заказа</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Список товаров -->
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title mb-3">Товары в корзине</h6>
+                {% for item in cart_items %}
+                <div class="cart-item-mobile mb-3 pb-3 border-bottom">
+                    <div class="d-flex align-items-start">
+                        {% if item.prize.image %}
+                        <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/{{ item.prize.image }}" 
+                             alt="{{ item.prize.name }}" 
+                             class="me-3" 
+                             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
+                        {% endif %}
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ item.prize.name }}</h6>
+                            {% if item.prize.is_unique %}
+                            <span class="badge bg-warning text-dark mb-2">Уникальный приз</span>
+                            {% endif %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">{{ item.prize.points_cost }} баллов за шт.</small>
+                                    <div class="mt-1">
+                                        {% if item.prize.is_unique %}
+                                        <span class="text-muted">1 шт.</span>
+                                        {% else %}
+                                        <div class="input-group input-group-sm" style="width: 120px;">
+                                            <button class="btn btn-outline-secondary btn-sm decrease-quantity" 
+                                                    type="button" 
+                                                    data-prize-id="{{ item.prize.id }}">-</button>
+                                            <input type="number" 
+                                                   class="form-control form-control-sm text-center cart-quantity" 
+                                                   value="{{ item.quantity }}" 
+                                                   min="1" 
+                                                   max="{{ item.prize.quantity if item.prize.quantity > 0 else '' }}"
+                                                   data-prize-id="{{ item.prize.id }}">
+                                            <button class="btn btn-outline-secondary btn-sm increase-quantity" 
+                                                    type="button" 
+                                                    data-prize-id="{{ item.prize.id }}">+</button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">{{ item.prize.points_cost * item.quantity }} баллов</div>
+                                    <button class="btn btn-danger btn-sm mt-1 remove-from-cart" 
+                                            data-prize-id="{{ item.prize.id }}">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
     {% else %}
     <div class="alert alert-info">
         Ваша корзина пуста
@@ -272,6 +416,61 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                 <button type="button" class="btn btn-danger" id="confirmDeleteCartItem">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно оформления заказа для мобильной версии -->
+<div class="modal fade" id="mobileCheckoutModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Оформление заказа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="cart-summary mb-4">
+                    <div class="cart-summary-item">
+                        <span>Ваш баланс:</span>
+                        <span>{{ current_user.balance }} баллов</span>
+                    </div>
+                    <div class="cart-summary-item cart-summary-total">
+                        <span>Итого к оплате:</span>
+                        <span>{{ total_cost }} баллов</span>
+                    </div>
+                </div>
+
+                <form id="mobileCheckoutForm" onsubmit="return validateMobileForm()">
+                    <div class="mb-3">
+                        <label for="mobileFullName" class="form-label">ФИО *</label>
+                        <input type="text" class="form-control" id="mobileFullName" name="full_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mobilePhone" class="form-label">Номер телефона *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">+375</span>
+                            <input type="tel" class="form-control" id="mobilePhone" name="phone" 
+                                   pattern="[0-9]{9}" maxlength="9" required
+                                   placeholder="29XXXXXXX">
+                        </div>
+                        <div class="form-text">Формат: +37529XXXXXXX</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mobileAddress" class="form-label">Адрес доставки *</label>
+                        <textarea class="form-control" id="mobileAddress" name="address" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" 
+                            {% if current_user.balance < total_cost %}disabled{% endif %}>
+                        Оформить заказ
+                    </button>
+                </form>
+
+                {% if current_user.balance < total_cost %}
+                <div class="alert alert-warning mt-3">
+                    Недостаточно баллов для оформления заказа
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -532,8 +731,30 @@ function validateForm() {
     return true;
 }
 
+// Функция для валидации мобильной формы
+function validateMobileForm() {
+    const phone = document.getElementById('mobilePhone').value;
+    if (!validatePhone(phone)) {
+        showNotification('Ошибка', 'Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX', 'error');
+        return false;
+    }
+    return true;
+}
+
 // Обработчик ввода номера телефона
 document.getElementById('phone').addEventListener('input', function(e) {
+    // Удаляем все нецифровые символы
+    let value = e.target.value.replace(/\D/g, '');
+    
+    // Ограничиваем длину до 9 цифр
+    value = value.substring(0, 9);
+    
+    // Обновляем значение поля
+    e.target.value = value;
+});
+
+// Обработчик ввода номера телефона для мобильной формы
+document.getElementById('mobilePhone').addEventListener('input', function(e) {
     // Удаляем все нецифровые символы
     let value = e.target.value.replace(/\D/g, '');
     
@@ -614,6 +835,55 @@ document.addEventListener('DOMContentLoaded', function() {
             cartItemToDelete = this.dataset.prizeId;
             const modal = new bootstrap.Modal(document.getElementById('deleteCartItemModal'));
             modal.show();
+        });
+    });
+
+    // Обработчик отправки мобильной формы
+    document.getElementById('mobileCheckoutForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fullName = document.getElementById('mobileFullName').value;
+        const phone = document.getElementById('mobilePhone').value;
+        const address = document.getElementById('mobileAddress').value;
+        
+        if (!fullName || !phone || !address) {
+            showNotification('Предупреждение', 'Пожалуйста, заполните все обязательные поля', 'warning');
+            return;
+        }
+        
+        if (!validatePhone(phone)) {
+            showNotification('Ошибка', 'Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX', 'error');
+            return;
+        }
+        
+        fetch('/checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                full_name: fullName,
+                phone: phone,
+                address: address
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Успешно', data.message, 'success');
+                // Закрываем модальное окно
+                const modal = bootstrap.Modal.getInstance(document.getElementById('mobileCheckoutModal'));
+                modal.hide();
+                setTimeout(() => {
+                    window.location.href = '/profile';
+                }, 2000);
+            } else {
+                showNotification('Ошибка', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Ошибка', 'Произошла ошибка при оформлении заказа', 'error');
         });
     });
 });

@@ -935,4 +935,7 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 </script>
+
+<!-- Загружаем скрипт обучения только на странице профиля -->
+<script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
 {% endblock %} 
