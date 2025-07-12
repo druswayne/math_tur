@@ -209,6 +209,71 @@
                 max-height: 40px !important;
             }
         }
+        
+        /* Анимация мерцания для кнопки "Войти" */
+        @keyframes login-button-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.8);
+                transform: scale(1);
+                background: linear-gradient(45deg, #FF8C00, #FFA500);
+                color: white;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            }
+            25% {
+                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.6);
+                transform: scale(1.02);
+                background: linear-gradient(45deg, #FFA500, #FF8C00);
+            }
+            50% {
+                box-shadow: 0 0 0 6px rgba(255, 140, 0, 0.4);
+                transform: scale(1.05);
+                background: linear-gradient(45deg, #FF8C00, #FFD700);
+            }
+            75% {
+                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.6);
+                transform: scale(1.02);
+                background: linear-gradient(45deg, #FFD700, #FF8C00);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.8);
+                transform: scale(1);
+                background: linear-gradient(45deg, #FF8C00, #FFA500);
+                color: white;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            }
+        }
+        
+        .login-button-pulse {
+            animation: login-button-pulse 2.5s infinite;
+            border-radius: 8px;
+            padding: 10px 20px;
+            transition: all 0.3s ease;
+            border: none;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-button-pulse::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .login-button-pulse:hover::before {
+            left: 100%;
+        }
+        
+        .login-button-pulse:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.6);
+        }
     </style>
     {% block styles %}{% endblock %}
     <meta name="mailru-domain" content="kHFPmeWpmZhlHcuQ" />
@@ -269,7 +334,7 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">Войти</a>
+                            <a class="nav-link" href="{{ url_for('login') }}" id="loginButton">Войти</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('register') }}">Регистрация</a>
@@ -297,7 +362,7 @@
                     <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">230029, Республика Беларусь, г. Гродно, ул. Гарбарская д. 4</p>
                 </div>
                 <div class="col-md-6 text-md-end">
-                                        <h5 style="color: white; font-weight: bold; letter-spacing: 1px; margin-bottom: 0.5rem;">КОНТАКТЫ</h5>
+                    <h5 style="color: white; font-weight: bold; letter-spacing: 1px; margin-bottom: 0.5rem;">КОНТАКТЫ</h5>
                     <div style="width: 60px; height: 3px; background: #FF8C00; margin-left: auto; margin-bottom: 1rem;"></div>
                     
                     <div class="phone-numbers-container" style="margin-bottom: 1rem;">
@@ -368,6 +433,15 @@
             document.getElementById('closeCookieBanner').onclick = function() {
                 cookieBanner.style.display = 'none';
             };
+            
+            // Мерцание кнопки "Войти" для неавторизованных пользователей
+            const loginButton = document.getElementById('loginButton');
+            if (loginButton && !document.body.classList.contains('logged-in')) {
+                // Добавляем небольшую задержку перед началом мерцания
+                setTimeout(function() {
+                    loginButton.classList.add('login-button-pulse');
+                }, 1000);
+            }
         });
     </script>
     {% block scripts %}{% endblock %}

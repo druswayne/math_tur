@@ -26,10 +26,27 @@
                                 <li class="mb-2">
                                     <i class="fas fa-check text-success me-2"></i>1 жетон = 1 участие в турнире
                                 </li>
-
                             </ul>
                         </div>
-
+                        <div class="col-md-6">
+                            <h6 class="mb-3" style="color: #333333;">
+                                <i class="fas fa-shopping-cart me-2"></i>Как купить жетоны?
+                            </h6>
+                            <ol class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>Укажите нужное число жетонов.
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>Нажмите кнопку <strong>Оформить покупку</strong>.
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>Выберите платежную систему и следуйте инструкциям для оплаты.
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>После оплаты жетоны автоматически зачисляются на баланс в личном кабинете.
+                                </li>
+                            </ol>
+                        </div>
                     </div>
                     <div class="alert alert-info mt-3 mb-0">
                         <i class="fas fa-lightbulb me-2"></i>
@@ -91,7 +108,7 @@
                         <label class="form-label">Итоговая стоимость</label>
                         <p id="totalPrice" class="form-text">-</p>
                     </div>
-                    <button type="button" class="btn btn-success w-100" onclick="showPaymentModal()">
+                    <button type="button" class="btn btn-secondary w-100" id="purchaseButton" onclick="showPaymentModal()" disabled>
                         <i class="fas fa-shopping-cart me-2"></i>Оформить покупку
                     </button>
                 </div>
@@ -99,6 +116,46 @@
         </div>
     </div>
 </div>
+
+<style>
+@keyframes button-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0.3);
+        transform: scale(1.02);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        transform: scale(1);
+    }
+}
+
+@keyframes input-pulse {
+    0% {
+        border-color: #ced4da;
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    50% {
+        border-color: #28a745;
+        box-shadow: 0 0 0 5px rgba(40, 167, 69, 0.3);
+    }
+    100% {
+        border-color: #ced4da;
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+.purchase-button-pulse {
+    animation: button-pulse 2s infinite;
+}
+
+.input-pulse {
+    animation: input-pulse 2s infinite;
+}
+</style>
 
 <script>
 function preventEnterSubmit(event) {
@@ -112,6 +169,8 @@ function updatePrice() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const basePrice = {{ base_price.price }};
     const discountInfo = document.getElementById('discountInfo');
+    const purchaseButton = document.getElementById('purchaseButton');
+    const quantityInput = document.getElementById('quantity');
     
     if (quantity > 0) {
         // Обновляем отображение количества
@@ -132,6 +191,13 @@ function updatePrice() {
         const totalPriceRub = (totalPrice * currencyRate).toFixed(2);
         document.getElementById('totalPrice').innerHTML = totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ ' + totalPriceRub + ' RUB</small>';
         
+        // Активируем кнопку и добавляем эффект мерцания
+        purchaseButton.classList.remove('btn-secondary');
+        purchaseButton.classList.add('btn-success');
+        purchaseButton.disabled = false;
+        purchaseButton.classList.add('purchase-button-pulse');
+        quantityInput.classList.remove('input-pulse');
+        
         // Обновляем информацию о скидках
         if (discountInfo) {
             const nextDiscount = getNextDiscount(quantity);
@@ -150,6 +216,11 @@ function updatePrice() {
         document.getElementById('selectedQuantity').textContent = '-';
         document.getElementById('discount').textContent = '0%';
         document.getElementById('totalPrice').textContent = '-';
+        // Деактивируем кнопку и убираем эффект мерцания
+        purchaseButton.classList.remove('btn-success', 'purchase-button-pulse');
+        purchaseButton.classList.add('btn-secondary');
+        purchaseButton.disabled = true;
+        quantityInput.classList.add('input-pulse');
         if (discountInfo) {
             discountInfo.textContent = 'Выберите количество жетонов, чтобы увидеть доступную скидку';
         }
@@ -184,6 +255,11 @@ function getNextDiscount(quantity) {
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
     updatePrice();
+    // Добавляем мерцание к полю ввода при загрузке страницы
+    const quantityInput = document.getElementById('quantity');
+    if (!quantityInput.value || quantityInput.value === '0') {
+        quantityInput.classList.add('input-pulse');
+    }
 });
 
 function showPaymentModal() {
