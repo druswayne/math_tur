@@ -17,11 +17,21 @@
                     <p><strong>Логин:</strong> {{ user.username }}</p>
                     <p><strong>Email:</strong> {{ user.email }}</p>
                     <p><strong>Телефон:</strong> {{ user.phone or 'Не указан' }}</p>
-                    <p><strong>Группа:</strong> {{ user.category }}</p>
+                    <p><strong>Группа:</strong> {{ user.category or 'Не указана' }}</p>
                     <p><strong>Жетоны:</strong> {{ user.tickets }}</p>
                     <p><strong>Баланс:</strong> {{ user.balance }}</p>
-                    <p><strong>Место в категории:</strong> {{ user.category_rank }}</p>
+                    <p><strong>Место в категории:</strong> {{ user.category_rank or 'Не определено' }}</p>
                     <p><strong>Дата регистрации:</strong> {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                    {% if user.educational_institution %}
+                    <p><strong>Образовательное учреждение:</strong> {{ user.educational_institution.name }}</p>
+                    <p><strong>Адрес учреждения:</strong> {{ user.educational_institution.address }}</p>
+                    {% endif %}
+                    {% if user.student_name %}
+                    <p><strong>ФИО учащегося:</strong> {{ user.student_name }}</p>
+                    {% endif %}
+                    {% if user.parent_name %}
+                    <p><strong>ФИО родителя:</strong> {{ user.parent_name }}</p>
+                    {% endif %}
                     <p><strong>Статус:</strong> 
                         {% if user.is_active %}
                             Активен
@@ -42,6 +52,13 @@
                     <p><strong>Участий в турнирах:</strong> {{ total_tournaments_participated }}</p>
                     <p><strong>Побед в турнирах:</strong> {{ total_tournaments_won }}</p>
                     <p><strong>Средний балл за турнир:</strong> {{ average_tournament_score }}</p>
+                    {% if user.referral_links %}
+                    <p><strong>Реферальный код:</strong> {{ user.referral_links[0].referral_code if user.referral_links else 'Не создан' }}</p>
+                    <p><strong>Приглашено пользователей:</strong> {{ user.referrals_sent|length }}</p>
+                    {% endif %}
+                    {% if user.referrals_received %}
+                    <p><strong>Приглашен пользователем:</strong> {{ user.referrals_received[0].referrer.username if user.referrals_received else 'Нет' }}</p>
+                    {% endif %}
                 </div>
             </div>
 
@@ -59,6 +76,7 @@
                                             <th>Дата</th>
                                             <th>Количество</th>
                                             <th>Сумма</th>
+                                            <th>Статус</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -67,10 +85,21 @@
                                             <td>{{ purchase.purchase_date.strftime('%d.%m.%Y %H:%M') }}</td>
                                             <td>{{ purchase.quantity }}</td>
                                             <td>{{ purchase.amount }} BYN</td>
+                                            <td>
+                                                {% if purchase.payment_status == 'succeeded' %}
+                                                    <span class="badge bg-success">Оплачено</span>
+                                                {% elif purchase.payment_status == 'pending' %}
+                                                    <span class="badge bg-warning">Ожидает</span>
+                                                {% elif purchase.payment_status == 'canceled' %}
+                                                    <span class="badge bg-danger">Отменено</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ purchase.payment_status }}</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% else %}
                                         <tr>
-                                            <td colspan="3" class="text-center">История покупок пуста</td>
+                                            <td colspan="4" class="text-center">История покупок пуста</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -93,6 +122,7 @@
                                             <th>Дата</th>
                                             <th>Результат</th>
                                             <th>Место</th>
+                                            <th>Время участия</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -101,11 +131,22 @@
                                             <td>{{ participation.tournament.title }}</td>
                                             <td>{{ participation.tournament.start_date.strftime('%d.%m.%Y') }}</td>
                                             <td>{{ participation.score }} баллов</td>
-                                            <td>{{ participation.place }}</td>
+                                            <td>{{ participation.place or 'Не определено' }}</td>
+                                            <td>
+                                                {% if participation.start_time %}
+                                                    {% if participation.end_time %}
+                                                        {{ ((participation.end_time - participation.start_time).total_seconds() / 60)|round(1) }} мин.
+                                                    {% else %}
+                                                        Не завершено
+                                                    {% endif %}
+                                                {% else %}
+                                                    Не участвовал
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                         {% else %}
                                         <tr>
-                                            <td colspan="4" class="text-center">История участия пуста</td>
+                                            <td colspan="5" class="text-center">История участия пуста</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>

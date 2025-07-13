@@ -17,10 +17,10 @@ S3_CONFIG = {
 # Создаем клиент S3
 s3_client = boto3.client(
     's3',
-    endpoint_url=S3_CONFIG['endpoint_url'],
-    aws_access_key_id=S3_CONFIG['aws_access_key_id'],
-    aws_secret_access_key=S3_CONFIG['aws_secret_access_key'],
-    region_name=S3_CONFIG['region_name'],
+    endpoint_url=os.environ.get('endpoint_url'),
+    aws_access_key_id=os.environ.get('aws_access_key_id'),
+    aws_secret_access_key=os.environ.get('aws_secret_access_key'),
+    region_name=os.environ.get('region_name'),
     config=Config(
         signature_version='s3v4',
         s3={'addressing_style': 'path'}
@@ -49,7 +49,7 @@ def upload_file_to_s3(file, folder):
             # Загружаем файл в S3
             s3_client.upload_fileobj(
                 file,
-                S3_CONFIG['bucket_name'],
+                os.environ.get('bucket_name'),
                 s3_key,
                 ExtraArgs={'ACL': 'public-read'}
             )
@@ -70,7 +70,7 @@ def delete_file_from_s3(filename, folder):
         if filename:
             s3_key = f"{folder}/{filename}"
             s3_client.delete_object(
-                Bucket=S3_CONFIG['bucket_name'],
+                Bucket=os.environ.get('bucket_name'),
                 Key=s3_key
             )
             return True
@@ -86,5 +86,5 @@ def get_s3_url(filename, folder):
     :return: URL файла
     """
     if filename:
-        return f"{S3_CONFIG['endpoint_url']}/{S3_CONFIG['bucket_name']}/{folder}/{filename}"
+        return f"{os.environ.get('endpoint_url')}/{os.environ.get('bucket_name')}/{folder}/{filename}"
     return None 

@@ -16,7 +16,7 @@ import random
 from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
-from email_sender import add_to_queue, start_email_worker
+from email_sender import add_to_queue, add_bulk_to_queue, start_email_worker
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -39,6 +39,10 @@ load_dotenv()
 SERVER_ID = os.environ.get('SERVER_ID')
 DEBAG = bool(os.environ.get('DEBAG'))
 print(DEBAG)
+
+# Константы для реферальной системы
+REFERRAL_BONUS_POINTS = 150  # Бонусные баллы за приглашенного пользователя
+REFERRAL_BONUS_TICKETS = 23   # Бонусные жетоны за приглашенного пользователя
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
 # Создаем пул потоков
@@ -215,12 +219,6 @@ def run_in_thread(func, *args, **kwargs):
     return thread_pool.submit(func, *args, **kwargs)
 
 # Модифицируем функции, которые могут выполняться асинхронно
-def send_email_async(msg):
-    """Асинхронная отправка email"""
-    def _send():
-        with app.app_context():
-            mail.send(msg)
-    return run_in_thread(_send)
 
 def update_user_activity_async(user_id):
     """Асинхронное обновление активности пользователя"""
@@ -660,6 +658,38 @@ def create_admin_user():
         db.session.add(admin)
         db.session.commit()
 
+def send_admin_notification(subject, message, recipient_email=None):
+    """Отправка уведомления всем администраторам или конкретному получателю"""
+    try:
+        if recipient_email:
+            # Отправляем конкретному получателю
+            msg = Message(subject,
+                         sender=app.config['MAIL_USERNAME'],
+                         recipients=[recipient_email])
+            msg.body = message
+            add_to_queue(app, mail, msg)
+        else:
+            # Отправляем всем администраторам
+            admins = User.query.filter_by(is_admin=True, is_active=True).all()
+            
+            if not admins:
+                return
+            
+            # Создаем сообщения для всех администраторов
+            messages = []
+            for admin in admins:
+                msg = Message(subject,
+                             sender=app.config['MAIL_USERNAME'],
+                             recipients=[admin.email])
+                msg.body = message
+                messages.append(msg)
+            
+            # Отправляем массово через очередь
+            add_bulk_to_queue(app, mail, messages)
+        
+    except Exception as e:
+        print(f"Ошибка отправки уведомления: {e}")
+
 def send_confirmation_email(user):
     token = user.generate_confirmation_token()
     msg = Message('Подтверждение регистрации',
@@ -736,8 +766,9 @@ def reset_password(token):
             flash('Пароли не совпадают', 'danger')
             return redirect(url_for('reset_password', token=token))
         
-        if not is_password_strong(password):
-            flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
+        is_strong, message = is_password_strong(password)
+        if not is_strong:
+            flash(message, 'danger')
             return redirect(url_for('reset_password', token=token))
         
         user.set_password(password)
@@ -1000,10 +1031,18 @@ def admin_users():
         return redirect(url_for('home'))
     
     # Получаем параметры поиска и пагинации
-    search_query = request.args.get('search', '').strip()
+    search_query = sanitize_input(request.args.get('search', ''), 100)
     search_type = request.args.get('search_type', 'username')
     page = request.args.get('page', 1, type=int)
     per_page = 20  # Количество пользователей на странице
+    
+    # Валидация входных данных
+    valid_search_types = ['username', 'email', 'id']
+    if search_type not in valid_search_types:
+        search_type = 'username'
+    
+    if page < 1:
+        page = 1
     
     # Базовый запрос
     query = User.query
@@ -1011,9 +1050,9 @@ def admin_users():
     # Применяем фильтры поиска
     if search_query:
         if search_type == 'username':
-            query = query.filter(User.username.ilike(f'%{search_query}%'))
+            query = query.filter(User.username.ilike('%' + search_query + '%'))
         elif search_type == 'email':
-            query = query.filter(User.email.ilike(f'%{search_query}%'))
+            query = query.filter(User.email.ilike('%' + search_query + '%'))
         elif search_type == 'id':
             try:
                 user_id = int(search_query)
@@ -1051,12 +1090,12 @@ def admin_add_user():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    username = request.form.get('username')
-    email = request.form.get('email')
+    username = sanitize_input(request.form.get('username'), 80)
+    email = sanitize_input(request.form.get('email'), 120)
     password = request.form.get('password')
-    phone = request.form.get('phone')
-    student_name = request.form.get('student_name')  # Добавляем поле для имени учащегося
-    parent_name = request.form.get('parent_name')
+    phone = sanitize_input(request.form.get('phone'), 20)
+    student_name = sanitize_input(request.form.get('student_name'), 100)
+    parent_name = sanitize_input(request.form.get('parent_name'), 100)
     category = request.form.get('category')
     is_admin = 'is_admin' in request.form
     
@@ -1111,11 +1150,11 @@ def admin_edit_user(user_id):
         return redirect(url_for('home'))
     
     user = User.query.get_or_404(user_id)
-    username = request.form.get('username')
-    email = request.form.get('email')
-    student_name = request.form.get('student_name')
-    parent_name = request.form.get('parent_name')
-    phone = request.form.get('phone')
+    username = sanitize_input(request.form.get('username'), 80)
+    email = sanitize_input(request.form.get('email'), 120)
+    student_name = sanitize_input(request.form.get('student_name'), 100)
+    parent_name = sanitize_input(request.form.get('parent_name'), 100)
+    phone = sanitize_input(request.form.get('phone'), 20)
     category = request.form.get('category')
     password = request.form.get('password')
     is_admin = 'is_admin' in request.form
@@ -1197,7 +1236,7 @@ def admin_toggle_user_block(user_id):
         action = "разблокирован"
     else:
         # Блокировка пользователя
-        block_reason = request.form.get('block_reason')
+        block_reason = sanitize_input(request.form.get('block_reason'), 500)
         if not block_reason:
             flash('Необходимо указать причину блокировки', 'danger')
             return redirect(url_for('admin_users'))
@@ -1232,6 +1271,54 @@ def admin_reset_all_balances():
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при обнулении счетов'})
 
+@app.route('/admin/users/mass-email', methods=['POST'])
+@login_required
+def admin_mass_email():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'У вас нет доступа к этой странице'})
+    
+    try:
+        data = request.get_json()
+        subject = sanitize_input(data.get('subject', ''), 200)
+        message = validate_text_content(data.get('message', ''), 5000)
+        
+        if not subject or not message:
+            return jsonify({'success': False, 'message': 'Тема и текст письма обязательны'})
+        
+        # Получаем всех активных пользователей с email
+        users = User.query.filter(User.is_active == True, User.email.isnot(None)).all()
+        
+        if not users:
+            return jsonify({'success': False, 'message': 'Нет пользователей для отправки писем'})
+        
+        # Отправляем письма всем пользователям
+        sent_count = 0
+        failed_count = 0
+        
+        for user in users:
+            try:
+                # Используем существующую функцию отправки email
+                send_admin_notification(subject, message, user.email)
+                sent_count += 1
+            except Exception as e:
+                failed_count += 1
+                print(f"Ошибка отправки письма пользователю {user.email}: {e}")
+        
+        if failed_count == 0:
+            return jsonify({
+                'success': True, 
+                'message': f'Письма успешно отправлены {sent_count} пользователям'
+            })
+        else:
+            return jsonify({
+                'success': True, 
+                'message': f'Отправлено {sent_count} писем, {failed_count} писем не удалось отправить'
+            })
+            
+    except Exception as e:
+        print(f"Ошибка массовой рассылки: {e}")
+        return jsonify({'success': False, 'message': 'Произошла ошибка при отправке писем'})
+
 @app.route('/admin/tournaments')
 @login_required
 def admin_tournaments():
@@ -1257,9 +1344,9 @@ def admin_add_tournament():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    title = request.form.get('title')
-    description = request.form.get('description')
-    rules = request.form.get('rules')
+    title = sanitize_input(request.form.get('title'), 200)
+    description = validate_text_content(request.form.get('description'), 2000)
+    rules = validate_text_content(request.form.get('rules'), 2000)
     start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     duration = int(request.form.get('duration'))
     
@@ -1293,9 +1380,9 @@ def admin_edit_tournament(tournament_id):
     
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    tournament.title = request.form.get('title')
-    tournament.description = request.form.get('description')
-    tournament.rules = request.form.get('rules')
+    tournament.title = sanitize_input(request.form.get('title'), 200)
+    tournament.description = validate_text_content(request.form.get('description'), 2000)
+    tournament.rules = validate_text_content(request.form.get('rules'), 2000)
     tournament.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     tournament.duration = int(request.form.get('duration'))
     
@@ -1416,8 +1503,8 @@ def admin_tournament_stats(tournament_id):
     total_points_earned = 0
     
     for task_id, title, points, solved_count, correct_count in tasks_stats:
-        if total_participants > 0:
-            solve_percentage = (correct_count or 0) / total_participants * 100
+        if (solved_count or 0) > 0:
+            solve_percentage = (correct_count or 0) / (solved_count or 0) * 100
         else:
             solve_percentage = 0
             
@@ -1427,7 +1514,7 @@ def admin_tournament_stats(tournament_id):
             'points': points,
             'solved_count': solved_count or 0,
             'correct_count': correct_count or 0,
-            'solve_percentage': round(solve_percentage, 2)
+            'solve_percentage': round(solve_percentage, 2)  # Процент правильных решений от попыток
         })
         
         total_points_earned += points * (correct_count or 0)
@@ -1852,13 +1939,32 @@ def delete_tournament_task(tournament_id, task_id):
     return redirect(url_for('configure_tournament', tournament_id=tournament_id))
 
 def is_password_strong(password):
+    """
+    Проверяет, соответствует ли пароль строгим требованиям безопасности:
+    - Минимум 8 символов
+    - Хотя бы одна заглавная буква
+    - Хотя бы одна строчная буква
+    - Хотя бы одна цифра
+    - Хотя бы один специальный символ
+    """
     if len(password) < 8:
-        return False
+        return False, "Пароль должен содержать минимум 8 символов"
+    
+    if not any(c.isupper() for c in password):
+        return False, "Пароль должен содержать хотя бы одну заглавную букву"
+    
+    if not any(c.islower() for c in password):
+        return False, "Пароль должен содержать хотя бы одну строчную букву"
+    
     if not any(c.isdigit() for c in password):
-        return False
-    if not any(c.isalpha() for c in password):
-        return False
-    return True
+        return False, "Пароль должен содержать хотя бы одну цифру"
+    
+    # Проверяем наличие специальных символов
+    special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    if not any(c in special_chars for c in password):
+        return False, "Пароль должен содержать хотя бы один специальный символ (!@#$%^&*()_+-=[]{}|;:,.<>?)"
+    
+    return True, "Пароль соответствует требованиям безопасности"
 
 def is_valid_username(username):
     # Проверяем, что логин содержит только допустимые символы
@@ -1871,6 +1977,87 @@ def is_valid_username(username):
     if len(username) < 3:
         return False
     return True
+
+def sanitize_input(input_string, max_length=100):
+    """Безопасно очищает входные данные"""
+    if not input_string:
+        return ''
+    
+    # Ограничиваем длину
+    if len(input_string) > max_length:
+        input_string = input_string[:max_length]
+    
+    # Удаляем потенциально опасные символы для SQL
+    dangerous_chars = [';', '--', '/*', '*/', 'xp_', 'sp_', 'exec', 'execute', 'union', 'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter']
+    input_lower = input_string.lower()
+    for char in dangerous_chars:
+        if char in input_lower:
+            return ''
+    
+    return input_string.strip()
+
+def validate_email(email):
+    """Валидация email адреса"""
+    import re
+    if not email:
+        return False
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
+
+def validate_phone(phone):
+    """Валидация номера телефона"""
+    import re
+    if not phone:
+        return False
+    # Убираем все кроме цифр
+    digits_only = re.sub(r'\D', '', phone)
+    return len(digits_only) >= 9 and len(digits_only) <= 15
+
+def validate_name(name, max_length=100):
+    """Валидация имени (студента, родителя)"""
+    if not name:
+        return False
+    if len(name) > max_length:
+        return False
+    # Проверяем, что имя содержит только буквы, пробелы, дефисы и точки
+    import re
+    pattern = r'^[а-яА-Яa-zA-Z\s\-\.]+$'
+    return re.match(pattern, name) is not None
+
+def validate_text_content(text, max_length=1000):
+    """Валидация текстового контента (описания, правила)"""
+    if not text:
+        return False
+    if len(text) > max_length:
+        return False
+    # Удаляем потенциально опасные HTML теги
+    import re
+    text = re.sub(r'<[^>]*>', '', text)
+    return text.strip()
+
+def validate_integer(value, min_val=None, max_val=None):
+    """Валидация целого числа"""
+    try:
+        int_val = int(value)
+        if min_val is not None and int_val < min_val:
+            return False
+        if max_val is not None and int_val > max_val:
+            return False
+        return True
+    except (ValueError, TypeError):
+        return False
+
+def validate_float(value, min_val=None, max_val=None):
+    """Валидация числа с плавающей точкой"""
+    try:
+        float_val = float(value)
+        if min_val is not None and float_val < min_val:
+            return False
+        if max_val is not None and float_val > max_val:
+            return False
+        return True
+    except (ValueError, TypeError):
+        return False
 
 @app.route('/check-username', methods=['POST'])
 def check_username():
@@ -1900,24 +2087,51 @@ def check_email():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # Получаем реферальный код из параметров запроса
+    referral_code = request.args.get('ref')
+    referral_link = None
+    if referral_code:
+        referral_link = get_referral_link_by_code(referral_code)
+    
     if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        student_name = request.form.get('student_name')  # Добавляем поле для имени учащегося
-        parent_name = request.form.get('parent_name')
+        username = sanitize_input(request.form.get('username'), 80)
+        email = sanitize_input(request.form.get('email'), 120)
+        phone = sanitize_input(request.form.get('phone'), 20)
+        student_name = sanitize_input(request.form.get('student_name'), 100)
+        parent_name = sanitize_input(request.form.get('parent_name'), 100)
         category = request.form.get('category')
         password = request.form.get('password')
         confirm_password = request.form.get('confirm_password')
         edu_id = request.form.get('educational_institution_id')
-        edu_name = request.form.get('educational_institution_name')
+        edu_name = sanitize_input(request.form.get('educational_institution_name'), 500)
+        # Получаем реферальный код из формы
+        form_referral_code = sanitize_input(request.form.get('referral_code'), 50)
+        if form_referral_code:
+            referral_link = get_referral_link_by_code(form_referral_code)
 
         if not is_valid_username(username):
             flash('Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.', 'danger')
             return redirect(url_for('register'))
 
-        if not is_password_strong(password):
-            flash('Пароль должен содержать минимум 8 символов, включая цифры и буквы', 'danger')
+        if not validate_email(email):
+            flash('Некорректный email адрес', 'danger')
+            return redirect(url_for('register'))
+
+        if not validate_name(student_name):
+            flash('Имя учащегося может содержать только буквы, пробелы, дефисы и точки', 'danger')
+            return redirect(url_for('register'))
+
+        if parent_name and not validate_name(parent_name):
+            flash('Имя родителя может содержать только буквы, пробелы, дефисы и точки', 'danger')
+            return redirect(url_for('register'))
+
+        if not validate_phone(phone):
+            flash('Некорректный номер телефона', 'danger')
+            return redirect(url_for('register'))
+
+        is_strong, message = is_password_strong(password)
+        if not is_strong:
+            flash(message, 'danger')
             return redirect(url_for('register'))
 
         if password != confirm_password:
@@ -1989,13 +2203,21 @@ def register():
         db.session.add(user)
         db.session.commit()
 
+        # Обрабатываем реферальную ссылку
+        if referral_link:
+            try:
+                create_referral(referral_link.user_id, user.id, referral_link.id)
+                flash('Вы зарегистрировались по реферальной ссылке!', 'info')
+            except Exception as e:
+                print(f"Ошибка при создании реферала: {e}")
+
         # Отправляем письмо с подтверждением асинхронно
         send_confirmation_email(user)
         
         flash('Письмо с подтверждением отправлено на ваш email', 'success')
         return redirect(url_for('login'))
 
-    return render_template('register.html')
+    return render_template('register.html', referral_code=referral_code)
 
 @app.route('/confirm/<token>')
 def confirm_email(token):
@@ -2542,11 +2764,20 @@ def admin_user_details(user_id):
     user = User.query.get_or_404(user_id)
     
     # Получаем статистику
-
     total_tickets_purchased = sum(purchase.quantity for purchase in user.ticket_purchases)
-    total_tournaments_participated = user.tournaments_count  # Используем новое поле
+    
+    # Подсчитываем реальное количество участий в турнирах
+    actual_tournaments_participated = len(user.tournament_participations)
+    total_tournaments_participated = actual_tournaments_participated
+    
+    # Подсчитываем победы (место = 1)
     total_tournaments_won = sum(1 for p in user.tournament_participations if p.place == 1)
-    average_tournament_score = sum(p.score for p in user.tournament_participations) / total_tournaments_participated if total_tournaments_participated > 0 else 0
+    
+    # Вычисляем средний балл
+    if actual_tournaments_participated > 0:
+        average_tournament_score = sum(p.score for p in user.tournament_participations) / actual_tournaments_participated
+    else:
+        average_tournament_score = 0
     
     # Получаем историю покупок и участия в турнирах
     ticket_purchases = TicketPurchase.query.filter_by(user_id=user.id).order_by(TicketPurchase.purchase_date.desc()).all()
@@ -3738,7 +3969,7 @@ def admin_edit_news(news_id):
 @login_required
 def admin_delete_news(news_id):
     if not current_user.is_admin:
-        flash('У вас нет доступа к этой страницы', 'danger')
+        flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
     news = News.query.get_or_404(news_id)
@@ -3792,10 +4023,11 @@ def change_password():
             'message': 'Неверный текущий пароль'
         })
     
-    if not is_password_strong(new_password):
+    is_strong, message = is_password_strong(new_password)
+    if not is_strong:
         return jsonify({
             'success': False,
-            'message': 'Пароль должен содержать минимум 8 символов, включая цифры и буквы'
+            'message': message
         })
     
     current_user.set_password(new_password)
@@ -3921,14 +4153,9 @@ def update_profile():
     
     # Валидация пароля
     if new_password:
-        if len(new_password) < 8:
-            return jsonify({'success': False, 'message': 'Пароль должен содержать минимум 8 символов'})
-        
-        if not re.search(r'[a-zA-Z]', new_password):
-            return jsonify({'success': False, 'message': 'Пароль должен содержать хотя бы одну букву'})
-        
-        if not re.search(r'\d', new_password):
-            return jsonify({'success': False, 'message': 'Пароль должен содержать хотя бы одну цифру'})
+        is_strong, message = is_password_strong(new_password)
+        if not is_strong:
+            return jsonify({'success': False, 'message': message})
     
     try:
         # Обрабатываем учреждение образования
@@ -3980,12 +4207,13 @@ def admin_clear_user_data():
         return jsonify({'success': False, 'message': 'Неверный пароль администратора'}), 400
     
     try:
-        # Очищаем счет и время решения задач для всех пользователей
+        # Очищаем счет, время решения задач и ранги для всех пользователей
         users = User.query.filter_by(is_admin=False).all()
         for user in users:
             user.balance = 0
             user.total_tournament_time = 0
             user.tournaments_count = 0  # Очищаем количество турниров
+            user.category_rank = None  # Обнуляем ранг в категории
         
         # Очищаем историю решенных задач
         SolvedTask.query.delete()
@@ -4100,6 +4328,34 @@ class EducationalInstitution(db.Model):
     address = db.Column(db.Text, nullable=False)  # Адрес учреждения
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
+
+class ReferralLink(db.Model):
+    __tablename__ = "referral_links"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    referral_code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    
+    # Связи
+    user = db.relationship('User', backref=db.backref('referral_links', lazy=True))
+    referrals = db.relationship('Referral', backref='referral_link', lazy=True)
+
+class Referral(db.Model):
+    __tablename__ = "referrals"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    referrer_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)  # Кто пригласил
+    referred_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)  # Кого пригласили
+    referral_link_id = db.Column(db.Integer, db.ForeignKey('referral_links.id'), nullable=False)
+    bonus_paid = db.Column(db.Boolean, default=False)  # Выплачен ли бонус
+    bonus_paid_at = db.Column(db.DateTime, nullable=True)  # Когда выплачен бонус
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    
+    # Связи
+    referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referrals_sent', lazy=True))
+    referred = db.relationship('User', foreign_keys=[referred_id], backref=db.backref('referrals_received', lazy=True))
 
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
@@ -4239,12 +4495,111 @@ def block_login():
     )
     return response
 
+# Функции для работы с реферальными ссылками
+def generate_referral_code():
+    """Генерирует уникальный реферальный код"""
+    while True:
+        code = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=8))
+        if not ReferralLink.query.filter_by(referral_code=code).first():
+            return code
+
+def create_referral_link(user_id):
+    """Создает реферальную ссылку для пользователя"""
+    # Проверяем, есть ли уже активная ссылка
+    existing_link = ReferralLink.query.filter_by(user_id=user_id, is_active=True).first()
+    if existing_link:
+        return existing_link
+    
+    # Создаем новую ссылку
+    referral_code = generate_referral_code()
+    new_link = ReferralLink(
+        user_id=user_id,
+        referral_code=referral_code,
+        is_active=True
+    )
+    db.session.add(new_link)
+    db.session.commit()
+    return new_link
+
+def get_referral_link_by_code(code):
+    """Получает реферальную ссылку по коду"""
+    return ReferralLink.query.filter_by(referral_code=code, is_active=True).first()
+
+def create_referral(referrer_id, referred_id, referral_link_id):
+    """Создает запись о реферале"""
+    referral = Referral(
+        referrer_id=referrer_id,
+        referred_id=referred_id,
+        referral_link_id=referral_link_id,
+        bonus_paid=False
+    )
+    db.session.add(referral)
+    db.session.commit()
+    return referral
+
+def pay_referral_bonus(referral_id):
+    """Выплачивает бонус за реферала"""
+    referral = Referral.query.get(referral_id)
+    if not referral or referral.bonus_paid:
+        return False
+    
+    try:
+        # Начисляем бонусы рефереру
+        referrer = User.query.get(referral.referrer_id)
+        if referrer:
+            referrer.balance += REFERRAL_BONUS_POINTS
+            referrer.tickets += REFERRAL_BONUS_TICKETS
+            
+            # Отмечаем бонус как выплаченный
+            referral.bonus_paid = True
+            referral.bonus_paid_at = datetime.now()
+            
+            db.session.commit()
+            return True
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при выплате реферального бонуса: {e}")
+        return False
+    
+    return False
+
+def check_and_pay_referral_bonuses():
+    """Проверяет и выплачивает бонусы за рефералов, которые участвовали в турнирах"""
+    try:
+        # Находим рефералов, которые участвовали в турнирах, но бонус еще не выплачен
+        referrals_to_pay = db.session.query(Referral).join(
+            User, Referral.referred_id == User.id
+        ).filter(
+            Referral.bonus_paid == False,
+            User.tournaments_count > 0
+        ).all()
+        
+        paid_count = 0
+        for referral in referrals_to_pay:
+            if pay_referral_bonus(referral.id):
+                paid_count += 1
+        
+        if paid_count > 0:
+            print(f"Выплачено {paid_count} реферальных бонусов")
+        
+        return paid_count
+        
+    except Exception as e:
+        print(f"Ошибка при проверке реферальных бонусов: {e}")
+        return 0
+
 @app.route('/rating/search')
 def rating_search():
-    query = request.args.get('q', '').strip()
+    query = sanitize_input(request.args.get('q', ''), 100)
     category = request.args.get('category', '')
     
-    if not query:
+    # Валидация входных данных
+    if not query:  # Ограничиваем длину запроса
+        return jsonify({'users': []})
+    
+    # Проверяем, что категория содержит только допустимые значения
+    valid_categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+    if category and category not in valid_categories:
         return jsonify({'users': []})
     
     # Проверяем, должен ли показываться полный рейтинг
@@ -4267,8 +4622,8 @@ def rating_search():
         .filter(User.is_admin == False)
         .filter(
             db.or_(
-                User.username.ilike(f'%{query}%'),
-                User.student_name.ilike(f'%{query}%')
+                User.username.ilike('%' + query + '%'),
+                User.student_name.ilike('%' + query + '%')
             )
         )
     )
@@ -4400,6 +4755,24 @@ if not existing_job:
 else:
     print("Задача проверки истекших платежей уже существует")
 
+# Настраиваем периодическую проверку реферальных бонусов (только если задача еще не существует)
+existing_referral_job = SchedulerJob.query.filter_by(
+    job_type='check_referral_bonuses',
+    is_active=True
+).first()
+
+if not existing_referral_job:
+    add_scheduler_job(
+        check_and_pay_referral_bonuses,
+        datetime.now() + timedelta(hours=2),  # Первый запуск через 2 часа
+        None,
+        'check_referral_bonuses',
+        interval_hours=6  # Повторять каждые 6 часов
+    )
+    print("Создана задача проверки реферальных бонусов")
+else:
+    print("Задача проверки реферальных бонусов уже существует")
+
 @app.route('/reset-tutorial', methods=['POST'])
 @login_required
 def reset_tutorial():
@@ -4417,12 +4790,99 @@ def reset_tutorial():
 
 @app.route('/api/search-educational-institutions')
 def search_educational_institutions():
-    query = request.args.get('q', '').strip()
-    if not query:
+    query = sanitize_input(request.args.get('q', ''), 200)
+    # Валидация входных данных
+    if not query:  # Ограничиваем длину запроса
         return jsonify({'institutions': []})
-    results = EducationalInstitution.query.filter(EducationalInstitution.name.ilike(f'%{query}%')).limit(50).all()
+    results = EducationalInstitution.query.filter(EducationalInstitution.name.ilike('%' + query + '%')).limit(50).all()
     institutions = [{'id': inst.id, 'name': inst.name, 'address': inst.address} for inst in results]
     return jsonify({'institutions': institutions})
+
+# Маршруты для реферальной системы
+@app.route('/referral')
+@login_required
+def referral_dashboard():
+    """Страница реферальной системы"""
+    # Получаем или создаем реферальную ссылку
+    referral_link = create_referral_link(current_user.id)
+    
+    # Получаем статистику рефералов
+    referrals = Referral.query.filter_by(referrer_id=current_user.id).all()
+    
+    # Подсчитываем статистику
+    total_referrals = len(referrals)
+    paid_referrals = len([r for r in referrals if r.bonus_paid])
+    pending_referrals = total_referrals - paid_referrals
+    
+    # Пагинация для списка рефералов
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Количество рефералов на странице
+    
+    # Получаем рефералов с пагинацией
+    referrals_paginated = Referral.query.filter_by(referrer_id=current_user.id)\
+        .order_by(Referral.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Получаем список рефералов с информацией для текущей страницы
+    referrals_info = []
+    for referral in referrals_paginated.items:
+        referred_user = User.query.get(referral.referred_id)
+        if referred_user:
+            referrals_info.append({
+                'username': referred_user.username,
+                'student_name': referred_user.student_name,
+                'created_at': referral.created_at.strftime('%d.%m.%Y'),
+                'tournaments_count': referred_user.tournaments_count,
+                'bonus_paid': referral.bonus_paid,
+                'bonus_paid_at': referral.bonus_paid_at.strftime('%d.%m.%Y %H:%M') if referral.bonus_paid_at else None
+            })
+    
+    return render_template('referral.html', 
+                         referral_link=referral_link,
+                         referrals_info=referrals_info,
+                         referrals_paginated=referrals_paginated,
+                         total_referrals=total_referrals,
+                         paid_referrals=paid_referrals,
+                         pending_referrals=pending_referrals,
+                         bonus_points=REFERRAL_BONUS_POINTS,
+                         bonus_tickets=REFERRAL_BONUS_TICKETS)
+
+@app.route('/referral/generate-link', methods=['POST'])
+@login_required
+def generate_referral_link_route():
+    """Генерирует новую реферальную ссылку"""
+    try:
+        # Деактивируем старую ссылку
+        old_link = ReferralLink.query.filter_by(user_id=current_user.id, is_active=True).first()
+        if old_link:
+            old_link.is_active = False
+            db.session.commit()
+        
+        # Создаем новую ссылку
+        new_link = create_referral_link(current_user.id)
+        
+        return jsonify({
+            'success': True,
+            'referral_code': new_link.referral_code,
+            'referral_url': url_for('register', ref=new_link.referral_code, _external=True)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/referral/copy-link', methods=['POST'])
+@login_required
+def copy_referral_link():
+    """Копирует реферальную ссылку в буфер обмена"""
+    referral_link = ReferralLink.query.filter_by(user_id=current_user.id, is_active=True).first()
+    if not referral_link:
+        return jsonify({'success': False, 'error': 'Реферальная ссылка не найдена'})
+    
+    referral_url = url_for('register', ref=referral_link.referral_code, _external=True)
+    return jsonify({
+        'success': True,
+        'referral_url': referral_url,
+        'message': 'Ссылка скопирована в буфер обмена'
+    })
 
 
 

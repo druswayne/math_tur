@@ -12,6 +12,9 @@
                 <button type="button" class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#clearDataModal">
                     <i class="bi bi-gear"></i>
                 </button>
+                <button type="button" class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#massEmailModal" title="Массовая рассылка писем">
+                    <i class="bi bi-envelope"></i>
+                </button>
             </div>
         </div>
         <div class="card-body">
@@ -779,6 +782,105 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    }
+
+    // Обработчик формы массовой рассылки
+    const massEmailForm = document.getElementById('massEmailForm');
+    if (massEmailForm) {
+        massEmailForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const subject = document.getElementById('emailSubject').value.trim();
+            const message = document.getElementById('emailMessage').value.trim();
+            const submitButton = this.querySelector('button[type="submit"]');
+            
+            if (!subject || !message) {
+                alert('Пожалуйста, заполните тему и текст письма');
+                return;
+            }
+            
+            if (!confirm('Вы уверены, что хотите отправить письмо всем пользователям? Это действие нельзя отменить!')) {
+                return;
+            }
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отправка...';
+            
+            try {
+                const response = await fetch('{{ url_for("admin_mass_email") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subject: subject,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Закрываем модальное окно
+                const massEmailModal = bootstrap.Modal.getInstance(document.getElementById('massEmailModal'));
+                massEmailModal.hide();
+                
+                // Показываем уведомление
+                const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
+                document.getElementById('notificationMessage').textContent = data.message;
+                notificationModal.show();
+                
+                if (data.success) {
+                    // Очищаем форму
+                    document.getElementById('emailSubject').value = '';
+                    document.getElementById('emailMessage').value = '';
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при отправке писем');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Отправить письма';
+            }
+        });
+    }
 });
 </script>
+
+<!-- Модальное окно массовой рассылки писем -->
+<div class="modal fade" id="massEmailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Массовая рассылка писем</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="massEmailForm">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Письмо будет отправлено всем пользователям системы на их email адреса.
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailSubject" class="form-label">Тема письма</label>
+                        <input type="text" class="form-control" id="emailSubject" name="subject" required 
+                               placeholder="Введите тему письма">
+                    </div>
+                    <div class="mb-3">
+                        <label for="emailMessage" class="form-label">Текст письма</label>
+                        <textarea class="form-control" id="emailMessage" name="message" rows="10" required 
+                                  placeholder="Введите текст письма"></textarea>
+                        <div class="form-text">
+                            <small>Максимальная длина текста: 5000 символов</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Отправить письма</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %} 

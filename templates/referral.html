@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Реферальная система</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5>Как это работает:</h5>
+                        <ul class="mb-0">
+                            <li>Поделитесь своей реферальной ссылкой с друзьями</li>
+                            <li>Когда они зарегистрируются по вашей ссылке и поучаствуют в турнире, вы получите бонус</li>
+                            <li>За каждого приглашенного пользователя: <strong>{{ bonus_points }} баллов</strong> и <strong>{{ bonus_tickets }} жетонов</strong></li>
+                        </ul>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-primary text-white text-center">
+                                <div class="card-body">
+                                    <h3>{{ total_referrals }}</h3>
+                                    <p class="mb-0">Всего приглашено</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success text-white text-center">
+                                <div class="card-body">
+                                    <h3>{{ paid_referrals }}</h3>
+                                    <p class="mb-0">Бонусы выплачены</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning text-white text-center">
+                                <div class="card-body">
+                                    <h3>{{ pending_referrals }}</h3>
+                                    <p class="mb-0">Ожидают участия</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Ваша реферальная ссылка</h5>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="generateNewLink()">
+                                    <i class="fas fa-refresh"></i> Новая ссылка
+                                </button>
+                                <button class="btn btn-sm btn-primary" onclick="copyLink()">
+                                    <i class="fas fa-copy"></i> Копировать
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="referralUrl" 
+                                       value="{{ url_for('register', ref=referral_link.referral_code, _external=True) }}" readonly>
+                                <button class="btn btn-outline-secondary" type="button" onclick="copyLink()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">Поделитесь этой ссылкой с друзьями</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if referrals_info %}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Ваши рефералы</h5>
+                    <small class="text-muted">
+                        Показано {{ referrals_paginated.items|length }} из {{ referrals_paginated.total }} рефералов
+                    </small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Пользователь</th>
+                                    <th>Дата регистрации</th>
+                                    <th>Участий в турнирах</th>
+                                    <th>Статус бонуса</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for referral in referrals_info %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ referral.username }}</strong><br>
+                                        <small class="text-muted">{{ referral.student_name }}</small>
+                                    </td>
+                                    <td>{{ referral.created_at }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if referral.tournaments_count > 0 %}success{% else %}secondary{% endif %}">
+                                            {{ referral.tournaments_count }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if referral.bonus_paid %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check"></i> Выплачен
+                                            </span>
+                                            <br><small class="text-muted">{{ referral.bonus_paid_at }}</small>
+                                        {% else %}
+                                            {% if referral.tournaments_count > 0 %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock"></i> Ожидает выплаты
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-user-clock"></i> Ожидает участия
+                                                </span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Пагинация -->
+                    {% if referrals_paginated.pages > 1 %}
+                    <nav aria-label="Навигация по страницам рефералов">
+                        <ul class="pagination justify-content-center">
+                            <!-- Кнопка "Предыдущая" -->
+                            {% if referrals_paginated.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('referral_dashboard', page=referrals_paginated.prev_num) }}">
+                                        <i class="fas fa-chevron-left"></i> Предыдущая
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">
+                                        <i class="fas fa-chevron-left"></i> Предыдущая
+                                    </span>
+                                </li>
+                            {% endif %}
+                            
+                            <!-- Номера страниц -->
+                            {% for page_num in referrals_paginated.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                                {% if page_num %}
+                                    {% if page_num != referrals_paginated.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('referral_dashboard', page=page_num) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- Кнопка "Следующая" -->
+                            {% if referrals_paginated.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('referral_dashboard', page=referrals_paginated.next_num) }}">
+                                        Следующая <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">
+                                        Следующая <i class="fas fa-chevron-right"></i>
+                                    </span>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5>У вас пока нет рефералов</h5>
+                    <p class="text-muted">Поделитесь своей реферальной ссылкой с друзьями, чтобы начать зарабатывать бонусы!</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Правила системы</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Бонус выплачивается только после участия реферала в турнире
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            За каждого реферала: {{ bonus_points }} баллов + {{ bonus_tickets }} жетонов
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Бонусы начисляются автоматически
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Нет ограничений на количество рефералов
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Система работает только для новых пользователей
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Поделиться</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="shareToTelegram()">
+                            <i class="fab fa-telegram"></i> Telegram
+                        </button>
+                        <button class="btn btn-outline-success" onclick="shareToWhatsApp()">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </button>
+                        <button class="btn btn-outline-info" onclick="shareToVK()">
+                            <i class="fab fa-vk"></i> VKontakte
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyLink() {
+    const urlInput = document.getElementById('referralUrl');
+    urlInput.select();
+    urlInput.setSelectionRange(0, 99999); // Для мобильных устройств
+    
+    try {
+        document.execCommand('copy');
+        showToast('Ссылка скопирована в буфер обмена!', 'success');
+    } catch (err) {
+        // Fallback для современных браузеров
+        navigator.clipboard.writeText(urlInput.value).then(function() {
+            showToast('Ссылка скопирована в буфер обмена!', 'success');
+        }).catch(function() {
+            showToast('Не удалось скопировать ссылку', 'error');
+        });
+    }
+}
+
+function generateNewLink() {
+    if (confirm('Вы уверены, что хотите создать новую ссылку? Старая ссылка станет неактивной.')) {
+        fetch('/referral/generate-link', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('referralUrl').value = data.referral_url;
+                showToast('Новая ссылка создана!', 'success');
+            } else {
+                showToast('Ошибка при создании ссылки: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Ошибка при создании ссылки', 'error');
+        });
+    }
+}
+
+function shareToTelegram() {
+    const url = encodeURIComponent(document.getElementById('referralUrl').value);
+    const text = encodeURIComponent('🔥 Увлекательные онлайн турниры ждут тебя! Регистрируйся по ссылке!');
+    window.open(`https://t.me/share/url?url=${url}&text=${text}`, '_blank');
+}
+
+function shareToWhatsApp() {
+    const url = encodeURIComponent(document.getElementById('referralUrl').value);
+    const text = encodeURIComponent('🔥 Увлекательные онлайн турниры ждут тебя! Регистрируйся по ссылке!');
+    window.open(`https://wa.me/?text=${text}%20${url}`, '_blank');
+}
+
+function shareToVK() {
+    const url = encodeURIComponent(document.getElementById('referralUrl').value);
+    const text = encodeURIComponent('🔥 Увлекательные онлайн турниры ждут тебя! Регистрируйся по ссылке!');
+    window.open(`https://vk.com/share.php?url=${url}&title=${text}`, '_blank');
+}
+
+function showToast(message, type) {
+    // Создаем уведомление
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Удаляем уведомление через 3 секунды
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 3000);
+}
+</script>
+{% endblock %} 

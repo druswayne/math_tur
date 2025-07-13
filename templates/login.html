@@ -36,7 +36,12 @@
                             </div>
                             <div class="mb-3">
                                 <label for="password" class="form-label">Пароль</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Показать/скрыть пароль">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary" id="loginButton">Войти</button>
@@ -68,6 +73,34 @@
 </div>
 {% endblock %}
 
+<style>
+/* Стили для кнопок показа/скрытия паролей */
+.btn-outline-secondary {
+    border-color: #dee2e6;
+    color: #6c757d;
+    background-color: #fff;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #495057;
+}
+
+.btn-outline-secondary:focus {
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}
+
+/* Анимация для иконок глаз */
+.btn-outline-secondary i {
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover i {
+    transform: scale(1.1);
+}
+</style>
+
 {% block scripts %}
 {{ super() }}
 <script>
@@ -97,23 +130,51 @@ document.addEventListener('DOMContentLoaded', function() {
     // Проверяем, было ли уже дано согласие
     if (!localStorage.getItem('cookieConsent')) {
         // Показываем модальное окно
-        const cookieModal = new bootstrap.Modal(document.getElementById('cookieConsentModal'));
-        cookieModal.show();
+        const cookieModal = document.getElementById('cookieConsentModal');
+        if (cookieModal) {
+            const modal = new bootstrap.Modal(cookieModal);
+            modal.show();
+        }
     }
 
     // Обработчик кнопки "Принять"
-    document.getElementById('acceptCookies').addEventListener('click', function() {
-        localStorage.setItem('cookieConsent', 'true');
-        const cookieModal = bootstrap.Modal.getInstance(document.getElementById('cookieConsentModal'));
-        cookieModal.hide();
-    });
+    const acceptCookiesBtn = document.getElementById('acceptCookies');
+    if (acceptCookiesBtn) {
+        acceptCookiesBtn.addEventListener('click', function() {
+            localStorage.setItem('cookieConsent', 'true');
+            const cookieModal = bootstrap.Modal.getInstance(document.getElementById('cookieConsentModal'));
+            if (cookieModal) {
+                cookieModal.hide();
+            }
+        });
+    }
 
     // Обработчик кнопки "Отклонить"
-    document.getElementById('declineCookies').addEventListener('click', function() {
-        localStorage.setItem('cookieConsent', 'false');
-        const cookieModal = bootstrap.Modal.getInstance(document.getElementById('cookieConsentModal'));
-        cookieModal.hide();
-    });
+    const declineCookiesBtn = document.getElementById('declineCookies');
+    if (declineCookiesBtn) {
+        declineCookiesBtn.addEventListener('click', function() {
+            localStorage.setItem('cookieConsent', 'false');
+            const cookieModal = bootstrap.Modal.getInstance(document.getElementById('cookieConsentModal'));
+            if (cookieModal) {
+                cookieModal.hide();
+            }
+        });
+    }
+
+    // Функциональность показа/скрытия пароля
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Меняем иконку
+            const icon = this.querySelector('i');
+            icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+    }
 });
 </script>
 {% endblock %} 
