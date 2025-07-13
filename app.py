@@ -4847,27 +4847,7 @@ def referral_dashboard():
                          bonus_points=REFERRAL_BONUS_POINTS,
                          bonus_tickets=REFERRAL_BONUS_TICKETS)
 
-@app.route('/referral/generate-link', methods=['POST'])
-@login_required
-def generate_referral_link_route():
-    """Генерирует новую реферальную ссылку"""
-    try:
-        # Деактивируем старую ссылку
-        old_link = ReferralLink.query.filter_by(user_id=current_user.id, is_active=True).first()
-        if old_link:
-            old_link.is_active = False
-            db.session.commit()
-        
-        # Создаем новую ссылку
-        new_link = create_referral_link(current_user.id)
-        
-        return jsonify({
-            'success': True,
-            'referral_code': new_link.referral_code,
-            'referral_url': url_for('register', ref=new_link.referral_code, _external=True)
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+
 
 @app.route('/referral/copy-link', methods=['POST'])
 @login_required
