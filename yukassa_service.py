@@ -21,7 +21,7 @@ class YukassaService:
         self.base_url = "https://api.yookassa.ru/v3"  # Тестовая среда
         self.logger = logging.getLogger(__name__)
     
-    def create_payment(self, amount, description, return_url, capture=True):
+    def create_payment(self, amount, description, return_url, capture=True, receipt=None, payment_method_data=None):
         """
         Создает платеж в ЮKassa
         
@@ -30,18 +30,8 @@ class YukassaService:
             description (str): Описание платежа
             return_url (str): URL для возврата после оплаты
             capture (bool): Автоматическое списание (True) или двухстадийный платеж (False)
-        
-        Returns:
-            dict: Ответ от ЮKassa с данными платежа
-        """
-        """
-        Создает платеж в ЮKassa
-        
-        Args:
-            amount (float): Сумма в рублях
-            description (str): Описание платежа
-            return_url (str): URL для возврата после оплаты
-            capture (bool): Автоматическое списание (True) или двухстадийный платеж (False)
+            receipt (dict): Данные для чека (54-ФЗ)
+            payment_method_data (dict): Данные способа оплаты
         
         Returns:
             dict: Ответ от ЮKassa с данными платежа
@@ -63,6 +53,14 @@ class YukassaService:
                 }
             }
             
+            # Добавляем данные для чека, если переданы
+            if receipt:
+                payment_data["receipt"] = receipt
+            
+            # Добавляем данные способа оплаты, если переданы
+            if payment_method_data:
+                payment_data["payment_method_data"] = payment_method_data
+            
             headers = {
                 "Content-Type": "application/json",
                 "Idempotence-Key": str(uuid.uuid4())
@@ -82,7 +80,13 @@ class YukassaService:
                 timeout=30
             )
             
-            response.raise_for_status()
+            # Обработка ошибок с детальной информацией
+            if response.status_code != 200:
+                error_data = response.json() if response.content else {}
+                error_message = error_data.get('description', 'Неизвестная ошибка')
+                error_code = error_data.get('code', 'UNKNOWN')
+                raise Exception(f"ЮKassa ошибка {error_code}: {error_message}")
+            
             payment_info = response.json()
             
             self.logger.info(f"Создан платеж ЮKassa: {payment_info.get('id')}")
@@ -91,6 +95,9 @@ class YukassaService:
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Ошибка при создании платежа ЮKassa: {e}")
             raise Exception(f"Ошибка при создании платежа: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Неожиданная ошибка при создании платежа: {e}")
+            raise
     
     def get_payment_info(self, payment_id):
         """
@@ -219,9 +226,34 @@ class YukassaService:
         Returns:
             bool: True если подпись верна
         """
-        # В тестовой среде подпись не проверяется
-        # В продакшене здесь должна быть проверка HMAC-SHA256
-        return True
+        try:
+            # В тестовой среде подпись не проверяется
+            if 'test_' in self.secret_key:
+                return True
+            
+            # В продакшене проверяем HMAC-SHA256 подпись
+            import hmac
+            import hashlib
+            
+            # Получаем секретный ключ для проверки подписи
+            webhook_secret = os.getenv('YUKASSA_WEBHOOK_SECRET')
+            if not webhook_secret:
+                self.logger.warning("YUKASSA_WEBHOOK_SECRET не настроен, пропускаем проверку подписи")
+                return True
+            
+            # Вычисляем ожидаемую подпись
+            expected_signature = hmac.new(
+                webhook_secret.encode('utf-8'),
+                body.encode('utf-8'),
+                hashlib.sha256
+            ).hexdigest()
+            
+            # Сравниваем подписи
+            return hmac.compare_digest(signature, expected_signature)
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка при проверке подписи webhook: {e}")
+            return False
     
     def get_payment_status(self, payment_info):
         """
@@ -288,9 +320,9 @@ class YukassaService:
             from datetime import datetime
             created_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
             
-            # Время жизни платежа в ЮKassa - 1 час
+            # Время жизни платежа в ЮKassa - 10 минут
             from datetime import timedelta
-            expiration_time = created_time + timedelta(hours=1)
+            expiration_time = created_time + timedelta(minutes=10)
             
             # Текущее время в UTC
             current_time = datetime.utcnow().replace(tzinfo=created_time.tzinfo)
@@ -318,6 +350,128 @@ class YukassaService:
             return 'expired'
         
         return status
+
+    def create_receipt(self, customer, items, tax_system_code=1):
+        """
+        Создает данные чека для 54-ФЗ
+        
+        Args:
+            customer (dict): Данные покупателя
+            items (list): Список товаров/услуг
+            tax_system_code (int): Код системы налогообложения
+        
+        Returns:
+            dict: Данные чека для передачи в create_payment
+        """
+        return {
+            "customer": customer,
+            "items": items,
+            "tax_system_code": tax_system_code
+        }
+    
+    def create_customer(self, email=None, phone=None, full_name=None):
+        """
+        Создает объект покупателя для чека
+        
+        Args:
+            email (str): Email покупателя
+            phone (str): Телефон покупателя
+            full_name (str): ФИО покупателя
+        
+        Returns:
+            dict: Объект покупателя
+        """
+        customer = {}
+        if email:
+            customer["email"] = email
+        if phone:
+            customer["phone"] = phone
+        if full_name:
+            customer["full_name"] = full_name
+        return customer
+    
+    def create_receipt_item(self, description, quantity, amount, vat_code=1, payment_subject="service", payment_mode="full_payment"):
+        """
+        Создает элемент чека
+        
+        Args:
+            description (str): Описание товара/услуги
+            quantity (str): Количество
+            amount (dict): Сумма с валютой
+            vat_code (int): Код ставки НДС
+            payment_subject (str): Признак предмета расчета
+            payment_mode (str): Признак способа расчета
+        
+        Returns:
+            dict: Элемент чека
+        """
+        return {
+            "description": description,
+            "quantity": quantity,
+            "amount": amount,
+            "vat_code": vat_code,
+            "payment_subject": payment_subject,
+            "payment_mode": payment_mode
+        }
+    
+    def get_payments_list(self, limit=20, cursor=None, status=None, created_at_gte=None, created_at_lte=None):
+        """
+        Получает список платежей с фильтрацией
+        
+        Args:
+            limit (int): Количество платежей на странице (максимум 100)
+            cursor (str): Курсор для пагинации
+            status (str): Статус платежа для фильтрации
+            created_at_gte (str): Дата создания от (ISO 8601)
+            created_at_lte (str): Дата создания до (ISO 8601)
+        
+        Returns:
+            dict: Список платежей
+        """
+        try:
+            params = {"limit": min(limit, 100)}
+            
+            if cursor:
+                params["cursor"] = cursor
+            if status:
+                params["status"] = status
+            if created_at_gte:
+                params["created_at.gte"] = created_at_gte
+            if created_at_lte:
+                params["created_at.lte"] = created_at_lte
+            
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            # Базовая аутентификация
+            import base64
+            auth_string = f"{self.shop_id}:{self.secret_key}"
+            auth_bytes = auth_string.encode('ascii')
+            auth_b64 = base64.b64encode(auth_bytes).decode('ascii')
+            headers["Authorization"] = f"Basic {auth_b64}"
+            
+            response = requests.get(
+                f"{self.base_url}/payments",
+                params=params,
+                headers=headers,
+                timeout=30
+            )
+            
+            if response.status_code != 200:
+                error_data = response.json() if response.content else {}
+                error_message = error_data.get('description', 'Неизвестная ошибка')
+                error_code = error_data.get('code', 'UNKNOWN')
+                raise Exception(f"ЮKassa ошибка {error_code}: {error_message}")
+            
+            return response.json()
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Ошибка при получении списка платежей: {e}")
+            raise Exception(f"Ошибка при получении списка платежей: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"Неожиданная ошибка при получении списка платежей: {e}")
+            raise
 
 # Создаем глобальный экземпляр сервиса
 yukassa_service = YukassaService() 

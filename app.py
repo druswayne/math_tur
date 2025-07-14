@@ -474,10 +474,10 @@ class TicketPurchase(db.Model):
     purchase_date = db.Column(db.DateTime, default=datetime.now)
     
     # Поля для платежей
-    payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa' или 'bepaid'
+    payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa', 'express_pay' или 'bepaid'
     payment_id = db.Column(db.String(100), nullable=True, index=True)  # ID платежа в платежной системе
     payment_status = db.Column(db.String(20), default='pending', index=True)  # pending, waiting_for_capture, succeeded, canceled, failed
-    payment_method = db.Column(db.String(50), nullable=True)  # Способ оплаты
+    payment_method = db.Column(db.String(50), nullable=True)  # Способ оплаты (epos, erip)
     currency = db.Column(db.String(3), default='RUB')  # Валюта платежа
     payment_url = db.Column(db.String(500), nullable=True)  # URL для оплаты
     payment_created_at = db.Column(db.DateTime(), nullable=True)  # Время создания платежа
@@ -2338,7 +2338,7 @@ def create_payment():
     if not quantity or quantity < 1:
         return jsonify({'success': False, 'error': 'Укажите корректное количество жетонов'})
     
-    if payment_system not in ['yukassa', 'bepaid']:
+    if payment_system not in ['yukassa', 'express_pay', 'bepaid']:
         return jsonify({'success': False, 'error': 'Неверная платежная система'})
     
     base_price = TicketPackage.query.filter_by(is_active=True).first()
@@ -2351,12 +2351,14 @@ def create_payment():
     # Рассчитываем итоговую стоимость в BYN
     total_price_byn = base_price.price * quantity * (1 - discount / 100)
     
-    # Конвертируем в RUB для ЮKassa
+    # Конвертируем валюту в зависимости от платежной системы
     from currency_service import currency_service
     if payment_system == 'yukassa':
         total_price = currency_service.convert_byn_to_rub(total_price_byn)
+        currency = 'RUB'
     else:
         total_price = total_price_byn
+        currency = 'BYN'
     
     # Создаем запись о покупке
     purchase = TicketPurchase(
@@ -2366,7 +2368,7 @@ def create_payment():
         discount=discount,
         payment_system=payment_system,
         payment_status='pending',
-        currency='RUB' if payment_system == 'yukassa' else 'BYN'
+        currency=currency
     )
     
     db.session.add(purchase)
@@ -2395,6 +2397,52 @@ def create_payment():
             purchase.payment_id = payment_info['id']
             purchase.payment_status = yukassa_service.get_payment_status(payment_info)
             purchase.payment_url = payment_info['confirmation']['confirmation_url']
+            purchase.payment_created_at = datetime.now()
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Платеж создан успешно',
+                'payment_url': purchase.payment_url
+            })
+            
+        elif payment_system == 'express_pay':
+            # Интеграция с Express-Pay
+            from express_pay_service import express_pay_service
+            
+            # Получаем способ оплаты из запроса
+            payment_method = data.get('payment_method', 'epos')  # epos или erip
+            
+            # Создаем описание платежа
+            description = f"Покупка {quantity} жетонов для участия в турнирах"
+            
+            # URL для возврата после оплаты
+            return_url = url_for('purchase_history', _external=True)
+            
+            # Создаем уникальный ID заказа
+            order_id = f"{purchase.id}{int(datetime.now().timestamp())}"
+            
+            # Создаем платеж в Express-Pay
+            payment_info = express_pay_service.create_payment(
+                amount=total_price,
+                order_id=order_id,
+                description=description,
+                return_url=return_url,
+                payment_method=payment_method
+            )
+            
+            # Сохраняем данные платежа
+            invoice_no = payment_info.get('InvoiceNo')
+            if invoice_no:
+                purchase.payment_id = str(invoice_no)
+            else:
+                raise Exception("Express-Pay не вернул номер счета")
+                
+            # Устанавливаем начальный статус как pending
+            purchase.payment_status = 'pending'
+            purchase.payment_method = payment_method
+            purchase.payment_url = payment_info.get('InvoiceUrl')  # URL для оплаты
             purchase.payment_created_at = datetime.now()
             
             db.session.commit()
@@ -2495,17 +2543,31 @@ def check_payment_status(payment_id):
         if purchase.user_id != current_user.id:
             return jsonify({'error': 'Access denied'}), 403
         
-        # Получаем актуальную информацию о платеже от ЮKassa
-        from yukassa_service import yukassa_service
-        payment_info = yukassa_service.get_payment_info(payment_id)
-        
-        # Обновляем статус с учетом истечения времени
+        # Получаем актуальную информацию о платеже в зависимости от платежной системы
         old_status = purchase.payment_status
-        new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
-        purchase.payment_status = new_status
         
-        # Получаем описание статуса
-        status_description = yukassa_service.get_payment_status_description(new_status)
+        if purchase.payment_system == 'yukassa':
+            from yukassa_service import yukassa_service
+            payment_info = yukassa_service.get_payment_info(payment_id)
+            new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
+            status_description = yukassa_service.get_payment_status_description(new_status)
+        elif purchase.payment_system == 'express_pay':
+            from express_pay_service import ExpressPayService
+            express_pay_service = ExpressPayService()
+            
+            # Проверяем, что payment_id не None
+            if not payment_id or payment_id == 'None' or payment_id == 'null':
+                return jsonify({'error': 'Invalid payment ID'}), 400
+                
+            # Получаем статус через специальный endpoint
+            status_response = express_pay_service.get_payment_status(payment_id)
+            status_code = status_response.get('Status')
+            new_status = express_pay_service.parse_payment_status(status_code)
+            status_description = express_pay_service.get_payment_status_description(new_status)
+        else:
+            return jsonify({'error': 'Unsupported payment system'}), 400
+        
+        purchase.payment_status = new_status
         
         # Если платеж успешен, начисляем жетоны
         if new_status == 'succeeded' and old_status != 'succeeded':
@@ -2612,6 +2674,187 @@ def yukassa_webhook():
         
     except Exception as e:
         print(f"Webhook: ошибка обработки: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/express-pay-webhook', methods=['POST'])
+def express_pay_webhook():
+    """Обработка webhook'ов от Express-Pay с проверкой цифровой подписи"""
+    try:
+        # Логируем входящий webhook
+        print(f"Получен webhook от Express-Pay: {request.headers}")
+        print(f"Тело webhook: {request.get_json()}")
+        
+        # Получаем данные от Express-Pay
+        data = request.get_json()
+        
+        if not data:
+            print("Webhook: пустое тело запроса")
+            return jsonify({'error': 'Empty request body'}), 400
+        
+        # Проверяем обязательные поля
+        cmd_type = data.get('CmdType')
+        if cmd_type is None:
+            print("Webhook: отсутствует CmdType")
+            return jsonify({'error': 'Missing CmdType'}), 400
+        
+        # Проверяем цифровую подпись, если она включена
+        signature = request.args.get('Signature')
+        if signature:
+            # Получаем секретное слово из конфигурации
+            secret_word = os.environ.get('EXPRESS_PAY_SECRET_WORD')
+            if not secret_word:
+                print("Webhook: не настроено секретное слово для проверки подписи")
+                return jsonify({'error': 'Signature verification not configured'}), 500
+            
+            # Проверяем подпись (HMAC-SHA1)
+            import hmac
+            data_string = json.dumps(data, separators=(',', ':'))
+            expected_signature = hmac.new(
+                secret_word.encode('utf-8'),
+                data_string.encode('utf-8'),
+                hashlib.sha1
+            ).hexdigest()
+            if signature != expected_signature:
+                print(f"Webhook: неверная подпись. Ожидалось: {expected_signature}, получено: {signature}")
+                return jsonify({'error': 'Invalid signature'}), 400
+        
+        print(f"Webhook: обработка уведомления типа {cmd_type}")
+        
+        # Обрабатываем разные типы уведомлений
+        if cmd_type == 1:
+            # Поступление нового платежа
+            return handle_new_payment_notification(data)
+        elif cmd_type == 2:
+            # Отмена платежа
+            return handle_payment_cancellation(data)
+        elif cmd_type == 3:
+            # Изменение статуса счета
+            return handle_status_change_notification(data)
+        else:
+            print(f"Webhook: неизвестный тип уведомления: {cmd_type}")
+            return jsonify({'error': 'Unknown notification type'}), 400
+        
+    except Exception as e:
+        print(f"Webhook: ошибка обработки: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def handle_new_payment_notification(data):
+    """Обработка уведомления о поступлении нового платежа"""
+    try:
+        account_no = data.get('AccountNo')
+        payment_no = data.get('PaymentNo')
+        amount = data.get('Amount')
+        created = data.get('Created')
+        service = data.get('Service')
+        
+        print(f"Webhook: новый платеж - AccountNo: {account_no}, PaymentNo: {payment_no}, Amount: {amount}")
+        
+        # Находим покупку по номеру лицевого счета (AccountNo)
+        purchase = TicketPurchase.query.filter_by(payment_id=str(account_no)).first()
+        if not purchase:
+            print(f"Webhook: покупка с payment_id {account_no} не найдена")
+            return jsonify({'error': 'Purchase not found'}), 404
+        
+        # Обновляем информацию о платеже
+        purchase.payment_status = 'succeeded'
+        purchase.payment_confirmed_at = datetime.now()
+        
+        # Начисляем жетоны пользователю
+        user = User.query.get(purchase.user_id)
+        if user:
+            user.tickets += purchase.quantity
+            print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+        
+        db.session.commit()
+        print(f"Webhook: платеж {account_no} успешно обработан")
+        
+        return jsonify({'success': True}), 200
+        
+    except Exception as e:
+        print(f"Webhook: ошибка обработки нового платежа: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def handle_payment_cancellation(data):
+    """Обработка уведомления об отмене платежа"""
+    try:
+        account_no = data.get('AccountNo')
+        payment_no = data.get('PaymentNo')
+        
+        print(f"Webhook: отмена платежа - AccountNo: {account_no}, PaymentNo: {payment_no}")
+        
+        # Находим покупку по номеру лицевого счета
+        purchase = TicketPurchase.query.filter_by(payment_id=str(account_no)).first()
+        if not purchase:
+            print(f"Webhook: покупка с payment_id {account_no} не найдена")
+            return jsonify({'error': 'Purchase not found'}), 404
+        
+        # Обновляем статус платежа
+        purchase.payment_status = 'canceled'
+        
+        db.session.commit()
+        print(f"Webhook: платеж {account_no} отменен")
+        
+        return jsonify({'success': True}), 200
+        
+    except Exception as e:
+        print(f"Webhook: ошибка обработки отмены платежа: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+def handle_status_change_notification(data):
+    """Обработка уведомления об изменении статуса счета"""
+    try:
+        status = data.get('Status')
+        account_no = data.get('AccountNo')
+        invoice_no = data.get('InvoiceNo')
+        amount = data.get('Amount')
+        created = data.get('Created')
+        
+        print(f"Webhook: изменение статуса - AccountNo: {account_no}, InvoiceNo: {invoice_no}, Status: {status}")
+        
+        # Находим покупку по номеру счета (InvoiceNo)
+        purchase = TicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
+        if not purchase:
+            print(f"Webhook: покупка с payment_id {invoice_no} не найдена")
+            return jsonify({'error': 'Purchase not found'}), 404
+        
+        # Определяем новый статус на основе кода статуса
+        old_status = purchase.payment_status
+        new_status = None
+        
+        if status == 1:
+            new_status = 'pending'  # Ожидает оплату
+        elif status == 2:
+            new_status = 'expired'  # Просрочен
+        elif status == 3 or status == 6:
+            new_status = 'succeeded'  # Оплачен или Оплачен с помощью банковской карты
+        elif status == 4:
+            new_status = 'partial'  # Оплачен частично
+        elif status == 5:
+            new_status = 'canceled'  # Отменен
+        elif status == 7:
+            new_status = 'refunded'  # Платеж возвращен
+        else:
+            print(f"Webhook: неизвестный статус: {status}")
+            new_status = 'unknown'
+        
+        # Обновляем статус платежа
+        purchase.payment_status = new_status
+        
+        # Если статус изменился на "оплачен" и ранее не был оплачен, начисляем жетоны
+        if new_status == 'succeeded' and old_status != 'succeeded':
+            user = User.query.get(purchase.user_id)
+            if user:
+                user.tickets += purchase.quantity
+                purchase.payment_confirmed_at = datetime.now()
+                print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+        
+        db.session.commit()
+        print(f"Webhook: статус платежа {invoice_no} обновлен с {old_status} на {new_status}")
+        
+        return jsonify({'success': True}), 200
+        
+    except Exception as e:
+        print(f"Webhook: ошибка обработки изменения статуса: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/completed-tournaments')
@@ -4705,12 +4948,27 @@ def cleanup_other_servers_jobs():
         print(f"Ошибка при очистке задач других серверов: {e}")
 
 def check_expired_payments():
-    """Проверяет и обновляет статусы истекших платежей"""
+    """Проверяет и обновляет статусы истекших платежей для всех платежных систем"""
+    try:
+        # Проверяем платежи ЮKassa
+        check_yukassa_expired_payments()
+        
+        # Проверяем платежи Express-Pay
+        check_express_pay_expired_payments()
+        
+    except Exception as e:
+        print(f"Ошибка при проверке истекших платежей: {e}")
+
+def check_yukassa_expired_payments():
+    """Проверяет и обновляет статусы истекших платежей ЮKassa"""
     try:
         from yukassa_service import yukassa_service
         
-        # Получаем все pending платежи
-        pending_purchases = TicketPurchase.query.filter_by(payment_status='pending').all()
+        # Получаем все pending платежи ЮKassa
+        pending_purchases = TicketPurchase.query.filter_by(
+            payment_status='pending',
+            payment_system='yukassa'
+        ).all()
         
         expired_count = 0
         for purchase in pending_purchases:
@@ -4723,18 +4981,73 @@ def check_expired_payments():
                     if yukassa_service.is_payment_expired(payment_info):
                         purchase.payment_status = 'expired'
                         expired_count += 1
-                        print(f"Платеж {purchase.payment_id} помечен как истекший")
+                        print(f"Платеж ЮKassa {purchase.payment_id} помечен как истекший")
                         
                 except Exception as e:
-                    print(f"Ошибка при проверке платежа {purchase.payment_id}: {e}")
+                    print(f"Ошибка при проверке платежа ЮKassa {purchase.payment_id}: {e}")
                     continue
         
         if expired_count > 0:
             db.session.commit()
-            print(f"Обновлено {expired_count} истекших платежей")
+            print(f"Обновлено {expired_count} истекших платежей ЮKassa")
         
     except Exception as e:
-        print(f"Ошибка при проверке истекших платежей: {e}")
+        print(f"Ошибка при проверке истекших платежей ЮKassa: {e}")
+        db.session.rollback()
+
+def check_express_pay_expired_payments():
+    """Проверяет и обновляет статусы истекших платежей Express-Pay"""
+    try:
+        from express_pay_service import ExpressPayService
+        
+        # Получаем все pending платежи Express-Pay
+        pending_purchases = TicketPurchase.query.filter_by(
+            payment_status='pending',
+            payment_system='express_pay'
+        ).all()
+        
+        if not pending_purchases:
+            return
+        
+        # Создаем экземпляр сервиса Express-Pay
+        express_pay_service = ExpressPayService()
+        
+        expired_count = 0
+        for purchase in pending_purchases:
+            # Проверяем, что payment_id не None и не пустой
+            if not purchase.payment_id or purchase.payment_id == 'None' or purchase.payment_id == 'null':
+                print(f"Пропускаем покупку {purchase.id}: payment_id отсутствует или равен None")
+                continue
+            try:
+                old_status = purchase.payment_status
+                # Получаем актуальный статус платежа через специальный endpoint
+                status_response = express_pay_service.get_payment_status(purchase.payment_id)
+                status_code = status_response.get('Status')
+                status = express_pay_service.parse_payment_status(status_code)
+                purchase.payment_status = status
+
+                # Если статус изменился на 'succeeded', начисляем жетоны
+                if status == 'succeeded' and old_status != 'succeeded':
+                    user = User.query.get(purchase.user_id)
+                    if user:
+                        user.tickets += purchase.quantity
+                        purchase.payment_confirmed_at = datetime.now()
+                        print(f"Автоматическая проверка: начислено {purchase.quantity} жетонов пользователю {user.id}")
+
+                # Если платеж истек или отменен, увеличиваем счетчик
+                if status in ['expired', 'canceled']:
+                    expired_count += 1
+                    print(f"Платеж Express-Pay {purchase.payment_id} помечен как {status}")
+            except Exception as e:
+                print(f"Ошибка при проверке платежа Express-Pay {purchase.payment_id}: {e}")
+                continue
+        
+        if expired_count > 0:
+            db.session.commit()
+            print(f"Обновлено {expired_count} истекших платежей Express-Pay")
+        
+    except Exception as e:
+        print(f"Ошибка при проверке истекших платежей Express-Pay: {e}")
         db.session.rollback()
 
 # Настраиваем периодическую проверку истекших платежей (только если задача еще не существует)

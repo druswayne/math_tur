@@ -280,7 +280,7 @@ function showPaymentModal() {
     modal.show();
 }
 
-function selectPaymentSystem(system) {
+function selectPaymentSystem(system, paymentMethod = null) {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const totalPrice = parseFloat(document.getElementById('totalPrice').textContent) || 0;
     
@@ -288,22 +288,30 @@ function selectPaymentSystem(system) {
     const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
     modal.hide();
     
+    // Формируем данные для запроса
+    const requestData = {
+        quantity: quantity,
+        payment_system: system
+    };
+    
+    // Добавляем способ оплаты для Express-Pay
+    if (system === 'express_pay' && paymentMethod) {
+        requestData.payment_method = paymentMethod;
+    }
+    
     // Отправляем запрос на создание платежа
     fetch('/create-payment', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            quantity: quantity,
-            payment_system: system
-        })
+        body: JSON.stringify(requestData)
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             if (data.payment_url) {
-                // Перенаправляем на страницу оплаты ЮKassa
+                // Перенаправляем на страницу оплаты
                 window.location.href = data.payment_url;
             } else {
                 alert('Платеж создан успешно!');
@@ -318,6 +326,8 @@ function selectPaymentSystem(system) {
         alert('Произошла ошибка при создании платежа');
     });
 }
+
+
 </script>
 
 <!-- Модальное окно выбора платежной системы -->
@@ -339,7 +349,7 @@ function selectPaymentSystem(system) {
                                 <h6 class="card-title">Республика Беларусь</h6>
                                 <div class="mb-3">
                                     <small class="text-muted">
-                                        <strong>Способы оплаты:</strong> ЕРИП, E-POS, WebPay*
+                                        <strong>Способы оплаты:</strong> ЕРИП,E-POS, картой (WebPay)
                                     </small>
                                     <br>
                                     <small class="text-muted">
@@ -357,8 +367,8 @@ function selectPaymentSystem(system) {
                                         </div>
                                     </div>
                                 </div>
-                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('bepaid')" disabled>
-                                    Оплатить в BYN (скоро)
+                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('express_pay', 'erip')">
+                                    Оплатить в BYN
                                 </button>
                             </div>
                         </div>
@@ -385,4 +395,6 @@ function selectPaymentSystem(system) {
         </div>
     </div>
 </div>
+
+
 {% endblock %} 
