@@ -50,7 +50,7 @@ class ExpressPayService:
         """
         try:
             # Формируем дату истечения (10 минут от текущего времени)
-            expiration = (datetime.now() + timedelta(minutes=10)).strftime("%Y%m%d%H%M")
+            expiration = (datetime.now() + timedelta(minutes=30)).strftime("%Y%m%d%H%M")
             
             # Формируем данные для запроса согласно документации
             payment_data = {

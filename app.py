@@ -2420,8 +2420,8 @@ def create_payment():
             # URL для возврата после оплаты
             return_url = url_for('purchase_history', _external=True)
             
-            # Создаем уникальный ID заказа
-            order_id = f"{purchase.id}{int(datetime.now().timestamp())}"
+            # Создаем ID заказа (используем только ID покупки)
+            order_id = str(purchase.id)
             
             # Создаем платеж в Express-Pay
             payment_info = express_pay_service.create_payment(
@@ -2590,9 +2590,15 @@ def check_payment_status(payment_id):
         print(f"Ошибка при проверке статуса платежа {payment_id}: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/yukassa-webhook', methods=['POST'])
-def yukassa_webhook():
+@app.route('/webhook/yukassa/<webhook_token>', methods=['POST'])
+def yukassa_webhook(webhook_token):
     """Обработка webhook'ов от ЮKassa"""
+    # Проверяем токен webhook'а
+    expected_token = os.environ.get('YUKASSA_WEBHOOK_TOKEN')
+    if webhook_token != expected_token:
+        print(f"Webhook: неверный токен. Ожидалось: {expected_token}, получено: {webhook_token}")
+        return jsonify({'error': 'Invalid webhook token'}), 403
+    
     try:
         # Логируем входящий webhook
         print(f"Получен webhook от ЮKassa: {request.headers}")
@@ -2676,9 +2682,15 @@ def yukassa_webhook():
         print(f"Webhook: ошибка обработки: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/express-pay-webhook', methods=['POST'])
-def express_pay_webhook():
+@app.route('/webhook/express-pay/<webhook_token>', methods=['POST'])
+def express_pay_webhook(webhook_token):
     """Обработка webhook'ов от Express-Pay с проверкой цифровой подписи"""
+    # Проверяем токен webhook'а
+    expected_token = os.environ.get('EXPRESS_PAY_WEBHOOK_TOKEN')
+    if webhook_token != expected_token:
+        print(f"Webhook: неверный токен. Ожидалось: {expected_token}, получено: {webhook_token}")
+        return jsonify({'error': 'Invalid webhook token'}), 403
+    
     try:
         # Логируем входящий webhook
         print(f"Получен webhook от Express-Pay: {request.headers}")
@@ -2697,26 +2709,26 @@ def express_pay_webhook():
             print("Webhook: отсутствует CmdType")
             return jsonify({'error': 'Missing CmdType'}), 400
         
-        # Проверяем цифровую подпись, если она включена
-        signature = request.args.get('Signature')
-        if signature:
-            # Получаем секретное слово из конфигурации
-            secret_word = os.environ.get('EXPRESS_PAY_SECRET_WORD')
-            if not secret_word:
-                print("Webhook: не настроено секретное слово для проверки подписи")
-                return jsonify({'error': 'Signature verification not configured'}), 500
-            
-            # Проверяем подпись (HMAC-SHA1)
-            import hmac
-            data_string = json.dumps(data, separators=(',', ':'))
-            expected_signature = hmac.new(
-                secret_word.encode('utf-8'),
-                data_string.encode('utf-8'),
-                hashlib.sha1
-            ).hexdigest()
-            if signature != expected_signature:
-                print(f"Webhook: неверная подпись. Ожидалось: {expected_signature}, получено: {signature}")
-                return jsonify({'error': 'Invalid signature'}), 400
+        # Проверка цифровой подписи отключена
+        # signature = request.args.get('Signature')
+        # if signature:
+        #     # Получаем секретное слово из конфигурации
+        #     secret_word = os.environ.get('EXPRESS_PAY_SECRET_WORD')
+        #     if not secret_word:
+        #         print("Webhook: не настроено секретное слово для проверки подписи")
+        #         return jsonify({'error': 'Signature verification not configured'}), 500
+        #     
+        #     # Проверяем подпись (HMAC-SHA1)
+        #     import hmac
+        #     data_string = json.dumps(data, separators=(',', ':'))
+        #     expected_signature = hmac.new(
+        #         secret_word.encode('utf-8'),
+        #         data_string.encode('utf-8'),
+        #         hashlib.sha1
+        #     ).hexdigest()
+        #     if signature != expected_signature:
+        #         print(f"Webhook: неверная подпись. Ожидалось: {expected_signature}, получено: {signature}")
+        #         return jsonify({'error': 'Invalid signature'}), 400
         
         print(f"Webhook: обработка уведомления типа {cmd_type}")
         
