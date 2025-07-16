@@ -4129,6 +4129,8 @@ def admin_add_news():
         captions = request.form.getlist('captions')
         main_image_index = request.form.get('main_image_index', type=int)
         
+        main_image_set = False  # Флаг для отслеживания главного изображения
+        
         for i, file in enumerate(uploaded_files):
             if file and file.filename:
                 # Загружаем изображение в S3
@@ -4138,7 +4140,7 @@ def admin_add_news():
                     caption = captions[i] if i < len(captions) else None
                     
                     # Определяем, является ли это главным изображением
-                    is_main = (i == main_image_index) if main_image_index is not None else (i == 0)
+                    is_main = (main_image_index is not None and i == main_image_index) or (i == 0 and main_image_index is None and not main_image_set)
                     
                     # Создаем запись об изображении
                     news_image = NewsImage(
@@ -4154,6 +4156,7 @@ def admin_add_news():
                     # Если это главное изображение, сохраняем его в поле image для обратной совместимости
                     if is_main:
                         news.image = image_filename
+                        main_image_set = True
         
         db.session.commit()
         
@@ -4196,6 +4199,8 @@ def admin_edit_news(news_id):
         max_order = db.session.query(db.func.max(NewsImage.order_index)).filter_by(news_id=news.id).scalar() or -1
         
         new_images_added = False
+        main_image_set = False  # Флаг для отслеживания главного изображения
+        
         for i, file in enumerate(uploaded_files):
             if file and file.filename:
                 # Загружаем изображение в S3
@@ -4206,7 +4211,8 @@ def admin_edit_news(news_id):
                     caption = captions[i] if i < len(captions) else None
                     
                     # Определяем, является ли это главным изображением
-                    is_main = (i == main_image_index) if main_image_index is not None else False
+                    # Если main_image_index указан и равен текущему индексу, или если это первое изображение и главное не выбрано
+                    is_main = (main_image_index is not None and i == main_image_index) or (i == 0 and main_image_index is None and not main_image_set)
                     
                     # Создаем запись об изображении
                     news_image = NewsImage(
@@ -4222,6 +4228,7 @@ def admin_edit_news(news_id):
                     # Если это главное изображение, обновляем поле image
                     if is_main:
                         news.image = image_filename
+                        main_image_set = True
         
         # Обновляем главное изображение среди существующих
         if main_image_index is not None and not new_images_added:
@@ -4229,11 +4236,17 @@ def admin_edit_news(news_id):
             NewsImage.query.filter_by(news_id=news.id).update({'is_main': False})
             
             # Устанавливаем новый главный флаг
-            remaining_images = news.images
+            remaining_images = list(news.images)  # Преобразуем в список для индексации
             if main_image_index < len(remaining_images):
                 main_image = remaining_images[main_image_index]
                 main_image.is_main = True
                 news.image = main_image.image_filename
+            else:
+                # Если индекс неверный, сбрасываем главное изображение
+                news.image = None
+        elif not new_images_added and not news.images:
+            # Если нет новых изображений и нет существующих, сбрасываем главное изображение
+            news.image = None
         
         db.session.commit()
         flash('Новость успешно обновлена', 'success')
