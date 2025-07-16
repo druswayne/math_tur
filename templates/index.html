@@ -1,6 +1,98 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Модальное окно приветствия для новых пользователей -->
+<div class="modal fade" id="welcomeModal" tabindex="-1" aria-labelledby="welcomeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="welcomeModalLabel">
+                    <i class="fas fa-star me-2"></i>
+                    Добро пожаловать в Лигу Знатоков!
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="welcome-step mb-4">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-user-plus fa-2x text-primary"></i>
+                            </div>
+                            <h6 class="fw-bold">1. Регистрация</h6>
+                            <p class="text-muted small">Зарегистрируйтесь и войдите в личный кабинет</p>
+                        </div>
+                        
+                        <div class="welcome-step mb-4">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-coins fa-2x text-warning"></i>
+                            </div>
+                            <h6 class="fw-bold">2. Жетоны</h6>
+                            <p class="text-muted small">Купите жетоны для участия в турнирах</p>
+                        </div>
+                        
+                        <div class="welcome-step mb-4">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-trophy fa-2x text-info"></i>
+                            </div>
+                            <h6 class="fw-bold">3. Участвуйте в турнирах</h6>
+                            <p class="text-muted small">Дождитесь начала турнира. Информация о ближайшем турнире доступна на главной странице</p>
+                        </div>
+                        
+                        <div class="welcome-step mb-4">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-medal fa-2x text-success"></i>
+                            </div>
+                            <h6 class="fw-bold">4. Зарабатывайте баллы</h6>
+                            <p class="text-muted small">Получайте баллы за правильные ответы и поднимайтесь в рейтинге. В конце сезона обменивайте баллы на призы</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="welcome-features">
+                            <h6 class="fw-bold mb-3 text-dark">Преимущества платформы:</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Увлекательные математические задачи
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Соревнования с участниками вашего возраста
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Система рейтинга и достижений
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Возможность отслеживать свой прогресс
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    Обмен баллов на призы в конце сезона
+                                </li>
+                            </ul>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Готовы начать?</strong> Нажмите кнопку "Зарегистрироваться" ниже!
+                            </div>
+                            
+                            <div class="text-center mt-4">
+                                <a href="{{ url_for('register') }}" class="btn btn-primary w-100">
+                                    <i class="fas fa-user-plus me-1"></i>
+                                    Зарегистрироваться
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Оверлей загрузки -->
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner">
@@ -229,4 +321,52 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<!-- JavaScript для модального окна приветствия -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Проверяем, авторизован ли пользователь
+    const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
+    
+    // Если пользователь не авторизован и еще не видел приветствие
+    if (!isAuthenticated && !getCookie('welcomeModalShown')) {
+        // Показываем модальное окно через 1 секунду после загрузки страницы
+        setTimeout(function() {
+            const welcomeModal = new bootstrap.Modal(document.getElementById('welcomeModal'));
+            welcomeModal.show();
+        }, 1000);
+    }
+    
+    // Функция для установки куки
+    function setCookie(name, value, days) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = name + '=' + value + ';expires=' + expires.toUTCString() + ';path=/';
+    }
+    
+    // Функция для получения куки
+    function getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for(let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+    
+    // Обработчик для кнопки "Зарегистрироваться" в модальном окне
+    const registerBtn = document.querySelector('#welcomeModal .btn-primary');
+    if (registerBtn) {
+        registerBtn.addEventListener('click', function() {
+            // Закрываем модальное окно
+            const welcomeModal = bootstrap.Modal.getInstance(document.getElementById('welcomeModal'));
+            if (welcomeModal) {
+                welcomeModal.hide();
+            }
+        });
+    }
+});
+</script>
 {% endblock %} 

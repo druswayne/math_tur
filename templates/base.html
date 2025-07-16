@@ -482,6 +482,20 @@
                     });
                 }
             };
+            
+            // Устанавливаем куки при успешной авторизации
+            const userAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
+            if (userAuthenticated) {
+                // Функция для установки куки
+                function setCookie(name, value, days) {
+                    const expires = new Date();
+                    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+                    document.cookie = name + '=' + value + ';expires=' + expires.toUTCString() + ';path=/';
+                }
+                
+                // Устанавливаем куки, чтобы больше не показывать модальное окно приветствия
+                setCookie('welcomeModalShown', 'true', 365); // На 1 год
+            }
         });
     </script>
     {% block scripts %}{% endblock %}
