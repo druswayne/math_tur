@@ -5097,41 +5097,46 @@ def check_express_pay_expired_payments():
         print(f"Ошибка при проверке истекших платежей Express-Pay: {e}")
         db.session.rollback()
 
-# Настраиваем периодическую проверку истекших платежей (только если задача еще не существует)
-existing_job = SchedulerJob.query.filter_by(
-    job_type='check_expired_payments',
-    is_active=True
-).first()
+def initialize_scheduler_jobs():
+    """Инициализация задач планировщика"""
+    try:
+        # Настраиваем периодическую проверку истекших платежей (только если задача еще не существует)
+        existing_job = SchedulerJob.query.filter_by(
+            job_type='check_expired_payments',
+            is_active=True
+        ).first()
 
-if not existing_job:
-    add_scheduler_job(
-        check_expired_payments,
-        datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
-        None,
-        'check_expired_payments',
-        interval_hours=1  # Повторять каждый час
-    )
-    print("Создана задача проверки истекших платежей")
-else:
-    print("Задача проверки истекших платежей уже существует")
+        if not existing_job:
+            add_scheduler_job(
+                check_expired_payments,
+                datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
+                None,
+                'check_expired_payments',
+                interval_hours=1  # Повторять каждый час
+            )
+            print("Создана задача проверки истекших платежей")
+        else:
+            print("Задача проверки истекших платежей уже существует")
 
-# Настраиваем периодическую проверку реферальных бонусов (только если задача еще не существует)
-existing_referral_job = SchedulerJob.query.filter_by(
-    job_type='check_referral_bonuses',
-    is_active=True
-).first()
+        # Настраиваем периодическую проверку реферальных бонусов (только если задача еще не существует)
+        existing_referral_job = SchedulerJob.query.filter_by(
+            job_type='check_referral_bonuses',
+            is_active=True
+        ).first()
 
-if not existing_referral_job:
-    add_scheduler_job(
-        check_and_pay_referral_bonuses,
-        datetime.now() + timedelta(hours=2),  # Первый запуск через 2 часа
-        None,
-        'check_referral_bonuses',
-        interval_hours=6  # Повторять каждые 6 часов
-    )
-    print("Создана задача проверки реферальных бонусов")
-else:
-    print("Задача проверки реферальных бонусов уже существует")
+        if not existing_referral_job:
+            add_scheduler_job(
+                check_and_pay_referral_bonuses,
+                datetime.now() + timedelta(hours=2),  # Первый запуск через 2 часа
+                None,
+                'check_referral_bonuses',
+                interval_hours=6  # Повторять каждые 6 часов
+            )
+            print("Создана задача проверки реферальных бонусов")
+        else:
+            print("Задача проверки реферальных бонусов уже существует")
+    except Exception as e:
+        print(f"Ошибка при инициализации задач планировщика: {e}")
 
 @app.route('/reset-tutorial', methods=['POST'])
 @login_required
@@ -5229,14 +5234,27 @@ def copy_referral_link():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     with app.app_context():
+        # Сначала создаем все таблицы
+        print("Создание таблиц базы данных...")
         db.create_all()
+        
+        # Затем создаем администратора
+        print("Создание администратора...")
         create_admin_user()
-        # Очищаем все сессии при запуске
+        
+        # Только после создания таблиц выполняем остальные операции
+        print("Очистка сессий...")
         cleanup_all_sessions()
+        
+        print("Восстановление задач планировщика...")
         restore_scheduler_jobs()
-        # Проверяем истекшие платежи при запуске
+        
+        print("Инициализация задач планировщика...")
+        initialize_scheduler_jobs()
+        
+        print("Проверка истекших платежей...")
         check_expired_payments()
-    
-
+        
+        print("Приложение готово к запуску!")
     
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)

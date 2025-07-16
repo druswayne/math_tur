@@ -8,8 +8,10 @@ from passlib.context import CryptContext
 Base = declarative_base()
 
 # Создаем движок базы данных с явным указанием кодировки
+import os
+database_url = os.environ.get('SQLALCHEMY_DATABASE_URI')
 engine = create_engine(
-    'postgresql://gen_user:qNCkZjwz12@94.228.115.69:5432/school_tournaments',
+    database_url,
     connect_args={'client_encoding': 'utf8'}
 )
 SessionLocal = sessionmaker(bind=engine)
@@ -48,8 +50,10 @@ class News(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-# Создаем таблицы в базе данных
-Base.metadata.create_all(bind=engine)
+# Создаем таблицы в базе данных (только если запускаем models.py напрямую)
+if __name__ == "__main__":
+    Base.metadata.create_all(bind=engine)
+    print("Таблицы созданы из models.py")
 
 # Функция для получения сессии базы данных
 def get_db():

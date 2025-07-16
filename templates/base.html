@@ -215,14 +215,17 @@
             0% {
                 box-shadow: 0 0 0 0 rgba(255, 140, 0, 0.7);
                 transform: scale(1);
+                background-color: rgba(255, 140, 0, 0.1);
             }
             50% {
-                box-shadow: 0 0 0 3px rgba(255, 140, 0, 0.8);
-                transform: scale(1.02);
+                box-shadow: 0 0 0 8px rgba(255, 140, 0, 0.4);
+                transform: scale(1.05);
+                background-color: rgba(255, 140, 0, 0.2);
             }
             100% {
                 box-shadow: 0 0 0 0 rgba(255, 140, 0, 0);
                 transform: scale(1);
+                background-color: rgba(255, 140, 0, 0.1);
             }
         }
         
@@ -231,6 +234,8 @@
             border-radius: 5px;
             padding: 8px 16px;
             transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
         }
         
         /* Анимация мерцания для кнопки-бургера */
@@ -432,7 +437,8 @@
             
             // Мерцание кнопки "Войти" для неавторизованных пользователей
             const loginButton = document.getElementById('loginButton');
-            if (loginButton && !document.body.classList.contains('logged-in')) {
+            const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
+            if (loginButton && !isAuthenticated) {
                 // Добавляем небольшую задержку перед началом мерцания
                 setTimeout(function() {
                     loginButton.classList.add('login-button-pulse');
@@ -441,14 +447,10 @@
             
             // Мерцание кнопки-бургера в мобильной версии
             const burgerButton = document.getElementById('burgerButton');
-            console.log('Burger button found:', burgerButton);
-            console.log('Window width:', window.innerWidth);
             if (burgerButton && window.innerWidth <= 991) { // 991px - точка перелома Bootstrap lg
-                console.log('Adding pulse to burger button');
                 // Добавляем небольшую задержку перед началом мерцания
                 setTimeout(function() {
                     burgerButton.classList.add('burger-button-pulse');
-                    console.log('Burger button classes:', burgerButton.className);
                 }, 1500); // Немного позже чем кнопка "Войти"
             }
             
@@ -481,6 +483,7 @@
                 }
             };
         });
+    </script>
     {% block scripts %}{% endblock %}
 
     <!-- Баннер согласия на cookie -->
