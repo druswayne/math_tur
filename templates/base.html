@@ -302,6 +302,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('about') }}">О нас</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#footer" onclick="scrollToFooter()">Контакты</a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
@@ -334,17 +337,18 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer style="background-color: #343a40; color: white;">
+    <footer id="footer" style="background-color: #343a40; color: white;">
         <div class="container py-4">
             <div class="row">
                 <div class="col-md-6">
                     <h5 style="color: white; font-weight: bold; letter-spacing: 1px; margin-bottom: 0.5rem;">О НАС</h5>
                     <div style="width: 60px; height: 3px; background: #FF8C00; margin-bottom: 1rem;"></div>
-                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">Общество с ограниченной ответственностью «Лига Знатоков»</p>
-<p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">Зарегистрировано в ЕГР за № 591054732 решением Гродненского городского исполнительного комитета № 0254608 от 2 июля 2025 года</p>
-                    <div style="height: 1rem;"></div>
-                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">Юридический адрес:</p>
-                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">230029, Республика Беларусь, г. Гродно, ул. Гарбарская д. 4</p>
+                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">ООО "Лига Знатоков"</p>
+                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">230029 г. Гродно ул. Гарбарская 4</p>
+                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">УНП 591054732</p>
+                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">BY84REDJ30121010313410100933</p>
+                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">в ЗАО «Банк РРБ» г. Минск</p>
+                    <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">БИК REDJBY22</p>
                 </div>
                 <div class="col-md-6 text-md-end">
                     <h5 style="color: white; font-weight: bold; letter-spacing: 1px; margin-bottom: 0.5rem;">КОНТАКТЫ</h5>
@@ -364,13 +368,13 @@
 
                     </div>
                     <div class="mt-3">
-                        <a href="https://t.me/your_telegram" target="_blank" class="me-3" title="Telegram" style="color:#FF8C00;">
+                        <a href="https://t.me/liga_znatokov" target="_blank" class="me-3" title="Telegram" style="color:#FF8C00;">
                             <i class="fab fa-telegram" style="font-size:2.5em"></i>
                         </a>
-                        <a href="https://instagram.com/your_instagram" target="_blank" class="me-3" title="Instagram" style="color:#FF8C00;">
+                        <a href="https://www.instagram.com/liga_znatokov/" target="_blank" class="me-3" title="Instagram" style="color:#FF8C00;">
                             <i class="fab fa-instagram" style="font-size:2.5em"></i>
                         </a>
-                        <a href="viber://chat?number=%2B375292444533" target="_blank" title="Viber" style="color:#FF8C00;">
+                        <a href="https://connect.viber.com/business/80184b42-5e16-11f0-9a15-72bb365effd0?utm_source=manage&utm_medium=copy_link" target="_blank" title="Viber" style="color:#FF8C00;">
                             <i class="fab fa-viber" style="font-size:2.5em"></i>
                         </a>
                     </div>
@@ -457,8 +461,18 @@
                     }
                 }
             });
+            
+            // Функция для плавной прокрутки к футеру
+            window.scrollToFooter = function() {
+                const footer = document.getElementById('footer');
+                if (footer) {
+                    footer.scrollIntoView({ 
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            };
         });
-    </script>
     {% block scripts %}{% endblock %}
 
     <!-- Баннер согласия на cookie -->
