@@ -87,4 +87,14 @@ def get_s3_url(filename, folder):
     """
     if filename:
         return f"{os.environ.get('endpoint_url')}/{os.environ.get('bucket_name')}/{folder}/{filename}"
+    return None
+
+def get_file_url(file_path):
+    """
+    Возвращает публичный URL файла в S3 по полному пути
+    :param file_path: полный путь к файлу в S3 (например, 'static/Пользовательское соглашение.pdf')
+    :return: URL файла
+    """
+    if file_path:
+        return f"{os.environ.get('endpoint_url')}/{os.environ.get('bucket_name')}/{file_path}"
     return None 

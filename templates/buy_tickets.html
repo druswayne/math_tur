@@ -108,6 +108,17 @@
                         <label class="form-label">Итоговая стоимость</label>
                         <p id="totalPrice" class="form-text">-</p>
                     </div>
+                    
+                    <!-- Чекбокс согласия с условиями -->
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="agreementCheckbox" onchange="updatePurchaseButton()">
+                            <label class="form-check-label" for="agreementCheckbox">
+                                Я согласен(а) с <a href="{{ agreement_url }}" target="_blank" class="text-decoration-none">условиями Договора возмездного оказания услуг на условиях публичной оферты</a>
+                            </label>
+                        </div>
+                    </div>
+                    
                     <button type="button" class="btn btn-secondary w-100" id="purchaseButton" onclick="showPaymentModal()" disabled>
                         <i class="fas fa-shopping-cart me-2"></i>Оформить покупку
                     </button>
@@ -161,6 +172,42 @@
     color: #000000 !important;
     font-weight: bold;
 }
+
+/* Стили для чекбокса согласия */
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.form-check-label a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.form-check-label a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* Анимация мерцания для чекбокса */
+@keyframes checkbox-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0.3);
+        transform: scale(1.05);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        transform: scale(1);
+    }
+}
+
+.checkbox-pulse {
+    animation: checkbox-pulse 1.5s infinite;
+}
 </style>
 
 <script>
@@ -197,12 +244,17 @@ function updatePrice() {
         const totalPriceRub = (totalPrice * currencyRate).toFixed(2);
         document.getElementById('totalPrice').innerHTML = totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ ' + totalPriceRub + ' RUB</small>';
         
-        // Активируем кнопку и добавляем эффект мерцания
-        purchaseButton.classList.remove('btn-secondary');
-        purchaseButton.classList.add('btn-success');
-        purchaseButton.disabled = false;
-        purchaseButton.classList.add('purchase-button-pulse');
+        // Обновляем состояние кнопки с учетом чекбокса
+        updatePurchaseButton();
         quantityInput.classList.remove('input-pulse');
+        
+        // Добавляем мерцание к чекбоксу согласия, если он не отмечен
+        const agreementCheckbox = document.getElementById('agreementCheckbox');
+        if (!agreementCheckbox.checked) {
+            agreementCheckbox.classList.add('checkbox-pulse');
+        } else {
+            agreementCheckbox.classList.remove('checkbox-pulse');
+        }
         
         // Обновляем информацию о скидках
         if (discountInfo) {
@@ -230,6 +282,27 @@ function updatePrice() {
         if (discountInfo) {
             discountInfo.textContent = 'Выберите количество жетонов, чтобы увидеть доступную скидку';
         }
+    }
+}
+
+function updatePurchaseButton() {
+    const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const agreementCheckbox = document.getElementById('agreementCheckbox');
+    const purchaseButton = document.getElementById('purchaseButton');
+    
+    if (quantity > 0 && agreementCheckbox.checked) {
+        // Активируем кнопку и добавляем эффект мерцания
+        purchaseButton.classList.remove('btn-secondary');
+        purchaseButton.classList.add('btn-success');
+        purchaseButton.disabled = false;
+        purchaseButton.classList.add('purchase-button-pulse');
+        // Убираем мерцание чекбокса при его отметке
+        agreementCheckbox.classList.remove('checkbox-pulse');
+    } else {
+        // Деактивируем кнопку и убираем эффект мерцания
+        purchaseButton.classList.remove('btn-success', 'purchase-button-pulse');
+        purchaseButton.classList.add('btn-secondary');
+        purchaseButton.disabled = true;
     }
 }
 
@@ -270,8 +343,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showPaymentModal() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
+    const agreementCheckbox = document.getElementById('agreementCheckbox');
+    
     if (quantity <= 0) {
         alert('Пожалуйста, выберите количество жетонов');
+        return;
+    }
+    
+    if (!agreementCheckbox.checked) {
+        alert('Пожалуйста, согласитесь с условиями Договора возмездного оказания услуг');
         return;
     }
     

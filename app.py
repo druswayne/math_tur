@@ -20,7 +20,7 @@ from email_sender import add_to_queue, add_bulk_to_queue, start_email_worker
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
 import threading
-from s3_utils import upload_file_to_s3, delete_file_from_s3, get_s3_url
+from s3_utils import upload_file_to_s3, delete_file_from_s3, get_s3_url, get_file_url
 import platform
 import re
 import atexit
@@ -2317,12 +2317,16 @@ def buy_tickets():
     currency_rate = currency_service.get_byn_to_rub_rate()
     currency_rate_formatted = currency_service.get_formatted_rate()
     
+    # URL документа пользовательского соглашения (локальный файл)
+    agreement_url = url_for('static', filename='Пользовательское соглашение.pdf')
+    
     return render_template('buy_tickets.html', 
                          title='Покупка билетов',
                          base_price=base_price,
                          discounts=discounts_data,
                          currency_rate=currency_rate,
-                         currency_rate_formatted=currency_rate_formatted)
+                         currency_rate_formatted=currency_rate_formatted,
+                         agreement_url=agreement_url)
 
 @app.route('/create-payment', methods=['POST'])
 @login_required
@@ -4930,7 +4934,8 @@ def rating_search():
 def inject_s3_utils():
     """Добавляет функции S3 в контекст шаблонов"""
     return {
-        'get_s3_url': get_s3_url
+        'get_s3_url': get_s3_url,
+        'get_file_url': get_file_url
     }
 
 @app.context_processor
