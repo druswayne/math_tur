@@ -985,8 +985,25 @@ def login():
             db.session.commit()
             
             flash('Вы успешно вошли в систему!', 'success')
-            response = reset_login_attempts()
-            return redirect(url_for('profile'))
+            # Сбрасываем счетчик попыток входа
+            response = make_response(redirect(url_for('profile')))
+            response.set_cookie(
+                LOGIN_ATTEMPTS_COOKIE,
+                '0',  # Явно устанавливаем 0
+                max_age=0,
+                secure=False,
+                httponly=True,
+                samesite='Lax'
+            )
+            response.set_cookie(
+                LOGIN_BLOCKED_UNTIL_COOKIE,
+                '',
+                max_age=0,
+                secure=False,
+                httponly=True,
+                samesite='Lax'
+            )
+            return response
         else:
             attempts = get_login_attempts() + 1
             if attempts >= MAX_LOGIN_ATTEMPTS:
