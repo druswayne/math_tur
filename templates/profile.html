@@ -354,9 +354,16 @@
     const checkCurrentTime = new Date();
     if (checkStartDate > checkCurrentTime) {
         const timeToStart = checkStartDate - checkCurrentTime;
-        setTimeout(() => {
-            location.reload();
-        }, timeToStart);
+        const maxTimeout = 2147483647; // Максимальное значение для setTimeout (~24.8 дней)
+        
+        if (timeToStart <= maxTimeout) {
+            // Если время до начала турнира меньше максимального значения setTimeout
+            setTimeout(() => {
+                location.reload();
+            }, timeToStart);
+        }
+        // Если время больше максимального значения, не устанавливаем таймер
+        // Страница будет перезагружена через updateCountdown() когда время подойдет
     }
 
     // Обработчик для кнопки "Участвовать"
