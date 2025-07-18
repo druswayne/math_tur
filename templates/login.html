@@ -16,6 +16,12 @@
                                         <div class="alert alert-warning border-warning" style="background-color: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                                             <i class="fas fa-exclamation-triangle me-2"></i>
                                             {{ message }}
+                                            <div class="mt-3">
+                                                <button type="button" class="btn btn-warning btn-sm fw-bold fs-6" onclick="showResetSessionModal()" id="resetSessionBtn">
+                                                    <i class="fas fa-sign-out-alt me-1"></i>
+                                                    Закрыть сессию на другом устройстве
+                                                </button>
+                                            </div>
                                         </div>
                                     {% elif 'Слишком много неудачных попыток' in message %}
                                         <div class="alert alert-danger border-danger" style="background-color: #f8d7da; border: 2px solid #dc3545; padding: 15px; margin-bottom: 20px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -71,6 +77,52 @@
         <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
     </div>
 </div>
+
+<!-- Модальное окно для сброса сессий -->
+<div class="modal fade" id="resetSessionModal" tabindex="-1" aria-labelledby="resetSessionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resetSessionModalLabel">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Закрыть сессию на другом устройстве
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Внимание!</strong> Это действие закроет вашу активную сессию на другом устройстве. 
+                    После этого вы сможете войти в систему с текущего устройства.
+                </div>
+                <form id="resetSessionForm">
+                    <div class="mb-3">
+                        <label for="resetUsername" class="form-label">Логин</label>
+                        <input type="text" class="form-control" id="resetUsername" name="username" required>
+                        <div class="form-text">Введите логин, сессию которого хотите закрыть</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="resetPassword" class="form-label">Пароль</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="resetPassword" name="password" required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggleResetPassword" title="Показать/скрыть пароль">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">Введите пароль для подтверждения действия</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-warning" id="confirmResetSession">
+                    <i class="fas fa-sign-out-alt me-1"></i>
+                    Закрыть сессию
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 <style>
@@ -98,6 +150,68 @@
 
 .btn-outline-secondary:hover i {
     transform: scale(1.1);
+}
+
+/* Стили для кнопки сброса сессий */
+.btn-warning {
+    transition: all 0.3s ease;
+}
+
+.btn-warning:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(255, 193, 7, 0.3);
+}
+
+/* Стили для модального окна */
+.modal-content {
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    border-bottom: 2px solid #ffc107;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+}
+
+.modal-title {
+    color: #856404;
+    font-weight: 600;
+}
+
+/* Анимация для кнопки подтверждения */
+#confirmResetSession {
+    transition: all 0.3s ease;
+}
+
+#confirmResetSession:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(255, 193, 7, 0.4);
+}
+
+#confirmResetSession:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Стили для полей в модальном окне */
+#resetSessionModal .form-control {
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+#resetSessionModal .form-control:focus {
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+}
+
+#resetSessionModal .form-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+#resetSessionModal .form-text {
+    color: #6c757d;
+    font-size: 0.875rem;
 }
 </style>
 
@@ -175,6 +289,134 @@ document.addEventListener('DOMContentLoaded', function() {
             icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
         });
     }
+
+    // Функциональность показа/скрытия пароля в модальном окне
+    const toggleResetPassword = document.getElementById('toggleResetPassword');
+    const resetPasswordInput = document.getElementById('resetPassword');
+
+    if (toggleResetPassword && resetPasswordInput) {
+        toggleResetPassword.addEventListener('click', function() {
+            const type = resetPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            resetPasswordInput.setAttribute('type', type);
+            
+            // Меняем иконку
+            const icon = this.querySelector('i');
+            icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+        });
+    }
+
+    // Обработчик подтверждения сброса сессий
+    const confirmResetBtn = document.getElementById('confirmResetSession');
+    const usernameInput = document.getElementById('username');
+    const resetUsernameInput = document.getElementById('resetUsername');
+
+    if (confirmResetBtn) {
+        confirmResetBtn.addEventListener('click', function() {
+            const password = resetPasswordInput.value.trim();
+            const username = resetUsernameInput.value.trim();
+
+            if (!username) {
+                alert('Пожалуйста, введите логин');
+                resetUsernameInput.focus();
+                return;
+            }
+
+            if (!password) {
+                alert('Пожалуйста, введите пароль');
+                resetPasswordInput.focus();
+                return;
+            }
+
+            // Блокируем кнопку и показываем индикатор загрузки
+            confirmResetBtn.disabled = true;
+            confirmResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Обработка...';
+
+            // Отправляем запрос на сброс сессий
+            fetch('/reset-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Закрываем модальное окно
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('resetSessionModal'));
+                    modal.hide();
+                    
+                    // Показываем сообщение об успехе
+                    alert('Сессия на другом устройстве успешно закрыта! Теперь вы можете войти в систему.');
+                    
+                    // Очищаем поля в основной форме
+                    document.getElementById('username').value = '';
+                    document.getElementById('password').value = '';
+                    
+                    // Фокусируемся на поле логина
+                    document.getElementById('username').focus();
+                } else {
+                    alert(data.message || 'Ошибка при сбросе сессии');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при сбросе сессии. Попробуйте еще раз.');
+            })
+            .finally(() => {
+                // Восстанавливаем кнопку
+                confirmResetBtn.disabled = false;
+                confirmResetBtn.innerHTML = '<i class="fas fa-sign-out-alt me-1"></i>Закрыть сессию';
+            });
+        });
+    }
+
+    // Обработчик нажатия Enter в полях модального окна
+    if (resetPasswordInput) {
+        resetPasswordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('confirmResetSession').click();
+            }
+        });
+    }
+
+    if (resetUsernameInput) {
+        resetUsernameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('resetPassword').focus();
+            }
+        });
+    }
 });
+
+// Функция для показа модального окна сброса сессий
+function showResetSessionModal() {
+    const usernameInput = document.getElementById('username');
+    const resetUsernameInput = document.getElementById('resetUsername');
+    
+    // Копируем логин из основной формы в поле модального окна (если он есть)
+    const username = usernameInput.value.trim();
+    resetUsernameInput.value = username;
+    
+    const modal = new bootstrap.Modal(document.getElementById('resetSessionModal'));
+    modal.show();
+    
+    // Очищаем поле пароля при открытии
+    document.getElementById('resetPassword').value = '';
+    
+    // Фокусируемся на поле логина, если оно пустое, иначе на пароль
+    setTimeout(() => {
+        if (!username) {
+            resetUsernameInput.focus();
+        } else {
+            document.getElementById('resetPassword').focus();
+        }
+    }, 500);
+}
 </script>
 {% endblock %} 

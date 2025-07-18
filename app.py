@@ -4536,6 +4536,49 @@ def admin_clear_user_data():
             'message': f'Произошла ошибка при очистке данных: {str(e)}'
         }), 500
 
+@app.route('/reset-session', methods=['POST'])
+def reset_session():
+    """Сброс сессии пользователя без авторизации (для входа с другого устройства)"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '').strip()
+        
+        if not username or not password:
+            return jsonify({'success': False, 'message': 'Необходимо указать логин и пароль'})
+        
+        # Ищем пользователя (регистронезависимый поиск)
+        user = User.query.filter(User.username.ilike(username)).first()
+        
+        if not user:
+            return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
+        
+        if not user.check_password(password):
+            return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
+        
+        if user.is_blocked:
+            return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
+        
+        if not user.is_active:
+            return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
+        
+        # Проверяем, есть ли активная сессия
+        active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
+        if not active_session:
+            return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
+        
+        # Деактивируем все сессии пользователя
+        deactivate_user_session(user.id)
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Сессия на другом устройстве успешно закрыта'
+        })
+        
+    except Exception as e:
+        print(f"Ошибка при сбросе сессии: {e}")
+        return jsonify({'success': False, 'message': 'Произошла ошибка при сбросе сессии'})
+
 @app.route('/logout-all-devices', methods=['POST'])
 @login_required
 def logout_all_devices():
