@@ -112,14 +112,14 @@
                     <!-- Чекбокс согласия с условиями -->
                     <div class="mb-3">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="agreementCheckbox" onchange="updatePurchaseButton()">
+                            <input class="form-check-input" type="checkbox" id="agreementCheckbox" onchange="updatePurchaseButton()" onkeydown="handleCheckboxEnter(event)">
                             <label class="form-check-label" for="agreementCheckbox">
                                 Я согласен(а) с <a href="{{ agreement_url }}" target="_blank" class="text-decoration-none">условиями Договора возмездного оказания услуг на условиях публичной оферты</a>
                             </label>
                         </div>
                     </div>
                     
-                    <button type="button" class="btn btn-secondary w-100" id="purchaseButton" onclick="showPaymentModal()" disabled>
+                    <button type="button" class="btn btn-secondary w-100" id="purchaseButton" onclick="showPaymentModal()" onkeydown="handleButtonEnter(event)" disabled>
                         <i class="fas fa-shopping-cart me-2"></i>Оформить покупку
                     </button>
                 </div>
@@ -214,6 +214,32 @@
 function preventEnterSubmit(event) {
     if (event.key === 'Enter') {
         event.preventDefault();
+        // Переводим фокус на чекбокс согласия
+        document.getElementById('agreementCheckbox').focus();
+        return false;
+    }
+}
+
+function handleCheckboxEnter(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const purchaseButton = document.getElementById('purchaseButton');
+        // Если кнопка активна, переводим на неё фокус, иначе просто переключаем чекбокс
+        if (!purchaseButton.disabled) {
+            purchaseButton.focus();
+        }
+        return false;
+    }
+}
+
+function handleButtonEnter(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        // Если кнопка активна, открываем модальное окно
+        const purchaseButton = document.getElementById('purchaseButton');
+        if (!purchaseButton.disabled) {
+            showPaymentModal();
+        }
         return false;
     }
 }
