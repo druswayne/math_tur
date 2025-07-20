@@ -741,7 +741,7 @@ def forgot_password():
         
         if user:
             send_reset_password_email(user)
-            flash('Инструкции по сбросу пароля отправлены на ваш email', 'success')
+            flash('Инструкции по сбросу пароля отправлены на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
         else:
             flash('Пользователь с таким email не найден', 'danger')
         
@@ -2237,7 +2237,7 @@ def register():
         # Отправляем письмо с подтверждением асинхронно
         send_confirmation_email(user)
         
-        flash('Письмо с подтверждением отправлено на ваш email', 'success')
+        flash('Письмо с подтверждением отправлено на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
         return redirect(url_for('login'))
 
     return render_template('register.html', referral_code=referral_code)
