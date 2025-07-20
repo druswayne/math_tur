@@ -33,12 +33,11 @@ import hashlib
 import smtplib
 from dotenv import load_dotenv
 load_dotenv()
-
 # Переменная окружения для уникального идентификатора сервера
 # В продакшене должна быть установлена в .env файле
 SERVER_ID = os.environ.get('SERVER_ID')
 DEBAG = bool(os.environ.get('DEBAG'))
-print(DEBAG)
+
 
 # Константы для реферальной системы
 REFERRAL_BONUS_POINTS = 150  # Бонусные баллы за приглашенного пользователя
@@ -1295,7 +1294,14 @@ def admin_mass_email():
         return jsonify({'success': False, 'message': 'У вас нет доступа к этой странице'})
     
     try:
+        # Проверяем, что данные пришли в формате JSON
+        if not request.is_json:
+            return jsonify({'success': False, 'message': 'Неверный формат данных'})
+        
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Данные не получены'})
+        
         subject = sanitize_input(data.get('subject', ''), 200)
         message = validate_text_content(data.get('message', ''), 5000)
         
@@ -1334,7 +1340,7 @@ def admin_mass_email():
             
     except Exception as e:
         print(f"Ошибка массовой рассылки: {e}")
-        return jsonify({'success': False, 'message': 'Произошла ошибка при отправке писем'})
+        return jsonify({'success': False, 'message': f'Произошла ошибка при отправке писем: {str(e)}'})
 
 @app.route('/admin/tournaments')
 @login_required
@@ -5299,5 +5305,4 @@ if __name__ == '__main__':
         check_expired_payments()
         
         print("Приложение готово к запуску!")
-    
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)

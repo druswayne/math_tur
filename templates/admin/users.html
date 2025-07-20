@@ -222,16 +222,16 @@
                     <div class="mb-3">
                         <label for="category{{ user.id }}" class="form-label">Группа</label>
                         <select class="form-control" id="category{{ user.id }}" name="category" required>
-                            <option value="1-2" ${user.category === '1-2' ? 'selected' : ''}>1-2 класс</option>
-                            <option value="3" ${user.category === '3' ? 'selected' : ''}>3 класс</option>
-                            <option value="4" ${user.category === '4' ? 'selected' : ''}>4 класс</option>
-                            <option value="5" ${user.category === '5' ? 'selected' : ''}>5 класс</option>
-                            <option value="6" ${user.category === '6' ? 'selected' : ''}>6 класс</option>
-                            <option value="7" ${user.category === '7' ? 'selected' : ''}>7 класс</option>
-                            <option value="8" ${user.category === '8' ? 'selected' : ''}>8 класс</option>
-                            <option value="9" ${user.category === '9' ? 'selected' : ''}>9 класс</option>
-                            <option value="10" ${user.category === '10' ? 'selected' : ''}>10 класс</option>
-                            <option value="11" ${user.category === '11' ? 'selected' : ''}>11 класс</option>
+                            <option value="1-2" {% if user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
+                            <option value="3" {% if user.category == '3' %}selected{% endif %}>3 класс</option>
+                            <option value="4" {% if user.category == '4' %}selected{% endif %}>4 класс</option>
+                            <option value="5" {% if user.category == '5' %}selected{% endif %}>5 класс</option>
+                            <option value="6" {% if user.category == '6' %}selected{% endif %}>6 класс</option>
+                            <option value="7" {% if user.category == '7' %}selected{% endif %}>7 класс</option>
+                            <option value="8" {% if user.category == '8' %}selected{% endif %}>8 класс</option>
+                            <option value="9" {% if user.category == '9' %}selected{% endif %}>9 класс</option>
+                            <option value="10" {% if user.category == '10' %}selected{% endif %}>10 класс</option>
+                            <option value="11" {% if user.category == '11' %}selected{% endif %}>11 класс</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -419,19 +419,22 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasMorePages = {{ 'true' if pagination.has_next else 'false' }};
     let searchQuery = '{{ search_query }}';
     let searchType = '{{ search_type }}';
+    let currentUserId = {{ current_user.id if current_user.is_authenticated else 0 }};
 
-    // Обработчик формы поиска
+    // Обработчик формы поиска (если форма существует)
     const searchForm = document.getElementById('searchForm');
-    const searchInput = document.getElementById('searchInput');
-    const searchTypeSelect = document.getElementById('searchType');
-
-    searchForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        searchQuery = searchInput.value.trim();
-        searchType = searchTypeSelect.value;
-        currentPage = 1;
-        await loadUsers(true);
-    });
+    if (searchForm) {
+        const searchInput = document.getElementById('searchInput');
+        const searchTypeSelect = document.getElementById('searchType');
+        
+        searchForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            searchQuery = searchInput.value.trim();
+            searchType = searchTypeSelect.value;
+            currentPage = 1;
+            await loadUsers(true);
+        });
+    }
 
     // Обработчик кнопки "Загрузить еще"
     const loadMoreButton = document.getElementById('loadMoreButton');
@@ -467,6 +470,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             const tbody = document.getElementById('usersTableBody');
             
+            if (!tbody) {
+                console.warn('Элемент usersTableBody не найден');
+                return;
+            }
+            
             if (reset) {
                 tbody.innerHTML = '';
             }
@@ -496,7 +504,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             </button>
                             <form action="/admin/users/${user.id}/toggle-block" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-danger btn-sm" 
-                                        ${user.id === {{ current_user.id if current_user.is_authenticated else 0 }} ? 'disabled' : ''}
+                                        ${user.id === currentUserId ? 'disabled' : ''}
                                         onclick="return confirm('Вы уверены, что хотите ${user.is_blocked ? 'разблокировать' : 'заблокировать'} пользователя ${user.username}?')">
                                     <i class="bi bi-${user.is_blocked ? 'unlock' : 'lock'}"></i>
                                 </button>
@@ -537,172 +545,156 @@ document.addEventListener('DOMContentLoaded', function() {
             // Создаем модальные окна для каждого пользователя
             const modalsContainer = document.querySelector('.modals-container');
             
-            // Модальное окно информации
-            const infoModal = document.createElement('div');
-            infoModal.className = 'modal fade';
-            infoModal.id = `userInfoModal${user.id}`;
-            infoModal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Информация о пользователе</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p><strong>ID:</strong> ${user.id}</p>
-                            <p><strong>Логин:</strong> ${user.username}</p>
-                            <p><strong>Email:</strong> ${user.email}</p>
-                            <p><strong>Дата регистрации:</strong> ${user.created_at}</p>
-                            <p><strong>Статус:</strong> ${user.is_active ? 'Активен' : 'Ожидает подтверждения'}</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            modalsContainer.appendChild(infoModal);
-
-            // Модальное окно редактирования
-            const editModal = document.createElement('div');
-            editModal.className = 'modal fade';
-            editModal.id = `editUserModal${user.id}`;
-            editModal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Редактирование пользователя</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <form action="/admin/users/${user.id}/edit" method="POST">
+            if (modalsContainer) {
+                // Модальное окно информации
+                const infoModal = document.createElement('div');
+                infoModal.className = 'modal fade';
+                infoModal.id = `userInfoModal${user.id}`;
+                infoModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Информация о пользователе</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
                             <div class="modal-body">
-                                <div class="mb-3">
-                                    <label for="username${user.id}" class="form-label">Логин</label>
-                                    <input type="text" class="form-control" id="username${user.id}" name="username" value="${user.username}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="email${user.id}" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="email${user.id}" name="email" value="${user.email}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="student_name${user.id}" class="form-label">Фамилия и имя учащегося</label>
-                                    <input type="text" class="form-control" id="student_name${user.id}" name="student_name" value="${user.student_name or ''}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="parent_name${user.id}" class="form-label">ФИО законного представителя</label>
-                                    <input type="text" class="form-control" id="parent_name${user.id}" name="parent_name" value="${user.parent_name or ''}" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="phone${user.id}" class="form-label">Номер телефона</label>
-                                    <input type="tel" class="form-control" id="phone${user.id}" name="phone" value="${user.phone}" pattern="+375[0-9]{9}" placeholder="+375XXXXXXXXX" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="category${user.id}" class="form-label">Группа</label>
-                                    <select class="form-control" id="category${user.id}" name="category" required>
-                                        <option value="1-2" ${user.category === '1-2' ? 'selected' : ''}>1-2 класс</option>
-                                        <option value="3" ${user.category === '3' ? 'selected' : ''}>3 класс</option>
-                                        <option value="4" ${user.category === '4' ? 'selected' : ''}>4 класс</option>
-                                        <option value="5" ${user.category === '5' ? 'selected' : ''}>5 класс</option>
-                                        <option value="6" ${user.category === '6' ? 'selected' : ''}>6 класс</option>
-                                        <option value="7" ${user.category === '7' ? 'selected' : ''}>7 класс</option>
-                                        <option value="8" ${user.category === '8' ? 'selected' : ''}>8 класс</option>
-                                        <option value="9" ${user.category === '9' ? 'selected' : ''}>9 класс</option>
-                                        <option value="10" ${user.category === '10' ? 'selected' : ''}>10 класс</option>
-                                        <option value="11" ${user.category === '11' ? 'selected' : ''}>11 класс</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="password${user.id}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
-                                    <input type="password" class="form-control" id="password${user.id}" name="password">
-                                </div>
-                                <div class="mb-3">
-                                    <label for="tickets${user.id}" class="form-label">Количество жетонов</label>
-                                    <input type="number" class="form-control" id="tickets${user.id}" name="tickets" value="${user.tickets || 0}" min="0">
-                                    <small class="form-text text-muted">Укажите новое количество жетонов для пользователя</small>
-                                </div>
-                                <div class="mb-3">
-                                    <div class="form-check">
-                                        <input type="checkbox" class="form-check-input" id="is_admin${user.id}" name="is_admin" ${user.is_admin ? 'checked' : ''}>
-                                        <label class="form-check-label" for="is_admin${user.id}">Администратор</label>
-                                    </div>
-                                </div>
+                                <p><strong>ID:</strong> ${user.id}</p>
+                                <p><strong>Логин:</strong> ${user.username}</p>
+                                <p><strong>Email:</strong> ${user.email}</p>
+                                <p><strong>Дата регистрации:</strong> ${user.created_at}</p>
+                                <p><strong>Статус:</strong> ${user.is_active ? 'Активен' : 'Ожидает подтверждения'}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                <button type="submit" class="btn btn-primary">Сохранить</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
                             </div>
-                        </form>
+                        </div>
                     </div>
-                </div>
-            `;
-            modalsContainer.appendChild(editModal);
+                `;
+                modalsContainer.appendChild(infoModal);
 
-            // Модальное окно удаления
-            const deleteModal = document.createElement('div');
-            deleteModal.className = 'modal fade';
-            deleteModal.id = `deleteUserModal${user.id}`;
-            deleteModal.innerHTML = `
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Подтверждение удаления</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Вы уверены, что хотите удалить пользователя "${user.username}"?</p>
-                            <p class="text-danger">Это действие нельзя отменить!</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <form action="/admin/users/${user.id}/delete" method="POST" class="d-inline">
-                                <button type="submit" class="btn btn-danger">Удалить</button>
+                // Модальное окно редактирования
+                const editModal = document.createElement('div');
+                editModal.className = 'modal fade';
+                editModal.id = `editUserModal${user.id}`;
+                editModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Редактирование пользователя</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form action="/admin/users/${user.id}/edit" method="POST">
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label for="username${user.id}" class="form-label">Логин</label>
+                                        <input type="text" class="form-control" id="username${user.id}" name="username" value="${user.username}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="email${user.id}" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email${user.id}" name="email" value="${user.email}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="student_name${user.id}" class="form-label">Фамилия и имя учащегося</label>
+                                        <input type="text" class="form-control" id="student_name${user.id}" name="student_name" value="${user.student_name || ''}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="parent_name${user.id}" class="form-label">ФИО законного представителя</label>
+                                        <input type="text" class="form-control" id="parent_name${user.id}" name="parent_name" value="${user.parent_name || ''}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="phone${user.id}" class="form-label">Номер телефона</label>
+                                        <input type="tel" class="form-control" id="phone${user.id}" name="phone" value="${user.phone}" pattern="\\+375[0-9]{9}" placeholder="+375XXXXXXXXX" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="category${user.id}" class="form-label">Группа</label>
+                                        <select class="form-control" id="category${user.id}" name="category" required>
+                                            <option value="1-2" ${user.category === '1-2' ? 'selected' : ''}>1-2 класс</option>
+                                            <option value="3" ${user.category === '3' ? 'selected' : ''}>3 класс</option>
+                                            <option value="4" ${user.category === '4' ? 'selected' : ''}>4 класс</option>
+                                            <option value="5" ${user.category === '5' ? 'selected' : ''}>5 класс</option>
+                                            <option value="6" ${user.category === '6' ? 'selected' : ''}>6 класс</option>
+                                            <option value="7" ${user.category === '7' ? 'selected' : ''}>7 класс</option>
+                                            <option value="8" ${user.category === '8' ? 'selected' : ''}>8 класс</option>
+                                            <option value="9" ${user.category === '9' ? 'selected' : ''}>9 класс</option>
+                                            <option value="10" ${user.category === '10' ? 'selected' : ''}>10 класс</option>
+                                            <option value="11" ${user.category === '11' ? 'selected' : ''}>11 класс</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password${user.id}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                                        <input type="password" class="form-control" id="password${user.id}" name="password">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="tickets${user.id}" class="form-label">Количество жетонов</label>
+                                        <input type="number" class="form-control" id="tickets${user.id}" name="tickets" value="${user.tickets || 0}" min="0">
+                                        <small class="form-text text-muted">Укажите новое количество жетонов для пользователя</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input type="checkbox" class="form-check-input" id="is_admin${user.id}" name="is_admin" ${user.is_admin ? 'checked' : ''}>
+                                            <label class="form-check-label" for="is_admin${user.id}">Администратор</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                                </div>
                             </form>
                         </div>
                     </div>
-                </div>
-            `;
-            modalsContainer.appendChild(deleteModal);
+                `;
+                modalsContainer.appendChild(editModal);
 
-            // Инициализация Bootstrap модальных окон
-            new bootstrap.Modal(infoModal);
-            new bootstrap.Modal(editModal);
-            new bootstrap.Modal(deleteModal);
+                // Модальное окно удаления
+                const deleteModal = document.createElement('div');
+                deleteModal.className = 'modal fade';
+                deleteModal.id = `deleteUserModal${user.id}`;
+                deleteModal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Подтверждение удаления</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Вы уверены, что хотите удалить пользователя "${user.username}"?</p>
+                                <p class="text-danger">Это действие нельзя отменить!</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                                <form action="/admin/users/${user.id}/delete" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-danger">Удалить</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                modalsContainer.appendChild(deleteModal);
+
+                // Инициализация Bootstrap модальных окон
+                new bootstrap.Modal(infoModal);
+                new bootstrap.Modal(editModal);
+                new bootstrap.Modal(deleteModal);
+            }
         });
     }
 
-    // Функция для показа модального окна уведомления
-    function showNotification(message) {
-        const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
-        document.getElementById('notificationMessage').textContent = message;
-        modal.show();
-    }
 
-    // Функция для показа модального окна подтверждения
-    function showConfirmModal(message, callback) {
-        const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-        document.getElementById('confirmMessage').textContent = message;
-        
-        const confirmButton = document.getElementById('confirmButton');
-        const oldClickHandler = confirmButton.onclick;
-        
-        confirmButton.onclick = function() {
-            modal.hide();
-            if (callback) {
-                callback();
+
+    // Обработчик формы обнуления счетов (если форма существует)
+    const resetBalancesForm = document.getElementById('resetBalancesForm');
+    if (resetBalancesForm) {
+        resetBalancesForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('adminPassword').value;
+            const button = document.getElementById('resetBalancesBtn');
+            
+            if (!confirm('Вы уверены, что хотите обнулить счет всех пользователей? Это действие нельзя отменить!')) {
+                return;
             }
-        };
-        
-        modal.show();
-    }
-
-    // Обработчик формы обнуления счетов
-    document.getElementById('resetBalancesForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const password = document.getElementById('adminPassword').value;
-        const button = document.getElementById('resetBalancesBtn');
-        
-        showConfirmModal('Вы уверены, что хотите обнулить счет всех пользователей? Это действие нельзя отменить!', async function() {
+            
             button.disabled = true;
             button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Обработка...';
             
@@ -718,20 +710,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    showNotification(data.message);
+                    alert(data.message);
                     setTimeout(() => location.reload(), 1500);
                 } else {
-                    showNotification(data.message);
+                    alert(data.message);
                 }
             } catch (error) {
-                showNotification('Произошла ошибка при выполнении операции');
+                alert('Произошла ошибка при выполнении операции');
             } finally {
                 button.disabled = false;
                 button.innerHTML = 'Обнулить счет всех пользователей';
                 document.getElementById('adminPassword').value = '';
             }
         });
-    });
+    }
 
     // Обработчик формы очистки данных
     const clearDataForm = document.getElementById('clearDataForm');
@@ -765,9 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearDataModal.hide();
                 
                 // Показываем уведомление
-                const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
-                document.getElementById('notificationMessage').textContent = data.message;
-                notificationModal.show();
+                alert(data.message);
                 
                 if (data.success) {
                     setTimeout(() => location.reload(), 1500);
@@ -781,7 +771,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('adminPassword').value = '';
             }
         });
-    }
     }
 
     // Обработчик формы массовой рассылки
@@ -825,9 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 massEmailModal.hide();
                 
                 // Показываем уведомление
-                const notificationModal = new bootstrap.Modal(document.getElementById('notificationModal'));
-                document.getElementById('notificationMessage').textContent = data.message;
-                notificationModal.show();
+                alert(data.message);
                 
                 if (data.success) {
                     // Очищаем форму
