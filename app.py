@@ -4370,7 +4370,8 @@ def update_category_ranks():
 # Добавляем вызов функции обновления рейтинга после изменения баланса пользователя
 @app.after_request
 def after_request(response):
-    if response.status_code == 200 and request.endpoint in ['submit_answer', 'buy_tickets', 'use_tickets']:
+    #if response.status_code == 200 and request.endpoint in ['submit_answer', 'buy_tickets', 'use_tickets']:
+    if response.status_code == 200 and request.endpoint in []:
         update_category_ranks()
     return response
 

@@ -214,7 +214,11 @@
                                         </td>
                                         <td>
                                             {% if task_data.is_solved %}
-                                                <span class="fw-bold">{{ task_data.user_answer or 'Пустой ответ' }}</span>
+                                                {% if task_data.user_answer and (task_data.user_answer.startswith('wrong_answer_due_to_')) %}
+                                                    <span class="fw-bold text-danger">нарушение</span>
+                                                {% else %}
+                                                    <span class="fw-bold">{{ task_data.user_answer or 'Пустой ответ' }}</span>
+                                                {% endif %}
                                             {% else %}
                                                 <span class="text-muted">Не решена</span>
                                             {% endif %}
@@ -294,7 +298,11 @@
                                         <div class="col-6">
                                             <strong>Ваш ответ:</strong><br>
                                             {% if task_data.is_solved %}
-                                                <span class="fw-bold">{{ task_data.user_answer or 'Пустой ответ' }}</span>
+                                                {% if task_data.user_answer and (task_data.user_answer.startswith('wrong_answer_due_to_')) %}
+                                                    <span class="fw-bold text-danger">нарушение</span>
+                                                {% else %}
+                                                    <span class="fw-bold">{{ task_data.user_answer or 'Пустой ответ' }}</span>
+                                                {% endif %}
                                             {% else %}
                                                 <span class="text-muted">Не решена</span>
                                             {% endif %}

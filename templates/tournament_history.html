@@ -103,7 +103,6 @@
                     <th>Решено задач</th>
                     <th>% решения</th>
                     <th>Заработано очков</th>
-                    <th>Общий счет</th>
                     <th>Действия</th>
                 </tr>
             </thead>
@@ -122,7 +121,6 @@
                     <td>{{ tournament.solved_tasks }}</td>
                     <td>{{ tournament.success_rate }}%</td>
                     <td>{{ tournament.earned_points }}</td>
-                    <td>{{ tournament.score }}</td>
                     <td>
                         {% if tournament.status == 'finished' %}
                             <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
@@ -186,10 +184,6 @@
                 <div class="tournament-stat-item">
                     <div class="tournament-stat-label">Заработано очков</div>
                     <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
-                </div>
-                <div class="tournament-stat-item">
-                    <div class="tournament-stat-label">Общий счет</div>
-                    <div class="tournament-stat-value">{{ tournament.score }}</div>
                 </div>
             </div>
             
