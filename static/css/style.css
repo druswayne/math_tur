@@ -752,6 +752,19 @@ footer a:hover i {
     footer h5 {
         margin-top: 2rem;
     }
+    .footer-contacts {
+        text-align: center !important;
+    }
+    .footer-contacts-phones {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem;
+    }
+    .footer-contacts-support a {
+        display: block;
+        margin-top: 0.2rem;
+    }
 }
 
 /* Адаптивные стили для навигации */
