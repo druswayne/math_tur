@@ -393,7 +393,7 @@ class User(UserMixin, db.Model):
     tickets = db.Column(db.Integer, default=0)
     tournaments_count = db.Column(db.Integer, default=0)
     total_tournament_time = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now())
     
     # Добавляем связь с турнирами через TournamentParticipation
@@ -434,8 +434,8 @@ class Tournament(db.Model):
     duration = db.Column(db.Integer, nullable=False)  # в минутах
     is_active = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(20), default='pending')  # pending, started, finished
-    created_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     # Добавляем отношения
     participants = db.relationship('User',
@@ -459,8 +459,8 @@ class Task(db.Model):
     topic = db.Column(db.String(200), nullable=True)  # Тема задачи
     solution_text = db.Column(db.Text, nullable=True)  # Текст решения
     solution_image = db.Column(db.String(200), nullable=True)  # Изображение решения
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now())
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now(), onupdate=datetime.now())
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
     tournament = db.relationship('Tournament', backref=db.backref('tasks', lazy=True))
 
@@ -490,8 +490,8 @@ class TournamentParticipation(db.Model):
     tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id', ondelete='CASCADE'), nullable=False)
     score = db.Column(db.Integer, default=0)
     place = db.Column(db.Integer)
-    participation_date = db.Column(db.DateTime, default=datetime.now())
-    start_time = db.Column(db.DateTime, default=datetime.now())  # Время начала участия в турнире
+    participation_date = db.Column(db.DateTime, default=datetime.now)
+    start_time = db.Column(db.DateTime, default=datetime.now)  # Время начала участия в турнире
     end_time = db.Column(db.DateTime, nullable=True)  # Время окончания участия в турнире
     
     user = db.relationship('User', 
@@ -505,7 +505,7 @@ class SolvedTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
-    solved_at = db.Column(db.DateTime, default=datetime.now())
+    solved_at = db.Column(db.DateTime, default=datetime.now)
     is_correct = db.Column(db.Boolean, default=False)
     user_answer = db.Column(db.String(200), nullable=True)  # Ответ пользователя
     
