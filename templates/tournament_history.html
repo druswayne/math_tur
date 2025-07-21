@@ -99,7 +99,7 @@
                 <tr>
                     <th>Дата</th>
                     <th>Название турнира</th>
-                    <th>Место</th>
+                    <th>Место в турнире</th>
                     <th>Решено задач</th>
                     <th>% решения</th>
                     <th>Заработано очков</th>
@@ -113,7 +113,7 @@
                     <td>{{ tournament.name }}</td>
                     <td>
                         {% if tournament.place %}
-                            {{ tournament.place }} место
+                            {{ tournament.place }}
                         {% else %}
                             -
                         {% endif %}

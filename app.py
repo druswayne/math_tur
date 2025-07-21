@@ -270,24 +270,26 @@ def end_tournament_job(tournament_id):
                 tournament.status = 'finished'
                 tournament.is_active = False
                 
-                # Обновляем места участников в турнире и устанавливаем время окончания
-                participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).order_by(TournamentParticipation.score.desc()).all()
-                
+                # Для каждой категории вычисляем места отдельно
+                from collections import defaultdict
+                participations_by_category = defaultdict(list)
+                participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).all()
+                for p in participations:
+                    if p.user and p.user.category:
+                        participations_by_category[p.user.category].append(p)
                 current_time = datetime.now()
-                
-                for rank, participation in enumerate(participations, 1):
-                    participation.place = rank
-                    # Устанавливаем время окончания участия, если оно еще не установлено
-                    if not participation.end_time:
-                        participation.end_time = current_time
-                    
-                    # Вычисляем время участия в турнире и добавляем к общему времени пользователя
-                    if participation.start_time and participation.end_time:
-                        time_spent = (participation.end_time - participation.start_time).total_seconds()
-                        # Добавляем время участия к общему времени пользователя
-                        participation.user.total_tournament_time += int(time_spent)
-
-                
+                for category, plist in participations_by_category.items():
+                    # Сортируем по score (баллы), затем по времени участия (меньше — выше)
+                    plist_sorted = sorted(plist, key=lambda p: (-p.score, (p.end_time or current_time) - (p.start_time or current_time)))
+                    for rank, participation in enumerate(plist_sorted, 1):
+                        participation.place = rank
+                        # Устанавливаем время окончания участия, если оно еще не установлено
+                        if not participation.end_time:
+                            participation.end_time = current_time
+                        # Вычисляем время участия в турнире и добавляем к общему времени пользователя
+                        if participation.start_time and participation.end_time:
+                            time_spent = (participation.end_time - participation.start_time).total_seconds()
+                            participation.user.total_tournament_time += int(time_spent)
                 # Обновляем рейтинги в категориях
                 update_category_ranks()
                 
