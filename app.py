@@ -3090,6 +3090,7 @@ def update_tournament_status():
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика из БД при запуске приложения"""
+
     try:
         # Получаем только задачи текущего сервера
         active_jobs = SchedulerJob.query.filter_by(
