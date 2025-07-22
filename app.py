@@ -3090,7 +3090,6 @@ def update_tournament_status():
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика из БД при запуске приложения"""
-
     try:
         # Получаем только задачи текущего сервера
         active_jobs = SchedulerJob.query.filter_by(
@@ -3118,6 +3117,10 @@ def restore_scheduler_jobs():
                     job_func = check_expired_payments
                     args = []
                     interval_hours = 1  # Интервальная задача каждый час
+                elif job.job_type == 'check_referral_bonuses':
+                    job_func = check_and_pay_referral_bonuses
+                    args = []
+                    interval_hours = 6  # Интервальная задача каждые 6 часов
                 else:
                     # Неизвестный тип задачи, пропускаем
                     continue
@@ -5188,6 +5191,24 @@ def initialize_scheduler_jobs():
             print("Создана задача проверки реферальных бонусов")
         else:
             print("Задача проверки реферальных бонусов уже существует")
+
+        # Настраиваем периодическую очистку сессий (только если задача еще не существует)
+        existing_cleanup_job = SchedulerJob.query.filter_by(
+            job_type='cleanup_sessions',
+            is_active=True
+        ).first()
+
+        if not existing_cleanup_job:
+            add_scheduler_job(
+                cleanup_old_sessions,
+                datetime.now() + timedelta(hours=24),  # run_date не используется для interval
+                None,
+                'cleanup_sessions',
+                interval_hours=24  # Интервальная задача каждые 24 часа
+            )
+            print("Создана задача очистки сессий")
+        else:
+            print("Задача очистки сессий уже существует")
     except Exception as e:
         print(f"Ошибка при инициализации задач планировщика: {e}")
 
@@ -5285,6 +5306,7 @@ def copy_referral_link():
 
 
 if __name__ == '__main__':
+    #logging.basicConfig(filename='err.log', level=logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
     with app.app_context():
         # Сначала создаем все таблицы
