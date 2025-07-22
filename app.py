@@ -142,6 +142,7 @@ def update_session_activity(session_token):
 # Инициализация планировщика
 scheduler = BackgroundScheduler(timezone='Europe/Moscow')
 scheduler.start()
+print(scheduler.timezone)
 
 # Запускаем обработчик очереди писем
 start_email_worker()
@@ -396,7 +397,7 @@ class User(UserMixin, db.Model):
     tournaments_count = db.Column(db.Integer, default=0)
     total_tournament_time = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.now)
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
     # Добавляем связь с турнирами через TournamentParticipation
     tournaments = db.relationship('Tournament', 
@@ -586,7 +587,7 @@ class ShopSettings(db.Model):
     top_users_percentage_9 = db.Column(db.Integer, default=100)    # 9 класс
     top_users_percentage_10 = db.Column(db.Integer, default=100)   # 10 класс
     top_users_percentage_11 = db.Column(db.Integer, default=100)   # 11 класс
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now)
 
     @staticmethod
     def get_settings():
@@ -3151,6 +3152,9 @@ def restore_scheduler_jobs():
                         id=job.job_id,
                         replace_existing=True
                     )
+                # Обновляем updated_at
+                job.updated_at = datetime.now()
+                db.session.commit()
                 
                 restored_count += 1
                 
@@ -4682,7 +4686,7 @@ class SchedulerJob(db.Model):
     is_active = db.Column(db.Boolean, default=True)  # Активна ли задача
     server_id = db.Column(db.String(100), nullable=False, index=True)  # Уникальный ID сервера
     created_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now)
     
     # Связь с турниром (если задача связана с турниром)
     tournament = db.relationship('Tournament', backref=db.backref('scheduler_jobs', lazy=True))
@@ -4694,7 +4698,7 @@ class EducationalInstitution(db.Model):
     name = db.Column(db.String(500), nullable=False)  # Название учреждения образования
     address = db.Column(db.Text, nullable=False)  # Адрес учреждения
     created_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now)
 
 class ReferralLink(db.Model):
     __tablename__ = "referral_links"
