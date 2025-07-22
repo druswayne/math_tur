@@ -4293,16 +4293,38 @@ def admin_delete_news(news_id):
 def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
     cleanup_all_sessions()
-    
-    # Добавляем задачу очистки сессий (только на одном сервере)
-    add_scheduler_job(
-        cleanup_old_sessions,
-        datetime.now() + timedelta(hours=24),  # run_date не используется для interval
-        None,
-        'cleanup_sessions',
-        interval_hours=24  # Интервальная задача каждые 24 часа
-    )
-    
+    with app.app_context():
+        # Сначала создаем все таблицы
+        print("Создание таблиц базы данных...")
+        db.create_all()
+
+        # Затем создаем администратора
+        print("Создание администратора...")
+        create_admin_user()
+
+        # Только после создания таблиц выполняем остальные операции
+        print("Очистка сессий...")
+        cleanup_all_sessions()
+
+        print("Восстановление задач планировщика...")
+        restore_scheduler_jobs()
+
+        print("Инициализация задач планировщика...")
+        initialize_scheduler_jobs()
+
+        print("Проверка истекших платежей...")
+        check_expired_payments()
+
+        print("Приложение готово к запуску!")
+    # # Добавляем задачу очистки сессий (только на одном сервере)
+    # add_scheduler_job(
+    #     cleanup_old_sessions,
+    #     datetime.now() + timedelta(hours=24),  # run_date не используется для interval
+    #     None,
+    #     'cleanup_sessions',
+    #     interval_hours=24  # Интервальная задача каждые 24 часа
+    # )
+    #
 
 
 @app.route('/change-password', methods=['POST'])
@@ -5308,27 +5330,5 @@ def copy_referral_link():
 if __name__ == '__main__':
     #logging.basicConfig(filename='err.log', level=logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
-    with app.app_context():
-        # Сначала создаем все таблицы
-        print("Создание таблиц базы данных...")
-        db.create_all()
-        
-        # Затем создаем администратора
-        print("Создание администратора...")
-        create_admin_user()
-        
-        # Только после создания таблиц выполняем остальные операции
-        print("Очистка сессий...")
-        cleanup_all_sessions()
-        
-        print("Восстановление задач планировщика...")
-        restore_scheduler_jobs()
-        
-        print("Инициализация задач планировщика...")
-        initialize_scheduler_jobs()
-        
-        print("Проверка истекших платежей...")
-        check_expired_payments()
-        
-        print("Приложение готово к запуску!")
+
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
