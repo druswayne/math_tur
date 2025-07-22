@@ -519,14 +519,14 @@ class TicketPackage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     price = db.Column(db.Float, nullable=False)  # Базовая цена за 1 билет
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
 class TicketDiscount(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     min_quantity = db.Column(db.Integer, nullable=False)  # Минимальное количество билетов для скидки
     discount = db.Column(db.Integer, nullable=False)  # Скидка в процентах
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     @staticmethod
     def get_discount_for_quantity(quantity):
@@ -546,7 +546,7 @@ class Prize(db.Model):
     quantity = db.Column(db.Integer, default=0)  # 0 означает неограниченное количество
     is_active = db.Column(db.Boolean, default=True)
     is_unique = db.Column(db.Boolean, default=False)  # Флаг уникального приза
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
 class PrizePurchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -568,7 +568,7 @@ class CartItem(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=1)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     
     user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('cart_items', lazy=True))
@@ -587,7 +587,7 @@ class ShopSettings(db.Model):
     top_users_percentage_9 = db.Column(db.Integer, default=100)    # 9 класс
     top_users_percentage_10 = db.Column(db.Integer, default=100)   # 10 класс
     top_users_percentage_11 = db.Column(db.Integer, default=100)   # 11 класс
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     @staticmethod
     def get_settings():
@@ -628,7 +628,7 @@ class TournamentSettings(db.Model):
     is_season_active = db.Column(db.Boolean, default=True)
     allow_category_change = db.Column(db.Boolean, default=True)  # Разрешить изменение группы
     closed_season_message = db.Column(db.Text, nullable=True)
-    updated_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now)
 
     @staticmethod
     def get_settings():
@@ -3121,7 +3121,7 @@ def restore_scheduler_jobs():
                 elif job.job_type == 'check_referral_bonuses':
                     job_func = check_and_pay_referral_bonuses
                     args = []
-                    interval_hours = 6  # Интервальная задача каждые 6 часов
+                    interval_hours = 1  # Интервальная задача каждые 6 часов
                 else:
                     # Неизвестный тип задачи, пропускаем
                     continue
@@ -4640,8 +4640,8 @@ class UserSession(db.Model):
     is_active = db.Column(db.Boolean, default=False)
     session_token = db.Column(db.String(255), unique=True, index=True)
     device_info = db.Column(db.String(255), nullable=True)
-    last_active = db.Column(db.DateTime, default=datetime.now())
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    last_active = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     user = db.relationship('User', backref=db.backref('sessions', lazy=True))
 
@@ -4685,8 +4685,8 @@ class SchedulerJob(db.Model):
     run_date = db.Column(db.DateTime, nullable=False)  # Время выполнения
     is_active = db.Column(db.Boolean, default=True)  # Активна ли задача
     server_id = db.Column(db.String(100), nullable=False, index=True)  # Уникальный ID сервера
-    created_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
     # Связь с турниром (если задача связана с турниром)
     tournament = db.relationship('Tournament', backref=db.backref('scheduler_jobs', lazy=True))
@@ -4697,8 +4697,8 @@ class EducationalInstitution(db.Model):
     id = db.Column(db.Integer, primary_key=True, index=True)
     name = db.Column(db.String(500), nullable=False)  # Название учреждения образования
     address = db.Column(db.Text, nullable=False)  # Адрес учреждения
-    created_at = db.Column(db.DateTime, default=datetime.now())
-    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 class ReferralLink(db.Model):
     __tablename__ = "referral_links"
@@ -4707,7 +4707,7 @@ class ReferralLink(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     referral_code = db.Column(db.String(50), unique=True, nullable=False, index=True)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Связи
     user = db.relationship('User', backref=db.backref('referral_links', lazy=True))
@@ -4722,7 +4722,7 @@ class Referral(db.Model):
     referral_link_id = db.Column(db.Integer, db.ForeignKey('referral_links.id'), nullable=False)
     bonus_paid = db.Column(db.Boolean, default=False)  # Выплачен ли бонус
     bonus_paid_at = db.Column(db.DateTime, nullable=True)  # Когда выплачен бонус
-    created_at = db.Column(db.DateTime, default=datetime.now())
+    created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Связи
     referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referrals_sent', lazy=True))
@@ -5209,10 +5209,10 @@ def initialize_scheduler_jobs():
         if not existing_referral_job:
             add_scheduler_job(
                 check_and_pay_referral_bonuses,
-                datetime.now() + timedelta(hours=2),  # Первый запуск через 2 часа
+                datetime.now() + timedelta(hours=1),  # Первый запуск через 2 часа
                 None,
                 'check_referral_bonuses',
-                interval_hours=6  # Повторять каждые 6 часов
+                interval_hours=1  # Повторять каждые 1 часов
             )
             print("Создана задача проверки реферальных бонусов")
         else:
