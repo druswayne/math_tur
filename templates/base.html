@@ -451,6 +451,65 @@
         .dropdown-toggle.show::after {
             transform: rotate(180deg);
         }
+
+        /* Убираем бордер у кнопок выпадающего меню и добавляем классические цвета */
+        .navbar-nav .dropdown-toggle {
+            border: none !important;
+            background: transparent !important;
+            color: #000 !important;
+            transition: all 0.3s ease;
+            cursor: pointer !important;
+            text-decoration: none !important;
+        }
+
+        .navbar-nav .dropdown-toggle:hover {
+            background-color: rgba(255, 140, 0, 0.1) !important;
+            color: #FF8C00 !important;
+            transform: translateY(-1px);
+        }
+
+        .navbar-nav .dropdown-toggle:focus {
+            box-shadow: none !important;
+            background-color: rgba(255, 140, 0, 0.2) !important;
+            color: #FF8C00 !important;
+        }
+
+        /* Стили для пунктов выпадающего меню при наведении */
+        .dropdown-item:hover {
+            background-color: rgba(255, 140, 0, 0.1) !important;
+            color: #FF8C00 !important;
+            transform: translateX(4px);
+        }
+
+        /* Стили для всех кнопок навигации при наведении */
+        .navbar-nav .nav-link:hover {
+            color: #FF8C00 !important;
+            background-color: rgba(255, 140, 0, 0.1) !important;
+            transform: translateY(-1px);
+            transition: all 0.3s ease;
+        }
+
+        .navbar-nav .nav-link:focus {
+            color: #FF8C00 !important;
+            background-color: rgba(255, 140, 0, 0.2) !important;
+            box-shadow: none !important;
+        }
+
+        /* Стили для кнопок с классами btn при наведении */
+        .navbar-nav .btn:hover {
+            background-color: rgba(255, 140, 0, 0.1) !important;
+            color: #FF8C00 !important;
+            border-color: #FF8C00 !important;
+            transform: translateY(-1px);
+            transition: all 0.3s ease;
+        }
+
+        .navbar-nav .btn:focus {
+            background-color: rgba(255, 140, 0, 0.2) !important;
+            color: #FF8C00 !important;
+            border-color: #FF8C00 !important;
+            box-shadow: 0 0 0 0.2rem rgba(255, 140, 0, 0.25) !important;
+        }
     </style>
     {% block styles %}{% endblock %}
     <meta name="mailru-domain" content="kHFPmeWpmZhlHcuQ" />
@@ -519,26 +578,47 @@
                 <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                         {% if current_user.is_admin %}
-                            <li class="nav-item">
-                                <a class="nav-link btn btn-outline-warning btn-sm" href="{{ url_for('admin_dashboard') }}">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="javascript:void(0)" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-cog me-1"></i><span>Панель администратора</span>
                                 </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('admin_dashboard') }}">
+                                            <i class="fas fa-cog me-2"></i>Панель администратора
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Выйти
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         {% else %}
-                            <li class="nav-item">
-                                <a class="nav-link btn btn-outline-primary btn-sm" href="{{ url_for('profile') }}">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="javascript:void(0)" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user me-1"></i><span>Личный кабинет</span>
                                 </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('profile') }}">
+                                            <i class="fas fa-user me-2"></i>Личный кабинет
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" href="{{ url_for('logout') }}">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Выйти
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">
-                                <i class="fas fa-sign-out-alt me-1"></i><span>Выйти</span>
-                            </a>
-                        </li>
                     {% else %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link btn btn-outline-warning btn-sm dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuButton">
+                            <a class="nav-link dropdown-toggle" href="javascript:void(0)" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuButton">
                                 <i class="fas fa-user me-1"></i><span>Личный кабинет</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
