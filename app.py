@@ -862,6 +862,11 @@ def home():
 def about():
     return render_template('about.html', title='О нас')
 
+@app.route('/cooperation')
+def cooperation():
+    """Страница сотрудничества с учителями"""
+    return render_template('cooperation.html', title='Сотрудничество')
+
 @app.route('/news')
 def news():
     # Получаем номер страницы из параметров запроса

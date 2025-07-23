@@ -98,7 +98,96 @@
 
         .flash-message.alert-warning {
             background-color: #ffc107;
-            color: #000;
+        }
+
+        /* Стили для улучшения навигации */
+        .navbar-nav .nav-link {
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            margin: 0 2px;
+        }
+
+        .navbar-nav .nav-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .navbar-nav .btn {
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 100px;
+        }
+
+        .navbar-nav .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .navbar-nav .btn-outline-primary {
+            border-color: #007bff;
+            color: #007bff;
+        }
+
+        .navbar-nav .btn-outline-primary:hover {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+
+        .navbar-nav .btn-outline-warning {
+            border-color: #ffc107;
+            color: #ffc107;
+        }
+
+        .navbar-nav .btn-outline-warning:hover {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #212529;
+        }
+
+        .navbar-nav .btn-outline-danger {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .navbar-nav .btn-outline-danger:hover {
+            background-color: #dc3545;
+            border-color: #dc3545;
+            color: white;
+        }
+
+        .navbar-nav .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+
+        .navbar-nav .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+            color: white;
+        }
+
+        /* Адаптивность для мобильных устройств */
+        @media (max-width: 768px) {
+            .navbar-nav .btn {
+                min-width: auto;
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            
+            .navbar-nav .nav-item {
+                margin-bottom: 5px;
+            }
+            
+            .navbar-nav .nav-link {
+                padding: 8px 12px;
+            }
         }
 
         .flash-message .btn-close {
@@ -273,6 +362,95 @@
             flex-direction: column;
             align-items: center;
         }
+
+        /* Исправление выравнивания иконок и текста в навигации */
+        .navbar-nav .nav-link {
+            display: flex !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+            flex-wrap: nowrap !important;
+        }
+
+        .navbar-nav .nav-link i {
+            flex-shrink: 0 !important;
+            margin-right: 0.25rem !important;
+        }
+
+        .navbar-nav .nav-link span {
+            flex-shrink: 0 !important;
+        }
+
+        /* Для кнопок в правой части навигации */
+        .navbar-nav .btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            white-space: nowrap !important;
+            flex-wrap: nowrap !important;
+        }
+
+        .navbar-nav .btn i {
+            flex-shrink: 0 !important;
+            margin-right: 0.25rem !important;
+        }
+
+        /* Стили для выпадающего меню пользователя */
+        .dropdown-menu {
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            margin-top: 8px;
+            min-width: 200px;
+        }
+
+        .dropdown-item {
+            padding: 10px 16px;
+            color: #333;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            margin: 2px 8px;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: #FF8C00;
+            transform: translateX(4px);
+        }
+
+        .dropdown-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .dropdown-divider {
+            margin: 8px 16px;
+            border-color: #e9ecef;
+        }
+
+        /* Анимация для выпадающего меню */
+        .dropdown-menu.show {
+            animation: dropdownFadeIn 0.2s ease-out;
+        }
+
+        @keyframes dropdownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Стили для кнопки выпадающего меню */
+        .dropdown-toggle::after {
+            margin-left: 0.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .dropdown-toggle.show::after {
+            transform: rotate(180deg);
+        }
     </style>
     {% block styles %}{% endblock %}
     <meta name="mailru-domain" content="kHFPmeWpmZhlHcuQ" />
@@ -303,43 +481,79 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Основное меню -->
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('home') }}">Главная</a>
+                        <a class="nav-link" href="{{ url_for('home') }}">
+                            <i class="fas fa-home me-1"></i><span>Главная</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('rating') }}">Общий рейтинг</a>
+                        <a class="nav-link" href="{{ url_for('rating') }}">
+                            <i class="fas fa-trophy me-1"></i><span>Общий рейтинг</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('news') }}">Новости</a>
+                        <a class="nav-link" href="{{ url_for('news') }}">
+                            <i class="fas fa-newspaper me-1"></i><span>Новости</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('about') }}">О нас</a>
+                        <a class="nav-link" href="{{ url_for('about') }}">
+                            <i class="fas fa-info-circle me-1"></i><span>О нас</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#footer" onclick="scrollToFooter()">Контакты</a>
+                        <a class="nav-link" href="#footer" onclick="scrollToFooter()">
+                            <i class="fas fa-phone me-1"></i><span>Контакты</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('cooperation') }}">
+                            <i class="fas fa-handshake me-1"></i><span>Сотрудничество</span>
+                        </a>
                     </li>
                 </ul>
-                <ul class="navbar-nav">
+                
+                <!-- Правая часть меню (авторизация) -->
+                <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                         {% if current_user.is_admin %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Панель администратора</a>
+                                <a class="nav-link btn btn-outline-warning btn-sm" href="{{ url_for('admin_dashboard') }}">
+                                    <i class="fas fa-cog me-1"></i><span>Панель администратора</span>
+                                </a>
                             </li>
                         {% else %}
                             <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('profile') }}">Личный кабинет</a>
+                                <a class="nav-link btn btn-outline-primary btn-sm" href="{{ url_for('profile') }}">
+                                    <i class="fas fa-user me-1"></i><span>Личный кабинет</span>
+                                </a>
                             </li>
                         {% endif %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">Выйти</a>
+                            <a class="nav-link btn btn-outline-danger btn-sm" href="{{ url_for('logout') }}">
+                                <i class="fas fa-sign-out-alt me-1"></i><span>Выйти</span>
+                            </a>
                         </li>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}" id="loginButton">Войти</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">Регистрация</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link btn btn-outline-warning btn-sm dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="userMenuButton">
+                                <i class="fas fa-user me-1"></i><span>Личный кабинет</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('login') }}" id="loginButton">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Войти
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('register') }}">
+                                        <i class="fas fa-user-plus me-2"></i>Регистрация
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                     {% endif %}
                 </ul>
@@ -443,13 +657,13 @@
                 cookieBanner.style.display = 'none';
             };
             
-            // Мерцание кнопки "Войти" для неавторизованных пользователей
-            const loginButton = document.getElementById('loginButton');
+            // Мерцание кнопки "Личный кабинет" для неавторизованных пользователей
+            const userMenuButton = document.getElementById('userMenuButton');
             const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
-            if (loginButton && !isAuthenticated) {
+            if (userMenuButton && !isAuthenticated) {
                 // Добавляем небольшую задержку перед началом мерцания
                 setTimeout(function() {
-                    loginButton.classList.add('login-button-pulse');
+                    userMenuButton.classList.add('login-button-pulse');
                 }, 1000);
             }
             
