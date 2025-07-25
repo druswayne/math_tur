@@ -227,7 +227,7 @@
                         <i class="fas fa-rocket me-2"></i>Готовы начать?
                     </h2>
                     <p class="lead mb-4">
-                        Присоединяйтесь к нашей образовательной платформе и помогите ученикам полюбить математику!
+                        Присоединяйтесь к нашей образовательной платформе!
                     </p>
                     <div class="d-flex justify-content-center gap-3 flex-wrap">
                         <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-4">
@@ -307,6 +307,79 @@
 
 .contact-item:hover {
     transform: scale(1.05);
+}
+
+@media (max-width: 767.98px) {
+    .container.mt-4 {
+        margin-top: 1rem !important;
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
+    }
+    .card-body.p-5 {
+        padding: 1.2rem !important;
+    }
+    .card-header {
+        padding: 0.7rem 1rem !important;
+        font-size: 1.1rem;
+    }
+    .display-4 {
+        font-size: 2rem !important;
+    }
+    h1, h2, h3, h4, h5 {
+        font-size: 1.1rem !important;
+    }
+    .feature-item h5 {
+        font-size: 1rem !important;
+    }
+    .feature-item p, .lead, .card-body p, .card-body li {
+        font-size: 0.97rem !important;
+    }
+    .step-circle {
+        width: 56px !important;
+        height: 56px !important;
+        font-size: 1.1rem !important;
+    }
+    .step-circle span {
+        font-size: 1.1rem !important;
+    }
+    .feature-icon i, .prize-card i, .contact-item i {
+        font-size: 1.2rem !important;
+    }
+    .prize-card {
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+    .card {
+        margin-bottom: 1.2rem !important;
+    }
+    .row > [class*='col-'] {
+        margin-bottom: 1rem !important;
+    }
+    .btn-lg, .btn {
+        font-size: 1rem !important;
+        padding: 0.7rem 1rem !important;
+        width: 100% !important;
+        display: block !important;
+        margin-bottom: 0.7rem;
+    }
+    .d-flex.justify-content-center.gap-3.flex-wrap {
+        flex-direction: column !important;
+        gap: 0 !important;
+        align-items: stretch !important;
+    }
+    .col-md-6, .col-md-4, .col-lg-8 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    .text-center.mb-5 {
+        margin-bottom: 1.2rem !important;
+    }
+    .card-header h3.mb-0 {
+        font-size: 1.1rem !important;
+    }
+    .contact-item {
+        padding: 0.7rem !important;
+    }
 }
 </style>
 {% endblock %} 
