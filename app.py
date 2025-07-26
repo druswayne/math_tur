@@ -2284,6 +2284,11 @@ def register():
         form_referral_code = sanitize_input(request.form.get('referral_code'), 50)
         if form_referral_code:
             referral_link = get_referral_link_by_code(form_referral_code)
+        
+        # Получаем код учителя из формы
+        form_teacher_code = sanitize_input(request.form.get('teacher_code'), 50)
+        if form_teacher_code:
+            teacher_invite_link = get_teacher_invite_link_by_code(form_teacher_code)
 
         if not is_valid_username(username):
             flash('Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.', 'danger')
@@ -2390,6 +2395,13 @@ def register():
                 flash('Вы зарегистрировались по реферальной ссылке!', 'info')
             except Exception as e:
                 print(f"Ошибка при создании реферала: {e}")
+
+        # Обрабатываем приглашение учителя
+        if teacher_invite_link:
+            try:
+                flash('Вы успешно прикреплены к учителю!', 'info')
+            except Exception as e:
+                print(f"Ошибка при прикреплении к учителю: {e}")
 
         # Отправляем письмо с подтверждением асинхронно
         send_confirmation_email(user)

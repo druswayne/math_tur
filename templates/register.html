@@ -17,7 +17,22 @@
                         {% endif %}
                     {% endwith %}
                     
+                    {% if teacher_invite_link %}
+                        <div class="alert alert-info">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-chalkboard-teacher me-2"></i>
+                                <div>
+                                    <strong>Регистрация по приглашению учителя</strong><br>
+                                    <small>Вы регистрируетесь по приглашению учителя. После регистрации вы будете привязаны к этому учителю.</small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    
                     <form method="POST" action="{{ url_for('register') }}" id="registerForm">
+                        {% if teacher_code %}
+                            <input type="hidden" name="teacher_code" value="{{ teacher_code }}">
+                        {% endif %}
                         <div class="mb-3">
                             <label for="username" class="form-label">Логин</label>
                             <div class="input-group">
@@ -160,6 +175,13 @@
                             <label for="referral_code" class="form-label">Реферальный код</label>
                             <input type="text" class="form-control" id="referral_code" name="referral_code" value="{{ referral_code }}" readonly>
                             <div class="form-text">Вы регистрируетесь по реферальной ссылке</div>
+                        </div>
+                        {% endif %}
+                        {% if teacher_code %}
+                        <div class="mb-3">
+                            <label for="teacher_code" class="form-label">Код учителя</label>
+                            <input type="text" class="form-control" id="teacher_code" name="teacher_code" value="{{ teacher_code }}" readonly>
+                            <div class="form-text">Вы регистрируетесь по приглашению учителя</div>
                         </div>
                         {% endif %}
                         <div class="mb-3 form-check">
