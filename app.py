@@ -101,35 +101,63 @@ def generate_session_token():
     """Генерирует уникальный токен сессии"""
     return secrets.token_urlsafe(32)
 
-def create_user_session(user_id, device_info=None):
-    """Создает новую сессию пользователя"""
-    # Деактивируем все существующие сессии пользователя
-    UserSession.query.filter_by(user_id=user_id).update({'is_active': False})
+def create_user_session(user_id, device_info=None, user_type='user', teacher_id=None):
+    """Создает новую сессию пользователя или учителя"""
+    if user_type == 'teacher':
+        # Деактивируем все существующие сессии учителя
+        UserSession.query.filter_by(teacher_id=teacher_id, user_type='teacher').update({'is_active': False})
+        
+        # Создаем новую сессию учителя
+        session_token = generate_session_token()
+        new_session = UserSession(
+            teacher_id=teacher_id,
+            user_type='teacher',
+            is_active=True,
+            session_token=session_token,
+            device_info=device_info
+        )
+    else:
+        # Деактивируем все существующие сессии пользователя
+        UserSession.query.filter_by(user_id=user_id, user_type='user').update({'is_active': False})
+        
+        # Создаем новую сессию пользователя
+        session_token = generate_session_token()
+        new_session = UserSession(
+            user_id=user_id,
+            user_type='user',
+            is_active=True,
+            session_token=session_token,
+            device_info=device_info
+        )
     
-    # Создаем новую сессию
-    session_token = generate_session_token()
-    new_session = UserSession(
-        user_id=user_id,
-        is_active=True,
-        session_token=session_token,
-        device_info=device_info
-    )
     db.session.add(new_session)
     db.session.commit()
     return session_token
 
-def deactivate_user_session(user_id):
-    """Деактивирует все сессии пользователя"""
-    UserSession.query.filter_by(user_id=user_id).update({'is_active': False})
+def deactivate_user_session(user_id, user_type='user', teacher_id=None):
+    """Деактивирует все сессии пользователя или учителя"""
+    if user_type == 'teacher':
+        UserSession.query.filter_by(teacher_id=teacher_id, user_type='teacher').update({'is_active': False})
+    else:
+        UserSession.query.filter_by(user_id=user_id, user_type='user').update({'is_active': False})
     db.session.commit()
 
-def is_session_active(user_id, session_token):
-    """Проверяет, активна ли сессия пользователя"""
-    session = UserSession.query.filter_by(
-        user_id=user_id,
-        session_token=session_token,
-        is_active=True
-    ).first()
+def is_session_active(user_id, session_token, user_type='user', teacher_id=None):
+    """Проверяет, активна ли сессия пользователя или учителя"""
+    if user_type == 'teacher':
+        session = UserSession.query.filter_by(
+            teacher_id=teacher_id,
+            session_token=session_token,
+            user_type='teacher',
+            is_active=True
+        ).first()
+    else:
+        session = UserSession.query.filter_by(
+            user_id=user_id,
+            session_token=session_token,
+            user_type='user',
+            is_active=True
+        ).first()
     return session is not None
 
 def update_session_activity(session_token):
@@ -189,18 +217,34 @@ def before_request():
     # Проверяем сессию для авторизованных пользователей
     if current_user.is_authenticated:
         session_token = session.get('session_token')
-        if not session_token or not is_session_active(current_user.id, session_token):
-            # Если сессия недействительна, выходим из системы
-            deactivate_user_session(current_user.id)
-            session.pop('session_token', None)
-            logout_user()
-            flash('Ваша сессия истекла или была завершена на другом устройстве. Пожалуйста, войдите снова.', 'error')
-            return redirect(url_for('login'))
+        user_type = session.get('user_type', 'user')
+        
+        # Определяем параметры для проверки сессии
+        if user_type == 'teacher':
+            # Для учителей
+            if not session_token or not is_session_active(None, session_token, 'teacher', current_user.id):
+                # Если сессия недействительна, выходим из системы
+                deactivate_user_session(None, 'teacher', current_user.id)
+                session.pop('session_token', None)
+                session.pop('user_type', None)
+                logout_user()
+                flash('Ваша сессия истекла или была завершена на другом устройстве. Пожалуйста, войдите снова.', 'error')
+                return redirect(url_for('login'))
         else:
-            # Обновляем время последней активности
-            update_session_activity(session_token)
-            # Делаем сессию постоянной
-            session.permanent = True
+            # Для обычных пользователей
+            if not session_token or not is_session_active(current_user.id, session_token, 'user'):
+                # Если сессия недействительна, выходим из системы
+                deactivate_user_session(current_user.id, 'user')
+                session.pop('session_token', None)
+                session.pop('user_type', None)
+                logout_user()
+                flash('Ваша сессия истекла или была завершена на другом устройстве. Пожалуйста, войдите снова.', 'error')
+                return redirect(url_for('login'))
+        
+        # Обновляем время последней активности
+        update_session_activity(session_token)
+        # Делаем сессию постоянной
+        session.permanent = True
 
 @app.teardown_request
 def teardown_request(exception=None):
@@ -414,6 +458,10 @@ class User(UserMixin, db.Model):
     
     educational_institution_id = db.Column(db.Integer, db.ForeignKey('educational_institutions.id'), nullable=True)
     educational_institution = db.relationship('EducationalInstitution', backref=db.backref('users', lazy=True))
+
+    # Связь с учителем
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=True, index=True)
+    teacher = db.relationship('Teacher', backref=db.backref('students', lazy=True))
 
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)
@@ -641,7 +689,12 @@ class TournamentSettings(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    # Проверяем, является ли ID учителем (начинается с 't')
+    if user_id.startswith('t'):
+        teacher_id = int(user_id[1:])  # Убираем префикс 't'
+        return Teacher.query.get(teacher_id)
+    else:
+        return User.query.get(int(user_id))
 
 def create_admin_user():
     admin = User.query.filter_by(username='admin').first()
@@ -701,6 +754,60 @@ def send_confirmation_email(user):
 {url_for('confirm_email', token=token, _external=True)}
 
 Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
+'''
+    add_to_queue(app, mail, msg)
+
+def send_teacher_confirmation_email(teacher):
+    """Отправляет письмо с подтверждением регистрации для учителя"""
+    token = teacher.generate_confirmation_token()
+    msg = Message('Подтверждение регистрации учителя',
+                  sender=app.config['MAIL_USERNAME'],
+                  recipients=[teacher.email])
+    msg.body = f'''Уважаемый {teacher.full_name}!
+
+Для подтверждения вашей регистрации как учителя перейдите по следующей ссылке:
+{url_for('confirm_teacher_email', token=token, _external=True)}
+
+После подтверждения вы получите доступ к личному кабинету учителя с возможностью:
+- Создавать пригласительные ссылки для учеников
+- Отслеживать прогресс приглашенных учеников
+- Участвовать в бонусной программе
+
+Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
+
+С уважением,
+Команда Math Tournament Platform
+'''
+    add_to_queue(app, mail, msg)
+
+def send_teacher_credentials_email(teacher, password):
+    """Отправляет учителю письмо с паролем после подтверждения email"""
+    msg = Message('Ваши данные для входа',
+                  sender=app.config['MAIL_USERNAME'],
+                  recipients=[teacher.email])
+    msg.body = f'''Уважаемый {teacher.full_name}!
+
+Ваш email успешно подтвержден! Теперь вы можете войти в систему как учитель.
+
+Ваши данные для входа:
+Логин: {teacher.username}
+Пароль: {password}
+
+Обязательно смените пароль после первого входа в систему!
+
+Для входа как учитель:
+1. Перейдите на страницу входа
+2. Введите свои данные
+3. Обязательно поставьте галочку "Я учитель"
+
+В личном кабинете учителя вы сможете:
+- Создавать пригласительные ссылки для учеников
+- Отслеживать прогресс приглашенных учеников
+- Просматривать статистику участия в турнирах
+- Участвовать в бонусной программе
+
+С уважением,
+Команда Math Tournament Platform
 '''
     add_to_queue(app, mail, msg)
 
@@ -958,10 +1065,14 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        is_teacher = request.form.get('is_teacher') == 'on'
         device_info = request.user_agent.string
 
-        # Изменяем поиск пользователя на регистронезависимый
-        user = User.query.filter(User.username.ilike(username)).first()
+        # Определяем, в какой таблице искать пользователя
+        if is_teacher:
+            user = Teacher.query.filter(Teacher.username.ilike(username)).first()
+        else:
+            user = User.query.filter(User.username.ilike(username)).first()
         
         if user and user.check_password(password):
             if user.is_blocked:
@@ -973,7 +1084,11 @@ def login():
                 return increment_login_attempts()
             
             # Проверяем, есть ли активная сессия
-            active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
+            if is_teacher:
+                active_session = UserSession.query.filter_by(teacher_id=user.id, user_type='teacher', is_active=True).first()
+            else:
+                active_session = UserSession.query.filter_by(user_id=user.id, user_type='user', is_active=True).first()
+            
             if active_session:
                 # Парсим информацию об устройстве
                 device_details = parse_user_agent(active_session.device_info or "Неизвестное устройство")
@@ -981,10 +1096,14 @@ def login():
                 return increment_login_attempts()
             
             # Создаем новую сессию
-            session_token = create_user_session(user.id, device_info)
+            if is_teacher:
+                session_token = create_user_session(None, device_info, 'teacher', user.id)
+            else:
+                session_token = create_user_session(user.id, device_info, 'user')
             
             # Сохраняем токен в сессии Flask и делаем её постоянной
             session['session_token'] = session_token
+            session['user_type'] = 'teacher' if is_teacher else 'user'
             session.permanent = True
             
             login_user(user)
@@ -993,7 +1112,14 @@ def login():
             
             flash('Вы успешно вошли в систему!', 'success')
             # Сбрасываем счетчик попыток входа
-            response = make_response(redirect(url_for('profile')))
+            
+            # Определяем куда перенаправить пользователя
+            if is_teacher:
+                redirect_url = url_for('teacher_profile')
+            else:
+                redirect_url = url_for('profile')
+            
+            response = make_response(redirect(redirect_url))
             response.set_cookie(
                 LOGIN_ATTEMPTS_COOKIE,
                 '0',  # Явно устанавливаем 0
@@ -1025,11 +1151,16 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
-    # Деактивируем сессию пользователя
-    deactivate_user_session(current_user.id)
+    # Определяем тип пользователя и деактивируем сессию
+    user_type = session.get('user_type', 'user')
+    if user_type == 'teacher':
+        deactivate_user_session(None, 'teacher', current_user.id)
+    else:
+        deactivate_user_session(current_user.id, 'user')
     
     # Очищаем сессию Flask
     session.pop('session_token', None)
+    session.pop('user_type', None)
     
     logout_user()
     flash('Вы успешно вышли из системы', 'success')
@@ -2094,12 +2225,16 @@ def validate_float(value, min_val=None, max_val=None):
 def check_username():
     data = request.get_json()
     username = data.get('username', '').strip()
+    user_type = data.get('type', 'user')  # 'user' или 'teacher'
     
     if not username:
         return jsonify({'available': False})
     
-    # Проверяем, существует ли пользователь с таким логином
-    existing_user = User.query.filter_by(username=username).first()
+    # Проверяем в зависимости от типа пользователя
+    if user_type == 'teacher':
+        existing_user = Teacher.query.filter(Teacher.username.ilike(username)).first()
+    else:
+        existing_user = User.query.filter(User.username.ilike(username)).first()
     
     return jsonify({'available': existing_user is None})
 
@@ -2107,22 +2242,32 @@ def check_username():
 def check_email():
     data = request.get_json()
     email = data.get('email', '').strip()
+    user_type = data.get('type', 'user')  # 'user' или 'teacher'
     
     if not email:
         return jsonify({'available': False})
     
-    # Проверяем, существует ли пользователь с таким email
-    existing_user = User.query.filter_by(email=email).first()
+    # Проверяем в зависимости от типа пользователя
+    if user_type == 'teacher':
+        existing_user = Teacher.query.filter_by(email=email).first()
+    else:
+        existing_user = User.query.filter_by(email=email).first()
     
     return jsonify({'available': existing_user is None})
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # Получаем реферальный код из параметров запроса
+    # Получаем реферальный код и код учителя из параметров запроса
     referral_code = request.args.get('ref')
+    teacher_code = request.args.get('teacher')
     referral_link = None
+    teacher_invite_link = None
+    
     if referral_code:
         referral_link = get_referral_link_by_code(referral_code)
+    
+    if teacher_code:
+        teacher_invite_link = get_teacher_invite_link_by_code(teacher_code)
     
     if request.method == 'POST':
         username = sanitize_input(request.form.get('username'), 80)
@@ -2217,6 +2362,10 @@ def register():
         user.set_password(password)
         user.temp_password = password
         
+        # Привязываем к учителю, если есть код приглашения
+        if teacher_invite_link:
+            user.teacher_id = teacher_invite_link.teacher_id
+        
         # Обрабатываем учреждение образования
         if edu_id:
             user.educational_institution_id = int(edu_id)
@@ -2248,7 +2397,119 @@ def register():
         flash('Письмо с подтверждением отправлено на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
         return redirect(url_for('login'))
 
-    return render_template('register.html', referral_code=referral_code)
+    return render_template('register.html', 
+                          referral_code=referral_code, 
+                          teacher_code=teacher_code,
+                          teacher_invite_link=teacher_invite_link)
+
+# Маршруты для учителей
+@app.route('/teacher-register', methods=['GET', 'POST'])
+def teacher_register():
+    if request.method == 'POST':
+        username = sanitize_input(request.form.get('username'), 80)
+        email = sanitize_input(request.form.get('email'), 120)
+        phone = sanitize_input(request.form.get('phone'), 20)
+        full_name = sanitize_input(request.form.get('full_name'), 100)
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        edu_id = request.form.get('educational_institution_id')
+        edu_name = sanitize_input(request.form.get('educational_institution_name'), 500)
+
+        # Валидация данных
+        if not is_valid_username(username):
+            flash('Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        if not validate_email(email):
+            flash('Некорректный email адрес', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        if not validate_name(full_name):
+            flash('ФИО может содержать только буквы, пробелы, дефисы и точки', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        if not validate_phone(phone):
+            flash('Некорректный номер телефона', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        is_strong, message = is_password_strong(password)
+        if not is_strong:
+            flash(message, 'danger')
+            return redirect(url_for('teacher_register'))
+
+        if password != confirm_password:
+            flash('Пароли не совпадают', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        # Получаем код страны и номер телефона
+        phone_country = request.form.get('phone_country', '+375')
+        phone_number = phone.strip()
+        
+        # Формируем полный номер телефона
+        full_phone = phone_country + phone_number
+        
+        # Проверяем формат номера в зависимости от страны
+        if phone_country == '+375':
+            if not re.match(r'^[0-9]{9}$', phone_number):
+                flash('Номер телефона Беларуси должен содержать 9 цифр', 'danger')
+                return redirect(url_for('teacher_register'))
+        elif phone_country == '+7':
+            if not re.match(r'^[0-9]{10}$', phone_number):
+                flash('Номер телефона России должен содержать 10 цифр', 'danger')
+                return redirect(url_for('teacher_register'))
+        else:
+            flash('Неподдерживаемый код страны', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        # Проверяем уникальность данных
+        if Teacher.query.filter(Teacher.username.ilike(username)).first():
+            flash('Учитель с таким логином уже существует', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        if Teacher.query.filter_by(email=email).first():
+            flash('Учитель с таким email уже существует', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        if Teacher.query.filter_by(phone=full_phone).first():
+            flash('Учитель с таким номером телефона уже существует', 'danger')
+            return redirect(url_for('teacher_register'))
+
+        teacher = Teacher(
+            username=username,
+            email=email,
+            phone=full_phone,
+            full_name=full_name
+        )
+        teacher.set_password(password)
+        teacher.temp_password = password
+        
+        # Обрабатываем учреждение образования
+        if edu_id:
+            teacher.educational_institution_id = int(edu_id)
+        elif edu_name:
+            # Проверяем, есть ли уже такое учреждение
+            existing = EducationalInstitution.query.filter_by(name=edu_name).first()
+            if existing:
+                teacher.educational_institution_id = existing.id
+            else:
+                new_edu = EducationalInstitution(name=edu_name, address='')
+                db.session.add(new_edu)
+                db.session.commit()
+                teacher.educational_institution_id = new_edu.id
+        
+        db.session.add(teacher)
+        db.session.commit()
+
+        # Создаем пригласительную ссылку для учителя
+        create_teacher_invite_link(teacher.id)
+
+        # Отправляем письмо с подтверждением
+        send_teacher_confirmation_email(teacher)
+        
+        flash('Письмо с подтверждением отправлено на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('teacher_register.html')
 
 @app.route('/confirm/<token>')
 def confirm_email(token):
@@ -2266,6 +2527,27 @@ def confirm_email(token):
             db.session.commit()
         
         flash('Email успешно подтвержден! Теперь вы можете войти.', 'success')
+    else:
+        flash('Недействительная или устаревшая ссылка подтверждения.', 'danger')
+    return redirect(url_for('login'))
+
+@app.route('/confirm-teacher/<token>')
+def confirm_teacher_email(token):
+    """Подтверждение email для учителя"""
+    teacher = Teacher.query.filter_by(email_confirmation_token=token).first()
+    if teacher:
+        teacher.is_active = True
+        teacher.email_confirmation_token = None
+        db.session.commit()
+        
+        # Отправляем письмо с учетными данными
+        password = teacher.temp_password
+        if password:
+            send_teacher_credentials_email(teacher, password)
+            teacher.temp_password = None
+            db.session.commit()
+        
+        flash('Email успешно подтвержден! Теперь вы можете войти как учитель.', 'success')
     else:
         flash('Недействительная или устаревшая ссылка подтверждения.', 'danger')
     return redirect(url_for('login'))
@@ -2324,6 +2606,66 @@ def profile():
                          next_tournament=next_tournament,
                          now=current_time,
                          settings=settings)
+
+@app.route('/teacher-profile')
+@login_required
+def teacher_profile():
+    """Личный кабинет учителя"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        flash('Доступ только для учителей', 'error')
+        return redirect(url_for('home'))
+    
+    # Получаем или создаем пригласительную ссылку
+    invite_link = create_teacher_invite_link(current_user.id)
+    
+    # Получаем статистику учеников
+    students = User.query.filter_by(teacher_id=current_user.id).all()
+    
+    # Подсчитываем статистику
+    total_students = len(students)
+    active_students = len([s for s in students if s.tournaments_count > 0])
+    
+    # Пагинация для списка учеников
+    page = request.args.get('page', 1, type=int)
+    per_page = 15  # Количество учеников на странице
+    
+    # Получаем учеников с пагинацией
+    students_paginated = User.query.filter_by(teacher_id=current_user.id)\
+        .order_by(User.created_at.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Получаем информацию об учениках для текущей страницы
+    students_info = []
+    for student in students_paginated.items:
+        # Получаем последний турнир ученика
+        last_participation = TournamentParticipation.query.filter_by(user_id=student.id)\
+            .order_by(TournamentParticipation.participation_date.desc()).first()
+        
+        students_info.append({
+            'id': student.id,
+            'username': student.username,
+            'student_name': student.student_name,
+            'parent_name': student.parent_name,
+            'email': student.email,
+            'phone': student.phone,
+            'category': student.category,
+            'balance': student.balance,
+            'tickets': student.tickets,
+            'tournaments_count': student.tournaments_count,
+            'created_at': student.created_at.strftime('%d.%m.%Y'),
+            'last_participation': last_participation.participation_date.strftime('%d.%m.%Y') if last_participation else 'Не участвовал',
+            'is_active': student.is_active,
+            'is_blocked': student.is_blocked
+        })
+    
+    return render_template('teacher_profile.html',
+                         title='Личный кабинет учителя',
+                         invite_link=invite_link,
+                         total_students=total_students,
+                         active_students=active_students,
+                         students_info=students_info,
+                         students_paginated=students_paginated)
 
 @app.route('/buy-tickets')
 @login_required
@@ -4641,7 +4983,9 @@ class UserSession(db.Model):
     __tablename__ = "user_sessions"
 
     id = db.Column(db.Integer, primary_key=True, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True, nullable=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), index=True, nullable=True)
+    user_type = db.Column(db.String(20), default='user', index=True)  # 'user' или 'teacher'
     is_active = db.Column(db.Boolean, default=False)
     session_token = db.Column(db.String(255), unique=True, index=True)
     device_info = db.Column(db.String(255), nullable=True)
@@ -4649,6 +4993,7 @@ class UserSession(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     user = db.relationship('User', backref=db.backref('sessions', lazy=True))
+    teacher = db.relationship('Teacher', backref=db.backref('sessions', lazy=True))
 
     def update_last_active(self):
         self.last_active = datetime.now()
@@ -4732,6 +5077,58 @@ class Referral(db.Model):
     # Связи
     referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referrals_sent', lazy=True))
     referred = db.relationship('User', foreign_keys=[referred_id], backref=db.backref('referrals_received', lazy=True))
+
+class Teacher(UserMixin, db.Model):
+    __tablename__ = "teachers"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    hashed_password = db.Column(db.String(128), nullable=False, index=True)
+    phone = db.Column(db.String(20), unique=True, nullable=True)
+    full_name = db.Column(db.String(100), nullable=False)  # ФИО учителя
+    is_active = db.Column(db.Boolean, default=False, index=True)
+    is_blocked = db.Column(db.Boolean, default=False, index=True)
+    block_reason = db.Column(db.Text, nullable=True)
+    email_confirmation_token = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    session_token = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    temp_password = db.Column(db.String(128), nullable=True)
+    reset_password_token = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    reset_password_token_expires = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Связь с образовательным учреждением
+    educational_institution_id = db.Column(db.Integer, db.ForeignKey('educational_institutions.id'), nullable=True)
+    educational_institution = db.relationship('EducationalInstitution', backref=db.backref('teachers', lazy=True))
+    
+    def set_password(self, password):
+        self.hashed_password = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.hashed_password, password)
+
+    def generate_confirmation_token(self):
+        token = secrets.token_urlsafe(32)
+        self.email_confirmation_token = token
+        db.session.commit()
+        return token
+    
+    def get_id(self):
+        """Возвращает ID для Flask-Login с префиксом 't' для учителей"""
+        return f't{self.id}'
+
+class TeacherInviteLink(db.Model):
+    __tablename__ = "teacher_invite_links"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False, index=True)
+    invite_code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # Связи
+    teacher = db.relationship('Teacher', backref=db.backref('invite_links', lazy=True))
 
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
@@ -4938,6 +5335,35 @@ def pay_referral_bonus(referral_id):
         return False
     
     return False
+
+# Функции для работы с пригласительными ссылками учителей
+def generate_teacher_invite_code():
+    """Генерирует уникальный код приглашения для учителя"""
+    while True:
+        code = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=10))
+        if not TeacherInviteLink.query.filter_by(invite_code=code).first():
+            return code
+
+def create_teacher_invite_link(teacher_id):
+    """Создает пригласительную ссылку для учителя"""
+    # Проверяем, есть ли уже активная ссылка
+    existing_link = TeacherInviteLink.query.filter_by(teacher_id=teacher_id, is_active=True).first()
+    if existing_link:
+        return existing_link
+    
+    invite_code = generate_teacher_invite_code()
+    new_link = TeacherInviteLink(
+        teacher_id=teacher_id,
+        invite_code=invite_code,
+        is_active=True
+    )
+    db.session.add(new_link)
+    db.session.commit()
+    return new_link
+
+def get_teacher_invite_link_by_code(code):
+    """Получает пригласительную ссылку учителя по коду"""
+    return TeacherInviteLink.query.filter_by(invite_code=code, is_active=True).first()
 
 def check_and_pay_referral_bonuses():
     """Проверяет и выплачивает бонусы за рефералов, которые участвовали в турнирах"""

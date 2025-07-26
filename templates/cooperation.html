@@ -87,6 +87,12 @@
                                 </div>
                             </div>
                             
+                            <!-- Кнопка регистрации учителя -->
+                            <div class="text-center mt-4">
+                                <a href="/teacher-register" class="btn btn-lg text-white fw-bold" style="background-color: #FF8C00; border-color: #FF8C00; padding: 12px 30px;">
+                                    <i class="fas fa-user-plus me-2"></i>Зарегистрироваться как учитель
+                                </a>
+                            </div>
 
                         </div>
                     </div>
@@ -230,8 +236,8 @@
                         Присоединяйтесь к нашей образовательной платформе!
                     </p>
                     <div class="d-flex justify-content-center gap-3 flex-wrap">
-                        <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-4">
-                            <i class="fas fa-user-plus me-2"></i>Зарегистрироваться
+                        <a href="{{ url_for('teacher_register') }}" class="btn btn-light btn-lg px-4">
+                            <i class="fas fa-user-plus me-2"></i>Зарегистрироваться как учитель
                         </a>
                         <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg px-4">
                             <i class="fas fa-sign-in-alt me-2"></i>Войти в систему
