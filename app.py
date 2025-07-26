@@ -1365,10 +1365,31 @@ def admin_delete_user(user_id):
         flash('Вы не можете удалить свой аккаунт', 'danger')
         return redirect(url_for('admin_users'))
     
-    db.session.delete(user)
-    db.session.commit()
+    try:
+        # Удаляем связанные записи в правильном порядке
+        # 1. Удаляем реферальные ссылки пользователя
+        ReferralLink.query.filter_by(user_id=user.id).delete()
+        
+        # 2. Удаляем рефералы, где пользователь является приглашенным
+        Referral.query.filter_by(referred_id=user.id).delete()
+        
+        # 3. Удаляем рефералы, где пользователь является пригласившим
+        Referral.query.filter_by(referrer_id=user.id).delete()
+        
+        # 4. Удаляем сессии пользователя
+        UserSession.query.filter_by(user_id=user.id, user_type='user').delete()
+        
+        # 5. Удаляем самого пользователя
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash('Пользователь успешно удален', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при удалении пользователя: {e}")
+        flash('Произошла ошибка при удалении пользователя', 'danger')
     
-    flash('Пользователь успешно удален', 'success')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/users/<int:user_id>/toggle-block', methods=['POST'])
@@ -5072,8 +5093,8 @@ class ReferralLink(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Связи
-    user = db.relationship('User', backref=db.backref('referral_links', lazy=True))
-    referrals = db.relationship('Referral', backref='referral_link', lazy=True)
+    user = db.relationship('User', backref=db.backref('referral_links', lazy=True, cascade='all, delete-orphan'))
+    referrals = db.relationship('Referral', backref='referral_link', lazy=True, cascade='all, delete-orphan')
 
 class Referral(db.Model):
     __tablename__ = "referrals"
@@ -5087,8 +5108,8 @@ class Referral(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Связи
-    referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referrals_sent', lazy=True))
-    referred = db.relationship('User', foreign_keys=[referred_id], backref=db.backref('referrals_received', lazy=True))
+    referrer = db.relationship('User', foreign_keys=[referrer_id], backref=db.backref('referrals_sent', lazy=True, cascade='all, delete-orphan'))
+    referred = db.relationship('User', foreign_keys=[referred_id], backref=db.backref('referrals_received', lazy=True, cascade='all, delete-orphan'))
 
 class Teacher(UserMixin, db.Model):
     __tablename__ = "teachers"
