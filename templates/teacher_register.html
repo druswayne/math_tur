@@ -1,0 +1,686 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Регистрация учителя</h3>
+                </div>
+                <div class="card-body">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="{{ url_for('teacher_register') }}" id="teacherRegisterForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Логин</label>
+                            <div class="input-group">
+                            <input type="text" class="form-control" id="username" name="username" required>
+                                <span class="input-group-text validation-icon" id="username-icon">
+                                    <i class="fas fa-spinner fa-spin" style="display: none;"></i>
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                                </div>
+                            <div class="form-text">Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Пароль</label>
+                            <div class="input-group">
+                            <input type="password" class="form-control" id="password" name="password" required>
+                                <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Показать/скрыть пароль">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <span class="input-group-text validation-icon" id="password-icon">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                            </div>
+                            <div class="password-requirements mt-2" id="password-requirements">
+                                <small class="text-muted">Требования к паролю:</small>
+                                <ul class="list-unstyled mt-1 mb-0">
+                                    <li id="req-length"><i class="fas fa-circle text-muted"></i> Минимум 8 символов</li>
+                                    <li id="req-uppercase"><i class="fas fa-circle text-muted"></i> Заглавная буква</li>
+                                    <li id="req-lowercase"><i class="fas fa-circle text-muted"></i> Строчная буква</li>
+                                    <li id="req-number"><i class="fas fa-circle text-muted"></i> Цифра</li>
+                                    <li id="req-special"><i class="fas fa-circle text-muted"></i> Специальный символ (!@#$%^&*()_+-=[]{}|;:,.<>?)</li>
+                                </ul>
+                                </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">Подтвердите пароль</label>
+                            <div class="input-group">
+                            <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                <button type="button" class="btn btn-outline-secondary" id="toggleConfirmPassword" title="Показать/скрыть пароль">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <span class="input-group-text validation-icon" id="confirm_password-icon">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                                </div>
+                        </div>
+
+                        <hr class="my-4" style="border: 2px solid grey; border-radius: 1px; opacity: 0.8; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                        
+                        <div class="mb-3">
+                            <label for="full_name" class="form-label">Фамилия, имя, отчество</label>
+                            <div class="input-group">
+                            <input type="text" class="form-control" id="full_name" name="full_name" required>
+                                <span class="input-group-text validation-icon" id="full_name-icon">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                                </div>
+                            <div class="form-text">Введите ваши фамилию, имя и отчество на русском языке. Минимум 2 символа.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Номер телефона</label>
+                            <div class="input-group">
+                                <select class="form-select" id="phone_country" style="max-width: 120px;">
+                                    <option value="+375">🇧🇾 +375</option>
+                                    <option value="+7">🇷🇺 +7</option>
+                                </select>
+                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="XXXXXXXXX" required>
+                                <span class="input-group-text validation-icon" id="phone-icon">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                                </div>
+                            <div class="form-text">Введите номер телефона без кода страны. Пример: 291234567</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <div class="input-group">
+                            <input type="email" class="form-control" id="email" name="email" required>
+                                <span class="input-group-text validation-icon" id="email-icon">
+                                    <i class="fas fa-spinner fa-spin" style="display: none;"></i>
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                                </div>
+                            <div class="form-text">На этот адрес будет отправлено письмо с подтверждением регистрации</div>
+                        </div>
+
+                        <!-- Поле для выбора учреждения образования -->
+                        <div class="mb-3">
+                            <label for="educational_institution" class="form-label">Учреждение образования</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="educational_institution_search" 
+                                       placeholder="Начните вводить название учреждения..." autocomplete="off">
+                                <span class="input-group-text validation-icon" id="educational_institution-icon">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
+                                </div>
+                            
+                            <!-- Скрытое поле для ID выбранного учреждения -->
+                            <input type="hidden" id="educational_institution_id" name="educational_institution_id">
+                            
+                            <!-- Поле для названия нового учреждения -->
+                            <input type="hidden" id="educational_institution_name" name="educational_institution_name">
+                            
+                            <!-- Список результатов поиска -->
+                            <div id="institution_results" class="list-group position-absolute w-100" style="z-index: 1000; display: none; max-height: 200px; overflow-y: auto;"></div>
+                            
+                            <div class="form-text">Выберите учреждение из списка или введите новое название</div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="agree_terms" name="agree_terms" required>
+                            <label class="form-check-label" for="agree_terms">
+                                Я согласен с <a href="/privacy-policy" target="_blank">пользовательским соглашением</a> и <a href="/privacy-policy" target="_blank">политикой конфиденциальности</a>
+                            </label>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="registerButton">
+                                <i class="fas fa-user-plus me-2"></i>Зарегистрироваться как учитель
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="text-center mt-3">
+                        <p class="mb-0">Уже есть аккаунт? <a href="/login" class="text-decoration-none">Войти в систему</a></p>
+                        <p class="mb-0">Вы ученик? <a href="/register" class="text-decoration-none">Регистрация для учеников</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Оверлей для регистрации -->
+<div id="registerOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Создается аккаунт учителя...</p>
+        <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
+    </div>
+</div>
+
+<style>
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    color: white;
+}
+
+.loading-spinner {
+    text-align: center;
+}
+
+.password-requirements li {
+    transition: all 0.3s ease;
+}
+
+.password-requirements li.valid {
+    color: #28a745 !important;
+}
+
+.password-requirements li.valid i {
+    color: #28a745 !important;
+}
+
+.password-requirements li.invalid {
+    color: #dc3545 !important;
+}
+
+.password-requirements li.invalid i {
+    color: #dc3545 !important;
+}
+
+.validation-icon {
+    width: 40px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функции валидации (аналогично обычной регистрации)
+    const form = document.getElementById('teacherRegisterForm');
+    const usernameField = document.getElementById('username');
+    const passwordField = document.getElementById('password');
+    const confirmPasswordField = document.getElementById('confirm_password');
+    const fullNameField = document.getElementById('full_name');
+    const phoneField = document.getElementById('phone');
+    const emailField = document.getElementById('email');
+    const agreeTermsField = document.getElementById('agree_terms');
+    const submitButton = document.getElementById('registerButton');
+    const overlay = document.getElementById('registerOverlay');
+
+    // Валидация логина
+    function validateUsername() {
+        const username = usernameField.value;
+        const icon = document.querySelector('#username-icon');
+        const spinner = icon.querySelector('.fa-spinner');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        // Скрываем все иконки
+        spinner.style.display = 'none';
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        if (username.length < 3) {
+            times.style.display = 'inline';
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            times.style.display = 'inline';
+            return false;
+        }
+        
+        if (!/[a-zA-Z]/.test(username)) {
+            times.style.display = 'inline';
+            return false;
+        }
+        
+        // Проверяем уникальность логина
+        spinner.style.display = 'inline';
+        
+        fetch('/check-username', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({username: username, type: 'teacher'})
+        })
+        .then(response => response.json())
+        .then(data => {
+            spinner.style.display = 'none';
+            if (data.available) {
+                check.style.display = 'inline';
+                usernameField.isValid = true;
+            } else {
+                times.style.display = 'inline';
+                usernameField.isValid = false;
+            }
+            checkFormValidity();
+        })
+        .catch(error => {
+            spinner.style.display = 'none';
+            times.style.display = 'inline';
+            usernameField.isValid = false;
+            checkFormValidity();
+        });
+        
+        return true;
+    }
+
+    // Валидация пароля
+    function validatePassword() {
+        const password = passwordField.value;
+        const icon = document.querySelector('#password-icon');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        let isValid = true;
+        
+        // Проверяем длину
+        const lengthReq = document.getElementById('req-length');
+        if (password.length >= 8) {
+            lengthReq.classList.remove('invalid');
+            lengthReq.classList.add('valid');
+        } else {
+            lengthReq.classList.remove('valid');
+            lengthReq.classList.add('invalid');
+            isValid = false;
+        }
+        
+        // Проверяем заглавные буквы
+        const uppercaseReq = document.getElementById('req-uppercase');
+        if (/[A-Z]/.test(password)) {
+            uppercaseReq.classList.remove('invalid');
+            uppercaseReq.classList.add('valid');
+        } else {
+            uppercaseReq.classList.remove('valid');
+            uppercaseReq.classList.add('invalid');
+            isValid = false;
+        }
+        
+        // Проверяем строчные буквы
+        const lowercaseReq = document.getElementById('req-lowercase');
+        if (/[a-z]/.test(password)) {
+            lowercaseReq.classList.remove('invalid');
+            lowercaseReq.classList.add('valid');
+        } else {
+            lowercaseReq.classList.remove('valid');
+            lowercaseReq.classList.add('invalid');
+            isValid = false;
+        }
+        
+        // Проверяем цифры
+        const numberReq = document.getElementById('req-number');
+        if (/[0-9]/.test(password)) {
+            numberReq.classList.remove('invalid');
+            numberReq.classList.add('valid');
+        } else {
+            numberReq.classList.remove('valid');
+            numberReq.classList.add('invalid');
+            isValid = false;
+        }
+        
+        // Проверяем специальные символы
+        const specialReq = document.getElementById('req-special');
+        if (/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password)) {
+            specialReq.classList.remove('invalid');
+            specialReq.classList.add('valid');
+        } else {
+            specialReq.classList.remove('valid');
+            specialReq.classList.add('invalid');
+            isValid = false;
+        }
+        
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        if (password.length > 0) {
+            if (isValid) {
+                check.style.display = 'inline';
+            } else {
+                times.style.display = 'inline';
+            }
+        }
+        
+        passwordField.isValid = isValid;
+        validateConfirmPassword(); // Перепроверяем подтверждение пароля
+        return isValid;
+    }
+    
+    // Валидация подтверждения пароля
+    function validateConfirmPassword() {
+        const password = passwordField.value;
+        const confirmPassword = confirmPasswordField.value;
+        const icon = document.querySelector('#confirm_password-icon');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        if (confirmPassword.length > 0) {
+            if (password === confirmPassword && passwordField.isValid) {
+                check.style.display = 'inline';
+                confirmPasswordField.isValid = true;
+            } else {
+                times.style.display = 'inline';
+                confirmPasswordField.isValid = false;
+            }
+        } else {
+            confirmPasswordField.isValid = false;
+        }
+        
+        return confirmPasswordField.isValid;
+    }
+
+    // Валидация ФИО
+    function validateFullName() {
+        const fullName = fullNameField.value;
+        const icon = document.querySelector('#full_name-icon');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        if (fullName.length >= 2 && /^[а-яёА-ЯЁ\s\-\.]+$/.test(fullName)) {
+            check.style.display = 'inline';
+            fullNameField.isValid = true;
+        } else if (fullName.length > 0) {
+            times.style.display = 'inline';
+            fullNameField.isValid = false;
+        } else {
+            fullNameField.isValid = false;
+        }
+        
+        return fullNameField.isValid;
+    }
+
+    // Валидация телефона
+    function validatePhone() {
+        const phone = phoneField.value;
+        const phoneCountry = document.getElementById('phone_country').value;
+        const icon = document.querySelector('#phone-icon');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        let isValid = false;
+        
+        if (phoneCountry === '+375' && /^[0-9]{9}$/.test(phone)) {
+            isValid = true;
+        } else if (phoneCountry === '+7' && /^[0-9]{10}$/.test(phone)) {
+            isValid = true;
+        }
+        
+        if (phone.length > 0) {
+            if (isValid) {
+                check.style.display = 'inline';
+            } else {
+                times.style.display = 'inline';
+            }
+        }
+        
+        phoneField.isValid = isValid;
+        return isValid;
+    }
+
+    // Валидация email
+    function validateEmail() {
+        const email = emailField.value;
+        const icon = document.querySelector('#email-icon');
+        const spinner = icon.querySelector('.fa-spinner');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        spinner.style.display = 'none';
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            if (email.length > 0) {
+                times.style.display = 'inline';
+            }
+            emailField.isValid = false;
+            return false;
+        }
+        
+        // Проверяем уникальность email
+        spinner.style.display = 'inline';
+        
+        fetch('/check-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({email: email, type: 'teacher'})
+        })
+        .then(response => response.json())
+        .then(data => {
+            spinner.style.display = 'none';
+            if (data.available) {
+                check.style.display = 'inline';
+                emailField.isValid = true;
+            } else {
+                times.style.display = 'inline';
+                emailField.isValid = false;
+            }
+            checkFormValidity();
+        })
+        .catch(error => {
+            spinner.style.display = 'none';
+            times.style.display = 'inline';
+            emailField.isValid = false;
+            checkFormValidity();
+        });
+        
+        return true;
+    }
+
+    // Проверка общей валидности формы
+    function checkFormValidity() {
+        const isValid = usernameField.isValid && 
+                       passwordField.isValid && 
+                       confirmPasswordField.isValid && 
+                       fullNameField.isValid && 
+                       phoneField.isValid && 
+                       emailField.isValid && 
+                       agreeTermsField.checked;
+        
+        submitButton.disabled = !isValid;
+        
+        if (isValid) {
+            submitButton.classList.remove('btn-secondary');
+            submitButton.classList.add('btn-primary');
+        } else {
+            submitButton.classList.remove('btn-primary');
+            submitButton.classList.add('btn-secondary');
+        }
+    }
+
+    // Обработчики событий
+    usernameField.addEventListener('input', validateUsername);
+    passwordField.addEventListener('input', validatePassword);
+    confirmPasswordField.addEventListener('input', validateConfirmPassword);
+    fullNameField.addEventListener('input', validateFullName);
+    phoneField.addEventListener('input', validatePhone);
+    emailField.addEventListener('input', validateEmail);
+    agreeTermsField.addEventListener('change', checkFormValidity);
+    
+    // Показать/скрыть пароль
+    document.getElementById('togglePassword').addEventListener('click', function() {
+        const passwordField = document.getElementById('password');
+        const icon = this.querySelector('i');
+        
+        if (passwordField.type === 'password') {
+            passwordField.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            passwordField.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    });
+
+    document.getElementById('toggleConfirmPassword').addEventListener('click', function() {
+        const confirmPasswordField = document.getElementById('confirm_password');
+        const icon = this.querySelector('i');
+        
+        if (confirmPasswordField.type === 'password') {
+            confirmPasswordField.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            confirmPasswordField.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    });
+
+    // Автокомплит для учебных заведений
+    const searchField = document.getElementById('educational_institution_search');
+    const resultsContainer = document.getElementById('institution_results');
+    const institutionIdField = document.getElementById('educational_institution_id');
+    const institutionNameField = document.getElementById('educational_institution_name');
+    
+    let searchTimeout;
+    
+    searchField.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (query.length < 2) {
+            resultsContainer.style.display = 'none';
+            institutionIdField.value = '';
+            institutionNameField.value = '';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/search-educational-institutions?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsContainer.innerHTML = '';
+                    
+                    if (data.institutions.length > 0) {
+                        data.institutions.forEach(institution => {
+                            const item = document.createElement('button');
+                            item.type = 'button';
+                            item.className = 'list-group-item list-group-item-action';
+                            item.innerHTML = `
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${institution.name}</h6>
+                                </div>
+                                <p class="mb-1">${institution.address}</p>
+                            `;
+                            
+                            item.addEventListener('click', function() {
+                                searchField.value = institution.name;
+                                institutionIdField.value = institution.id;
+                                institutionNameField.value = '';
+                                resultsContainer.style.display = 'none';
+                            });
+                            
+                            resultsContainer.appendChild(item);
+                        });
+                        
+                        resultsContainer.style.display = 'block';
+                    } else {
+                        // Предлагаем создать новое учреждение
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action text-muted';
+                        item.innerHTML = `
+                            <div class="text-center">
+                                <i class="fas fa-plus me-2"></i>
+                                Создать новое: "${query}"
+                            </div>
+                        `;
+                        
+                        item.addEventListener('click', function() {
+                            searchField.value = query;
+                            institutionIdField.value = '';
+                            institutionNameField.value = query;
+                            resultsContainer.style.display = 'none';
+                        });
+                        
+                        resultsContainer.appendChild(item);
+                        resultsContainer.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка поиска:', error);
+                    resultsContainer.style.display = 'none';
+                });
+        }, 300);
+    });
+
+    // Скрыть результаты при клике вне области
+    document.addEventListener('click', function(e) {
+        if (!searchField.contains(e.target) && !resultsContainer.contains(e.target)) {
+            resultsContainer.style.display = 'none';
+        }
+    });
+
+    // Обработка отправки формы
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!submitButton.disabled) {
+            overlay.style.display = 'flex';
+            
+            // Добавляем код страны к номеру телефона
+            const phoneCountry = document.getElementById('phone_country').value;
+            const phoneNumber = phoneField.value;
+            const fullPhone = phoneCountry + phoneNumber;
+            
+            // Создаем скрытое поле для полного номера телефона
+            const hiddenPhoneField = document.createElement('input');
+            hiddenPhoneField.type = 'hidden';
+            hiddenPhoneField.name = 'phone_country';
+            hiddenPhoneField.value = phoneCountry;
+            form.appendChild(hiddenPhoneField);
+            
+            // Отправляем форму
+            form.submit();
+        }
+    });
+
+    // Инициализация валидности полей
+    usernameField.isValid = false;
+    passwordField.isValid = false;
+    confirmPasswordField.isValid = false;
+    fullNameField.isValid = false;
+    phoneField.isValid = false;
+    emailField.isValid = false;
+    
+    checkFormValidity();
+});
+</script>
+{% endblock %} 

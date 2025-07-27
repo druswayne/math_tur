@@ -2630,7 +2630,7 @@ def profile():
                 next_tournament = tournament
                 break
     
-    user_rank = get_user_rank(current_user.id)
+    user_rank = current_user.category_rank
     settings = TournamentSettings.get_settings()
     
     return render_template('profile.html', 
@@ -2699,6 +2699,126 @@ def teacher_profile():
                          active_students=active_students,
                          students_info=students_info,
                          students_paginated=students_paginated)
+
+@app.route('/teacher/student/<int:student_id>/details')
+@login_required
+def teacher_student_details(student_id):
+    """Просмотр подробной информации об учащемся учителем"""
+    # Проверяем, что текущий пользователь - учитель
+    if not hasattr(current_user, 'full_name') or not current_user.full_name:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    # Получаем учащегося и проверяем, что он принадлежит текущему учителю
+    student = User.query.filter_by(id=student_id, teacher_id=current_user.id).first()
+    if not student:
+        flash('Учащийся не найден или не принадлежит вам', 'danger')
+        return redirect(url_for('teacher_profile'))
+    
+    # Получаем статистику учащегося
+    from sqlalchemy import func, case
+    
+    # Общая статистика
+    total_tournaments = student.tournaments_count
+    total_balance = student.balance
+    total_tickets = student.tickets
+    
+    # Место в рейтинге категории (берем из поля category_rank)
+    category_rank = student.category_rank
+    
+    # Статистика по турнирам
+    tournaments_stats = db.session.query(
+        func.count(TournamentParticipation.id).label('total_participations'),
+        func.sum(TournamentParticipation.score).label('total_score'),
+        func.avg(TournamentParticipation.score).label('avg_score'),
+        func.max(TournamentParticipation.score).label('best_score'),
+        func.min(TournamentParticipation.place).label('best_place')
+    ).filter(
+        TournamentParticipation.user_id == student.id
+    ).first()
+    
+    # Статистика по решенным задачам
+    tasks_stats = db.session.query(
+        func.count(SolvedTask.id).label('total_solved'),
+        func.sum(case((SolvedTask.is_correct == True, 1), else_=0)).label('correct_solved'),
+        func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('total_points')
+    ).join(
+        Task, SolvedTask.task_id == Task.id
+    ).filter(
+        SolvedTask.user_id == student.id
+    ).first()
+    
+    # Получаем историю турниров учащегося
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    
+    tournaments_query = db.session.query(
+        Tournament,
+        TournamentParticipation.score,
+        TournamentParticipation.place,
+        func.count(SolvedTask.id).label('solved_tasks'),
+        func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points'),
+        func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks'),
+        func.count(Task.id).label('total_tasks')
+    ).join(
+        TournamentParticipation,
+        Tournament.id == TournamentParticipation.tournament_id
+    ).outerjoin(
+        Task,
+        Tournament.id == Task.tournament_id
+    ).outerjoin(
+        SolvedTask,
+        (Task.id == SolvedTask.task_id) & (SolvedTask.user_id == student.id)
+    ).filter(
+        TournamentParticipation.user_id == student.id
+    ).group_by(
+        Tournament.id,
+        TournamentParticipation.score,
+        TournamentParticipation.place
+    ).order_by(
+        Tournament.start_date.desc()
+    )
+    
+    tournaments_paginated = tournaments_query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Преобразуем результаты в список словарей
+    tournament_list = []
+    for tournament, score, place, solved_tasks, earned_points, correct_tasks, total_tasks in tournaments_paginated.items:
+        success_rate = round((correct_tasks or 0) / (total_tasks or 1) * 100, 1)
+        
+        tournament_list.append({
+            'id': tournament.id,
+            'name': tournament.title,
+            'start_date': tournament.start_date,
+            'status': tournament.status,
+            'solved_tasks': solved_tasks or 0,
+            'earned_points': earned_points or 0,
+            'score': score or 0,
+            'place': place,
+            'success_rate': success_rate
+        })
+    
+    # Подготавливаем данные для шаблона
+    student_stats = {
+        'total_tournaments': total_tournaments,
+        'total_balance': total_balance,
+        'total_tickets': total_tickets,
+        'category_rank': category_rank,
+        'total_participations': tournaments_stats.total_participations or 0,
+        'total_score': tournaments_stats.total_score or 0,
+        'avg_score': round(tournaments_stats.avg_score or 0, 1),
+        'best_score': tournaments_stats.best_score or 0,
+        'best_place': tournaments_stats.best_place,
+        'total_solved_tasks': tasks_stats.total_solved or 0,
+        'correct_solved_tasks': tasks_stats.correct_solved or 0,
+        'total_points': tasks_stats.total_points or 0
+    }
+    
+    return render_template('teacher_student_details.html',
+                         student=student,
+                         student_stats=student_stats,
+                         tournaments=tournament_list,
+                         pagination=tournaments_paginated)
 
 @app.route('/buy-tickets')
 @login_required
@@ -3992,7 +4112,7 @@ def rating():
 
     user_rank = None
     if current_user.is_authenticated and not current_user.is_admin:
-        user_rank = get_user_rank(current_user.id)
+        user_rank = current_user.category_rank
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         category = request.args.get('category', '1-2')
@@ -5483,8 +5603,8 @@ def rating_search():
         user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
         user.is_current_user = False
         
-        # Получаем ранг пользователя в его категории
-        user.category_rank = get_user_rank(user.id)
+        # Ранг пользователя уже есть в поле category_rank
+        # user.category_rank уже содержит актуальное значение
         
         # Используем поля из модели User для статистики турниров
         user.tournaments_count = user.tournaments_count or 0

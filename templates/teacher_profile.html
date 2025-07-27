@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Заголовок -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-dark">
+                    <i class="fas fa-chalkboard-teacher me-2"></i>Личный кабинет учителя
+                </h2>
+                <div class="text-muted">
+                    <small>{{ current_user.full_name }}</small>
+                </div>
+            </div>
+
+            <!-- Статистика -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card" style="background: linear-gradient(135deg, #FFD700 0%, #FFC000 100%); color: #333333;">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users fa-2x mb-2"></i>
+                            <h3>{{ total_students }}</h3>
+                            <p class="mb-0">Всего учащихся</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card" style="background: linear-gradient(135deg, #FF8C00 0%, #E67E00 100%); color: #333333;">
+                        <div class="card-body text-center">
+                            <i class="fas fa-trophy fa-2x mb-2"></i>
+                            <h3>{{ active_students }}</h3>
+                            <p class="mb-0">Участвовали в турнирах</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Пригласительная ссылка -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-link me-2"></i>Пригласительная ссылка для учащихся
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p class="mb-3">
+                            <strong>Поделитесь этой ссылкой с учениками:</strong><br>
+                            Когда ученики зарегистрируются по вашей ссылке, они автоматически привяжутся к вашему аккаунту.
+                        </p>
+                    </div>
+                    
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" 
+                               id="inviteLink" 
+                               value="{{ url_for('register', teacher=invite_link.invite_code, _external=True) }}" 
+                               readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
+                            <i class="fas fa-copy me-1"></i>Копировать
+                        </button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <button class="btn btn-success w-100" onclick="shareWhatsApp()">
+                                <i class="fab fa-whatsapp me-1"></i>Поделиться в WhatsApp
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-info w-100" onclick="shareTelegram()">
+                                <i class="fab fa-telegram me-1"></i>Поделиться в Telegram
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-primary w-100" style="background-color: #7360f2; border: none;" onclick="shareViber()">
+                                <i class="fab fa-viber me-1"></i>Поделиться в Viber
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                            <!-- Таблица учащихся -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>Мои учащиеся
+                    </h5>
+                    <span class="badge bg-primary">{{ total_students }} учащихся</span>
+                </div>
+                <div class="card-body">
+                    {% if students_info %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Логин</th>
+                                        <th>ФИО</th>
+                                        <th>Группа</th>
+                                        <th>Баллы</th>
+                                        <th>Турниры</th>
+                                        <th>Дата регистрации</th>
+                                        <th>Статус</th>
+                                        <th>Подробнее</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for student in students_info %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ student.username }}</strong>
+                                        </td>
+                                        <td>{{ student.student_name }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ student.category }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-success">
+                                                <i class="fas fa-coins me-1"></i>{{ student.balance }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if student.tournaments_count > 0 %}
+                                                <span class="badge bg-success">{{ student.tournaments_count }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">0</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ student.created_at }}</td>
+                                        <td>
+                                            {% if student.is_blocked %}
+                                                <span class="badge bg-danger">Заблокирован</span>
+                                            {% elif student.is_active %}
+                                                <span class="badge bg-success">Активен</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Не подтвержден</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Пагинация -->
+                        {% if students_paginated.pages > 1 %}
+                            <nav aria-label="Пагинация учащихся">
+                                <ul class="pagination justify-content-center">
+                                    {% if students_paginated.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('teacher_profile', page=students_paginated.prev_num) }}">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for page_num in students_paginated.iter_pages() %}
+                                        {% if page_num %}
+                                            {% if page_num != students_paginated.page %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="{{ url_for('teacher_profile', page=page_num) }}">{{ page_num }}</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ page_num }}</span>
+                                                </li>
+                                            {% endif %}
+                                        {% else %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if students_paginated.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('teacher_profile', page=students_paginated.next_num) }}">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">У вас пока нет учащихся</h5>
+                            <p class="text-muted">Поделитесь пригласительной ссылкой с учениками, чтобы они появились здесь</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const linkField = document.getElementById('inviteLink');
+    linkField.select();
+    linkField.setSelectionRange(0, 99999); // Для мобильных устройств
+    
+    try {
+        document.execCommand('copy');
+        showNotification('Ссылка скопирована в буфер обмена!', 'success');
+    } catch (err) {
+        showNotification('Не удалось скопировать ссылку', 'error');
+    }
+}
+
+function shareWhatsApp() {
+    const link = document.getElementById('inviteLink').value;
+    const text = `Привет! Приглашаю тебя зарегистрироваться на платформе мультипрофильных онлайн турниров по моей ссылке: ${link}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
+}
+
+function shareTelegram() {
+    const link = document.getElementById('inviteLink').value;
+    const text = `Привет! Приглашаю тебя зарегистрироваться на платформе мультипрофильных онлайн турниров по моей ссылке: ${link}`;
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+    window.open(telegramUrl, '_blank');
+}
+
+function shareViber() {
+    const link = document.getElementById('inviteLink').value;
+    const text = `Привет! Приглашаю тебя зарегистрироваться на платформе мультипрофильных онлайн турниров по моей ссылке: ${link}`;
+    const viberUrl = `viber://forward?text=${encodeURIComponent(text)}`;
+    window.open(viberUrl, '_blank');
+}
+
+function showNotification(message, type) {
+    // Простая функция для показа уведомлений
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Автоматически удаляем уведомление через 3 секунды
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+}
+
+// Обработчик для копирования ссылки по Ctrl+C
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('inviteLink').addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'c') {
+            copyToClipboard();
+        }
+    });
+});
+</script>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.table-responsive {
+    border-radius: 0.375rem;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-sm {
+        padding: 0.125rem 0.25rem;
+        font-size: 0.675rem;
+    }
+}
+</style>
+{% endblock %} 

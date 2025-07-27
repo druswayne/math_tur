@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стили для мобильной версии истории турниров */
+.tournament-card-mobile {
+    background-color: #fff;
+    transition: box-shadow 0.2s ease;
+    border: 1px solid #dee2e6;
+}
+
+.tournament-card-mobile:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.tournament-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.tournament-stat-item {
+    background-color: #f8f9fa;
+    padding: 8px;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.tournament-stat-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-bottom: 4px;
+}
+
+.tournament-stat-value {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.tournament-place-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.tournament-place-badge.gold {
+    background-color: #ffd700;
+    color: #212529;
+}
+
+.tournament-place-badge.silver {
+    background-color: #c0c0c0;
+    color: #212529;
+}
+
+.tournament-place-badge.bronze {
+    background-color: #cd7f32;
+    color: white;
+}
+
+.tournament-place-badge.other {
+    background-color: #6c757d;
+    color: white;
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.stats-card h5 {
+    color: white;
+    margin-bottom: 15px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 15px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 767.98px) {
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    .stat-item {
+        padding: 10px;
+    }
+    
+    .stat-value {
+        font-size: 1.2rem;
+    }
+}
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-user-graduate me-2"></i>{{ student.student_name }}
+            </h2>
+        </div>
+        <a href="{{ url_for('teacher_profile') }}" class="btn btn-secondary d-none d-md-inline-flex">
+            <i class="fas fa-arrow-left me-2"></i>Назад к учащимся
+        </a>
+        <a href="{{ url_for('teacher_profile') }}" class="btn btn-secondary btn-sm d-md-none">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+    </div>
+
+    <!-- Основная информация об учащемся -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Основная информация
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <p class="mb-1"><strong>ФИО:</strong></p>
+                            <p class="text-muted">{{ student.student_name or 'Не указано' }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Группа:</strong></p>
+                            <p class="text-muted">{{ student.category or 'Не указано' }}</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Email:</strong></p>
+                            <p class="text-muted">{{ student.email }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Телефон:</strong></p>
+                            <p class="text-muted">{{ student.phone or 'Не указан' }}</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Дата регистрации:</strong></p>
+                            <p class="text-muted">{{ student.created_at.strftime('%d.%m.%Y') }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <p class="mb-1"><strong>Статус:</strong></p>
+                            {% if student.is_blocked %}
+                                <span class="badge bg-danger">Заблокирован</span>
+                            {% elif student.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                            {% else %}
+                                <span class="badge bg-warning">Не подтвержден</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="stats-card">
+                <h5><i class="fas fa-chart-bar me-2"></i>Статистика</h5>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ student_stats.total_tournaments }}</div>
+                        <div class="stat-label">Турниров</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ student_stats.total_balance }}</div>
+                        <div class="stat-label">Баллов</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ student_stats.total_tickets }}</div>
+                        <div class="stat-label">Жетонов</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ student_stats.category_rank or 'N/A' }}</div>
+                        <div class="stat-label">Место в рейтинге</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Детальная статистика -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>Статистика турниров
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Участий:</strong></p>
+                            <p class="text-primary">{{ student_stats.total_participations }}</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Общий счет:</strong></p>
+                            <p class="text-success">{{ student_stats.total_score }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Средний счет:</strong></p>
+                            <p class="text-info">{{ student_stats.avg_score }}</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Лучший счет:</strong></p>
+                            <p class="text-warning">{{ student_stats.best_score }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <p class="mb-1"><strong>Лучшее место:</strong></p>
+                            {% if student_stats.best_place %}
+                                <p class="text-success">{{ student_stats.best_place }}</p>
+                            {% else %}
+                                <p class="text-muted">Нет данных</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>Статистика задач
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Всего решено:</strong></p>
+                            <p class="text-primary">{{ student_stats.total_solved_tasks }}</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Правильно:</strong></p>
+                            <p class="text-success">{{ student_stats.correct_solved_tasks }}</p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Процент успеха:</strong></p>
+                            {% if student_stats.total_solved_tasks > 0 %}
+                                <p class="text-info">{{ ((student_stats.correct_solved_tasks / student_stats.total_solved_tasks) * 100) | round(1) }}%</p>
+                            {% else %}
+                                <p class="text-muted">0%</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-6">
+                            <p class="mb-1"><strong>Заработано очков:</strong></p>
+                            <p class="text-warning">{{ student_stats.total_points }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- История турниров -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-history me-2"></i>История турниров
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if tournaments %}
+            <!-- Десктопная версия -->
+            <div class="rating-table-container d-none d-md-block">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Название турнира</th>
+                            <th>Место в турнире</th>
+                            <th>Решено задач</th>
+                            <th>% решения</th>
+                            <th>Заработано очков</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tournament in tournaments %}
+                        <tr>
+                            <td>{{ tournament.start_date.strftime('%d.%m.%Y') }}</td>
+                            <td>{{ tournament.name }}</td>
+                            <td>
+                                {% if tournament.place %}
+                                    {{ tournament.place }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ tournament.solved_tasks }}</td>
+                            <td>{{ tournament.success_rate }}%</td>
+                            <td>{{ tournament.earned_points }}</td>
+                            <td>
+                                {% if tournament.status == 'finished' %}
+                                    <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-info-circle me-1"></i>Подробнее
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>Ожидание завершения
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Мобильная версия -->
+            <div class="d-md-none">
+                {% for tournament in tournaments %}
+                <div class="tournament-card-mobile mb-3 p-3 rounded">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">{{ tournament.name }}</h6>
+                            <div class="text-muted small">{{ tournament.start_date.strftime('%d.%m.%Y') }}</div>
+                        </div>
+                        <div class="text-end">
+                            {% if tournament.place %}
+                                {% if tournament.place == 1 %}
+                                    <span class="tournament-place-badge gold">
+                                        <i class="fas fa-trophy me-1"></i>{{ tournament.place }}
+                                    </span>
+                                {% elif tournament.place == 2 %}
+                                    <span class="tournament-place-badge silver">
+                                        <i class="fas fa-medal me-1"></i>{{ tournament.place }}
+                                    </span>
+                                {% elif tournament.place == 3 %}
+                                    <span class="tournament-place-badge bronze">
+                                        <i class="fas fa-medal me-1"></i>{{ tournament.place }}
+                                    </span>
+                                {% else %}
+                                    <span class="tournament-place-badge other">
+                                        {{ tournament.place }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted small">-</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="tournament-stats-grid">
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">Решено задач</div>
+                            <div class="tournament-stat-value">{{ tournament.solved_tasks }}</div>
+                        </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">% решения</div>
+                            <div class="tournament-stat-value">{{ tournament.success_rate }}%</div>
+                        </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">Заработано очков</div>
+                            <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        {% if tournament.status == 'finished' %}
+                            <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-info-circle me-1"></i>Подробнее
+                            </a>
+                        {% else %}
+                            <span class="text-muted">
+                                <i class="fas fa-clock me-1"></i>Ожидание завершения
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Пагинация -->
+            {% if pagination.pages > 1 %}
+                <nav aria-label="Пагинация турниров">
+                    <ul class="pagination justify-content-center">
+                        {% if pagination.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('teacher_student_details', student_id=student.id, page=pagination.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in pagination.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != pagination.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('teacher_student_details', student_id=student.id, page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">...</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if pagination.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('teacher_student_details', student_id=student.id, page=pagination.next_num) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-trophy fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Учащийся еще не участвовал в турнирах</h5>
+                    <p class="text-muted">История турниров появится после первого участия</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 
