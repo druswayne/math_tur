@@ -91,7 +91,8 @@
                 </div>
                 <div class="card-body">
                     {% if students_info %}
-                        <div class="table-responsive">
+                        <!-- Десктопная версия таблицы -->
+                        <div class="table-responsive d-none d-md-block">
                             <table class="table table-striped table-hover">
                                 <thead>
                                     <tr>
@@ -146,6 +147,71 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+                        </div>
+
+                        <!-- Мобильная версия карточек -->
+                        <div class="d-md-none">
+                            {% for student in students_info %}
+                            <div class="card mb-3 student-card-mobile">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <strong>{{ student.username }}</strong>
+                                            </h6>
+                                            <p class="mb-1 text-muted">{{ student.student_name }}</p>
+                                        </div>
+                                        <div class="text-end">
+                                            <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">Группа:</small>
+                                            <div><span class="badge bg-info">{{ student.category }}</span></div>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Баллы:</small>
+                                            <div class="text-success">
+                                                <i class="fas fa-coins me-1"></i>{{ student.balance }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">Турниры:</small>
+                                            <div>
+                                                {% if student.tournaments_count > 0 %}
+                                                    <span class="badge bg-success">{{ student.tournaments_count }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">0</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Статус:</small>
+                                            <div>
+                                                {% if student.is_blocked %}
+                                                    <span class="badge bg-danger">Заблокирован</span>
+                                                {% elif student.is_active %}
+                                                    <span class="badge bg-success">Активен</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">Не подтвержден</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="text-muted small">
+                                        <i class="fas fa-calendar me-1"></i>{{ student.created_at }}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
                         </div>
 
                         <!-- Пагинация -->
@@ -298,7 +364,45 @@ document.addEventListener('DOMContentLoaded', function() {
     
     .btn-sm {
         padding: 0.125rem 0.25rem;
-        font-size: 0.675rem;
+    }
+    
+    .student-card-mobile {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        transition: box-shadow 0.2s ease;
+    }
+    
+    .student-card-mobile:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .student-card-mobile .card-body {
+        padding: 1rem;
+    }
+    
+    .student-card-mobile h6 {
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .student-card-mobile .badge {
+        font-size: 0.75rem;
+    }
+    
+    .student-card-mobile .row {
+        margin-bottom: 0.5rem;
+    }
+    
+    .student-card-mobile .col-6 {
+        padding: 0 0.25rem;
+    }
+    
+    .student-card-mobile small {
+        font-size: 0.75rem;
+    }
+    
+    .student-card-mobile .text-muted {
+        font-size: 0.8rem;
     }
 }
 </style>

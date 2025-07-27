@@ -2721,7 +2721,6 @@ def teacher_student_details(student_id):
     # Общая статистика
     total_tournaments = student.tournaments_count
     total_balance = student.balance
-    total_tickets = student.tickets
     
     # Место в рейтинге категории (берем из поля category_rank)
     category_rank = student.category_rank
@@ -2802,7 +2801,6 @@ def teacher_student_details(student_id):
     student_stats = {
         'total_tournaments': total_tournaments,
         'total_balance': total_balance,
-        'total_tickets': total_tickets,
         'category_rank': category_rank,
         'total_participations': tournaments_stats.total_participations or 0,
         'total_score': tournaments_stats.total_score or 0,
@@ -4019,13 +4017,16 @@ def rating():
     
     # Проверяем, должен ли показываться полный рейтинг
     show_full_rating = False
-    if current_user.is_authenticated and not current_user.is_admin:
-        # Проверяем, участвовал ли пользователь хотя бы в одном турнире
-        show_full_rating = current_user.tournaments_count > 0
-    elif current_user.is_authenticated and current_user.is_admin:
-        # Для администраторов проверяем параметр режима
-        mode = request.args.get('mode')
-        show_full_rating = mode == 'full'
+    if current_user.is_authenticated:
+        # Проверяем тип пользователя
+        if hasattr(current_user, 'is_admin') and current_user.is_admin:
+            # Для администраторов проверяем параметр режима
+            mode = request.args.get('mode')
+            show_full_rating = mode == 'full'
+        elif hasattr(current_user, 'tournaments_count'):
+            # Для обычных пользователей проверяем участие в турнирах
+            show_full_rating = current_user.tournaments_count > 0
+        # Для учителей показываем только топ-10 (show_full_rating остается False)
     
     for category in categories:
         # Получаем номер страницы для конкретной категории
@@ -4070,7 +4071,7 @@ def rating():
             users.append(user)
         
         # Проверяем, нужно ли добавить текущего пользователя (только для топ-10)
-        if not show_full_rating and current_user.is_authenticated and not current_user.is_admin and current_user.category == category:
+        if not show_full_rating and current_user.is_authenticated and hasattr(current_user, 'category') and current_user.category == category:
             # Проверяем, есть ли текущий пользователь в списке
             current_user_in_list = any(user.id == current_user.id for user in users)
             
@@ -4111,7 +4112,7 @@ def rating():
         }
 
     user_rank = None
-    if current_user.is_authenticated and not current_user.is_admin:
+    if current_user.is_authenticated and hasattr(current_user, 'category_rank'):
         user_rank = current_user.category_rank
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -5559,12 +5560,16 @@ def rating_search():
     
     # Проверяем, должен ли показываться полный рейтинг
     show_full_rating = False
-    if current_user.is_authenticated and not current_user.is_admin:
-        show_full_rating = current_user.tournaments_count > 0
-    elif current_user.is_authenticated and current_user.is_admin:
-        # Для администраторов проверяем параметр режима
-        mode = request.args.get('mode')
-        show_full_rating = mode == 'full'
+    if current_user.is_authenticated:
+        # Проверяем тип пользователя
+        if hasattr(current_user, 'is_admin') and current_user.is_admin:
+            # Для администраторов проверяем параметр режима
+            mode = request.args.get('mode')
+            show_full_rating = mode == 'full'
+        elif hasattr(current_user, 'tournaments_count'):
+            # Для обычных пользователей проверяем участие в турнирах
+            show_full_rating = current_user.tournaments_count > 0
+        # Для учителей показываем только топ-10 (show_full_rating остается False)
     
     # Базовый запрос для поиска
     search_query = (
