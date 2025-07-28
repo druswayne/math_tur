@@ -807,7 +807,7 @@ def send_teacher_credentials_email(teacher, password):
 - Участвовать в бонусной программе
 
 С уважением,
-Команда Math Tournament Platform
+Команда Лиги Знатоков
 '''
     add_to_queue(app, mail, msg)
 
