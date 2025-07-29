@@ -4811,7 +4811,7 @@ def admin_teachers():
     )
     teachers = teachers_pagination.items
     
-    # Подсчитываем количество турниров для каждого учителя
+    # Подсчитываем количество турниров и активных учеников для каждого учителя
     for teacher in teachers:
         # Получаем всех учеников учителя
         students = teacher.students
@@ -4822,8 +4822,12 @@ def admin_teachers():
             # Используем tournaments_count из модели User
             total_tournaments += student.tournaments_count or 0
         
-        # Добавляем атрибут для использования в шаблоне
+        # Подсчитываем активных учеников (участвовавших хотя бы в одном турнире)
+        active_students = sum(1 for student in students if student.tournaments_count and student.tournaments_count > 0)
+        
+        # Добавляем атрибуты для использования в шаблоне
         teacher.total_students_tournaments = total_tournaments
+        teacher.active_students_count = active_students
     
     return render_template('admin/teachers.html', 
                          teachers=teachers,
@@ -4849,6 +4853,68 @@ def admin_toggle_teacher_block(teacher_id):
     
     db.session.commit()
     return redirect(url_for('admin_teachers'))
+
+@app.route('/admin/teachers/<int:teacher_id>/details')
+@login_required
+def admin_teacher_details(teacher_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    teacher = Teacher.query.get_or_404(teacher_id)
+    
+    # Подсчитываем статистику учеников
+    students = teacher.students
+    total_students = len(students)
+    
+    # Подсчитываем активных учеников (участвовавших в турнирах)
+    active_students = sum(1 for student in students if student.tournaments_count and student.tournaments_count > 0)
+    
+    # Подсчитываем общее количество турниров учеников
+    total_tournaments = sum(student.tournaments_count or 0 for student in students)
+    
+    # Подсчитываем учеников из того же учреждения образования
+    same_institution_students = 0
+    if teacher.educational_institution:
+        same_institution_students = sum(1 for student in students 
+                                     if student.educational_institution and 
+                                     student.educational_institution.id == teacher.educational_institution.id)
+    
+    # Получаем номер страницы для учеников
+    students_page = request.args.get('students_page', 1, type=int)
+    students_per_page = 10  # Количество учеников на странице
+    
+    # Получаем учеников с пагинацией
+    students_pagination = None
+    if students:
+        # Создаем пагинацию для учеников
+        from flask_sqlalchemy import Pagination
+        total_students_count = len(students)
+        start = (students_page - 1) * students_per_page
+        end = start + students_per_page
+        paginated_students = students[start:end]
+        
+        students_pagination = Pagination(
+            query=None,  # Не используем query для пагинации
+            page=students_page,
+            per_page=students_per_page,
+            total=total_students_count,
+            items=paginated_students
+        )
+        students_to_show = paginated_students
+    else:
+        students_to_show = []
+    
+
+    
+    return render_template('admin/teacher_details.html',
+                         teacher=teacher,
+                         total_students=total_students,
+                         active_students=active_students,
+                         total_tournaments=total_tournaments,
+                         same_institution_students=same_institution_students,
+                         students=students_to_show,
+                         students_pagination=students_pagination)
 
 @app.before_first_request
 def clear_sessions():
