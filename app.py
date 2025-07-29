@@ -4794,6 +4794,57 @@ def admin_delete_news(news_id):
     flash('Новость успешно удалена', 'success')
     return redirect(url_for('admin_news'))
 
+@app.route('/admin/teachers')
+@login_required
+def admin_teachers():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    # Получаем номер страницы из параметров запроса
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Количество учителей на странице
+    
+    # Получаем учителей с пагинацией
+    teachers_pagination = Teacher.query.order_by(Teacher.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    teachers = teachers_pagination.items
+    
+    # Подсчитываем общую статистику (все учителя, не только на текущей странице)
+    all_teachers = Teacher.query.all()
+    active_teachers = sum(1 for teacher in all_teachers if teacher.is_active and not teacher.is_blocked)
+    inactive_teachers = len(all_teachers) - active_teachers
+    total_students = sum(len(teacher.students) for teacher in all_teachers)
+    
+    return render_template('admin/teachers.html', 
+                         teachers=teachers,
+                         teachers_pagination=teachers_pagination,
+                         active_teachers=active_teachers,
+                         inactive_teachers=inactive_teachers,
+                         total_students=total_students)
+
+@app.route('/admin/teachers/<int:teacher_id>/toggle-block', methods=['POST'])
+@login_required
+def admin_toggle_teacher_block(teacher_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    teacher = Teacher.query.get_or_404(teacher_id)
+    
+    if teacher.is_blocked:
+        teacher.is_blocked = False
+        teacher.block_reason = None
+        flash(f'Учитель {teacher.full_name} разблокирован', 'success')
+    else:
+        teacher.is_blocked = True
+        teacher.block_reason = request.form.get('reason', 'Блокировка администратором')
+        flash(f'Учитель {teacher.full_name} заблокирован', 'warning')
+    
+    db.session.commit()
+    return redirect(url_for('admin_teachers'))
+
 @app.before_first_request
 def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
