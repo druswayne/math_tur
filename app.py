@@ -3943,9 +3943,14 @@ def tournament_results(tournament_id):
 @app.route('/tournament/history')
 @login_required
 def tournament_history():
-    if current_user.is_admin:
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
+    
+    # Проверяем, является ли пользователь учителем
+    if not hasattr(current_user, 'tournaments_count'):
+        flash('Эта страница доступна только учащимся', 'warning')
+        return redirect(url_for('teacher_profile'))
     
     # Получаем параметр страницы
     page = request.args.get('page', 1, type=int)
