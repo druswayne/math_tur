@@ -190,6 +190,64 @@
             }
         }
 
+        /* Стили для модального окна регистрации */
+        .registration-option-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid #e9ecef !important;
+        }
+
+        .registration-option-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #007bff !important;
+        }
+
+        .registration-option-card:active {
+            transform: translateY(-2px);
+        }
+
+        .registration-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .registration-option-card:hover .registration-icon {
+            transform: scale(1.1);
+        }
+
+        /* Мобильная адаптация для модального окна */
+        @media (max-width: 768px) {
+            .modal-dialog {
+                margin: 1rem;
+                max-width: calc(100% - 2rem);
+            }
+            
+            .registration-option-card {
+                padding: 1rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+            
+            .registration-icon i {
+                font-size: 2rem !important;
+            }
+            
+            .modal-body {
+                padding: 1rem !important;
+            }
+            
+            .modal-header {
+                padding: 1rem !important;
+            }
+            
+            .modal-footer {
+                padding: 1rem !important;
+            }
+            
+            .registration-option-card h5 {
+                font-size: 1rem !important;
+            }
+        }
+
         .flash-message .btn-close {
             color: white;
             opacity: 0.8;
@@ -629,7 +687,7 @@
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item" href="{{ url_for('register') }}">
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="showRegistrationModal()">
                                         <i class="fas fa-user-plus me-2"></i>Регистрация
                                     </a>
                                 </li>
@@ -798,9 +856,52 @@
                 // Устанавливаем куки, чтобы больше не показывать модальное окно приветствия
                 setCookie('welcomeModalShown', 'true', 365); // На 1 год
             }
+            
+            // Функция для показа модального окна регистрации
+            window.showRegistrationModal = function() {
+                const modal = new bootstrap.Modal(document.getElementById('registrationModal'));
+                modal.show();
+            };
         });
     </script>
     {% block scripts %}{% endblock %}
+
+    <!-- Модальное окно выбора типа регистрации -->
+    <div class="modal fade" id="registrationModal" tabindex="-1" aria-labelledby="registrationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="registrationModalLabel">
+                        <i class="fas fa-user-plus me-2"></i>Выберите тип регистрации
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                                            <div class="col-md-6 mb-3">
+                        <div class="registration-option-card text-center p-3 border rounded h-100" onclick="window.location.href='{{ url_for('register') }}'">
+                            <div class="registration-icon mb-2">
+                                <i class="fas fa-user-graduate text-primary" style="font-size: 2.5rem;"></i>
+                            </div>
+                            <h5 class="fw-bold mb-0">Учащийся</h5>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="registration-option-card text-center p-3 border rounded h-100" onclick="window.location.href='{{ url_for('teacher_register') }}'">
+                            <div class="registration-icon mb-2">
+                                <i class="fas fa-chalkboard-teacher text-warning" style="font-size: 2.5rem;"></i>
+                            </div>
+                            <h5 class="fw-bold mb-0">Учитель</h5>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Баннер согласия на cookie -->
     <div class="cookie-banner" id="cookieBanner" style="display:none;">
