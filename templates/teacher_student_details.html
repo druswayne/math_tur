@@ -342,7 +342,7 @@
                             <td>{{ tournament.earned_points }}</td>
                             <td>
                                 {% if tournament.status == 'finished' %}
-                                    <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ url_for('teacher_student_tournament_results', student_id=student.id, tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-info-circle me-1"></i>Подробнее
                                     </a>
                                 {% else %}
@@ -408,7 +408,7 @@
                     
                     <div class="text-center">
                         {% if tournament.status == 'finished' %}
-                            <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ url_for('teacher_student_tournament_results', student_id=student.id, tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-info-circle me-1"></i>Подробнее
                             </a>
                         {% else %}

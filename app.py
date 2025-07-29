@@ -2818,6 +2818,115 @@ def teacher_student_details(student_id):
                          tournaments=tournament_list,
                          pagination=tournaments_paginated)
 
+@app.route('/teacher/student/<int:student_id>/tournament/<int:tournament_id>/results')
+@login_required
+def teacher_student_tournament_results(student_id, tournament_id):
+    """
+    Просмотр результатов ученика на конкретном турнире учителем
+    """
+    # Проверяем, что текущий пользователь - учитель
+    if not hasattr(current_user, 'full_name') or not current_user.full_name:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    # Получаем учащегося и проверяем, что он принадлежит текущему учителю
+    student = User.query.filter_by(id=student_id, teacher_id=current_user.id).first()
+    if not student:
+        flash('Учащийся не найден или не принадлежит вам', 'danger')
+        return redirect(url_for('teacher_profile'))
+    
+    # Получаем турнир
+    tournament = Tournament.query.get_or_404(tournament_id)
+    
+    # Проверяем, завершился ли турнир
+    if tournament.status != 'finished':
+        flash('Результаты турнира будут доступны только после его завершения', 'warning')
+        return redirect(url_for('teacher_student_details', student_id=student_id))
+    
+    # Проверяем, участвовал ли ученик в этом турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=student_id,
+        tournament_id=tournament_id
+    ).first()
+    
+    if not participation:
+        flash('Учащийся не участвовал в этом турнире', 'danger')
+        return redirect(url_for('teacher_student_details', student_id=student_id))
+    
+    # Получаем все задачи турнира для категории ученика
+    user_tasks = Task.query.filter_by(
+        tournament_id=tournament_id,
+        category=student.category
+    ).order_by(Task.id).all()
+    
+    # Получаем решенные задачи ученика
+    solved_tasks = SolvedTask.query.filter_by(
+        user_id=student_id
+    ).join(Task).filter(Task.tournament_id == tournament_id).all()
+    
+    # Создаем словарь решенных задач для быстрого поиска
+    solved_tasks_dict = {task.task_id: task for task in solved_tasks}
+    
+    # Подготавливаем данные о задачах
+    tasks_data = []
+    for task in user_tasks:
+        solved_task = solved_tasks_dict.get(task.id)
+        tasks_data.append({
+            'task': task,
+            'is_solved': solved_task is not None,
+            'is_correct': solved_task.is_correct if solved_task else False,
+            'user_answer': solved_task.user_answer if solved_task else None,
+            'solved_at': solved_task.solved_at if solved_task else None
+        })
+    
+    # Считаем статистику
+    solved_count = len([t for t in tasks_data if t['is_solved']])
+    correct_count = len([t for t in tasks_data if t['is_correct']])
+    earned_points = sum(t['task'].points for t in tasks_data if t['is_correct'])
+    total_points = sum(t['task'].points for t in tasks_data)
+    
+    # Вычисляем процент правильных ответов
+    success_rate = round((correct_count / len(tasks_data)) * 100, 1) if tasks_data and len(tasks_data) > 0 else 0
+    
+    # Вычисляем время участия
+    if participation.end_time:
+        # Если есть время окончания, используем его
+        time_spent = (participation.end_time - participation.start_time).total_seconds()
+    else:
+        # Если нет времени окончания, используем текущее время
+        time_spent = (datetime.now() - participation.start_time).total_seconds()
+    
+    # Собираем темы для повторения
+    topics_to_review = set()  # Темы неправильно решенных задач
+    additional_topics = set()  # Темы нерешенных задач
+    
+    for task_data in tasks_data:
+        task = task_data['task']
+        if task.topic:  # Проверяем, что тема указана
+            if task_data['is_solved'] and not task_data['is_correct']:
+                # Неправильно решенная задача - добавляем в обязательное повторение
+                topics_to_review.add(task.topic)
+            elif not task_data['is_solved']:
+                # Нерешенная задача - добавляем в дополнительное повторение
+                additional_topics.add(task.topic)
+    
+    # Убираем дубликаты из дополнительных тем (если тема уже в обязательных)
+    additional_topics = additional_topics - topics_to_review
+    
+    return render_template('teacher_student_tournament_results.html',
+                         tournament=tournament,
+                         student=student,
+                         tasks_data=tasks_data,
+                         solved_count=solved_count,
+                         correct_count=correct_count,
+                         earned_points=earned_points,
+                         total_points=total_points,
+                         success_rate=success_rate,
+                         participation=participation,
+                         time_spent=time_spent,
+                         topics_to_review=sorted(list(topics_to_review)),
+                         additional_topics=sorted(list(additional_topics)))
+
 @app.route('/buy-tickets')
 @login_required
 def buy_tickets():
@@ -4963,16 +5072,6 @@ def clear_sessions():
         check_expired_payments()
 
         print("Приложение готово к запуску!")
-    # # Добавляем задачу очистки сессий (только на одном сервере)
-    # add_scheduler_job(
-    #     cleanup_old_sessions,
-    #     datetime.now() + timedelta(hours=24),  # run_date не используется для interval
-    #     None,
-    #     'cleanup_sessions',
-    #     interval_hours=24  # Интервальная задача каждые 24 часа
-    # )
-    #
-
 
 @app.route('/change-password', methods=['POST'])
 @login_required
