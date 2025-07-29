@@ -4811,18 +4811,23 @@ def admin_teachers():
     )
     teachers = teachers_pagination.items
     
-    # Подсчитываем общую статистику (все учителя, не только на текущей странице)
-    all_teachers = Teacher.query.all()
-    active_teachers = sum(1 for teacher in all_teachers if teacher.is_active and not teacher.is_blocked)
-    inactive_teachers = len(all_teachers) - active_teachers
-    total_students = sum(len(teacher.students) for teacher in all_teachers)
+    # Подсчитываем количество турниров для каждого учителя
+    for teacher in teachers:
+        # Получаем всех учеников учителя
+        students = teacher.students
+        
+        # Подсчитываем общее количество турниров, в которых участвовали ученики
+        total_tournaments = 0
+        for student in students:
+            # Используем tournaments_count из модели User
+            total_tournaments += student.tournaments_count or 0
+        
+        # Добавляем атрибут для использования в шаблоне
+        teacher.total_students_tournaments = total_tournaments
     
     return render_template('admin/teachers.html', 
                          teachers=teachers,
-                         teachers_pagination=teachers_pagination,
-                         active_teachers=active_teachers,
-                         inactive_teachers=inactive_teachers,
-                         total_students=total_students)
+                         teachers_pagination=teachers_pagination)
 
 @app.route('/admin/teachers/<int:teacher_id>/toggle-block', methods=['POST'])
 @login_required

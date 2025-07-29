@@ -51,41 +51,7 @@
                 </div>
             </div>
 
-            <!-- Статистика -->
-            <div class="row mb-4">
-                <div class="col-md-3">
-                    <div class="card bg-primary text-white">
-                        <div class="card-body text-center">
-                            <h4>{{ teachers|length }}</h4>
-                            <p class="mb-0">Всего учителей</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-success text-white">
-                        <div class="card-body text-center">
-                            <h4>{{ active_teachers }}</h4>
-                            <p class="mb-0">Активных</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-warning text-dark">
-                        <div class="card-body text-center">
-                            <h4>{{ inactive_teachers }}</h4>
-                            <p class="mb-0">Неактивных</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card bg-info text-white">
-                        <div class="card-body text-center">
-                            <h4>{{ total_students }}</h4>
-                            <p class="mb-0">Всего учеников</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+
 
             <!-- Таблица учителей -->
             <div class="card">
@@ -103,7 +69,7 @@
                                         <th>ФИО</th>
                                         <th>Email</th>
                                         <th>Телефон</th>
-                                        <th>Учебное заведение</th>
+                                        <th>Турниры учеников</th>
                                         <th>Учеников</th>
                                         <th>Статус</th>
                                         <th>Дата регистрации</th>
@@ -121,11 +87,7 @@
                                         <td>{{ teacher.email }}</td>
                                         <td>{{ teacher.phone or 'Не указан' }}</td>
                                         <td>
-                                            {% if teacher.educational_institution %}
-                                                {{ teacher.educational_institution.name }}
-                                            {% else %}
-                                                <span class="text-muted">Не указано</span>
-                                            {% endif %}
+                                            <span class="badge bg-primary">{{ teacher.total_students_tournaments }}</span>
                                         </td>
                                         <td>
                                             <span class="badge bg-info">{{ teacher.students|length }}</span>
