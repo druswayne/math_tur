@@ -4801,37 +4801,52 @@ def admin_teachers():
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
-    # Получаем номер страницы из параметров запроса
+    # Получаем параметры сортировки и пагинации
     page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'created_at')  # created_at, tournaments, active_students
+    sort_order = request.args.get('order', 'desc')  # asc, desc
     per_page = 20  # Количество учителей на странице
     
-    # Получаем учителей с пагинацией
-    teachers_pagination = Teacher.query.order_by(Teacher.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    teachers = teachers_pagination.items
+    # Получаем всех учителей для подсчета статистики
+    all_teachers = Teacher.query.all()
     
-    # Подсчитываем количество турниров и активных учеников для каждого учителя
-    for teacher in teachers:
-        # Получаем всех учеников учителя
+    # Подсчитываем статистику для всех учителей
+    for teacher in all_teachers:
         students = teacher.students
-        
-        # Подсчитываем общее количество турниров, в которых участвовали ученики
-        total_tournaments = 0
-        for student in students:
-            # Используем tournaments_count из модели User
-            total_tournaments += student.tournaments_count or 0
-        
-        # Подсчитываем активных учеников (участвовавших хотя бы в одном турнире)
+        total_tournaments = sum(student.tournaments_count or 0 for student in students)
         active_students = sum(1 for student in students if student.tournaments_count and student.tournaments_count > 0)
         
-        # Добавляем атрибуты для использования в шаблоне
         teacher.total_students_tournaments = total_tournaments
         teacher.active_students_count = active_students
     
+    # Сортируем учителей
+    if sort_by == 'tournaments':
+        all_teachers.sort(key=lambda x: x.total_students_tournaments, reverse=(sort_order == 'desc'))
+    elif sort_by == 'active_students':
+        all_teachers.sort(key=lambda x: x.active_students_count, reverse=(sort_order == 'desc'))
+    else:  # sort_by == 'created_at'
+        all_teachers.sort(key=lambda x: x.created_at, reverse=(sort_order == 'desc'))
+    
+    # Создаем пагинацию вручную
+    from flask_sqlalchemy import Pagination
+    total_teachers = len(all_teachers)
+    start = (page - 1) * per_page
+    end = start + per_page
+    teachers = all_teachers[start:end]
+    
+    teachers_pagination = Pagination(
+        query=None,
+        page=page,
+        per_page=per_page,
+        total=total_teachers,
+        items=teachers
+    )
+    
     return render_template('admin/teachers.html', 
                          teachers=teachers,
-                         teachers_pagination=teachers_pagination)
+                         teachers_pagination=teachers_pagination,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @app.route('/admin/teachers/<int:teacher_id>/toggle-block', methods=['POST'])
 @login_required
