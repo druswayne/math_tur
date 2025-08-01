@@ -94,7 +94,7 @@
                     {% endif %}
                     <p>Дата регистрации: {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
                     <p>Телефон: {{ current_user.phone }}</p>
-                    <p>Группа: {{ current_user.category }}</p>
+                    <p>Класс: {{ current_user.category }}</p>
                     <p><strong>Учреждение образования:</strong> {{ current_user.educational_institution.name if current_user.educational_institution else '—' }}</p>
                     
                     <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
@@ -149,7 +149,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <a href="{{ url_for('purchase_history') }}" class="btn btn-primary btn-lg w-100 purchase-history-btn">
-                                <i class="fas fa-history"></i> История покупок
+                                <i class="fas fa-history"></i> История активности
                             </a>
                         </div>
                         <div class="col-md-6 mb-3">

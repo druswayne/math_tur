@@ -2,12 +2,15 @@
 
 {% block content %}
 <div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Клуб друзей</h1>
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
+        </a>
+    </div>
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">Реферальная система</h4>
-                </div>
                 <div class="card-body">
                     <div class="alert alert-info">
                         <h5>Как это работает:</h5>
@@ -47,7 +50,7 @@
 
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">Ваша реферальная ссылка</h5>
+                            <h5 class="mb-0">Ваша пригласительная ссылка</h5>
                             <div>
                                 <button class="btn btn-sm btn-primary" onclick="copyLink()">
                                     <i class="fas fa-copy"></i> Копировать
@@ -71,9 +74,9 @@
             {% if referrals_info %}
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Ваши рефералы</h5>
+                    <h5 class="mb-0">Ваши друзья</h5>
                     <small class="text-muted">
-                        Показано {{ referrals_paginated.items|length }} из {{ referrals_paginated.total }} рефералов
+                        Показано {{ referrals_paginated.items|length }} из {{ referrals_paginated.total }} друзей
                     </small>
                 </div>
                 <div class="card-body">

@@ -39,7 +39,7 @@ class UserTutorial {
                 position: 'bottom'
             },
             {
-                title: "История покупок",
+                title: "История активности",
                 description: "Просматривайте историю покупок жетонов и призов.",
                 target: '.purchase-history-btn',
                 position: 'bottom'

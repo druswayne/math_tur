@@ -3126,7 +3126,7 @@ def purchase_history():
         .paginate(page=prize_page, per_page=per_page, error_out=False)
     
     return render_template('purchase_history.html', 
-                         title='История покупок',
+                         title='История активности',
                          ticket_purchases=ticket_purchases,
                          prize_purchases=prize_purchases)
 
