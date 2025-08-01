@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<style>
+/* Отключаем всплывающие flash уведомления на странице логина */
+.flash-messages {
+    display: none !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="auth-section">
     <div class="container">
@@ -123,6 +132,13 @@
                             </button>
                         </div>
                         <div class="form-text">Введите пароль для подтверждения действия</div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input class="form-check-input" type="checkbox" id="reset_is_teacher" name="reset_is_teacher">
+                        <label class="form-check-label" for="reset_is_teacher">
+                            <i class="fas fa-chalkboard-teacher me-1"></i>Я учитель
+                        </label>
                     </div>
                 </form>
             </div>
@@ -344,6 +360,9 @@ document.addEventListener('DOMContentLoaded', function() {
             confirmResetBtn.disabled = true;
             confirmResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Обработка...';
 
+            // Получаем значение чексбокса "Я учитель"
+            const isTeacher = document.getElementById('reset_is_teacher').checked;
+            
             // Отправляем запрос на сброс сессий
             fetch('/reset-session', {
                 method: 'POST',
@@ -352,7 +371,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     username: username,
-                    password: password
+                    password: password,
+                    is_teacher: isTeacher
                 })
             })
             .then(response => response.json())
@@ -411,10 +431,17 @@ document.addEventListener('DOMContentLoaded', function() {
 function showResetSessionModal() {
     const usernameInput = document.getElementById('username');
     const resetUsernameInput = document.getElementById('resetUsername');
+    const isTeacherCheckbox = document.getElementById('is_teacher');
+    const resetIsTeacherCheckbox = document.getElementById('reset_is_teacher');
     
     // Копируем логин из основной формы в поле модального окна (если он есть)
     const username = usernameInput.value.trim();
     resetUsernameInput.value = username;
+    
+    // Копируем состояние чексбокса "Я учитель" из основной формы
+    if (isTeacherCheckbox && resetIsTeacherCheckbox) {
+        resetIsTeacherCheckbox.checked = isTeacherCheckbox.checked;
+    }
     
     const modal = new bootstrap.Modal(document.getElementById('resetSessionModal'));
     modal.show();

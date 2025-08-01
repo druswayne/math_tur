@@ -5320,32 +5320,57 @@ def reset_session():
         data = request.get_json()
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
+        is_teacher = data.get('is_teacher', False)
         
         if not username or not password:
             return jsonify({'success': False, 'message': 'Необходимо указать логин и пароль'})
         
-        # Ищем пользователя (регистронезависимый поиск)
-        user = User.query.filter(User.username.ilike(username)).first()
-        
-        if not user:
-            return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
-        
-        if not user.check_password(password):
-            return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
-        
-        if user.is_blocked:
-            return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
-        
-        if not user.is_active:
-            return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
-        
-        # Проверяем, есть ли активная сессия
-        active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
-        if not active_session:
-            return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
-        
-        # Деактивируем все сессии пользователя
-        deactivate_user_session(user.id)
+        if is_teacher:
+            # Ищем учителя (регистронезависимый поиск)
+            teacher = Teacher.query.filter(Teacher.username.ilike(username)).first()
+            
+            if not teacher:
+                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
+            
+            if not teacher.check_password(password):
+                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
+            
+            if teacher.is_blocked:
+                return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
+            
+            if not teacher.is_active:
+                return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
+            
+            # Проверяем, есть ли активная сессия учителя
+            active_session = UserSession.query.filter_by(teacher_id=teacher.id, user_type='teacher', is_active=True).first()
+            if not active_session:
+                return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
+            
+            # Деактивируем все сессии учителя
+            deactivate_user_session(teacher.id, user_type='teacher', teacher_id=teacher.id)
+        else:
+            # Ищем пользователя (регистронезависимый поиск)
+            user = User.query.filter(User.username.ilike(username)).first()
+            
+            if not user:
+                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
+            
+            if not user.check_password(password):
+                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
+            
+            if user.is_blocked:
+                return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
+            
+            if not user.is_active:
+                return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
+            
+            # Проверяем, есть ли активная сессия
+            active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
+            if not active_session:
+                return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
+            
+            # Деактивируем все сессии пользователя
+            deactivate_user_session(user.id)
         
         return jsonify({
             'success': True, 
