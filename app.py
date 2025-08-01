@@ -793,8 +793,6 @@ def send_teacher_credentials_email(teacher, password):
 Логин: {teacher.username}
 Пароль: {password}
 
-Обязательно смените пароль после первого входа в систему!
-
 Для входа как учитель:
 1. Перейдите на страницу входа
 2. Введите свои данные
@@ -820,8 +818,6 @@ def send_credentials_email(user, password):
 Ваши учетные данные:
 Логин: {user.username}
 Пароль: {password}
-
-Рекомендуем сменить пароль после первого входа в систему.
 '''
     add_to_queue(app, mail, msg)
 
