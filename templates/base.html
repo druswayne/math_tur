@@ -140,8 +140,9 @@
         .feedback-form .form-control {
             border-radius: var(--border-radius);
             border: 1px solid #ddd;
-            padding: 0.8rem 1rem;
+            padding: 0.5rem 0.75rem;
             transition: var(--transition);
+            font-size: 0.875rem;
         }
 
         .feedback-form .form-control:focus {
@@ -157,7 +158,8 @@
             transition: var(--transition);
             box-shadow: var(--box-shadow);
             border-radius: var(--border-radius);
-            padding: 0.8rem 2rem;
+            padding: 0.6rem 1.5rem;
+            font-size: 0.875rem;
         }
 
         .feedback-form .btn-primary:hover,
@@ -175,7 +177,8 @@
             font-weight: 500;
             transition: var(--transition);
             border-radius: var(--border-radius);
-            padding: 0.8rem 2rem;
+            padding: 0.6rem 1.5rem;
+            font-size: 0.875rem;
             box-shadow: var(--box-shadow);
         }
 
@@ -834,10 +837,7 @@
                     </div>
 
 
-                    <div class="mt-3 text-md-end footer-contacts-support">
-                        <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">Техническая поддержка: <a href="mailto:th@liga-znatokov.by" style="color:#FF8C00; text-decoration: none;">th@liga-znatokov.by</a></p>
-                        <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">Методическая поддержка: <a href="mailto:md@liga-znatokov.by" style="color: #FF8C00; text-decoration: none;">md@liga-znatokov.by</a></p>
-                    </div>
+
                     <div class="mt-3">
                         <a href="https://t.me/liga_znatokov" target="_blank" class="me-3" title="Telegram" style="color:#FF8C00;">
                             <i class="fab fa-telegram" style="font-size:2.5em"></i>
@@ -1135,39 +1135,39 @@
         <i class="fas fa-comments"></i>
     </button>
 
-    <!-- Модальное окно обратной связи -->
-    <div class="modal fade feedback-modal" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+           <!-- Модальное окно обратной связи -->
+       <div class="modal fade feedback-modal" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+           <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="feedbackModalLabel">
-                        <i class="fas fa-comments me-2"></i>Обратная связь
-                    </h5>
+                                   <div class="modal-header py-2">
+                       <h6 class="modal-title mb-0" id="feedbackModalLabel">
+                           <i class="fas fa-comments me-2"></i>Обратная связь
+                       </h6>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body py-3">
                     <form id="feedbackForm" class="feedback-form">
-                        <div class="mb-3">
-                            <label for="feedbackName" class="form-label">Имя *</label>
-                            <input type="text" class="form-control" id="feedbackName" name="name" required>
-                            </div>
-                        <div class="mb-3">
-                            <label for="feedbackPhone" class="form-label">Номер телефона *</label>
-                            <input type="tel" class="form-control" id="feedbackPhone" name="phone" 
-                                   required placeholder="Введите номер телефона">
-                        </div>
-                        <div class="mb-3">
-                            <label for="feedbackEmail" class="form-label">Email *</label>
-                            <input type="email" class="form-control" id="feedbackEmail" name="email" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="feedbackSubject" class="form-label">Тема сообщения *</label>
-                            <input type="text" class="form-control" id="feedbackSubject" name="subject" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="feedbackMessage" class="form-label">Текст сообщения *</label>
-                            <textarea class="form-control" id="feedbackMessage" name="message" rows="4" required></textarea>
-                            </div>
+                                                   <div class="mb-2">
+                               <label for="feedbackName" class="form-label small mb-1">Имя *</label>
+                               <input type="text" class="form-control form-control-sm" id="feedbackName" name="name" required>
+                           </div>
+                           <div class="mb-2">
+                               <label for="feedbackPhone" class="form-label small mb-1">Номер телефона *</label>
+                               <input type="tel" class="form-control form-control-sm" id="feedbackPhone" name="phone" 
+                                      required placeholder="Введите номер телефона">
+                           </div>
+                           <div class="mb-2">
+                               <label for="feedbackEmail" class="form-label small mb-1">Email *</label>
+                               <input type="email" class="form-control form-control-sm" id="feedbackEmail" name="email" required>
+                           </div>
+                           <div class="mb-2">
+                               <label for="feedbackSubject" class="form-label small mb-1">Тема сообщения *</label>
+                               <input type="text" class="form-control form-control-sm" id="feedbackSubject" name="subject" required>
+                           </div>
+                           <div class="mb-3">
+                               <label for="feedbackMessage" class="form-label small mb-1">Текст сообщения *</label>
+                               <textarea class="form-control form-control-sm" id="feedbackMessage" name="message" rows="3" required></textarea>
+                           </div>
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary flex-fill">
                         <i class="fas fa-paper-plane me-2"></i>Отправить
