@@ -82,6 +82,10 @@ app.config['MAIL_USE_TLS'] = False  # Отключаем TLS для порта 4
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 
+# Настройки для административных писем
+app.config['MAIL_USERNAME_ADMIN'] = os.environ.get('MAIL_USERNAME_ADMIN')
+app.config['MAIL_PASSWORD_ADMIN'] = os.environ.get('MAIL_PASSWORD_ADMIN')
+
 # Настройки сессии
 app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('SESSION_COOKIE_SECURE'))  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
@@ -712,6 +716,32 @@ def create_admin_user():
         admin.set_password('admin123')
         db.session.add(admin)
         db.session.commit()
+
+def send_admin_mass_email(subject, message, recipient_email):
+    """Отправка административного письма пользователю с использованием отдельного email"""
+    try:
+        # Создаем отдельную конфигурацию для административных писем
+        admin_mail_config = {
+            'MAIL_SERVER': app.config['MAIL_SERVER'],
+            'MAIL_PORT': app.config['MAIL_PORT'],
+            'MAIL_USE_SSL': app.config['MAIL_USE_SSL'],
+            'MAIL_USE_TLS': app.config['MAIL_USE_TLS'],
+            'MAIL_USERNAME': app.config['MAIL_USERNAME_ADMIN'],
+            'MAIL_PASSWORD': app.config['MAIL_PASSWORD_ADMIN']
+        }
+        
+        # Создаем сообщение с административным отправителем
+        msg = Message(subject,
+                     sender=admin_mail_config['MAIL_USERNAME'],
+                     recipients=[recipient_email])
+        msg.body = message
+        
+        # Отправляем через очередь с административными настройками
+        add_to_queue(app, mail, msg, admin_mail_config)
+        
+    except Exception as e:
+        print(f"Ошибка отправки административного письма пользователю {recipient_email}: {e}")
+        raise e
 
 def send_admin_notification(subject, message, recipient_email=None):
     """Отправка уведомления всем администраторам или конкретному получателю"""
@@ -1476,8 +1506,8 @@ def admin_mass_email():
         
         for user in users:
             try:
-                # Используем существующую функцию отправки email
-                send_admin_notification(subject, message, user.email)
+                # Используем новую функцию для отправки административных писем
+                send_admin_mass_email(subject, message, user.email)
                 sent_count += 1
             except Exception as e:
                 failed_count += 1
