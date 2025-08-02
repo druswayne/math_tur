@@ -743,6 +743,50 @@ def send_admin_mass_email(subject, message, recipient_email):
         print(f"Ошибка отправки административного письма пользователю {recipient_email}: {e}")
         raise e
 
+def send_feedback_email(name, phone, email, subject, message):
+    """Отправка письма с обратной связью администратору"""
+    try:
+        # Создаем отдельную конфигурацию для административных писем
+        admin_mail_config = {
+            'MAIL_SERVER': app.config['MAIL_SERVER'],
+            'MAIL_PORT': app.config['MAIL_PORT'],
+            'MAIL_USE_SSL': app.config['MAIL_USE_SSL'],
+            'MAIL_USE_TLS': app.config['MAIL_USE_TLS'],
+            'MAIL_USERNAME': app.config['MAIL_USERNAME_ADMIN'],
+            'MAIL_PASSWORD': app.config['MAIL_PASSWORD_ADMIN']
+        }
+        
+        # Формируем тему и текст письма
+        email_subject = f"Обратная связь: {subject}"
+        email_body = f"""
+Новое сообщение с сайта Лига Знатоков
+
+Отправитель: {name}
+Телефон: {phone}
+Email: {email}
+
+Тема: {subject}
+
+Сообщение:
+{message}
+
+---
+Это письмо отправлено автоматически с сайта Лига Знатоков
+        """
+        
+        # Создаем сообщение
+        msg = Message(email_subject,
+                     sender=admin_mail_config['MAIL_USERNAME'],
+                     recipients=['th@liga-znatokov.by'])
+        msg.body = email_body.strip()
+        
+        # Отправляем через очередь с административными настройками
+        add_to_queue(app, mail, msg, admin_mail_config)
+        
+    except Exception as e:
+        print(f"Ошибка отправки письма с обратной связью: {e}")
+        raise e
+
 def send_admin_notification(subject, message, recipient_email=None):
     """Отправка уведомления всем администраторам или конкретному получателю"""
     try:
@@ -1527,6 +1571,44 @@ def admin_mass_email():
     except Exception as e:
         print(f"Ошибка массовой рассылки: {e}")
         return jsonify({'success': False, 'message': f'Произошла ошибка при отправке писем: {str(e)}'})
+
+@app.route('/send_feedback', methods=['POST'])
+def send_feedback():
+    """Обработка формы обратной связи"""
+    try:
+        data = request.get_json()
+        
+        # Получаем данные из формы
+        name = data.get('name', '').strip()
+        phone = data.get('phone', '').strip()
+        email = data.get('email', '').strip()
+        subject = data.get('subject', '').strip()
+        message = data.get('message', '').strip()
+        
+        # Валидация данных
+        if not name or len(name) > 100:
+            return jsonify({'success': False, 'message': 'Имя должно содержать от 1 до 100 символов'})
+        
+        if not phone or len(phone) < 5:
+            return jsonify({'success': False, 'message': 'Номер телефона должен содержать минимум 5 символов'})
+        
+        if not email or len(email) > 100:
+            return jsonify({'success': False, 'message': 'Email должен содержать от 1 до 100 символов'})
+        
+        if not subject or len(subject) > 200:
+            return jsonify({'success': False, 'message': 'Тема сообщения должна содержать от 1 до 200 символов'})
+        
+        if not message or len(message) > 2000:
+            return jsonify({'success': False, 'message': 'Текст сообщения должен содержать от 1 до 2000 символов'})
+        
+        # Отправляем письмо администратору
+        send_feedback_email(name, phone, email, subject, message)
+        
+        return jsonify({'success': True, 'message': 'Сообщение успешно отправлено'})
+        
+    except Exception as e:
+        print(f"Ошибка отправки обратной связи: {e}")
+        return jsonify({'success': False, 'message': 'Произошла ошибка при отправке сообщения'})
 
 @app.route('/admin/tournaments')
 @login_required

@@ -100,6 +100,103 @@
             background-color: #ffc107;
         }
 
+        /* Стили для формы обратной связи */
+        .feedback-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            box-shadow: var(--box-shadow);
+            z-index: 1000;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .feedback-button:hover {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+            box-shadow: var(--box-shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .feedback-button:active {
+            transform: scale(0.95);
+        }
+
+        .feedback-modal .modal-dialog {
+            max-width: 500px;
+        }
+
+        .feedback-form .form-label {
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        .feedback-form .form-control {
+            border-radius: var(--border-radius);
+            border: 1px solid #ddd;
+            padding: 0.8rem 1rem;
+            transition: var(--transition);
+        }
+
+        .feedback-form .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
+        }
+
+        .feedback-form .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            color: var(--text-color);
+            font-weight: 500;
+            transition: var(--transition);
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius);
+            padding: 0.8rem 2rem;
+        }
+
+        .feedback-form .btn-primary:hover,
+        .feedback-form .btn-primary:focus {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
+            color: var(--text-color);
+            box-shadow: var(--box-shadow-hover);
+            transform: translateY(-1px);
+        }
+
+        .feedback-form .btn-secondary {
+            background: #6c757d;
+            border: none;
+            color: white;
+            font-weight: 500;
+            transition: var(--transition);
+            border-radius: var(--border-radius);
+            padding: 0.8rem 2rem;
+            box-shadow: var(--box-shadow);
+        }
+
+        .feedback-form .btn-secondary:hover {
+            background: #5a6268;
+            color: white;
+            box-shadow: var(--box-shadow-hover);
+            transform: translateY(-1px);
+        }
+
+        /* Анимация для кнопки обратной связи */
+        @keyframes feedbackPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .feedback-button-pulse {
+            animation: feedbackPulse 2s infinite;
+        }
+
         /* Стили для улучшения навигации */
         .navbar-nav .nav-link {
             transition: all 0.3s ease;
@@ -844,6 +941,37 @@
                 }
             };
             
+            // Функция для показа уведомлений (глобальная)
+            window.showNotification = function(title, message, type = 'info') {
+                const flashContainer = document.querySelector('.flash-messages');
+                if (!flashContainer) {
+                    console.error('Flash messages container not found');
+                    return;
+                }
+
+                const notification = document.createElement('div');
+                notification.className = `flash-message alert-${type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'}`;
+                
+                notification.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            ${title ? `<strong>${title}</strong><br>` : ''}
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+                    </div>
+                `;
+
+                flashContainer.appendChild(notification);
+
+                // Автоматически удаляем уведомление через 5 секунд
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 5000);
+            };
+
             // Устанавливаем куки при успешной авторизации
             const userAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
             if (userAuthenticated) {
@@ -863,6 +991,104 @@
                 const modal = new bootstrap.Modal(document.getElementById('registrationModal'));
                 modal.show();
             };
+
+            // Обработчик кнопки обратной связи
+            const feedbackButton = document.getElementById('feedbackButton');
+            if (feedbackButton) {
+                feedbackButton.addEventListener('click', function() {
+                    const modal = new bootstrap.Modal(document.getElementById('feedbackModal'));
+                    modal.show();
+                });
+
+                // Добавляем анимацию пульсации через 3 секунды
+                setTimeout(function() {
+                    feedbackButton.classList.add('feedback-button-pulse');
+                }, 3000);
+            }
+
+            // Обработчик формы обратной связи
+            const feedbackForm = document.getElementById('feedbackForm');
+            if (feedbackForm) {
+                feedbackForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const formData = new FormData(feedbackForm);
+                    const data = {
+                        name: formData.get('name'),
+                        phone: formData.get('phone'),
+                        email: formData.get('email'),
+                        subject: formData.get('subject'),
+                        message: formData.get('message')
+                    };
+
+                    // Проверка наличия номера телефона
+                    if (!data.phone || data.phone.trim() === '') {
+                        showNotification('Ошибка', 'Пожалуйста, введите номер телефона', 'error');
+                        return;
+                    }
+
+                    // Отправка данных
+                    fetch('/send_feedback', {
+                            method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showNotification('Успешно', 'Ваше сообщение отправлено! Мы свяжемся с вами в ближайшее время.', 'success');
+                                feedbackForm.reset();
+                                
+                                // Закрываем модальное окно
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('feedbackModal'));
+                                if (modal) {
+                                    modal.hide();
+                                } else {
+                                    // Альтернативный способ закрытия, если экземпляр не найден
+                                    const modalElement = document.getElementById('feedbackModal');
+                                    if (modalElement) {
+                                        const bsModal = new bootstrap.Modal(modalElement);
+                                        bsModal.hide();
+                                    }
+                                }
+                            } else {
+                                showNotification('Ошибка', data.message || 'Произошла ошибка при отправке сообщения', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        showNotification('Ошибка', 'Произошла ошибка при отправке сообщения', 'error');
+                        });
+                    });
+                }
+
+
+
+            // Обработчик кнопки "Отмена" в форме обратной связи
+            const feedbackCancelButton = document.querySelector('#feedbackModal .btn-secondary');
+            if (feedbackCancelButton) {
+                feedbackCancelButton.addEventListener('click', function() {
+                    // Сбрасываем форму при закрытии
+                    const feedbackForm = document.getElementById('feedbackForm');
+                    if (feedbackForm) {
+                        feedbackForm.reset();
+                    }
+                });
+            }
+
+            // Обработчик закрытия модального окна через крестик или клик вне окна
+            const feedbackModal = document.getElementById('feedbackModal');
+            if (feedbackModal) {
+                feedbackModal.addEventListener('hidden.bs.modal', function() {
+                    // Сбрасываем форму при закрытии модального окна
+                    const feedbackForm = document.getElementById('feedbackForm');
+                    if (feedbackForm) {
+                        feedbackForm.reset();
+                    }
+                });
+            }
         });
     </script>
     {% block scripts %}{% endblock %}
@@ -904,13 +1130,65 @@
         </div>
     </div>
 
+    <!-- Кнопка обратной связи -->
+    <button class="feedback-button" id="feedbackButton" title="Обратная связь">
+        <i class="fas fa-comments"></i>
+    </button>
+
+    <!-- Модальное окно обратной связи -->
+    <div class="modal fade feedback-modal" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="feedbackModalLabel">
+                        <i class="fas fa-comments me-2"></i>Обратная связь
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="feedbackForm" class="feedback-form">
+                        <div class="mb-3">
+                            <label for="feedbackName" class="form-label">Имя *</label>
+                            <input type="text" class="form-control" id="feedbackName" name="name" required>
+                            </div>
+                        <div class="mb-3">
+                            <label for="feedbackPhone" class="form-label">Номер телефона *</label>
+                            <input type="tel" class="form-control" id="feedbackPhone" name="phone" 
+                                   required placeholder="Введите номер телефона">
+                        </div>
+                        <div class="mb-3">
+                            <label for="feedbackEmail" class="form-label">Email *</label>
+                            <input type="email" class="form-control" id="feedbackEmail" name="email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="feedbackSubject" class="form-label">Тема сообщения *</label>
+                            <input type="text" class="form-control" id="feedbackSubject" name="subject" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="feedbackMessage" class="form-label">Текст сообщения *</label>
+                            <textarea class="form-control" id="feedbackMessage" name="message" rows="4" required></textarea>
+                            </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                        <i class="fas fa-paper-plane me-2"></i>Отправить
+                    </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                Отмена
+                            </button>
+                </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Баннер согласия на cookie -->
     <div class="cookie-banner" id="cookieBanner" style="display:none;">
         <div class="cookie-banner__text">
             Для улучшения работы сайта и его взаимодействия с пользователями мы используем файлы cookie. Продолжая работу с сайтом, вы даёте <a href="#" target="_blank">согласие на использование cookie-файлов</a>. Вы всегда можете отключить файлы cookie в настройках Вашего браузера.
-        </div>
+                </div>
         <button class="btn btn-primary cookie-banner__btn" id="acceptCookiesBtn">Принять</button>
-        <button class="cookie-banner__close" id="closeCookieBanner" title="Закрыть">&times;</button>
+        <button class="btn cookie-banner__close" id="closeCookieBanner" title="Закрыть">&times;</button>
     </div>
 </body>
 </html> 
