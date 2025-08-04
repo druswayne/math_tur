@@ -74,7 +74,7 @@
                         <div class="mb-3">
                             <label for="full_name" class="form-label">Фамилия, имя, отчество</label>
                             <div class="input-group">
-                            <input type="text" class="form-control" id="full_name" name="full_name" required>
+                            <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Иванов Иван Иванович" required>
                                 <span class="input-group-text validation-icon" id="full_name-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -90,7 +90,7 @@
                                     <option value="+375">🇧🇾 +375</option>
                                     <option value="+7">🇷🇺 +7</option>
                                 </select>
-                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="XXXXXXXXX" required>
+                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="291234567" required>
                                 <span class="input-group-text validation-icon" id="phone-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -102,7 +102,7 @@
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
                             <div class="input-group">
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="example@email.com" required>
                                 <span class="input-group-text validation-icon" id="email-icon">
                                     <i class="fas fa-spinner fa-spin" style="display: none;"></i>
                                     <i class="fas fa-check text-success" style="display: none;"></i>
@@ -117,7 +117,7 @@
                             <label for="educational_institution" class="form-label">Учреждение образования</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="educational_institution_search" 
-                                       placeholder="Начните вводить название учреждения..." autocomplete="off">
+                                       placeholder="Средняя школа №2 г. Гродно" autocomplete="off">
                                 <span class="input-group-text validation-icon" id="educational_institution-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -530,6 +530,29 @@ document.addEventListener('DOMContentLoaded', function() {
     phoneField.addEventListener('input', validatePhone);
     emailField.addEventListener('input', validateEmail);
     agreeTermsField.addEventListener('change', checkFormValidity);
+    
+    // Обработчик изменения кода страны для телефона
+    document.getElementById('phone_country').addEventListener('change', function() {
+        updatePhonePlaceholder();
+        validatePhone();
+    });
+    
+    // Функция для обновления плейсхолдера номера телефона
+    function updatePhonePlaceholder() {
+        const countryCode = document.getElementById('phone_country').value;
+        const phoneInput = document.getElementById('phone');
+        
+        if (countryCode === '+375') {
+            // Беларусь: 9 цифр после кода
+            phoneInput.placeholder = '291234567';
+        } else if (countryCode === '+7') {
+            // Россия: 10 цифр после кода
+            phoneInput.placeholder = '9123456789';
+        }
+    }
+    
+    // Инициализируем плейсхолдер при загрузке страницы
+    updatePhonePlaceholder();
     
     // Показать/скрыть пароль
     document.getElementById('togglePassword').addEventListener('click', function() {

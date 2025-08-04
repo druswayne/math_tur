@@ -85,7 +85,7 @@
                         <div class="mb-3">
                             <label for="student_name" class="form-label">Фамилия и имя учащегося</label>
                             <div class="input-group">
-                            <input type="text" class="form-control" id="student_name" name="student_name" required>
+                            <input type="text" class="form-control" id="student_name" name="student_name" placeholder="Иванов Иван" required>
                                 <span class="input-group-text validation-icon" id="student_name-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -96,7 +96,7 @@
                         <div class="mb-3">
                             <label for="parent_name" class="form-label">ФИО законного представителя (родителя)</label>
                             <div class="input-group">
-                            <input type="text" class="form-control" id="parent_name" name="parent_name" required>
+                            <input type="text" class="form-control" id="parent_name" name="parent_name" placeholder="Иванов Иван Иванович" required>
                                 <span class="input-group-text validation-icon" id="parent_name-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -112,7 +112,7 @@
                                     <option value="+375">🇧🇾 +375</option>
                                     <option value="+7">🇷🇺 +7</option>
                                 </select>
-                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="XXXXXXXXX" required>
+                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="291234567" required>
                                 <span class="input-group-text validation-icon" id="phone-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -123,7 +123,7 @@
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
                             <div class="input-group">
-                            <input type="email" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control" id="email" name="email" placeholder="example@email.com" required>
                                 <span class="input-group-text validation-icon" id="email-icon">
                                     <i class="fas fa-spinner fa-spin" style="display: none;"></i>
                                     <i class="fas fa-check text-success" style="display: none;"></i>
@@ -137,7 +137,7 @@
                             <label for="educational_institution" class="form-label">Учреждение образования</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="educational_institution_search" 
-                                       placeholder="Начните вводить название учреждения..." autocomplete="off" required>
+                                       placeholder="Средняя школа №2 г. Гродно" autocomplete="off" required>
                                 <span class="input-group-text validation-icon" id="educational_institution-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -156,7 +156,7 @@
                             <div class="form-text">Выберите учреждение из списка или введите новое название</div>
                         </div>
                         <div class="mb-3">
-                            <label for="category" class="form-label">Категория</label>
+                            <label for="category" class="form-label">Класс</label>
                             <select class="form-select" id="category" name="category" required>
                                 <option value="1-2">1-2 класс</option>
                                 <option value="3">3 класс</option>
@@ -867,10 +867,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (phoneCountrySelect) {
         phoneCountrySelect.addEventListener('change', function() {
+            // Обновляем плейсхолдер в зависимости от выбранного кода страны
+            updatePhonePlaceholder();
             validatePhone(phoneInput.value);
             validateForm();
         });
     }
+    
+    // Функция для обновления плейсхолдера номера телефона
+    function updatePhonePlaceholder() {
+        const countryCode = phoneCountrySelect.value;
+        const phoneInput = document.getElementById('phone');
+        
+        if (countryCode === '+375') {
+            // Беларусь: 9 цифр после кода
+            phoneInput.placeholder = '291234567';
+        } else if (countryCode === '+7') {
+            // Россия: 10 цифр после кода
+            phoneInput.placeholder = '9123456789';
+        }
+    }
+    
+    // Инициализируем плейсхолдер при загрузке страницы
+    updatePhonePlaceholder();
 
     let emailTimeout;
     if (emailInput) {

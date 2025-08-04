@@ -182,7 +182,7 @@
                     <div class="mb-3">
                         <label for="studentName" class="form-label">Фамилия и имя учащегося</label>
                         <div class="input-group">
-                        <input type="text" class="form-control" id="studentName" value="{{ current_user.student_name or '' }}" required>
+                        <input type="text" class="form-control" id="studentName" value="{{ current_user.student_name or '' }}" placeholder="Иванов Иван" required>
                             <span class="input-group-text validation-icon" id="studentName-icon">
                                 <i class="fas fa-check text-success" style="display: none;"></i>
                                 <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -193,7 +193,7 @@
                     <div class="mb-3">
                         <label for="parentName" class="form-label">ФИО законного представителя</label>
                         <div class="input-group">
-                        <input type="text" class="form-control" id="parentName" value="{{ current_user.parent_name or '' }}" required>
+                        <input type="text" class="form-control" id="parentName" value="{{ current_user.parent_name or '' }}" placeholder="Иванов Иван Иванович" required>
                             <span class="input-group-text validation-icon" id="parentName-icon">
                                 <i class="fas fa-check text-success" style="display: none;"></i>
                                 <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -219,7 +219,7 @@
                         <div class="form-text">Введите номер телефона без кода страны (код выбран выше)</div>
                     </div>
                     <div class="form-group mb-3">
-                        <label for="category">Группа</label>
+                        <label for="category">Класс</label>
                         <select class="form-control" id="category" name="category" {% if settings.is_season_active or not settings.allow_category_change %}disabled{% endif %}>
                             <option value="1-2" {% if current_user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
                             <option value="3" {% if current_user.category == '3' %}selected{% endif %}>3 класс</option>
@@ -242,7 +242,7 @@
                         <label for="educational_institution_name">Учреждение образования</label>
                         <input type="text" class="form-control" id="educational_institution_name" name="educational_institution_name" 
                                value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}" 
-                               autocomplete="off" required>
+                               placeholder="Средняя школа №2 г. Гродно" autocomplete="off" required>
                         <input type="hidden" id="educational_institution_id" name="educational_institution_id" 
                                value="{{ current_user.educational_institution_id or '' }}">
                         <div id="edu-institution-suggestions" class="autocomplete-suggestions" style="margin-top: 10px; margin-bottom: 10px;"></div>
@@ -943,9 +943,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (phoneCountrySelect) {
         phoneCountrySelect.addEventListener('change', function() {
+            // Обновляем плейсхолдер в зависимости от выбранного кода страны
+            updatePhonePlaceholder();
             validatePhone(phoneInput.value);
             validateForm();
         });
+    }
+    
+    // Функция для обновления плейсхолдера номера телефона
+    function updatePhonePlaceholder() {
+        const countryCode = phoneCountrySelect.value;
+        const phoneInput = document.getElementById('phone');
+        
+        if (countryCode === '+375') {
+            // Беларусь: 9 цифр после кода
+            phoneInput.placeholder = '291234567';
+        } else if (countryCode === '+7') {
+            // Россия: 10 цифр после кода
+            phoneInput.placeholder = '9123456789';
+        }
     }
 
     if (newPasswordInput) {
@@ -999,6 +1015,9 @@ document.addEventListener('DOMContentLoaded', function() {
             validatePassword(newPasswordInput ? newPasswordInput.value : '');
             validateConfirmPassword();
             validateForm();
+            
+            // Инициализируем плейсхолдер для номера телефона
+            updatePhonePlaceholder();
             
             // Инициализируем автокомплит для учреждений образования
             initEducationalInstitutionAutocomplete();
