@@ -110,20 +110,25 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="card bg-light mb-3 h-100 balance-section">
+                        <div class="col-md-6 col-12 mb-3">
+                            <div class="card h-100 balance-section position-relative" style="background: transparent; border: none; box-shadow: 0 4px 16px rgba(255, 215, 0, 0.25);">
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <span class="badge fs-6" style="background-color: #FFD700; color: #333333;">Общий счёт</span>
+                                </div>
                                 <div class="card-body text-center d-flex flex-column justify-content-center">
-                                    <h5 class="card-title">Общий счет</h5>
-                                    <h2 class="text-primary">{{ current_user.balance }}</h2>
-                                    <p class="text-muted">Место в рейтинге: {{ user_rank }}</p>
+                                    <h2 class="balance-value" style="color: #333333; font-weight: 700;">{{ current_user.balance }}</h2>
+                                    <p class="balance-rank" style="color: #666666;">Место в рейтинге: {{ user_rank }}</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="card bg-light mb-3 h-100 tickets-section">
+                        <div class="col-md-6 col-12 mb-3">
+                            <div class="card h-100 tickets-section position-relative" style="background: transparent; border: none; box-shadow: 0 4px 16px rgba(255, 140, 0, 0.25);">
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <span class="badge fs-6" style="background-color: #FF8C00; color: #333333;">Кошелек</span>
+                                </div>
                                 <div class="card-body text-center d-flex flex-column justify-content-center">
-                                    <h5 class="card-title">Жетоны</h5>
-                                    <h2 class="text-success">{{ current_user.tickets }}</h2>
+                                    <h5 class="card-title mb-2 tickets-title" style="color: #333333; font-weight: 600;">Жетоны</h5>
+                                    <h2 class="tickets-value" style="color: #333333; font-weight: 700;">{{ current_user.tickets }}</h2>
                                 </div>
                             </div>
                         </div>
@@ -598,6 +603,93 @@
 
 .btn-outline-secondary:hover i {
     transform: scale(1.1);
+}
+
+/* Мобильная адаптация для блоков статистики */
+@media (max-width: 768px) {
+    .balance-section,
+    .tickets-section {
+        margin-bottom: 1rem !important;
+    }
+    
+    .balance-value,
+    .tickets-value {
+        font-size: 1.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .balance-rank {
+        font-size: 0.875rem !important;
+        margin-bottom: 0 !important;
+    }
+    
+    .tickets-title {
+        font-size: 1rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    .badge {
+        font-size: 0.75rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    
+    /* Уменьшение кнопок в профиле для планшетов */
+    .profile-section .btn-sm {
+        font-size: 0.8rem !important;
+        padding: 0.3rem 0.6rem !important;
+    }
+    
+    .profile-section .btn-sm i {
+        font-size: 0.8rem !important;
+        margin-right: 0.25rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .balance-value,
+    .tickets-value {
+        font-size: 1.25rem !important;
+    }
+    
+    .balance-rank {
+        font-size: 0.8rem !important;
+    }
+    
+    .tickets-title {
+        font-size: 0.9rem !important;
+    }
+    
+    .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .badge {
+        font-size: 0.7rem !important;
+        padding: 0.2rem 0.4rem !important;
+    }
+    
+    /* Уменьшение кнопок в профиле для мобильных устройств */
+    .profile-section .btn-sm {
+        font-size: 0.7rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    
+    .profile-section .btn-sm i {
+        font-size: 0.7rem !important;
+        margin-right: 0.2rem !important;
+    }
+    
+    .profile-section .card-header {
+        padding: 0.75rem !important;
+    }
+    
+    .profile-section .card-header h4 {
+        font-size: 1rem !important;
+    }
 }
 </style>
 
