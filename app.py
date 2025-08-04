@@ -4500,7 +4500,7 @@ def add_to_cart():
     
     return jsonify({
         'success': True,
-        'message': 'Товар добавлен в корзину',
+        'message': 'Приз добавлен в выбранные',
         'cart_items_count': cart_items_count
     })
 

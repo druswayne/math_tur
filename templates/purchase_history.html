@@ -255,8 +255,8 @@
                 <table class="table table-hover" id="prizeTable">
                     <thead>
                         <tr>
-                            <th>Дата покупки</th>
-                            <th>Товар</th>
+                            <th>Дата</th>
+                            <th>Приз</th>
                             <th>Количество</th>
                             <th>Стоимость</th>
                             <th>Статус</th>
@@ -479,7 +479,7 @@ function showDeliveryDetails(purchaseId) {
         .then(data => {
             const content = `
                 <div class="mb-3">
-                    <h6>Информация о заказе</h6>
+                    <h6>Информация о заявке</h6>
                     <p><strong>Дата:</strong> ${data.created_at}</p>
                     <p><strong>Статус:</strong> ${data.status === 'completed' ? 'Обработана' : data.status === 'cancelled' ? 'Отменена' : 'В обработке'}</p>
                 </div>

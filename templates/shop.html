@@ -116,8 +116,7 @@
 }
 </style>
 
-<!-- Контейнер для уведомлений -->
-<div class="notification-container" id="notificationContainer"></div>
+
 
 <div class="container mt-4">
     <!-- Верхняя панель с балансом и корзиной -->
@@ -127,7 +126,7 @@
                 <div class="card-body">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-coins text-warning me-2"></i>
-                        Ваш баланс: {{ current_user.balance }} баллов
+                        Ваш счёт: {{ current_user.balance }} баллов
                     </h5>
                 </div>
             </div>
@@ -135,8 +134,8 @@
         {% if settings.is_open %}
         <div class="col-md-6 text-end">
             <a href="{{ url_for('cart') }}" class="btn btn-primary btn-lg">
-                <i class="fas fa-shopping-cart me-2"></i>
-                Корзина
+                <i class="fas fa-gift me-2"></i>
+                Выбранные призы
                 {% if cart_items_count %}
                 <span class="badge bg-danger ms-2">{{ cart_items_count }}</span>
                 {% endif %}
@@ -193,24 +192,26 @@
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             {% for prize in prizes %}
             <div class="col-md-4 mb-4">
-                <div class="card h-100 prize-card">
+                <div class="card h-100 prize-card d-flex flex-column">
                     {% if prize.image %}
                     <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/{{ prize.image }}" class="card-img-top" alt="{{ prize.name }}">
                     {% endif %}
-                    <div class="card-body">
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title">{{ prize.name }}</h5>
                         {% if prize.is_unique %}
                         <span class="badge bg-warning text-dark mb-2">Уникальный приз</span>
                         {% endif %}
-                        <p class="card-text">{{ prize.description }}</p>
-                        <p class="card-text">
+                        <p class="card-text flex-grow-1">{{ prize.description }}</p>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0">
+                        <p class="card-text mb-2">
                             <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов<br>
                             {% if not prize.is_unique %}
                             <strong>Доступно:</strong> {% if prize.quantity > 0 %}{{ prize.quantity }} шт.{% else %}Неограниченно{% endif %}
                             {% endif %}
                         </p>
                     {% if can_shop and settings.is_open %}
-                        <div class="d-flex flex-column gap-3 mt-3">
+                        <div class="d-flex flex-column gap-3">
                             {% if not prize.is_unique %}
                             <div class="input-group" style="width: 150px;">
                                 <button class="btn btn-outline-secondary decrease-quantity" type="button">-</button>
@@ -219,7 +220,7 @@
                             </div>
                             {% endif %}
                             <button class="btn btn-primary add-to-cart w-100" data-prize-id="{{ prize.id }}" {% if prize.is_unique %}data-quantity="1"{% endif %}>
-                                <i class="fas fa-shopping-cart me-2"></i>Добавить в корзину
+                                <i class="fas fa-gift me-2"></i>Выбрать приз
                             </button>
                         </div>
                         {% endif %}
@@ -316,56 +317,7 @@
 </div>
 
 <script>
-// Функция для показа уведомлений
-function showNotification(title, message, type = 'info') {
-    const container = document.getElementById('notificationContainer');
-    
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
-    
-    const colors = {
-        success: '#28a745',
-        error: '#dc3545',
-        warning: '#ffc107',
-        info: '#17a2b8'
-    };
-    
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <div class="notification-icon" style="color: ${colors[type]}">
-            <i class="fas ${icons[type]}"></i>
-        </div>
-        <div class="notification-content">
-            <div class="notification-title">${title}</div>
-            <div class="notification-message">${message}</div>
-        </div>
-        <button class="notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    container.appendChild(notification);
-    
-    // Добавляем обработчик для кнопки закрытия
-    const closeButton = notification.querySelector('.notification-close');
-    closeButton.addEventListener('click', () => {
-        notification.classList.add('fade-out');
-        setTimeout(() => notification.remove(), 300);
-    });
-    
-    // Автоматически удаляем уведомление через 5 секунд
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.classList.add('fade-out');
-            setTimeout(() => notification.remove(), 300);
-        }
-    }, 5000);
-}
+
 
 document.addEventListener('DOMContentLoaded', function() {
     // Обработчик для селектора сортировки

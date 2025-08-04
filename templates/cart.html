@@ -157,7 +157,7 @@
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>Корзина</h2>
+        <h2>Выбранные призы</h2>
         <a href="{{ url_for('shop') }}" class="btn btn-secondary d-none d-md-inline-flex">
             <i class="fas fa-arrow-left me-2"></i>Вернуться в лавку призов
         </a>
@@ -241,7 +241,7 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title mb-4">Оформление заказа</h5>
+                    <h5 class="card-title mb-4">Оформить получение приза</h5>
                     
                     <div class="cart-summary mb-4">
                         <div class="cart-summary-item">
@@ -249,7 +249,7 @@
                             <span>{{ current_user.balance }} баллов</span>
                         </div>
                         <div class="cart-summary-item cart-summary-total">
-                            <span>Итого к оплате:</span>
+                            <span>Списать:</span>
                             <span>{{ total_cost }} баллов</span>
                         </div>
                     </div>
@@ -257,25 +257,28 @@
                     <form id="checkoutForm" class="mb-4" onsubmit="return validateForm()">
                         <div class="mb-3">
                             <label for="fullName" class="form-label">ФИО *</label>
-                            <input type="text" class="form-control" id="fullName" name="full_name" required>
+                            <input type="text" class="form-control" id="fullName" name="full_name" required placeholder="Иванов Иван Иванович">
                         </div>
                         <div class="mb-3">
                             <label for="phone" class="form-label">Номер телефона *</label>
                             <div class="input-group">
-                                <span class="input-group-text">+375</span>
+                                <select class="form-select" id="phone_country" name="phone_country" style="max-width: 120px;">
+                                    <option value="+375">+375</option>
+                                    <option value="+7">+7</option>
+                                </select>
                                 <input type="tel" class="form-control" id="phone" name="phone" 
                                        pattern="[0-9]{9}" maxlength="9" required
-                                       placeholder="29XXXXXXX">
+                                       placeholder="291234567">
                             </div>
-                            <div class="form-text">Формат: +37529XXXXXXX</div>
+                            <div class="form-text">Формат: +375291234567 или +79123456789</div>
                         </div>
                         <div class="mb-3">
                             <label for="address" class="form-label">Адрес доставки *</label>
-                            <textarea class="form-control" id="address" name="address" rows="3" required></textarea>
+                            <textarea class="form-control" id="address" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary w-100" 
                                 {% if current_user.balance < total_cost %}disabled{% endif %}>
-                            Оформить заказ
+                            Оформить
                         </button>
                     </form>
 
@@ -297,7 +300,7 @@
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h6 class="mb-0">Сводка заказа</h6>
                     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#mobileCheckoutModal">
-                        Оформить заказ
+                        Оформить получение приза
                     </button>
                 </div>
                 <div class="cart-summary">
@@ -377,7 +380,7 @@
     </div>
     {% else %}
     <div class="alert alert-info">
-        Ваша корзина пуста
+        Вы ещё не выбрали призы
     </div>
     {% endif %}
 </div>
@@ -426,7 +429,7 @@
     <div class="modal-dialog modal-fullscreen-sm-down">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Оформление заказа</h5>
+                <h5 class="modal-title">Оформить получение приза</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -436,7 +439,7 @@
                         <span>{{ current_user.balance }} баллов</span>
                     </div>
                     <div class="cart-summary-item cart-summary-total">
-                        <span>Итого к оплате:</span>
+                        <span>Списать:</span>
                         <span>{{ total_cost }} баллов</span>
                     </div>
                 </div>
@@ -444,25 +447,28 @@
                 <form id="mobileCheckoutForm" onsubmit="return validateMobileForm()">
                     <div class="mb-3">
                         <label for="mobileFullName" class="form-label">ФИО *</label>
-                        <input type="text" class="form-control" id="mobileFullName" name="full_name" required>
+                        <input type="text" class="form-control" id="mobileFullName" name="full_name" required placeholder="Иванов Иван Иванович">
                     </div>
                     <div class="mb-3">
                         <label for="mobilePhone" class="form-label">Номер телефона *</label>
                         <div class="input-group">
-                            <span class="input-group-text">+375</span>
+                            <select class="form-select" id="mobilePhone_country" name="phone_country" style="max-width: 120px;">
+                                <option value="+375">+375</option>
+                                <option value="+7">+7</option>
+                            </select>
                             <input type="tel" class="form-control" id="mobilePhone" name="phone" 
                                    pattern="[0-9]{9}" maxlength="9" required
-                                   placeholder="29XXXXXXX">
+                                   placeholder="291234567">
                         </div>
-                        <div class="form-text">Формат: +37529XXXXXXX</div>
+                        <div class="form-text">Формат: +375291234567 или +79123456789</div>
                     </div>
                     <div class="mb-3">
                         <label for="mobileAddress" class="form-label">Адрес доставки *</label>
-                        <textarea class="form-control" id="mobileAddress" name="address" rows="3" required></textarea>
+                        <textarea class="form-control" id="mobileAddress" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                     </div>
                     <button type="submit" class="btn btn-primary w-100" 
                             {% if current_user.balance < total_cost %}disabled{% endif %}>
-                        Оформить заказ
+                        Оформить получение приза
                     </button>
                 </form>
 
@@ -627,8 +633,10 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
         return;
     }
     
-    if (!validatePhone(phone)) {
-        showNotification('Ошибка', 'Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX', 'error');
+    const countryCode = document.getElementById('phone_country').value;
+    if (!validatePhone(phone, countryCode)) {
+        const format = countryCode === '+375' ? '+37529XXXXXXX' : '+79123456789';
+        showNotification('Ошибка', `Пожалуйста, введите корректный номер телефона в формате ${format}`, 'error');
         return;
     }
     
@@ -711,21 +719,29 @@ function showNotification(title, message, type = 'info') {
 }
 
 // Функция для валидации номера телефона
-function validatePhone(phone) {
-    const validPrefixes = ['29', '33', '44', '25'];
-    const prefix = phone.substring(0, 2);
-    if (!validPrefixes.includes(prefix)) {
-        return false;
+function validatePhone(phone, countryCode = '+375') {
+    if (countryCode === '+375') {
+        const validPrefixes = ['29', '33', '44', '25'];
+        const prefix = phone.substring(0, 2);
+        if (!validPrefixes.includes(prefix)) {
+            return false;
+        }
+        const rest = phone.substring(2);
+        return /^\d{7}$/.test(rest);
+    } else if (countryCode === '+7') {
+        // Для России: 9XXXXXXXXX (10 цифр)
+        return /^\d{10}$/.test(phone);
     }
-    const rest = phone.substring(2);
-    return /^\d{7}$/.test(rest);
+    return false;
 }
 
 // Функция для валидации всей формы
 function validateForm() {
     const phone = document.getElementById('phone').value;
-    if (!validatePhone(phone)) {
-        alert('Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX');
+    const countryCode = document.getElementById('phone_country').value;
+    if (!validatePhone(phone, countryCode)) {
+        const format = countryCode === '+375' ? '+37529XXXXXXX' : '+79123456789';
+        alert(`Пожалуйста, введите корректный номер телефона в формате ${format}`);
         return false;
     }
     return true;
@@ -741,13 +757,37 @@ function validateMobileForm() {
     return true;
 }
 
+// Функция для обновления плейсхолдера номера телефона
+function updatePhonePlaceholder(phoneInputId, countrySelectId) {
+    const countryCode = document.getElementById(countrySelectId).value;
+    const phoneInput = document.getElementById(phoneInputId);
+    
+    if (countryCode === '+375') {
+        phoneInput.placeholder = '291234567';
+    } else if (countryCode === '+7') {
+        phoneInput.placeholder = '9123456789';
+    }
+}
+
+// Обработчик изменения кода страны для десктопной формы
+document.getElementById('phone_country').addEventListener('change', function() {
+    updatePhonePlaceholder('phone', 'phone_country');
+});
+
+// Обработчик изменения кода страны для мобильной формы
+document.getElementById('mobilePhone_country').addEventListener('change', function() {
+    updatePhonePlaceholder('mobilePhone', 'mobilePhone_country');
+});
+
 // Обработчик ввода номера телефона
 document.getElementById('phone').addEventListener('input', function(e) {
     // Удаляем все нецифровые символы
     let value = e.target.value.replace(/\D/g, '');
     
-    // Ограничиваем длину до 9 цифр
-    value = value.substring(0, 9);
+    // Ограничиваем длину в зависимости от кода страны
+    const countryCode = document.getElementById('phone_country').value;
+    const maxLength = countryCode === '+375' ? 9 : 10;
+    value = value.substring(0, maxLength);
     
     // Обновляем значение поля
     e.target.value = value;
@@ -758,11 +798,19 @@ document.getElementById('mobilePhone').addEventListener('input', function(e) {
     // Удаляем все нецифровые символы
     let value = e.target.value.replace(/\D/g, '');
     
-    // Ограничиваем длину до 9 цифр
-    value = value.substring(0, 9);
+    // Ограничиваем длину в зависимости от кода страны
+    const countryCode = document.getElementById('mobilePhone_country').value;
+    const maxLength = countryCode === '+375' ? 9 : 10;
+    value = value.substring(0, maxLength);
     
     // Обновляем значение поля
     e.target.value = value;
+});
+
+// Инициализация плейсхолдеров при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    updatePhonePlaceholder('phone', 'phone_country');
+    updatePhonePlaceholder('mobilePhone', 'mobilePhone_country');
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -851,8 +899,10 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (!validatePhone(phone)) {
-            showNotification('Ошибка', 'Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX', 'error');
+        const countryCode = document.getElementById('mobilePhone_country').value;
+        if (!validatePhone(phone, countryCode)) {
+            const format = countryCode === '+375' ? '+37529XXXXXXX' : '+79123456789';
+            showNotification('Ошибка', `Пожалуйста, введите корректный номер телефона в формате ${format}`, 'error');
             return;
         }
         
