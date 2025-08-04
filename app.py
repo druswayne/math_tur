@@ -660,13 +660,19 @@ class ShopSettings(db.Model):
         if category_percentage >= 100:
             return True
             
-        # Получаем количество пользователей в категории пользователя
-        category_users = User.query.filter_by(category=user.category, is_admin=False).count()
-        if category_users == 0:
+        # Получаем количество пользователей в категории, которые участвовали в турнирах
+        from sqlalchemy import exists
+        category_users_with_tournaments = User.query.filter(
+            User.category == user.category,
+            User.is_admin == False,
+            exists().where(TournamentParticipation.user_id == User.id)
+        ).count()
+        
+        if category_users_with_tournaments == 0:
             return False
             
         # Вычисляем количество пользователей в категории, которым разрешено делать покупки
-        allowed_users_count = max(1, int(category_users * category_percentage / 100))
+        allowed_users_count = max(1, int(category_users_with_tournaments * category_percentage / 100))
         
         # Получаем ранг пользователя в его категории
         user_rank = user.category_rank
@@ -4789,7 +4795,7 @@ def admin_update_shop_settings():
     settings.is_open = 'is_open' in request.form
     
     # Обновляем проценты для каждой категории
-    categories = ['1_2', '3_4', '5_6', '7_8', '9', '10_11']
+    categories = ['1_2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     for category in categories:
         try:
             percentage = int(request.form.get(f'top_users_percentage_{category}', 100))
