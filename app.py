@@ -41,7 +41,7 @@ DEBAG = bool(os.environ.get('DEBAG'))
 
 # Константы для реферальной системы
 REFERRAL_BONUS_POINTS = 150  # Бонусные баллы за приглашенного пользователя
-REFERRAL_BONUS_TICKETS = 23   # Бонусные жетоны за приглашенного пользователя
+REFERRAL_BONUS_TICKETS = 10   # Бонусные жетоны за приглашенного пользователя
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
 # Создаем пул потоков

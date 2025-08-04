@@ -1,6 +1,66 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+/* Стили для кнопок копирования */
+.copy-btn {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.copy-btn i {
+    font-size: 0.75rem;
+}
+
+/* Стили для компактных блоков статистики */
+.stats-card {
+    padding: 0.75rem;
+}
+
+.stats-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.stats-card p {
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .copy-btn {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .copy-btn i {
+        font-size: 0.625rem;
+    }
+    
+    .stats-card {
+        padding: 0.5rem;
+    }
+    
+    .stats-card h3 {
+        font-size: 1.25rem;
+    }
+    
+    .stats-card p {
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .copy-btn {
+        font-size: 0.625rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .copy-btn i {
+        font-size: 0.5rem;
+    }
+}
+</style>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Клуб друзей</h1>
@@ -17,7 +77,7 @@
                         <ul class="mb-0">
                             <li>Поделитесь своей реферальной ссылкой с друзьями</li>
                             <li>Когда они зарегистрируются по вашей ссылке и поучаствуют в турнире, вы получите бонус</li>
-                            <li>За каждого приглашенного пользователя: <strong>{{ bonus_points }} баллов</strong> и <strong>{{ bonus_tickets }} жетонов</strong></li>
+                            <li>За каждого приглашенного пользователя: <strong>{{ bonus_points }} баллов</strong>{% if bonus_tickets > 0 %} и <strong>{{ bonus_tickets }} жетонов</strong>{% endif %}</li>
                         </ul>
                     </div>
 
@@ -52,7 +112,7 @@
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">Ваша пригласительная ссылка</h5>
                             <div>
-                                <button class="btn btn-sm btn-primary" onclick="copyLink()">
+                                <button class="btn btn-sm btn-primary copy-btn" onclick="copyLink()">
                                     <i class="fas fa-copy"></i> Копировать
                                 </button>
                             </div>
@@ -61,7 +121,7 @@
                             <div class="input-group">
                                 <input type="text" class="form-control" id="referralUrl" 
                                        value="{{ url_for('register', ref=referral_link.referral_code, _external=True) }}" readonly>
-                                <button class="btn btn-outline-secondary" type="button" onclick="copyLink()">
+                                <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyLink()">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </div>
@@ -208,7 +268,7 @@
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            За каждого реферала: {{ bonus_points }} баллов + {{ bonus_tickets }} жетонов
+                            За каждого реферала: {{ bonus_points }} баллов{% if bonus_tickets > 0 %} + {{ bonus_tickets }} жетонов{% endif %}
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
