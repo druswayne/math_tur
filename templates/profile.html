@@ -1176,9 +1176,6 @@ function updateProfile() {
 }
 
 function resetTutorial() {
-    // Предотвращаем всплытие события
-    event.preventDefault();
-    
     fetch('/reset-tutorial', {
         method: 'POST',
         headers: {
@@ -1188,7 +1185,7 @@ function resetTutorial() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification('Обучение сброшено. Страница будет перезагружена...');
+            showNotification('Обучение сброшено. Страница будет перезагружена...', 'success');
             // Перезагружаем страницу через 1 секунду
             setTimeout(() => {
                 location.reload();
@@ -1201,8 +1198,6 @@ function resetTutorial() {
         console.error('Error:', error);
         showNotification('Произошла ошибка при сбросе обучения', 'danger');
     });
-    
-    return false;
 }
 
 function showNotification(message, type = 'info') {
@@ -1239,8 +1234,6 @@ function showNotification(message, type = 'info') {
         messageDiv.classList.add('fade-out');
         setTimeout(() => messageDiv.remove(), 500);
     }, 5000);
-    
-    return true;
 }
 </script>
 
