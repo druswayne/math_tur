@@ -38,7 +38,7 @@
                                             {{ message }}
                                         </div>
                                     {% else %}
-                                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                                        <div class="alert alert-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %}">{{ message }}</div>
                                     {% endif %}
                                 {% endfor %}
                             {% endif %}
