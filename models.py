@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -49,6 +49,19 @@ class News(Base):
     is_published = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+class CurrencyRate(Base):
+    """Модель для хранения курсов валют"""
+    __tablename__ = "currency_rates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    currency_pair = Column(String(10), nullable=False, index=True)  # например "BYN_RUB"
+    rate = Column(Float, nullable=False)
+    source = Column(String(50), nullable=False)  # "nbrb", "cbr", "fallback"
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    
+    def __repr__(self):
+        return f"<CurrencyRate(currency_pair='{self.currency_pair}', rate={self.rate}, source='{self.source}')>"
 
 # Создаем таблицы в базе данных (только если запускаем models.py напрямую)
 if __name__ == "__main__":

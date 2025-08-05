@@ -6,6 +6,8 @@
 import requests
 import json
 from datetime import datetime, timedelta
+from sqlalchemy.orm import Session
+from models import SessionLocal, CurrencyRate
 
 import logging
 
@@ -24,22 +26,32 @@ class CurrencyService:
             if self._is_cache_valid('BYN_RUB'):
                 return self.cache['BYN_RUB']['rate']
             
-            # Получаем курс через API ЦБ РФ
-            rate = self._fetch_from_cbr()
-            if rate:
-                self._update_cache('BYN_RUB', rate)
-                return rate
-            
-            # Если не удалось получить от ЦБ РФ, пробуем НБ РБ
+            # Получаем курс через API НБ РБ
             rate = self._fetch_from_nbrb()
             if rate:
                 self._update_cache('BYN_RUB', rate)
+                self._save_to_db('BYN_RUB', rate, 'nbrb')
                 return rate
             
-            # Если все API недоступны, используем резервный курс
+            # Если не удалось получить от НБ РБ, пробуем ЦБ РФ
+            rate = self._fetch_from_cbr()
+            if rate:
+                self._update_cache('BYN_RUB', rate)
+                self._save_to_db('BYN_RUB', rate, 'cbr')
+                return rate
+            
+            # Если API недоступны, пробуем получить последний курс из БД
+            rate = self.get_latest_rate_from_db('BYN_RUB')
+            if rate:
+                self.logger.warning(f"API недоступны, используем последний сохраненный курс из БД: {rate}")
+                self._update_cache('BYN_RUB', rate)
+                return rate
+            
+            # Если в БД нет курсов, используем резервный курс
             fallback_rate = 30.0  # Резервный курс 1 BYN = 30 RUB
-            self.logger.warning(f"Не удалось получить курс валют, используем резервный: {fallback_rate}")
+            self.logger.warning(f"API недоступны и нет сохраненных курсов в БД, используем резервный: {fallback_rate}")
             self._update_cache('BYN_RUB', fallback_rate)
+            self._save_to_db('BYN_RUB', fallback_rate, 'fallback')
             return fallback_rate
             
         except Exception as e:
@@ -65,7 +77,7 @@ class CurrencyService:
             
             if byn_rate:
                 # Конвертируем: 1 BYN = X RUB
-                return float(byn_rate)
+                return float(byn_rate)*1.05
             
             return None
             
@@ -76,14 +88,14 @@ class CurrencyService:
     def _fetch_from_nbrb(self):
         """Получает курс через API Национального Банка РБ"""
         try:
-            url = "https://www.nbrb.by/api/exrates/rates/RUB"
+            url = "https://api.nbrb.by/ExRates/Rates/456?ParamMode=0"
             response = requests.get(url, timeout=10)
             response.raise_for_status()
             
             data = response.json()
             
             # Получаем курс RUB к BYN
-            rub_rate = data.get('Cur_OfficialRate', 0)
+            rub_rate = float(data.get('Cur_OfficialRate')/100)*0.95
             if rub_rate:
                 # Конвертируем: 1 BYN = 1/RUB_rate RUB
                 return 1.0 / float(rub_rate)
@@ -93,6 +105,54 @@ class CurrencyService:
         except Exception as e:
             self.logger.error(f"Ошибка при получении курса от НБ РБ: {e}")
             return None
+    
+    def _save_to_db(self, currency_pair, rate, source):
+        """Сохраняет курс валют в базу данных раз в сутки"""
+        try:
+            db = SessionLocal()
+            
+            # Проверяем, есть ли уже запись за сегодня
+            today = datetime.now().date()
+            existing_rate = db.query(CurrencyRate).filter(
+                CurrencyRate.currency_pair == currency_pair,
+                CurrencyRate.created_at >= today
+            ).first()
+            
+            if not existing_rate:
+                # Создаем новую запись
+                currency_rate = CurrencyRate(
+                    currency_pair=currency_pair,
+                    rate=rate,
+                    source=source
+                )
+                db.add(currency_rate)
+                db.commit()
+                self.logger.info(f"Курс {currency_pair} = {rate} (источник: {source}) сохранен в БД")
+            else:
+                self.logger.debug(f"Курс {currency_pair} уже сохранен за сегодня")
+                
+        except Exception as e:
+            self.logger.error(f"Ошибка при сохранении курса в БД: {e}")
+        finally:
+            db.close()
+    
+    def get_latest_rate_from_db(self, currency_pair='BYN_RUB'):
+        """Получает последний сохраненный курс из базы данных"""
+        try:
+            db = SessionLocal()
+            latest_rate = db.query(CurrencyRate).filter(
+                CurrencyRate.currency_pair == currency_pair
+            ).order_by(CurrencyRate.created_at.desc()).first()
+            
+            if latest_rate:
+                return latest_rate.rate
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Ошибка при получении курса из БД: {e}")
+            return None
+        finally:
+            db.close()
     
     def _is_cache_valid(self, key):
         """Проверяет, действителен ли кэш"""
