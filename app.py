@@ -31,6 +31,7 @@ import uuid
 import json
 import hashlib
 import smtplib
+import math
 from dotenv import load_dotenv
 load_dotenv()
 # Переменная окружения для уникального идентификатора сервера
@@ -3075,6 +3076,10 @@ def buy_tickets():
                          currency_rate_formatted=currency_rate_formatted,
                          agreement_url=agreement_url)
 
+def round_up_to_ten(amount):
+    """Округляет сумму вверх до целого десятка"""
+    return math.ceil(amount / 10) * 10
+
 @app.route('/create-payment', methods=['POST'])
 @login_required
 def create_payment():
@@ -3105,7 +3110,9 @@ def create_payment():
     # Конвертируем валюту в зависимости от платежной системы
     from currency_service import currency_service
     if payment_system == 'yukassa':
-        total_price = currency_service.convert_byn_to_rub(total_price_byn)
+        # Конвертируем в рубли и округляем вверх до целого десятка
+        total_price_rub = currency_service.convert_byn_to_rub(total_price_byn)
+        total_price = round_up_to_ten(total_price_rub)
         currency = 'RUB'
     else:
         total_price = total_price_byn
@@ -4914,7 +4921,7 @@ def admin_add_news():
 @login_required
 def admin_edit_news(news_id):
     if not current_user.is_admin:
-        flash('У вас нет доступа к этой страницы', 'danger')
+        flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
     news = News.query.get_or_404(news_id)

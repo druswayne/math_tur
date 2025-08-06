@@ -92,12 +92,6 @@
                         <label class="form-label">Базовая цена</label>
                         <p id="basePrice" class="form-text">
                             {{ base_price.price }} BYN за жетон
-                            <br>
-                            <small class="text-muted">
-                                ≈ {{ "%.2f"|format(base_price.price * currency_rate) }} RUB
-                                <br>
-                                <i class="fas fa-info-circle"></i> Курс: {{ currency_rate_formatted }}
-                            </small>
                         </p>
                     </div>
                     <div class="mb-3">
@@ -265,10 +259,11 @@ function updatePrice() {
         document.getElementById('discount').textContent = maxDiscount + '%';
         document.getElementById('totalPrice').textContent = totalPrice.toFixed(2) + ' BYN';
         
-        // Добавляем цену в рублях
+        // Добавляем цену в рублях с округлением вверх до целого десятка
         const currencyRate = {{ currency_rate }};
-        const totalPriceRub = (totalPrice * currencyRate).toFixed(2);
-        document.getElementById('totalPrice').innerHTML = totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ ' + totalPriceRub + ' RUB</small>';
+        const totalPriceRub = totalPrice * currencyRate;
+        const roundedPriceRub = Math.ceil(totalPriceRub / 10) * 10;
+        document.getElementById('totalPrice').innerHTML = totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ ' + roundedPriceRub + ' RUB</small>';
         
         // Обновляем состояние кнопки с учетом чекбокса
         updatePurchaseButton();
