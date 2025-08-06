@@ -431,78 +431,70 @@ function selectPaymentSystem(system, paymentMethod = null) {
 
 </script>
 
-<!-- Модальное окно выбора платежной системы -->
-<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="paymentModalLabel">Выберите платежную систему</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <div class="mb-3">
-                                    <i class="fas fa-university fa-3x text-primary"></i>
-                                </div>
-                                <h6 class="card-title">Республика Беларусь</h6>
-                                <div class="mb-3">
-                                    <small class="text-muted">
-                                        <strong>Способы оплаты:</strong> ЕРИП,E-POS, картой (WebPay)
-                                    </small>
-                                    <br>
-                                    <small class="text-muted">
-                                        <a href="#" data-bs-toggle="collapse" data-bs-target="#webpayInfo" aria-expanded="false" aria-controls="webpayInfo" style="color: #6c757d; text-decoration: none;">
-                                            <i class="fas fa-info-circle"></i> Подробнее о WebPay
-                                        </a>
-                                    </small>
-                                    <div class="collapse mt-2" id="webpayInfo">
-                                        <div class="card card-body" style="font-size: 0.8rem; background-color: #f8f9fa;">
-                                            Безопасный сервер WEBPAY устанавливает шифрованное соединение по защищенному протоколу TLS и конфиденциально принимает от клиента данные его платёжной карты (номер карты, имя держателя, дату окончания действия, и контрольный номер банковской карточке CVC/CVC2).<br>
-                                            После совершения оплаты с использованием банковской карты необходимо сохранять полученные карт-чеки (подтверждения об оплате) для сверки с выпиской из карт-счёта (с целью подтверждения совершённых операций в случае возникновения спорных ситуаций).<br>
-                                            В случае, если Вы не получили заказ (не оказана услуга), Вам необходимо обратиться (в службу технической поддержки) по телефонам +375 29 112-71-05, +7 910 113-05-33 или e-mail info@liga-znatokov.by. Менеджеры Вас проконсультируют.<br>
-                                            При оплате банковской платежной картой возврат денежных средств осуществляется на карточку, с которой была произведена оплата.<br>
-                                            <strong>Подробнее <a href="https://www.webpay.by" target="_blank" style="color: #007bff;">www.webpay.by</a></strong>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('express_pay', 'erip')">
-                                    Оплатить в BYN
-                                </button>
+    <!-- Модальное окно выбора платежной системы -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title mb-0" id="paymentModalLabel">Выберите платежную систему</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-outline-primary w-100 py-2" onclick="selectPaymentSystem('express_pay', 'erip')">
+                                <i class="fas fa-university me-2"></i>
+                                <span style="color: #000000; font-weight: bold;">Оплатить в BYN</span><br>
+                                <small class="text-muted">ЕРИП, E-POS, WebPay*, МИР</small>
+                            </button>
+                        </div>
+                        <div class="col-12">
+                            <button type="button" class="btn btn-outline-primary w-100 py-2" onclick="selectPaymentSystem('yukassa')">
+                                <i class="fas fa-credit-card me-2"></i>
+                                <span style="color: #000000; font-weight: bold;">Оплатить в ₽</span><br>
+                                <small class="text-muted">ЮKassa</small>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Информация о WebPay -->
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <a href="#" data-bs-toggle="collapse" data-bs-target="#webpayInfo" aria-expanded="false" aria-controls="webpayInfo" style="color: #6c757d; text-decoration: none;">
+                                <i class="fas fa-info-circle"></i> Подробнее о WebPay
+                            </a>
+                        </small>
+                        <div class="collapse mt-2" id="webpayInfo">
+                            <div class="card card-body" style="font-size: 0.75rem; background-color: #f8f9fa; max-height: 200px; overflow-y: auto;">
+                                Безопасный сервер WEBPAY устанавливает шифрованное соединение по защищенному протоколу TLS и конфиденциально принимает от клиента данные его платёжной карты (номер карты, имя держателя, дату окончания действия, и контрольный номер банковской карточке CVC/CVC2).<br>
+                                После совершения оплаты с использованием банковской карты необходимо сохранять полученные карт-чеки (подтверждения об оплате) для сверки с выпиской из карт-счёта (с целью подтверждения совершённых операций в случае возникновения спорных ситуаций).<br>
+                                В случае, если Вы не получили заказ (не оказана услуга), Вам необходимо обратиться (в службу технической поддержки) по телефонам +375 29 112-71-05, +7 910 113-05-33 или e-mail info@liga-znatokov.by. Менеджеры Вас проконсультируют.<br>
+                                При оплате банковской платежной картой возврат денежных средств осуществляется на карточку, с которой была произведена оплата.<br>
+                                <strong>Подробнее <a href="https://www.webpay.by" target="_blank" style="color: #007bff;">www.webpay.by</a></strong>
                             </div>
                         </div>
                     </div>
-                    <div class="col-12">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <div class="mb-3">
-                                    <i class="fas fa-credit-card fa-3x text-primary"></i>
-                                </div>
-                                <h6 class="card-title">Российская Федерация</h6>
-                                <p class="card-text small text-muted">Оплата через ЮKassa</p>
-                                <button type="button" class="btn btn-primary w-100" onclick="selectPaymentSystem('yukassa')">
-                                    Оплатить в ₽
-                                </button>
+                    
+                    <!-- Информация о возврате средств -->
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <a href="#" data-bs-toggle="collapse" data-bs-target="#refundInfo" aria-expanded="false" aria-controls="refundInfo" style="color: #6c757d; text-decoration: none;">
+                                <i class="fas fa-info-circle"></i> Информация о возврате средств
+                            </a>
+                        </small>
+                        <div class="collapse mt-2" id="refundInfo">
+                            <div class="card card-body" style="font-size: 0.75rem; background-color: #f8f9fa; max-height: 150px; overflow-y: auto;">
+                                Обращаем ваше внимание, что возврат взносов будет произведен в течение 7 рабочих дней. Сумма возврата будет уменьшена на размер комиссий платежных сервисов (включая комиссии при получении платежа и за сам возврат).
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="mt-4">
-                    <div class="alert" style="background-color: white; color: black; font-size: 0.8rem; border: 1px solid #dee2e6;">
-                        <i class="fas fa-info-circle me-2" style="color: #6c757d;"></i>
-                        Информация о возврате средств за участие в турнире:<br>
-                        Обращаем ваше внимание, что возврат взносов будет произведен в течение 7 рабочих дней. Сумма возврата будет уменьшена на размер комиссий платежных сервисов (включая комиссии при получении платежа и за сам возврат).
-                    </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
             </div>
         </div>
     </div>
-</div>
 
 
 {% endblock %} 
