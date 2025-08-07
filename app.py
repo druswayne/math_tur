@@ -1246,7 +1246,8 @@ def logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    if not current_user.is_admin:
+    # Проверяем, является ли пользователь администратором
+    if not hasattr(current_user, 'is_admin') or not current_user.is_admin:
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
@@ -1258,7 +1259,8 @@ def admin_dashboard():
 @app.route('/admin/users')
 @login_required
 def admin_users():
-    if not current_user.is_admin:
+    # Проверяем, является ли пользователь администратором
+    if not hasattr(current_user, 'is_admin') or not current_user.is_admin:
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
@@ -1318,7 +1320,8 @@ def admin_users():
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
 def admin_add_user():
-    if not current_user.is_admin:
+    # Проверяем, является ли пользователь администратором
+    if not hasattr(current_user, 'is_admin') or not current_user.is_admin:
         flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
@@ -2718,7 +2721,12 @@ def get_user_rank(user_id):
 @app.route('/profile')
 @login_required
 def profile():
-    if current_user.is_admin:
+    # Проверяем, является ли пользователь учителем
+    if isinstance(current_user, Teacher):
+        return redirect(url_for('teacher_profile'))
+    
+    # Проверяем, является ли пользователь администратором
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
     # Получаем текущее время
