@@ -341,11 +341,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Если пользователь не авторизован и еще не видел приветствие
     if (!isAuthenticated && !getCookie('welcomeModalShown')) {
-        // Показываем модальное окно через 1 секунду после загрузки страницы
+        // Показываем модальное окно через 10 секунд после загрузки страницы
         setTimeout(function() {
             const welcomeModal = new bootstrap.Modal(document.getElementById('welcomeModal'));
             welcomeModal.show();
-        }, 1000);
+        }, 10000);
     }
     
     // Функция для установки куки
