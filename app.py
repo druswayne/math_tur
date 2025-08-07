@@ -1051,6 +1051,19 @@ def cooperation():
     """Страница сотрудничества с учителями"""
     return render_template('cooperation.html', title='Сотрудничество')
 
+@app.route('/shop-preview')
+def shop_preview():
+    """Страница предварительного просмотра лавки призов для неавторизованных пользователей и учителей"""
+    # Получаем активные призы
+    prizes = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).all()
+    
+    return render_template('shop_preview.html', title='Лавка призов', prizes=prizes)
+
+@app.route('/how-to-participate')
+def how_to_participate():
+    """Страница с подробной информацией о том, как участвовать в турнирах"""
+    return render_template('how_to_participate.html', title='Как участвовать')
+
 @app.route('/news')
 def news():
     # Получаем номер страницы из параметров запроса
@@ -6031,7 +6044,9 @@ def inject_s3_utils():
     """Добавляет функции S3 в контекст шаблонов"""
     return {
         'get_s3_url': get_s3_url,
-        'get_file_url': get_file_url
+        'get_file_url': get_file_url,
+        'isinstance': isinstance,
+        'Teacher': Teacher
     }
 
 @app.context_processor

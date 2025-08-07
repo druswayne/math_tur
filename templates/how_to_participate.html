@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h1 class="mb-4">
+                <i class="fas fa-question-circle me-2"></i>Как участвовать в турнирах
+            </h1>
+
+            <!-- Пошаговая инструкция -->
+            <div class="row mb-5">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">
+                                <i class="fas fa-list-ol me-2"></i>Пошаговая инструкция
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="step-item mb-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="step-number me-3">1</div>
+                                            <h5 class="mb-0">Регистрация</h5>
+                                        </div>
+                                        <p class="text-muted">
+                                            Зарегистрируйтесь на платформе, указав свои данные и выбрав класс обучения. 
+                                            После подтверждения email вы получите доступ к турнирам.
+                                        </p>
+                                    </div>
+
+                                    <div class="step-item mb-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="step-number me-3">2</div>
+                                            <h5 class="mb-0">Покупка жетонов</h5>
+                                        </div>
+                                        <p class="text-muted">
+                                            Приобретите жетоны для участия в турнирах. Один жетон = одно участие в турнире. 
+                                            Жетоны можно купить в разделе "Купить жетоны".
+                                        </p>
+                                    </div>
+
+                                    <div class="step-item mb-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="step-number me-3">3</div>
+                                            <h5 class="mb-0">Выбор турнира</h5>
+                                        </div>
+                                        <p class="text-muted">
+                                            На главной странице выберите турнир, в котором хотите участвовать. 
+                                            Обратите внимание на время начала и продолжительность турнира.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="step-item mb-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="step-number me-3">4</div>
+                                            <h5 class="mb-0">Участие в турнире</h5>
+                                        </div>
+                                        <p class="text-muted">
+                                            В назначенное время нажмите "Участвовать" и начните решать задачи. 
+                                            У вас будет ограниченное время на выполнение всех заданий.
+                                        </p>
+                                    </div>
+
+                                    <div class="step-item mb-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="step-number me-3">5</div>
+                                            <h5 class="mb-0">Получение результатов</h5>
+                                        </div>
+                                        <p class="text-muted">
+                                            После завершения турнира вы увидите свои результаты и место в рейтинге. 
+                                            За правильные ответы начисляются баллы.
+                                        </p>
+                                    </div>
+
+                                    <div class="step-item mb-4">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="step-number me-3">6</div>
+                                            <h5 class="mb-0">Обмен баллов на призы</h5>
+                                        </div>
+                                        <p class="text-muted">
+                                            Накопленные баллы можно обменять на призы в лавке призов. 
+                                            Чем больше баллов, тем лучше призы!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Важная информация -->
+            <div class="row mb-5">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Важная информация
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-clock text-primary me-2"></i>
+                                    <strong>Время турниров:</strong> Турниры проводятся по расписанию
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-stopwatch text-warning me-2"></i>
+                                    <strong>Ограничение времени:</strong> У каждого турнира есть временной лимит
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-users text-success me-2"></i>
+                                    <strong>Соревнование:</strong> Вы соревнуетесь с участниками своего возраста
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-coins text-warning me-2"></i>
+                                    <strong>Баллы:</strong> За правильные ответы начисляются баллы
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-trophy text-primary me-2"></i>
+                                    <strong>Рейтинг:</strong> Ваши результаты влияют на общий рейтинг
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h4 class="mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Правила участия
+                            </h4>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Честная игра:</strong> Запрещено использование подсказок
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Один аккаунт:</strong> Один участник = один аккаунт
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Своевременность:</strong> Участие только в назначенное время
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Самостоятельность:</strong> Решение задач без посторонней помощи
+                                </li>
+                                <li class="mb-2">
+                                    <i class="fas fa-check text-success me-2"></i>
+                                    <strong>Уважение:</strong> Уважительное отношение к другим участникам
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Видеоролики с инструкциями -->
+            <div class="row mb-5">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="mb-0">
+                                <i class="fas fa-play-circle me-2"></i>Видеоролики с инструкциями
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                                                         <div class="row">
+                                 <div class="col-md-6 mb-4">
+                                     <div class="video-card">
+                                         <div class="video-container">
+                                             <iframe 
+                                                 src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" 
+                                                 title="Регистрация и вход в систему"
+                                                 frameborder="0" 
+                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                 allowfullscreen>
+                                             </iframe>
+                                         </div>
+                                         <div class="video-info mt-3">
+                                             <h5><i class="fas fa-user-plus me-2"></i>Регистрация и вход в систему</h5>
+                                             <p class="text-muted">Пошаговая инструкция по созданию аккаунта и входу в систему</p>
+                                             <div class="video-duration">
+                                                 <i class="fas fa-clock me-1"></i>3:45
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 
+                                 <div class="col-md-6 mb-4">
+                                     <div class="video-card">
+                                         <div class="video-container">
+                                             <iframe 
+                                                 src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" 
+                                                 title="Покупка жетонов для участия"
+                                                 frameborder="0" 
+                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                 allowfullscreen>
+                                             </iframe>
+                                         </div>
+                                         <div class="video-info mt-3">
+                                             <h5><i class="fas fa-ticket-alt me-2"></i>Покупка жетонов для участия</h5>
+                                             <p class="text-muted">Как приобрести жетоны и подготовиться к турнирам</p>
+                                             <div class="video-duration">
+                                                 <i class="fas fa-clock me-1"></i>4:12
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 
+                                 <div class="col-md-6 mb-4">
+                                     <div class="video-card">
+                                         <div class="video-container">
+                                             <iframe 
+                                                 src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" 
+                                                 title="Участие в турнире"
+                                                 frameborder="0" 
+                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                 allowfullscreen>
+                                             </iframe>
+                                         </div>
+                                         <div class="video-info mt-3">
+                                             <h5><i class="fas fa-gamepad me-2"></i>Участие в турнире</h5>
+                                             <p class="text-muted">Как присоединиться к турниру и решать задачи</p>
+                                             <div class="video-duration">
+                                                 <i class="fas fa-clock me-1"></i>5:30
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 
+                                 <div class="col-md-6 mb-4">
+                                     <div class="video-card">
+                                         <div class="video-container">
+                                             <iframe 
+                                                 src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=0" 
+                                                 title="Лавка призов"
+                                                 frameborder="0" 
+                                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                                 allowfullscreen>
+                                             </iframe>
+                                         </div>
+                                         <div class="video-info mt-3">
+                                             <h5><i class="fas fa-gift me-2"></i>Лавка призов</h5>
+                                             <p class="text-muted">Как обменять баллы на призы в лавке</p>
+                                             <div class="video-duration">
+                                                 <i class="fas fa-clock me-1"></i>3:20
+                                             </div>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                            
+                            <div class="text-center mt-4">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Совет:</strong> Рекомендуем посмотреть все видеоролики перед первым участием в турнире для лучшего понимания процесса.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Кнопки действий -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h4 class="mb-4">Готовы начать?</h4>
+                            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                                {% if not current_user.is_authenticated %}
+                                    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-user-plus me-2"></i>Зарегистрироваться
+                                    </a>
+                                    <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Войти в систему
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('buy_tickets') }}" class="btn btn-warning btn-lg">
+                                        <i class="fas fa-ticket-alt me-2"></i>Купить жетоны
+                                    </a>
+                                    <a href="{{ url_for('rating') }}" class="btn btn-info btn-lg">
+                                        <i class="fas fa-trophy me-2"></i>Посмотреть рейтинг
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.step-number {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #FFD700 0%, #FF8C00 100%);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.step-item {
+    padding: 1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.step-item:hover {
+    background-color: #f8f9fa;
+    transform: translateY(-2px);
+}
+
+/* Стили для видеороликов */
+.video-card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.video-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.video-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* Соотношение сторон 16:9 */
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 8px;
+}
+
+.video-info h5 {
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.video-info p {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.video-duration {
+    color: #666;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .video-card {
+        margin-bottom: 1.5rem;
+    }
+    
+    .video-info h5 {
+        font-size: 1rem;
+    }
+    
+    .video-info p {
+        font-size: 0.85rem;
+    }
+}
+</style>
+{% endblock %}

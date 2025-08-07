@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>Лавка призов</h1>
+                <div>
+                    {% if not current_user.is_authenticated %}
+                        <a href="{{ url_for('login') }}" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt me-2"></i>Войти для покупки
+                        </a>
+                    {% elif isinstance(current_user, Teacher) %}
+                        <span class="text-muted">Учителя могут только просматривать призы</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Информация о лавке призов</h5>
+                <p class="mb-0">
+                    Здесь вы можете увидеть все доступные призы, которые можно приобрести за баллы, заработанные в турнирах. 
+                    {% if not current_user.is_authenticated %}
+                        <strong>Для покупки призов необходимо войти в систему.</strong>
+                    {% elif isinstance(current_user, Teacher) %}
+                        <strong>Учителя могут только просматривать призы.</strong>
+                    {% endif %}
+                </p>
+            </div>
+
+            {% if prizes %}
+                <div class="row">
+                    {% for prize in prizes %}
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                {% if prize.image %}
+                                    <img src="{{ get_s3_url(prize.image, 'prizes') }}" class="card-img-top" alt="{{ prize.name }}" style="height: 200px; object-fit: cover;">
+                                {% else %}
+                                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                        <i class="fas fa-gift fa-3x text-muted"></i>
+                                    </div>
+                                {% endif %}
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ prize.name }}</h5>
+                                    <p class="card-text">{{ prize.description }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-coins me-1"></i>{{ prize.points_cost }} баллов
+                                        </span>
+                                        {% if prize.quantity == 0 %}
+                                            <span class="badge bg-success">Неограниченно</span>
+                                        {% else %}
+                                            <span class="badge bg-info">Осталось: {{ prize.quantity }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-gift fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Призы пока не добавлены</h5>
+                    <p class="text-muted">Следите за обновлениями!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
