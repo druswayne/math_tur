@@ -70,6 +70,24 @@
     </div>
     <div class="row">
         <div class="col-md-8">
+            <!-- Мотивирующий блок -->
+            <div class="card mb-4" style="background: linear-gradient(135deg, #FFD700 0%, #FF8C00 100%); border: none;">
+                <div class="card-body text-center text-white">
+                    <h3 class="mb-3">
+                        <i class="fas fa-users me-2"></i>Соберите как можно больше друзей!
+                    </h3>
+                    <p class="lead mb-3">
+                        Приглашайте их присоединиться к нам и участвовать в захватывающих турнирах! Чем больше друзей вы приведёте, тем масштабнее и интереснее станут соревнования для всех участников.
+                    </p>
+                    <div class="alert alert-warning" style="background: rgba(255, 255, 255, 0.9); color: #333; border: none;">
+                        <h5 class="mb-2">
+                            <i class="fas fa-trophy me-2"></i>Особые призы для самых дружных участников!
+                        </h5>
+                        <p class="mb-0">Трое самых дружных участников, которые приведут наибольшее количество друзей в наши турниры, получат особые призы от организатора в конце сезона турниров!</p>
+                    </div>
+                </div>
+            </div>
+
             <div class="card mb-4">
                 <div class="card-body">
                     <div class="alert alert-info">
@@ -282,6 +300,26 @@
                             <i class="fas fa-check text-success"></i>
                             Система работает только для новых пользователей
                         </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Один пользователь может быть приглашен только одним рефералом
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Призы для топ-3 участников вручаются в конце сезона
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Бонусы можно использовать для покупки призов в магазине
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Система отслеживает активность рефералов в реальном времени
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success"></i>
+                            Запрещено создание фейковых аккаунтов для получения бонусов
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -292,12 +330,16 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <button class="btn btn-outline-primary" onclick="shareToTelegram()">
+                        <button class="btn btn-outline-primary" style="background-color: #0088cc; border-color: #0088cc; color: white;" onclick="shareToTelegram()">
                             <i class="fab fa-telegram"></i> Telegram
                         </button>
                         <button class="btn btn-outline-success" onclick="shareToWhatsApp()">
                             <i class="fab fa-whatsapp"></i> WhatsApp
                         </button>
+                        <button class="btn btn-outline-info" style="background-color: #7360f2; border-color: #7360f2; color: white;" onclick="shareToViber()">
+                            <i class="fab fa-viber"></i> Viber
+                        </button>
+
                         <button class="btn btn-outline-info" onclick="shareToVK()">
                             <i class="fab fa-vk"></i> VKontakte
                         </button>
@@ -346,6 +388,14 @@ function shareToVK() {
     const text = encodeURIComponent('🔥 Увлекательные онлайн турниры ждут тебя! Регистрируйся по ссылке!');
     window.open(`https://vk.com/share.php?url=${url}&title=${text}`, '_blank');
 }
+
+function shareToViber() {
+    const url = encodeURIComponent(document.getElementById('referralUrl').value);
+    const text = encodeURIComponent('🔥 Увлекательные онлайн турниры ждут тебя! Регистрируйся по ссылке!');
+    window.open(`viber://forward?text=${text}%20${url}`, '_blank');
+}
+
+
 
 function showToast(message, type) {
     // Создаем уведомление
