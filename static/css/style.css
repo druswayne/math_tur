@@ -232,7 +232,7 @@ main {
 }
 
 footer {
-    background: linear-gradient(135deg, #474753 0%, #333333 100%);
+    background: linear-gradient(180deg, #1f1f24 0%, #2a2a2f 50%, #343a40 100%);
     color: white;
     padding: 2rem 0;
     margin-top: auto;
