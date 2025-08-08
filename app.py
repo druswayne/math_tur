@@ -850,14 +850,11 @@ def send_teacher_confirmation_email(teacher):
 {url_for('confirm_teacher_email', token=token, _external=True)}
 
 После подтверждения вы получите доступ к личному кабинету учителя с возможностью:
-- Создавать пригласительные ссылки для учеников
-- Отслеживать прогресс приглашенных учеников
+- Создавать пригласительные ссылки для учащихся
+- Отслеживать прогресс приглашенных учащихся
 - Участвовать в бонусной программе
 
 Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
-
-С уважением,
-Команда Math Tournament Platform
 '''
     add_to_queue(app, mail, msg)
 
@@ -920,14 +917,36 @@ def send_reset_password_email(user):
 '''
     add_to_queue(app, mail, msg)
 
+def send_teacher_reset_password_email(teacher):
+    token = secrets.token_urlsafe(32)
+    teacher.reset_password_token = token
+    teacher.reset_password_token_expires = datetime.now() + timedelta(hours=1)
+    db.session.commit()
+    
+    msg = Message('Сброс пароля учителя',
+                  sender=app.config['MAIL_USERNAME'],
+                  recipients=[teacher.email])
+    msg.body = f'''Для сброса пароля учителя перейдите по следующей ссылке:
+{url_for('reset_teacher_password', token=token, _external=True)}
+
+Ссылка действительна в течение 1 часа.
+
+Если вы не запрашивали сброс пароля, проигнорируйте это письмо.
+'''
+    add_to_queue(app, mail, msg)
+
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
         user = User.query.filter_by(email=email).first()
+        teacher = Teacher.query.filter_by(email=email).first()
         
         if user:
             send_reset_password_email(user)
+            flash('Инструкции по сбросу пароля отправлены на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
+        elif teacher:
+            send_teacher_reset_password_email(teacher)
             flash('Инструкции по сбросу пароля отправлены на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
         else:
             flash('Пользователь с таким email не найден', 'danger')
@@ -976,6 +995,47 @@ def reset_password(token):
         return redirect(url_for('login'))
     
     return render_template('reset_password.html', token=token)
+
+@app.route('/reset-teacher-password/<token>', methods=['GET', 'POST'])
+def reset_teacher_password(token):
+    teacher = Teacher.query.filter_by(reset_password_token=token).first()
+    
+    if not teacher or not teacher.reset_password_token_expires or teacher.reset_password_token_expires < datetime.now():
+        flash('Недействительная или устаревшая ссылка для сброса пароля', 'danger')
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if password != confirm_password:
+            flash('Пароли не совпадают', 'danger')
+            return redirect(url_for('reset_teacher_password', token=token))
+        
+        is_strong, message = is_password_strong(password)
+        if not is_strong:
+            flash(message, 'danger')
+            return redirect(url_for('reset_teacher_password', token=token))
+        
+        teacher.set_password(password)
+        teacher.reset_password_token = None
+        teacher.reset_password_token_expires = None
+        
+        # Очищаем токен сессии и время последней активности
+        teacher.session_token = None
+        teacher.last_activity = None
+        
+        db.session.commit()
+        
+        # Если учитель был авторизован, выходим из системы
+        if current_user.is_authenticated:
+            session.pop('session_token', None)
+            logout_user()
+        
+        flash('Пароль успешно изменен. Пожалуйста, войдите в систему с новым паролем.', 'success')
+        return redirect(url_for('login'))
+    
+    return render_template('reset_teacher_password.html', token=token)
 
 @app.route('/')
 def home():
