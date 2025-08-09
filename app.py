@@ -3655,6 +3655,15 @@ def express_pay_webhook(webhook_token):
                 data = request.values.to_dict()
             else:
                 data = None
+
+        # Express-Pay часто отправляет полезную нагрузку в поле Data как JSON-строку
+        if isinstance(data, dict) and 'Data' in data and isinstance(data['Data'], str):
+            try:
+                nested = json.loads(data['Data'])
+                if isinstance(nested, dict):
+                    data = nested
+            except Exception as e:
+                print(f"Webhook: не удалось распарсить поле Data как JSON: {e}")
         
         if not data:
             print("Webhook: пустое тело запроса (не JSON и нет form/query данных)")
