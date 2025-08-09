@@ -1662,6 +1662,47 @@ def admin_mass_email():
         print(f"Ошибка массовой рассылки: {e}")
         return jsonify({'success': False, 'message': f'Произошла ошибка при отправке писем: {str(e)}'})
 
+@app.route('/admin/teachers/mass-email', methods=['POST'])
+@login_required
+def admin_teachers_mass_email():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'У вас нет доступа к этой странице'})
+    try:
+        if not request.is_json:
+            return jsonify({'success': False, 'message': 'Неверный формат данных'})
+
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Данные не получены'})
+
+        subject = sanitize_input(data.get('subject', ''), 200)
+        message = validate_text_content(data.get('message', ''), 5000)
+
+        if not subject or not message:
+            return jsonify({'success': False, 'message': 'Тема и текст письма обязательны'})
+
+        teachers = Teacher.query.filter(Teacher.is_active == True, Teacher.email.isnot(None)).all()
+        if not teachers:
+            return jsonify({'success': False, 'message': 'Нет учителей для отправки писем'})
+
+        sent_count = 0
+        failed_count = 0
+        for teacher in teachers:
+            try:
+                send_admin_mass_email(subject, message, teacher.email)
+                sent_count += 1
+            except Exception as e:
+                failed_count += 1
+                print(f"Ошибка отправки письма учителю {teacher.email}: {e}")
+
+        if failed_count == 0:
+            return jsonify({'success': True, 'message': f'Письма успешно отправлены {sent_count} учителям'})
+        else:
+            return jsonify({'success': True, 'message': f'Отправлено {sent_count} писем, {failed_count} писем не удалось отправить'})
+    except Exception as e:
+        print(f"Ошибка массовой рассылки учителям: {e}")
+        return jsonify({'success': False, 'message': f'Произошла ошибка при отправке писем: {str(e)}'})
+
 @app.route('/send_feedback', methods=['POST'])
 def send_feedback():
     """Обработка формы обратной связи"""
@@ -1854,6 +1895,7 @@ def admin_delete_tournament(tournament_id):
 
 @app.route('/admin/tournaments/<int:tournament_id>/stats')
 @login_required
+@limiter.limit("30 per minute; 5 per 10 seconds")
 def admin_tournament_stats(tournament_id):
     if not current_user.is_admin:
         flash('У вас нет доступа к этой странице', 'danger')
@@ -4330,6 +4372,7 @@ def tournament_history():
                          pagination=tournaments)
 
 @app.route('/rating')
+@limiter.limit("15 per minute; 3 per 10 seconds")
 def rating():
     from sqlalchemy import func, case
 
