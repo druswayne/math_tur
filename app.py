@@ -2458,7 +2458,7 @@ def check_username():
     return jsonify({'available': existing_user is None})
 
 @app.route('/check-email', methods=['POST'])
-@limiter.limit("20 per minute; 5 per 10 seconds")
+@limiter.limit("10 per minute; 3 per 10 seconds")
 def check_email():
     data = request.get_json()
     email = data.get('email', '').strip()
