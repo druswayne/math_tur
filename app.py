@@ -3636,17 +3636,28 @@ def express_pay_webhook(webhook_token):
     
     try:
         # Логируем входящий webhook
+        raw_body = request.get_data(as_text=True)
+        content_type = request.headers.get('Content-Type')
         print(f"Получен webhook от Express-Pay: {request.headers}")
-        print(f"Тело webhook: {request.get_json()}")
-        with open('1.txt', 'a') as file:
+        print(f"Content-Type: {content_type}")
+        print(f"Raw body: {raw_body}")
+        with open('1.txt', 'a', encoding='utf-8') as file:
             file.write(f"Получен webhook от Express-Pay: {request.headers}\n")
-            file.write(f"Тело webhook: {request.get_json()}\n")
+            file.write(f"Content-Type: {content_type}\n")
+            file.write(f"Raw body: {raw_body}\n")
 
-        # Получаем данные от Express-Pay
-        data = request.get_json()
+        # Получаем данные от Express-Pay (поддержка JSON, form-data и query)
+        data = request.get_json(silent=True)
+        if not data:
+            if request.form:
+                data = request.form.to_dict()
+            elif request.values:
+                data = request.values.to_dict()
+            else:
+                data = None
         
         if not data:
-            print("Webhook: пустое тело запроса")
+            print("Webhook: пустое тело запроса (не JSON и нет form/query данных)")
             return jsonify({'error': 'Empty request body'}), 400
         
         # Проверяем обязательные поля
@@ -3679,6 +3690,12 @@ def express_pay_webhook(webhook_token):
         print(f"Webhook: обработка уведомления типа {cmd_type}")
         with open('1.txt', 'a') as file:
             file.write(f"Webhook: обработка уведомления типа {cmd_type}")
+        # Приводим CmdType к int, если пришёл строкой
+        try:
+            cmd_type = int(cmd_type)
+        except Exception:
+            pass
+
         # Обрабатываем разные типы уведомлений
         if cmd_type == 1:
             # Поступление нового платежа
@@ -3701,31 +3718,38 @@ def handle_new_payment_notification(data):
     """Обработка уведомления о поступлении нового платежа"""
     try:
         account_no = data.get('AccountNo')
-        payment_no = data.get('PaymentNo')
+        invoice_no = data.get('InvoiceNo')
         amount = data.get('Amount')
         created = data.get('Created')
         service = data.get('Service')
         
-        print(f"Webhook: новый платеж - AccountNo: {account_no}, PaymentNo: {payment_no}, Amount: {amount}")
+        print(f"Webhook: новый платеж - AccountNo: {account_no}, InvoiceNo: {invoice_no}, Amount: {amount}")
         
-        # Находим покупку по номеру лицевого счета (AccountNo)
-        purchase = TicketPurchase.query.filter_by(payment_id=str(account_no)).first()
+        # Сначала пытаемся найти по номеру счёта (InvoiceNo), который мы сохраняем в payment_id
+        purchase = None
+        if invoice_no:
+            purchase = TicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
+        # Если не нашли — пробуем по AccountNo (равен purchase.id при создании)
+        if not purchase and account_no:
+            try:
+                purchase = TicketPurchase.query.get(int(account_no))
+            except Exception:
+                purchase = None
         if not purchase:
-            print(f"Webhook: покупка с payment_id {account_no} не найдена")
+            print(f"Webhook: покупка не найдена (InvoiceNo={invoice_no}, AccountNo={account_no})")
             return jsonify({'error': 'Purchase not found'}), 404
         
-        # Обновляем информацию о платеже
-        purchase.payment_status = 'succeeded'
-        purchase.payment_confirmed_at = datetime.now()
-        
-        # Начисляем жетоны пользователю
-        user = User.query.get(purchase.user_id)
-        if user:
-            user.tickets += purchase.quantity
-            print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+        # Безопасная идемпотентная обработка: начисляем только при первом переходе в оплачено
+        if purchase.payment_status != 'succeeded':
+            purchase.payment_status = 'succeeded'
+            purchase.payment_confirmed_at = datetime.now()
+            user = User.query.get(purchase.user_id)
+            if user:
+                user.tickets += purchase.quantity
+                print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
         
         db.session.commit()
-        print(f"Webhook: платеж {account_no} успешно обработан")
+        print(f"Webhook: платеж успешно обработан (InvoiceNo={invoice_no}, AccountNo={account_no})")
         
         return jsonify({'success': True}), 200
         
