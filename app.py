@@ -3624,20 +3624,24 @@ def yukassa_webhook(webhook_token):
 
 @app.route('/webhook/express-pay/<webhook_token>', methods=['POST'])
 def express_pay_webhook(webhook_token):
-    with open('1.txt', 'w') as file:
-        file.write('yes')
+
     """Обработка webhook'ов от Express-Pay с проверкой цифровой подписи"""
     # Проверяем токен webhook'а
     expected_token = os.environ.get('EXPRESS_PAY_WEBHOOK_TOKEN')
     if webhook_token != expected_token:
-        print(f"Webhook: неверный токен. Ожидалось: {expected_token}, получено: {webhook_token}")
+        with open('1.txt', 'a') as file:
+            file.write(f"Webhook: неверный токен. Ожидалось: {expected_token}, получено: {webhook_token}\n")
+
         return jsonify({'error': 'Invalid webhook token'}), 403
     
     try:
         # Логируем входящий webhook
         print(f"Получен webhook от Express-Pay: {request.headers}")
         print(f"Тело webhook: {request.get_json()}")
-        
+        with open('1.txt', 'a') as file:
+            file.write(f"Получен webhook от Express-Pay: {request.headers}\n")
+            file.write(f"Тело webhook: {request.get_json()}\n")
+
         # Получаем данные от Express-Pay
         data = request.get_json()
         
@@ -3673,7 +3677,8 @@ def express_pay_webhook(webhook_token):
         #         return jsonify({'error': 'Invalid signature'}), 400
         
         print(f"Webhook: обработка уведомления типа {cmd_type}")
-        
+        with open('1.txt', 'a') as file:
+            file.write(f"Webhook: обработка уведомления типа {cmd_type}")
         # Обрабатываем разные типы уведомлений
         if cmd_type == 1:
             # Поступление нового платежа
