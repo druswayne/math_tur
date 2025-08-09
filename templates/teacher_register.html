@@ -482,6 +482,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Проверяем уникальность email
         spinner.style.display = 'inline';
         
+        // Дебаунс и частотный контроль на фронте уже есть; просто обращаемся к API
         fetch('/check-email', {
             method: 'POST',
             headers: {
@@ -489,7 +490,21 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({email: email, type: 'teacher'})
         })
-        .then(response => response.json())
+        .then(async response => {
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const waitMsg = retryAfter ? `Повторите попытку через ${retryAfter} секунд` : 'Повторите попытку чуть позже';
+                spinner.style.display = 'none';
+                times.style.display = 'inline';
+                emailField.isValid = false;
+                console.warn('Превышен лимит проверок email. ' + waitMsg);
+                if (typeof showNotification === 'function') {
+                    showNotification('Слишком много попыток', waitMsg, 'warning');
+                }
+                return { available: false };
+            }
+            return response.json();
+        })
         .then(data => {
             spinner.style.display = 'none';
             if (data.available) {

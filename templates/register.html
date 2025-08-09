@@ -752,9 +752,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Проверяем доступность email
+        // Дебаунс и частотный контроль: обращаемся к API редко
         showValidationIcon('email', false, true);
-        
         fetch('/check-email', {
             method: 'POST',
             headers: {
@@ -762,7 +761,20 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({ email: email })
         })
-        .then(response => response.json())
+        .then(async response => {
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const waitMsg = retryAfter ? `Повторите попытку через ${retryAfter} секунд` : 'Повторите попытку чуть позже';
+                showValidationIcon('email', false);
+                validationState.email = false;
+                console.warn('Превышен лимит проверок email. ' + waitMsg);
+                if (typeof showNotification === 'function') {
+                    showNotification('Слишком много попыток', waitMsg, 'warning');
+                }
+                return { available: false };
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.available) {
                 showValidationIcon('email', true);

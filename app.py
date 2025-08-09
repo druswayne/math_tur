@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from sqlalchemy.testing import fails
@@ -95,6 +97,12 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
 app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное имя куки
 
 mail = Mail(app)
+# Rate limiting (простой вариант без капчи)
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per hour"]
+)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -944,12 +952,11 @@ def forgot_password():
         
         if user:
             send_reset_password_email(user)
-            flash('Инструкции по сбросу пароля отправлены на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
         elif teacher:
             send_teacher_reset_password_email(teacher)
-            flash('Инструкции по сбросу пароля отправлены на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
-        else:
-            flash('Пользователь с таким email не найден', 'danger')
+
+        # Единое нейтральное сообщение без раскрытия существования email
+        flash('Если указанный email зарегистрирован, мы отправили инструкции по сбросу пароля. Проверьте также папку "Спам".', 'success')
         
         return redirect(url_for('login'))
     
@@ -2451,6 +2458,7 @@ def check_username():
     return jsonify({'available': existing_user is None})
 
 @app.route('/check-email', methods=['POST'])
+@limiter.limit("15 per minute; 5 per 10 seconds")
 def check_email():
     data = request.get_json()
     email = data.get('email', '').strip()
@@ -2468,6 +2476,7 @@ def check_email():
     return jsonify({'available': existing_user is None})
 
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def register():
     # Получаем реферальный код и код учителя из параметров запроса
     referral_code = request.args.get('ref')
