@@ -2947,6 +2947,56 @@ def teacher_profile():
                          students_info=students_info,
                          students_paginated=students_paginated)
 
+@app.route('/update-teacher-profile', methods=['POST'])
+@login_required
+def update_teacher_profile():
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+    try:
+        data = request.get_json() or {}
+        full_name = sanitize_input(data.get('full_name', ''), 100)
+        phone = sanitize_input(data.get('phone', ''), 20)
+        edu_name = sanitize_input(data.get('educational_institution_name', ''), 500)
+        new_password = data.get('new_password')
+
+        if not full_name:
+            return jsonify({'success': False, 'message': 'Некорректные данные профиля'}), 400
+
+        # Проверка уникальности телефона при изменении
+        if phone:
+            existing_teacher_phone = Teacher.query.filter(Teacher.phone == phone, Teacher.id != current_user.id).first()
+            if existing_teacher_phone:
+                return jsonify({'success': False, 'message': 'Телефон уже используется'}), 400
+
+        current_user.full_name = full_name
+        current_user.phone = phone or None
+
+        # Смена пароля (опционально)
+        if new_password:
+            is_strong, msg = is_password_strong(new_password)
+            if not is_strong:
+                return jsonify({'success': False, 'message': msg}), 400
+            current_user.set_password(new_password)
+
+        if edu_name:
+            existing = EducationalInstitution.query.filter_by(name=edu_name).first()
+            if existing:
+                current_user.educational_institution_id = existing.id
+            else:
+                new_edu = EducationalInstitution(name=edu_name, address='')
+                db.session.add(new_edu)
+                db.session.flush()
+                current_user.educational_institution_id = new_edu.id
+        else:
+            current_user.educational_institution_id = None
+
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        print(f'Ошибка обновления профиля учителя: {e}')
+        return jsonify({'success': False, 'message': 'Ошибка на сервере'}), 500
+
 @app.route('/teacher/student/<int:student_id>/details')
 @login_required
 def teacher_student_details(student_id):

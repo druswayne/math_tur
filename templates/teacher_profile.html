@@ -5,17 +5,20 @@
     <div class="row">
         <div class="col-md-12">
             <!-- Заголовок -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <div class="d-flex align-items-center">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div class="flex-grow-1">
                     <h2 class="text-dark mb-0">
                         <i class="fas fa-chalkboard-teacher me-2"></i>Личный кабинет учителя
                     </h2>
-                    <a href="{{ url_for('cooperation') }}" class="btn btn-outline-warning cooperation-btn ms-3" style="color: #FF8C00; border-color: #FF8C00;">
+                    <a href="{{ url_for('cooperation') }}" class="btn btn-outline-warning cooperation-btn mt-2" style="color: #FF8C00; border-color: #FF8C00;">
                         <i class="fas fa-handshake me-2"></i>Узнать больше о сотрудничестве
                     </a>
                 </div>
-                <div class="text-muted">
-                    <small>{{ current_user.full_name }}</small>
+                <div class="text-muted ms-3 d-flex flex-column align-items-end">
+                    <small class="mb-2">{{ current_user.full_name }}</small>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
+                        <i class="fas fa-user-edit me-1"></i>Редактировать профиль
+                    </button>
                 </div>
             </div>
 
@@ -66,20 +69,25 @@
                         </button>
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-4">
+                    <div class="row share-buttons g-2 g-md-3 align-items-stretch">
+                        <div class="col-12 col-md-3 mb-2 mb-md-0">
                             <button class="btn btn-success w-100" onclick="shareWhatsApp()">
                                 <i class="fab fa-whatsapp me-1"></i>Поделиться в WhatsApp
                             </button>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-3 mb-2 mb-md-0">
                             <button class="btn btn-info w-100" onclick="shareTelegram()">
                                 <i class="fab fa-telegram me-1"></i>Поделиться в Telegram
                             </button>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-3 mb-2 mb-md-0">
                             <button class="btn btn-primary w-100" style="background-color: #7360f2; border: none;" onclick="shareViber()">
                                 <i class="fab fa-viber me-1"></i>Поделиться в Viber
+                            </button>
+                        </div>
+                        <div class="col-12 col-md-3 mb-0">
+                            <button class="btn btn-primary w-100" style="background-color: #4a76a8; border: none;" onclick="shareVK()">
+                                <i class="fab fa-vk me-1"></i>Поделиться в VK
                             </button>
                         </div>
                     </div>
@@ -307,6 +315,14 @@ function shareViber() {
     window.open(viberUrl, '_blank');
 }
 
+function shareVK() {
+    const link = document.getElementById('inviteLink').value;
+    const title = 'Приглашение на Лигу Знатоков';
+    const description = 'Присоединяйся к мультипрофильным онлайн‑турнирам! Зарегистрируйся по моей ссылке.';
+    const vkUrl = `https://vk.com/share.php?url=${encodeURIComponent(link)}&title=${encodeURIComponent(title)}&description=${encodeURIComponent(description)}`;
+    window.open(vkUrl, '_blank');
+}
+
 function showNotification(message, type) {
     // Простая функция для показа уведомлений
     const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
@@ -366,6 +382,21 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #000 !important;
 }
 
+/* Кнопки шаринга */
+.share-buttons .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 768px) {
+    .share-buttons .btn {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        font-size: 0.95rem;
+    }
+}
+
 @media (max-width: 768px) {
     .table-responsive {
         font-size: 0.875rem;
@@ -415,4 +446,207 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 </style>
+<!-- Модальное окно редактирования профиля учителя -->
+<div class="modal fade" id="editTeacherProfileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-user-cog me-2"></i>Редактирование профиля</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editTeacherProfileForm">
+          <div class="mb-3">
+            <label class="form-label">ФИО</label>
+            <input type="text" class="form-control" id="t_full_name" value="{{ current_user.full_name }}" required>
+          </div>
+          <!-- Email не редактируется -->
+          <div class="mb-3">
+            <label class="form-label">Телефон</label>
+            <input type="tel" class="form-control" id="t_phone" value="{{ current_user.phone or '' }}" placeholder="+375XXXXXXXXX">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Учреждение образования</label>
+            <input type="text" class="form-control" id="t_edu" value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}" placeholder="Название учреждения">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Новый пароль</label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="t_new_password" placeholder="Оставьте пустым, если не меняете">
+              <button type="button" class="btn btn-outline-secondary" id="t_toggle_new_password" title="Показать/скрыть пароль">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <div class="password-requirements mt-2" id="t-password-requirements" style="display:none;">
+              <small class="text-muted">Требования к паролю:</small>
+              <ul class="list-unstyled mt-1 mb-0">
+                <li id="t-req-length"><i class="fas fa-circle text-muted"></i> Минимум 8 символов</li>
+                <li id="t-req-uppercase"><i class="fas fa-circle text-muted"></i> Заглавная буква</li>
+                <li id="t-req-lowercase"><i class="fas fa-circle text-muted"></i> Строчная буква</li>
+                <li id="t-req-number"><i class="fas fa-circle text-muted"></i> Цифра</li>
+                <li id="t-req-special"><i class="fas fa-circle text-muted"></i> Спецсимвол (!@#$%^&*...)</li>
+              </ul>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Подтверждение пароля</label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="t_confirm_password" placeholder="Повторите новый пароль">
+              <button type="button" class="btn btn-outline-secondary" id="t_toggle_confirm_password" title="Показать/скрыть пароль">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="btn btn-primary" id="saveTeacherProfileBtn">Сохранить</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const saveBtn = document.getElementById('saveTeacherProfileBtn');
+  if (!saveBtn) return;
+  const tNewPwd = document.getElementById('t_new_password');
+  const tConfPwd = document.getElementById('t_confirm_password');
+  const reqBox = document.getElementById('t-password-requirements');
+
+  function tUpdateRequirements(hasLen, hasU, hasL, hasD, hasS) {
+    const map = [
+      ['t-req-length', hasLen],
+      ['t-req-uppercase', hasU],
+      ['t-req-lowercase', hasL],
+      ['t-req-number', hasD],
+      ['t-req-special', hasS],
+    ];
+    map.forEach(([id, ok]) => {
+      const li = document.getElementById(id);
+      if (!li) return;
+      const icon = li.querySelector('i');
+      if (ok) {
+        icon.className = 'fas fa-check text-success';
+        li.classList.remove('text-muted');
+        li.classList.add('text-success');
+      } else {
+        icon.className = 'fas fa-circle text-muted';
+        li.classList.remove('text-success');
+        li.classList.add('text-muted');
+      }
+    });
+  }
+
+  function tValidatePassword(pw) {
+    if (!reqBox) return true;
+    if (!pw) {
+      reqBox.style.display = 'none';
+      if (tNewPwd) {
+        tNewPwd.classList.remove('is-valid', 'is-invalid');
+      }
+      return true;
+    }
+    reqBox.style.display = 'block';
+    const hasLen = pw.length >= 8;
+    const hasU = /[A-Z]/.test(pw);
+    const hasL = /[a-z]/.test(pw);
+    const hasD = /\d/.test(pw);
+    const hasS = /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(pw);
+    tUpdateRequirements(hasLen, hasU, hasL, hasD, hasS);
+    const ok = hasLen && hasU && hasL && hasD && hasS;
+    if (tNewPwd) {
+      tNewPwd.classList.remove('is-valid', 'is-invalid');
+      tNewPwd.classList.add(ok ? 'is-valid' : 'is-invalid');
+    }
+    return ok;
+  }
+
+  function tValidateConfirm() {
+    if (!tNewPwd || !tConfPwd) return true;
+    if (!tNewPwd.value && !tConfPwd.value) {
+      tConfPwd.classList.remove('is-valid', 'is-invalid');
+      return true;
+    }
+    const ok = tNewPwd.value === tConfPwd.value;
+    tConfPwd.classList.remove('is-valid', 'is-invalid');
+    tConfPwd.classList.add(ok ? 'is-valid' : 'is-invalid');
+    return ok;
+  }
+
+  if (tNewPwd) {
+    tNewPwd.addEventListener('input', function(){
+      tValidatePassword(this.value);
+      tValidateConfirm();
+    });
+  }
+  if (tConfPwd) {
+    tConfPwd.addEventListener('input', function(){ tValidateConfirm(); });
+  }
+
+  const toggleNew = document.getElementById('t_toggle_new_password');
+  const toggleConf = document.getElementById('t_toggle_confirm_password');
+  if (toggleNew && tNewPwd) {
+    toggleNew.addEventListener('click', function(){
+      const type = tNewPwd.getAttribute('type') === 'password' ? 'text' : 'password';
+      tNewPwd.setAttribute('type', type);
+      const icon = this.querySelector('i');
+      if (icon) icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    });
+  }
+  if (toggleConf && tConfPwd) {
+    toggleConf.addEventListener('click', function(){
+      const type = tConfPwd.getAttribute('type') === 'password' ? 'text' : 'password';
+      tConfPwd.setAttribute('type', type);
+      const icon = this.querySelector('i');
+      if (icon) icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    });
+  }
+  saveBtn.addEventListener('click', async function(){
+    const full_name = document.getElementById('t_full_name').value.trim();
+    const phone = document.getElementById('t_phone').value.trim();
+    const educational_institution_name = document.getElementById('t_edu').value.trim();
+    const new_password = document.getElementById('t_new_password') ? document.getElementById('t_new_password').value : '';
+    const confirm_password = document.getElementById('t_confirm_password') ? document.getElementById('t_confirm_password').value : '';
+    if (!full_name) {
+      showNotification('Пожалуйста, заполните обязательные поля', 'danger');
+      return;
+    }
+    if (new_password || confirm_password) {
+      if (!tValidatePassword(new_password)) {
+        showNotification('Пароль не соответствует требованиям', 'danger');
+        return;
+      }
+      if (!tValidateConfirm()) {
+        showNotification('Пароли не совпадают', 'danger');
+        return;
+      }
+    }
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Сохранение...';
+    try {
+      const resp = await fetch('/update-teacher-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name, phone, educational_institution_name, new_password })
+      });
+      const data = await resp.json();
+      if (data.success) {
+        showNotification('Профиль обновлён', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editTeacherProfileModal'));
+        if (modal) modal.hide();
+        setTimeout(()=> window.location.reload(), 800);
+      } else {
+        showNotification(data.message || 'Ошибка при сохранении', 'danger');
+      }
+    } catch (e) {
+      showNotification('Произошла ошибка при сохранении', 'danger');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = 'Сохранить';
+    }
+  });
+});
+</script>
 {% endblock %} 
