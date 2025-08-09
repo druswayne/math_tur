@@ -3658,11 +3658,15 @@ def express_pay_webhook(webhook_token):
         
         if not data:
             print("Webhook: пустое тело запроса (не JSON и нет form/query данных)")
+            with open('1.txt', 'a', encoding='utf-8') as file:
+                file.write("Webhook: пустое тело запроса (не JSON и нет form/query данных)")
             return jsonify({'error': 'Empty request body'}), 400
         
         # Проверяем обязательные поля
         cmd_type = data.get('CmdType')
         if cmd_type is None:
+            with open('1.txt', 'a', encoding='utf-8') as file:
+                file.write("Webhook: отсутствует CmdType")
             print("Webhook: отсутствует CmdType")
             return jsonify({'error': 'Missing CmdType'}), 400
         
