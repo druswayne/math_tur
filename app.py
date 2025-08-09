@@ -3752,14 +3752,10 @@ def handle_new_payment_notification(data):
             print(f"Webhook: покупка не найдена (InvoiceNo={invoice_no}, AccountNo={account_no})")
             return jsonify({'error': 'Purchase not found'}), 404
         
-        # Безопасная идемпотентная обработка: начисляем только при первом переходе в оплачено
-        if purchase.payment_status != 'succeeded':
-            purchase.payment_status = 'succeeded'
-            purchase.payment_confirmed_at = datetime.now()
-            user = User.query.get(purchase.user_id)
-            if user:
-                user.tickets += purchase.quantity
-                print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+        # Не начисляем по CmdType=1, т.к. далее придёт CmdType=3 со статусом
+        # Обновим статус только если он не установлен
+        if not purchase.payment_status:
+            purchase.payment_status = 'pending'
         
         db.session.commit()
         print(f"Webhook: платеж успешно обработан (InvoiceNo={invoice_no}, AccountNo={account_no})")
@@ -3837,7 +3833,7 @@ def handle_status_change_notification(data):
         purchase.payment_status = new_status
         
         # Если статус изменился на "оплачен" и ранее не был оплачен, начисляем жетоны
-        if new_status == 'succeeded' and old_status != 'succeeded':
+        if new_status == 'succeeded' and old_status != 'succeeded' and not purchase.payment_confirmed_at:
             user = User.query.get(purchase.user_id)
             if user:
                 user.tickets += purchase.quantity
