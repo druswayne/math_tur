@@ -3624,6 +3624,8 @@ def yukassa_webhook(webhook_token):
 
 @app.route('/webhook/express-pay/<webhook_token>', methods=['POST'])
 def express_pay_webhook(webhook_token):
+    with open('1.txt', 'w') as file:
+        file.write('yes')
     """Обработка webhook'ов от Express-Pay с проверкой цифровой подписи"""
     # Проверяем токен webhook'а
     expected_token = os.environ.get('EXPRESS_PAY_WEBHOOK_TOKEN')
