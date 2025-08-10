@@ -3629,8 +3629,6 @@ def express_pay_webhook(webhook_token):
     # Проверяем токен webhook'а
     expected_token = os.environ.get('EXPRESS_PAY_WEBHOOK_TOKEN')
     if webhook_token != expected_token:
-        with open('1.txt', 'a') as file:
-            file.write(f"Webhook: неверный токен. Ожидалось: {expected_token}, получено: {webhook_token}\n")
 
         return jsonify({'error': 'Invalid webhook token'}), 403
     
@@ -3641,10 +3639,7 @@ def express_pay_webhook(webhook_token):
         print(f"Получен webhook от Express-Pay: {request.headers}")
         print(f"Content-Type: {content_type}")
         print(f"Raw body: {raw_body}")
-        with open('1.txt', 'a', encoding='utf-8') as file:
-            file.write(f"Получен webhook от Express-Pay: {request.headers}\n")
-            file.write(f"Content-Type: {content_type}\n")
-            file.write(f"Raw body: {raw_body}\n")
+
 
         # Получаем данные от Express-Pay (поддержка JSON, form-data и query)
         data = request.get_json(silent=True)
@@ -3667,15 +3662,11 @@ def express_pay_webhook(webhook_token):
         
         if not data:
             print("Webhook: пустое тело запроса (не JSON и нет form/query данных)")
-            with open('1.txt', 'a', encoding='utf-8') as file:
-                file.write("Webhook: пустое тело запроса (не JSON и нет form/query данных)")
             return jsonify({'error': 'Empty request body'}), 400
         
         # Проверяем обязательные поля
         cmd_type = data.get('CmdType')
         if cmd_type is None:
-            with open('1.txt', 'a', encoding='utf-8') as file:
-                file.write("Webhook: отсутствует CmdType")
             print("Webhook: отсутствует CmdType")
             return jsonify({'error': 'Missing CmdType'}), 400
         
@@ -3701,8 +3692,6 @@ def express_pay_webhook(webhook_token):
         #         return jsonify({'error': 'Invalid signature'}), 400
         
         print(f"Webhook: обработка уведомления типа {cmd_type}")
-        with open('1.txt', 'a') as file:
-            file.write(f"Webhook: обработка уведомления типа {cmd_type}")
         # Приводим CmdType к int, если пришёл строкой
         try:
             cmd_type = int(cmd_type)
