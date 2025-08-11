@@ -1,4 +1,10 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory
+import PyPDF2
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.units import inch
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
@@ -2794,6 +2800,9 @@ def confirm_email(token):
         user.email_confirmation_token = None
         db.session.commit()
         
+        # Создаем PDF файл с согласием на обработку персональных данных
+        create_consent_pdf(user)
+        
         # Отправляем письмо с учетными данными
         password = user.temp_password
         if password:
@@ -2814,6 +2823,9 @@ def confirm_teacher_email(token):
         teacher.is_active = True
         teacher.email_confirmation_token = None
         db.session.commit()
+        
+        # Создаем PDF файл с согласием на обработку персональных данных
+        create_consent_pdf(teacher)
         
         # Отправляем письмо с учетными данными
         password = teacher.temp_password
@@ -5449,10 +5461,244 @@ def consent_pdf():
     """Маршрут для отображения согласия на обработку персональных данных"""
     return send_from_directory('static', 'согласие на обработку ПД_.pdf')
 
+@app.route('/teacher-consent-pdf')
+def teacher_consent_pdf():
+    """Маршрут для отображения согласия на обработку персональных данных для учителей"""
+    return send_from_directory('static', 'согласие на обработку ПД_учитель_.pdf')
+
 @app.route('/rights-notification-pdf')
 def rights_notification_pdf():
     """Маршрут для отображения уведомления о разъяснении прав"""
     return send_from_directory('static', 'уведомление о разъяснении прав.pdf')
+
+def create_consent_pdf(user):
+    """Создает PDF файл с согласием на обработку персональных данных для пользователя"""
+    try:
+        # Определяем папку в зависимости от типа пользователя
+        if hasattr(user, 'parent_name'):  # Обычный пользователь
+            doc_folder = 'doc/user'
+        elif hasattr(user, 'full_name'):  # Учитель
+            doc_folder = 'doc/teacher'
+        else:
+            # Fallback для неизвестного типа пользователя
+            doc_folder = 'doc/user'
+        
+        # Создаем папку, если её нет
+        if not os.path.exists(doc_folder):
+            os.makedirs(doc_folder)
+        
+        output_path = f'{doc_folder}/{user.id}.pdf'
+        
+        # Создаем PDF с нуля
+        c = canvas.Canvas(output_path, pagesize=A4)
+        
+        # Получаем размеры страницы
+        page_width, page_height = A4
+        
+        # Настройка шрифта с поддержкой кириллицы
+        try:
+            from reportlab.pdfbase.ttfonts import TTFont
+            from reportlab.pdfbase import pdfmetrics
+            
+            # Пробуем загрузить шрифт с поддержкой кириллицы
+            try:
+                pdfmetrics.registerFont(TTFont('DejaVuSans', 'C:/Windows/Fonts/dejavusans.ttf'))
+                font_name = 'DejaVuSans'
+            except:
+                try:
+                    pdfmetrics.registerFont(TTFont('Arial', 'C:/Windows/Fonts/arial.ttf'))
+                    font_name = 'Arial'
+                except:
+                    # Если не удалось загрузить шрифты, используем встроенный
+                    font_name = 'Helvetica'
+        except:
+            font_name = 'Helvetica'
+        
+        # Устанавливаем шрифт
+        c.setFont(font_name, 12)
+        
+        # Функция для разбивки текста на строки с учетом ширины страницы
+        def wrap_text(text, max_width, font_name, font_size):
+            """Разбивает текст на строки с учетом максимальной ширины"""
+            c.setFont(font_name, font_size)
+            words = text.split()
+            lines = []
+            current_line = []
+            
+            for word in words:
+                current_line.append(word)
+                test_line = ' '.join(current_line)
+                text_width = c.stringWidth(test_line, font_name, font_size)
+                
+                if text_width > max_width:
+                    if len(current_line) > 1:
+                        current_line.pop()  # Убираем последнее слово
+                        lines.append(' '.join(current_line))
+                        current_line = [word]
+                    else:
+                        # Если одно слово слишком длинное, разбиваем его
+                        lines.append(word)
+                        current_line = []
+            
+            if current_line:
+                lines.append(' '.join(current_line))
+            
+            return lines
+        
+        # Функция для выравнивания текста по ширине
+        def justify_text(text, max_width, font_name, font_size):
+            """Выравнивает текст по ширине, добавляя пробелы между словами"""
+            c.setFont(font_name, font_size)
+            words = text.split()
+            
+            if len(words) <= 1:
+                return text  # Не выравниваем короткие строки
+            
+            # Вычисляем общую ширину текста
+            text_width = c.stringWidth(text, font_name, font_size)
+            
+            if text_width >= max_width:
+                return text  # Не выравниваем, если текст уже занимает всю ширину
+            
+            # Вычисляем количество пробелов для добавления
+            total_spaces_needed = max_width - text_width
+            spaces_between_words = len(words) - 1
+            
+            if spaces_between_words == 0:
+                return text
+            
+            # Распределяем пробелы равномерно
+            extra_spaces_per_gap = total_spaces_needed / spaces_between_words
+            
+            # Создаем выровненный текст
+            justified_text = words[0]
+            for i in range(1, len(words)):
+                # Добавляем обычный пробел плюс дополнительные пробелы
+                spaces_to_add = int(extra_spaces_per_gap * i) - int(extra_spaces_per_gap * (i - 1))
+                justified_text += ' ' * (1 + spaces_to_add) + words[i]
+            
+            # Проверяем, не превышает ли выровненный текст максимальную ширину
+            justified_width = c.stringWidth(justified_text, font_name, font_size)
+            if justified_width > max_width:
+                # Если превышает, возвращаем исходный текст
+                return text
+            
+            return justified_text
+        
+        # Определяем текст согласия в зависимости от типа пользователя
+        if hasattr(user, 'parent_name'):  # Обычный пользователь
+            consent_text = """Действуя свободно, своей волей и в своем интересе, а также подтверждая свою дееспособность, физическое лицо дает свое согласие обществу с ограниченной ответственностью «Лига Знатоков», местонахождение: 230029, Республика Беларусь, г. Гродно, ул. Гарбарская, 4,  УНП 591054732 (далее – Оператор), на обработку своих персональных данных со следующими условиями:
+
+
+• Данное Согласие дается на обработку персональных данных, как без использования средств автоматизации, так и с их использованием.
+• Согласие дается на обработку следующих моих персональных данных: ФИО законного представителя несовершеннолетнего учащегося, ФИ несовершеннолетнего учащегося,  адрес электронной почты; номер телефона. Дополнительно указываются наименование учреждения образования и класс обучения.
+• Цель обработки персональных данных: регистрация пользователя на интернет-ресурсе https://liga-znatokov.by/register  с последующим заказом услуги.
+• В ходе обработки с персональными данными будут совершены следующие действия: сбор, систематизация; хранение; использование; извлечение; блокирование; уничтожение; запись; удаление; накопление; обновление; изменение; предоставление; доступ.
+• Персональные данные обрабатываются до отзыва согласия.
+• Согласие может быть отозвано субъектом персональных данных или его представителем путем направления письменного заявления Оператору или его представителю по адресу, указанному в начале данного Согласия с учетом положений Политики оператора на обработку персональных данных."""
+        elif hasattr(user, 'full_name'):  # Учитель
+            consent_text = """Действуя свободно, своей волей и в своем интересе, а также подтверждая свою дееспособность, физическое лицо дает свое согласие обществу с ограниченной ответственностью «Лига Знатоков», местонахождение: 230029, Республика Беларусь, г. Гродно, ул. Гарбарская, 4,  УНП 591054732 (далее – Оператор), на обработку своих персональных данных со следующими условиями:
+
+
+• Данное Согласие дается на обработку персональных данных, как без использования средств автоматизации, так и с их использованием.
+• Согласие дается на обработку следующих моих персональных данных: ФИО законного представителя несовершеннолетнего учащегося, ФИ несовершеннолетнего учащегося,  адрес электронной почты; номер телефона. Дополнительно указываются наименование учреждения образования и класс обучения.
+• Цель обработки персональных данных: регистрация пользователя на интернет-ресурсе https://liga-znatokov.by/teacher-register  с последующим заказом услуги.
+• В ходе обработки с персональными данными будут совершены следующие действия: сбор, систематизация; хранение; использование; извлечение; блокирование; уничтожение; запись; удаление; накопление; обновление; изменение; предоставление; доступ.
+• Персональные данные обрабатываются до отзыва согласия.
+• Согласие может быть отозвано субъектом персональных данных или его представителем путем направления письменного заявления Оператору или его представителю по адресу, указанному в начале данного Согласия с учетом положений Политики оператора на обработку персональных данных."""
+        else:
+            # Fallback для неизвестного типа пользователя
+            consent_text = """Действуя свободно, своей волей и в своем интересе, а также подтверждая свою дееспособность, физическое лицо дает свое согласие обществу с ограниченной ответственностью «Лига Знатоков», местонахождение: 230029, Республика Беларусь, г. Гродно, ул. Гарбарская, 4,  УНП 591054732 (далее – Оператор), на обработку своих персональных данных со следующими условиями:
+
+
+• Данное Согласие дается на обработку персональных данных, как без использования средств автоматизации, так и с их использованием.
+• Согласие дается на обработку следующих моих персональных данных: ФИО законного представителя несовершеннолетнего учащегося, ФИ несовершеннолетнего учащегося,  адрес электронной почты; номер телефона. Дополнительно указываются наименование учреждения образования и класс обучения.
+• Цель обработки персональных данных: регистрация пользователя на интернет-ресурсе https://liga-znatokov.by/register  с последующим заказом услуги.
+• В ходе обработки с персональными данными будут совершены следующие действия: сбор, систематизация; хранение; использование; извлечение; блокирование; уничтожение; запись; удаление; накопление; обновление; изменение; предоставление; доступ.
+• Персональные данные обрабатываются до отзыва согласия.
+• Согласие может быть отозвано субъектом персональных данных или его представителем путем направления письменного заявления Оператору или его представителю по адресу, указанному в начале данного Согласия с учетом положений Политики оператора на обработку персональных данных."""
+        
+        # Разбиваем текст на параграфы
+        paragraphs = consent_text.split('\n')
+        
+        # Настройки для текста
+        left_margin = 50
+        right_margin = 50
+        max_width = page_width - left_margin - right_margin
+        line_height = 18
+        y_position = page_height - 100
+        
+        # Добавляем текст с автоматическим переносом строк и выравниванием по ширине
+        for paragraph in paragraphs:
+            if paragraph.strip():  # Пропускаем пустые строки
+                if paragraph.startswith('•'):
+                    # Для маркированных списков используем тот же отступ
+                    wrapped_lines = wrap_text(paragraph, max_width, font_name, 12)
+                    for i, line in enumerate(wrapped_lines):
+                        # Выравниваем по ширине только строки с достаточным количеством слов
+                        if i < len(wrapped_lines) - 1 and len(line.split()) > 3:
+                            justified_line = justify_text(line, max_width, font_name, 12)
+                            c.drawString(left_margin, y_position, justified_line)
+                        else:
+                            c.drawString(left_margin, y_position, line)
+                        y_position -= line_height
+                else:
+                    # Для обычного текста
+                    wrapped_lines = wrap_text(paragraph, max_width, font_name, 12)
+                    for i, line in enumerate(wrapped_lines):
+                        # Выравниваем по ширине только строки с достаточным количеством слов
+                        if i < len(wrapped_lines) - 1 and len(line.split()) > 3:
+                            justified_line = justify_text(line, max_width, font_name, 12)
+                            c.drawString(left_margin, y_position, justified_line)
+                        else:
+                            c.drawString(left_margin, y_position, line)
+                        y_position -= line_height
+            else:
+                # Пустая строка - добавляем отступ
+                y_position -= line_height
+        
+        # Форматируем дату
+        current_date = datetime.now()
+        day = current_date.day
+        month_names = [
+            'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+            'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+        ]
+        month = month_names[current_date.month - 1]
+        year = current_date.year
+        
+        # Формируем текст для подписи
+        date_text = f'«{day}» {month} {year} г.'
+        
+        # Определяем имя для подписи в зависимости от типа пользователя
+        if hasattr(user, 'parent_name'):  # Обычный пользователь
+            signature_text = user.parent_name if user.parent_name else 'Не указано'
+        elif hasattr(user, 'full_name'):  # Учитель
+            signature_text = user.full_name if user.full_name else 'Не указано'
+        else:
+            signature_text = 'Не указано'
+        
+        # Позиционируем подпись выше на странице
+        y_signature = 200  # Увеличиваем отступ от низа страницы
+        x_date = left_margin  # Позиция даты (такой же отступ, как у текста)
+        
+        # Вычисляем позицию ФИО с учетом его длины
+        signature_width = c.stringWidth(signature_text, font_name, 12)
+        x_signature = page_width - signature_width - 50  # 50 пикселей отступ справа
+        
+        # Добавляем дату и подпись
+        c.drawString(x_date, y_signature, date_text)
+        c.drawString(x_signature, y_signature, signature_text)
+        
+        # Сохраняем PDF
+        c.save()
+        
+        print(f"PDF согласия создан для пользователя {user.id}: {output_path}")
+        return True
+        
+    except Exception as e:
+        print(f"Ошибка при создании PDF согласия: {e}")
+        return False
 
 def update_category_ranks():
     """Обновляет рейтинг пользователей внутри их возрастных категорий"""
