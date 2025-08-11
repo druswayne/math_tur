@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
@@ -453,7 +453,7 @@ class User(UserMixin, db.Model):
     tickets = db.Column(db.Integer, default=0)
     tournaments_count = db.Column(db.Integer, default=0)
     total_tournament_time = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
     # Добавляем связь с турнирами через TournamentParticipation
@@ -5444,6 +5444,16 @@ def change_password():
 def privacy_policy():
     return render_template('privacy_policy.html', title='Политика конфиденциальности')
 
+@app.route('/consent-pdf')
+def consent_pdf():
+    """Маршрут для отображения согласия на обработку персональных данных"""
+    return send_from_directory('static', 'согласие на обработку ПД_.pdf')
+
+@app.route('/rights-notification-pdf')
+def rights_notification_pdf():
+    """Маршрут для отображения уведомления о разъяснении прав"""
+    return send_from_directory('static', 'уведомление о разъяснении прав.pdf')
+
 def update_category_ranks():
     """Обновляет рейтинг пользователей внутри их возрастных категорий"""
     # Используем те же категории, что и в интерфейсе рейтинга
@@ -5743,7 +5753,7 @@ class UserSession(db.Model):
     session_token = db.Column(db.String(255), unique=True, index=True)
     device_info = db.Column(db.String(255), nullable=True)
     last_active = db.Column(db.DateTime, default=datetime.now)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
 
     user = db.relationship('User', backref=db.backref('sessions', lazy=True))
     teacher = db.relationship('Teacher', backref=db.backref('sessions', lazy=True))
@@ -5909,7 +5919,7 @@ signal.signal(signal.SIGINT, signal_handler)
 def cleanup_old_sessions():
     """Удаляет устаревшие сессии и пользователей с неподтвержденными email из базы данных"""
     try:
-        # Удаляем сессии старше 1 недели
+        # Удаляем сессии старше 1 недели (неактивные)
         one_week_ago = datetime.now() - timedelta(days=7)
         deleted_sessions = UserSession.query.filter(
             UserSession.created_at < one_week_ago,
@@ -5917,17 +5927,21 @@ def cleanup_old_sessions():
         ).delete()
         
         # Удаляем пользователей с неподтвержденными email старше 3 дней
-        thirty_days_ago = datetime.now() - timedelta(days=3)
+        three_days_ago = datetime.now() - timedelta(days=3)
         deleted_users = User.query.filter(
             User.is_active == False,
             User.email_confirmation_token.isnot(None),
-            User.created_at < thirty_days_ago,
+            User.created_at < three_days_ago,
             User.is_admin == False  # Не удаляем администраторов
         ).delete()
         
         db.session.commit()
         
-        print(f"Очистка завершена: удалено {deleted_sessions} сессий и {deleted_users} пользователей с неподтвержденными email")
+        # Более детальное логирование
+        if deleted_sessions > 0 or deleted_users > 0:
+            print(f"Очистка завершена: удалено {deleted_sessions} сессий и {deleted_users} пользователей с неподтвержденными email")
+        else:
+            print("Очистка завершена: нечего удалять")
         
         # НЕ удаляем запись о задаче из БД, так как это интервальная задача
         # которая должна выполняться каждые 24 часа
@@ -5935,7 +5949,10 @@ def cleanup_old_sessions():
     except Exception as e:
         db.session.rollback()
         print(f"Ошибка при очистке устаревших сессий и пользователей: {e}")
-
+        # Логируем полную информацию об ошибке для отладки
+        import traceback
+        print(f"Полная информация об ошибке: {traceback.format_exc()}")
+cleanup_old_sessions()
 # Настраиваем периодическую очистку сессий
 #add_scheduler_job(
 #    cleanup_old_sessions,
