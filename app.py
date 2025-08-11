@@ -5496,23 +5496,64 @@ def create_consent_pdf(user):
         page_width, page_height = A4
         
         # Настройка шрифта с поддержкой кириллицы
-        try:
-            from reportlab.pdfbase.ttfonts import TTFont
-            from reportlab.pdfbase import pdfmetrics
-            
-            # Пробуем загрузить шрифт с поддержкой кириллицы
+        font_name = 'Helvetica'  # По умолчанию
+        
+        # Список путей к шрифтам для разных ОС
+        font_paths = [
+            # Windows пути
+            'C:/Windows/Fonts/dejavusans.ttf',
+            'C:/Windows/Fonts/arial.ttf',
+            'C:/Windows/Fonts/tahoma.ttf',
+            # Linux пути
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf',
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
+            # Альтернативные Linux пути
+            '/usr/local/share/fonts/DejaVuSans.ttf',
+            '/opt/fonts/DejaVuSans.ttf',
+        ]
+        
+        # Пробуем загрузить шрифт с поддержкой кириллицы
+        for font_path in font_paths:
             try:
-                pdfmetrics.registerFont(TTFont('DejaVuSans', 'C:/Windows/Fonts/dejavusans.ttf'))
-                font_name = 'DejaVuSans'
-            except:
-                try:
-                    pdfmetrics.registerFont(TTFont('Arial', 'C:/Windows/Fonts/arial.ttf'))
-                    font_name = 'Arial'
-                except:
-                    # Если не удалось загрузить шрифты, используем встроенный
-                    font_name = 'Helvetica'
-        except:
-            font_name = 'Helvetica'
+                if os.path.exists(font_path):
+                    if 'dejavu' in font_path.lower():
+                        pdfmetrics.registerFont(TTFont('DejaVuSans', font_path))
+                        font_name = 'DejaVuSans'
+                        print(f"Используется шрифт: DejaVuSans ({font_path})")
+                        break
+                    elif 'arial' in font_path.lower():
+                        pdfmetrics.registerFont(TTFont('Arial', font_path))
+                        font_name = 'Arial'
+                        print(f"Используется шрифт: Arial ({font_path})")
+                        break
+                    elif 'liberation' in font_path.lower():
+                        pdfmetrics.registerFont(TTFont('LiberationSans', font_path))
+                        font_name = 'LiberationSans'
+                        print(f"Используется шрифт: LiberationSans ({font_path})")
+                        break
+                    elif 'ubuntu' in font_path.lower():
+                        pdfmetrics.registerFont(TTFont('Ubuntu', font_path))
+                        font_name = 'Ubuntu'
+                        print(f"Используется шрифт: Ubuntu ({font_path})")
+                        break
+                    elif 'freesans' in font_path.lower():
+                        pdfmetrics.registerFont(TTFont('FreeSans', font_path))
+                        font_name = 'FreeSans'
+                        print(f"Используется шрифт: FreeSans ({font_path})")
+                        break
+            except Exception as e:
+                continue
+        
+        if font_name == 'Helvetica':
+            print("⚠️  Не удалось загрузить шрифт с поддержкой кириллицы")
+            print("📝 Установите шрифты на сервере командой:")
+            print("   sudo apt-get update && sudo apt-get install fonts-dejavu fonts-liberation")
+            print("   или")
+            print("   sudo apt-get install ttf-dejavu ttf-liberation")
+            print("🔤 Используется шрифт: Helvetica (возможны проблемы с кириллицей)")
         
         # Устанавливаем шрифт
         c.setFont(font_name, 12)
