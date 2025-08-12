@@ -1228,16 +1228,25 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        is_teacher = request.form.get('is_teacher') == 'on'
         device_info = request.user_agent.string
 
-        # Определяем, в какой таблице искать пользователя
-        if is_teacher:
-            user = Teacher.query.filter(Teacher.username.ilike(username)).first()
-        else:
-            user = User.query.filter(User.username.ilike(username)).first()
+        # Автоматически определяем тип пользователя
+        user = None
+        user_type = None
         
+        # Сначала проверяем в таблице пользователей
+        user = User.query.filter(User.username.ilike(username)).first()
         if user and user.check_password(password):
+            user_type = 'user'
+        else:
+            # Если не найден в пользователях, проверяем в учителях
+            user = Teacher.query.filter(Teacher.username.ilike(username)).first()
+            if user and user.check_password(password):
+                user_type = 'teacher'
+            else:
+                user = None
+        
+        if user and user_type:
             if user.is_blocked:
                 flash('Ваш аккаунт заблокирован. Причина: ' + user.block_reason, 'error')
                 return increment_login_attempts()
@@ -1247,7 +1256,7 @@ def login():
                 return increment_login_attempts()
             
             # Проверяем, есть ли активная сессия
-            if is_teacher:
+            if user_type == 'teacher':
                 active_session = UserSession.query.filter_by(teacher_id=user.id, user_type='teacher', is_active=True).first()
             else:
                 active_session = UserSession.query.filter_by(user_id=user.id, user_type='user', is_active=True).first()
@@ -1259,14 +1268,14 @@ def login():
                 return increment_login_attempts()
             
             # Создаем новую сессию
-            if is_teacher:
+            if user_type == 'teacher':
                 session_token = create_user_session(None, device_info, 'teacher', user.id)
             else:
                 session_token = create_user_session(user.id, device_info, 'user')
             
             # Сохраняем токен в сессии Flask и делаем её постоянной
             session['session_token'] = session_token
-            session['user_type'] = 'teacher' if is_teacher else 'user'
+            session['user_type'] = user_type
             session.permanent = True
             
             login_user(user)
@@ -1277,7 +1286,7 @@ def login():
             # Сбрасываем счетчик попыток входа
             
             # Определяем куда перенаправить пользователя
-            if is_teacher:
+            if user_type == 'teacher':
                 redirect_url = url_for('teacher_profile')
             else:
                 redirect_url = url_for('profile')
@@ -5981,57 +5990,45 @@ def reset_session():
         data = request.get_json()
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
-        is_teacher = data.get('is_teacher', False)
         
         if not username or not password:
             return jsonify({'success': False, 'message': 'Необходимо указать логин и пароль'})
         
-        if is_teacher:
-            # Ищем учителя (регистронезависимый поиск)
-            teacher = Teacher.query.filter(Teacher.username.ilike(username)).first()
-            
-            if not teacher:
-                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
-            
-            if not teacher.check_password(password):
-                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
-            
-            if teacher.is_blocked:
-                return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
-            
-            if not teacher.is_active:
-                return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
-            
-            # Проверяем, есть ли активная сессия учителя
-            active_session = UserSession.query.filter_by(teacher_id=teacher.id, user_type='teacher', is_active=True).first()
-            if not active_session:
-                return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
-            
-            # Деактивируем все сессии учителя
-            deactivate_user_session(teacher.id, user_type='teacher', teacher_id=teacher.id)
+        # Автоматически определяем тип пользователя
+        user = None
+        user_type = None
+        
+        # Сначала проверяем в таблице пользователей
+        user = User.query.filter(User.username.ilike(username)).first()
+        if user and user.check_password(password):
+            user_type = 'user'
         else:
-            # Ищем пользователя (регистронезависимый поиск)
-            user = User.query.filter(User.username.ilike(username)).first()
-            
-            if not user:
+            # Если не найден в пользователях, проверяем в учителях
+            user = Teacher.query.filter(Teacher.username.ilike(username)).first()
+            if user and user.check_password(password):
+                user_type = 'teacher'
+            else:
                 return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
-            
-            if not user.check_password(password):
-                return jsonify({'success': False, 'message': 'Неверный логин или пароль'})
-            
-            if user.is_blocked:
-                return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
-            
-            if not user.is_active:
-                return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
-            
-            # Проверяем, есть ли активная сессия
-            active_session = UserSession.query.filter_by(user_id=user.id, is_active=True).first()
+        
+        if user.is_blocked:
+            return jsonify({'success': False, 'message': 'Ваш аккаунт заблокирован'})
+        
+        if not user.is_active:
+            return jsonify({'success': False, 'message': 'Пожалуйста, подтвердите ваш email перед входом'})
+        
+        # Проверяем, есть ли активная сессия
+        if user_type == 'teacher':
+            active_session = UserSession.query.filter_by(teacher_id=user.id, user_type='teacher', is_active=True).first()
             if not active_session:
                 return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
-            
+            # Деактивируем все сессии учителя
+            deactivate_user_session(user.id, user_type='teacher', teacher_id=user.id)
+        else:
+            active_session = UserSession.query.filter_by(user_id=user.id, user_type='user', is_active=True).first()
+            if not active_session:
+                return jsonify({'success': False, 'message': 'У вас нет активных сессий для сброса'})
             # Деактивируем все сессии пользователя
-            deactivate_user_session(user.id)
+            deactivate_user_session(user.id, user_type='user')
         
         return jsonify({
             'success': True, 
