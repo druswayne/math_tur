@@ -92,6 +92,7 @@
                                 </select>
                                 <input type="tel" class="form-control" id="phone" name="phone" placeholder="291234567" required>
                                 <span class="input-group-text validation-icon" id="phone-icon">
+                                    <i class="fas fa-spinner fa-spin" style="display: none;"></i>
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
@@ -433,30 +434,86 @@ document.addEventListener('DOMContentLoaded', function() {
         const phone = phoneField.value;
         const phoneCountry = document.getElementById('phone_country').value;
         const icon = document.querySelector('#phone-icon');
+        const spinner = icon.querySelector('.fa-spinner');
         const check = icon.querySelector('.fa-check');
         const times = icon.querySelector('.fa-times');
         
+        spinner.style.display = 'none';
         check.style.display = 'none';
         times.style.display = 'none';
         
         let isValid = false;
         
-        if (phoneCountry === '+375' && /^[0-9]{9}$/.test(phone)) {
+        // Проверяем, что введены только цифры
+        if (!/^[0-9]+$/.test(phone)) {
+            isValid = false;
+        } else if (phoneCountry === '+375' && /^[0-9]{9}$/.test(phone)) {
             isValid = true;
         } else if (phoneCountry === '+7' && /^[0-9]{10}$/.test(phone)) {
             isValid = true;
         }
         
-        if (phone.length > 0) {
-            if (isValid) {
-                check.style.display = 'inline';
-            } else {
+        if (!isValid) {
+            if (phone.length > 0) {
                 times.style.display = 'inline';
             }
+            phoneField.isValid = false;
+            checkFormValidity();
+            return false;
         }
         
-        phoneField.isValid = isValid;
-        return isValid;
+        // Если поле пустое или слишком короткое, не проверяем уникальность
+        if (!phone || phone.trim() === '' || phone.length < 9) {
+            phoneField.isValid = false;
+            checkFormValidity();
+            return false;
+        }
+        
+        // Проверяем уникальность телефона
+        const fullPhone = phoneCountry + phone;
+        spinner.style.display = 'inline';
+        
+        fetch('/check-phone', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({phone: fullPhone, type: 'teacher'})
+        })
+        .then(async response => {
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const waitMsg = retryAfter ? `Повторите попытку через ${retryAfter} секунд` : 'Повторите попытку чуть позже';
+                spinner.style.display = 'none';
+                times.style.display = 'inline';
+                phoneField.isValid = false;
+                console.warn('Превышен лимит проверок телефона. ' + waitMsg);
+                if (typeof showNotification === 'function') {
+                    showNotification('Слишком много попыток', waitMsg, 'warning');
+                }
+                return { available: false };
+            }
+            return response.json();
+        })
+        .then(data => {
+            spinner.style.display = 'none';
+            if (data.available) {
+                check.style.display = 'inline';
+                phoneField.isValid = true;
+            } else {
+                times.style.display = 'inline';
+                phoneField.isValid = false;
+            }
+            checkFormValidity();
+        })
+        .catch(error => {
+            spinner.style.display = 'none';
+            times.style.display = 'inline';
+            phoneField.isValid = false;
+            checkFormValidity();
+        });
+        
+        return true;
     }
 
     // Валидация email
@@ -552,14 +609,56 @@ document.addEventListener('DOMContentLoaded', function() {
     passwordField.addEventListener('input', validatePassword);
     confirmPasswordField.addEventListener('input', validateConfirmPassword);
     fullNameField.addEventListener('input', validateFullName);
-    phoneField.addEventListener('input', validatePhone);
+    
+    // Дебаунс для проверки телефона
+    let phoneTimeout;
+    phoneField.addEventListener('input', function() {
+        clearTimeout(phoneTimeout);
+        
+        // Если поле пустое, сразу сбрасываем состояние валидации
+        if (!this.value || this.value.trim() === '') {
+            const icon = document.querySelector('#phone-icon');
+            const spinner = icon.querySelector('.fa-spinner');
+            const check = icon.querySelector('.fa-check');
+            const times = icon.querySelector('.fa-times');
+            
+            spinner.style.display = 'none';
+            check.style.display = 'none';
+            times.style.display = 'none';
+            
+            phoneField.isValid = false;
+            checkFormValidity();
+            return;
+        }
+        
+        phoneTimeout = setTimeout(() => {
+            validatePhone();
+        }, 500);
+    });
+    
     emailField.addEventListener('input', validateEmail);
     agreeTermsField.addEventListener('change', checkFormValidity);
     
     // Обработчик изменения кода страны для телефона
     document.getElementById('phone_country').addEventListener('change', function() {
         updatePhonePlaceholder();
-        validatePhone();
+        // Сбрасываем состояние валидации при изменении кода страны
+        const icon = document.querySelector('#phone-icon');
+        const spinner = icon.querySelector('.fa-spinner');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        spinner.style.display = 'none';
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        phoneField.isValid = false;
+        checkFormValidity();
+        
+        // Если в поле есть номер, проверяем его с новым кодом страны
+        if (phoneField.value.trim() !== '') {
+            validatePhone();
+        }
     });
     
     // Функция для обновления плейсхолдера номера телефона

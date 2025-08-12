@@ -1424,16 +1424,18 @@ def admin_add_user():
         flash('Все поля должны быть заполнены', 'danger')
         return redirect(url_for('admin_users'))
     
-    # Изменяем проверку уникальности логина на регистронезависимую
-    if User.query.filter(User.username.ilike(username)).first():
+    # Проверяем уникальность логина в обеих таблицах
+    if User.query.filter(User.username.ilike(username)).first() or Teacher.query.filter(Teacher.username.ilike(username)).first():
         flash('Пользователь с таким логином уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    if User.query.filter_by(email=email).first():
+    # Проверяем уникальность email в обеих таблицах
+    if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    if User.query.filter_by(phone=phone).first():
+    # Проверяем уникальность телефона в обеих таблицах
+    if User.query.filter_by(phone=phone).first() or Teacher.query.filter_by(phone=phone).first():
         flash('Пользователь с таким номером телефона уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -2497,13 +2499,14 @@ def check_username():
     if not username:
         return jsonify({'available': False})
     
-    # Проверяем в зависимости от типа пользователя
-    if user_type == 'teacher':
-        existing_user = Teacher.query.filter(Teacher.username.ilike(username)).first()
-    else:
-        existing_user = User.query.filter(User.username.ilike(username)).first()
+    # Проверяем уникальность логина в обеих таблицах
+    existing_user = User.query.filter(User.username.ilike(username)).first()
+    existing_teacher = Teacher.query.filter(Teacher.username.ilike(username)).first()
     
-    return jsonify({'available': existing_user is None})
+    # Логин недоступен, если он уже используется в любой из таблиц
+    is_available = existing_user is None and existing_teacher is None
+    
+    return jsonify({'available': is_available})
 
 @app.route('/check-email', methods=['POST'])
 @limiter.limit("10 per minute; 3 per 10 seconds")
@@ -2515,13 +2518,33 @@ def check_email():
     if not email:
         return jsonify({'available': False})
     
-    # Проверяем в зависимости от типа пользователя
-    if user_type == 'teacher':
-        existing_user = Teacher.query.filter_by(email=email).first()
-    else:
-        existing_user = User.query.filter_by(email=email).first()
+    # Проверяем уникальность email в обеих таблицах
+    existing_user = User.query.filter_by(email=email).first()
+    existing_teacher = Teacher.query.filter_by(email=email).first()
     
-    return jsonify({'available': existing_user is None})
+    # Email недоступен, если он уже используется в любой из таблиц
+    is_available = existing_user is None and existing_teacher is None
+    
+    return jsonify({'available': is_available})
+
+@app.route('/check-phone', methods=['POST'])
+@limiter.limit("10 per minute; 3 per 10 seconds")
+def check_phone():
+    data = request.get_json()
+    phone = data.get('phone', '').strip()
+    user_type = data.get('type', 'user')  # 'user' или 'teacher'
+    
+    if not phone:
+        return jsonify({'available': False})
+    
+    # Проверяем уникальность телефона в обеих таблицах
+    existing_user = User.query.filter_by(phone=phone).first()
+    existing_teacher = Teacher.query.filter_by(phone=phone).first()
+    
+    # Телефон недоступен, если он уже используется в любой из таблиц
+    is_available = existing_user is None and existing_teacher is None
+    
+    return jsonify({'available': is_available})
 
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
@@ -2612,16 +2635,18 @@ def register():
             flash('Пожалуйста, выберите группу', 'danger')
             return redirect(url_for('register'))
 
-        # Изменяем проверку уникальности логина на регистронезависимую
-        if User.query.filter(User.username.ilike(username)).first():
+        # Проверяем уникальность логина в обеих таблицах
+        if User.query.filter(User.username.ilike(username)).first() or Teacher.query.filter(Teacher.username.ilike(username)).first():
             flash('Пользователь с таким логином уже существует', 'danger')
             return redirect(url_for('register'))
 
-        if User.query.filter_by(email=email).first():
+        # Проверяем уникальность email в обеих таблицах
+        if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
             flash('Пользователь с таким email уже существует', 'danger')
             return redirect(url_for('register'))
 
-        if User.query.filter_by(phone=full_phone).first():
+        # Проверяем уникальность телефона в обеих таблицах
+        if User.query.filter_by(phone=full_phone).first() or Teacher.query.filter_by(phone=full_phone).first():
             flash('Пользователь с таким номером телефона уже существует', 'danger')
             return redirect(url_for('register'))
 
@@ -2742,17 +2767,19 @@ def teacher_register():
             flash('Неподдерживаемый код страны', 'danger')
             return redirect(url_for('teacher_register'))
 
-        # Проверяем уникальность данных
-        if Teacher.query.filter(Teacher.username.ilike(username)).first():
-            flash('Учитель с таким логином уже существует', 'danger')
+        # Проверяем уникальность логина в обеих таблицах
+        if User.query.filter(User.username.ilike(username)).first() or Teacher.query.filter(Teacher.username.ilike(username)).first():
+            flash('Пользователь с таким логином уже существует', 'danger')
             return redirect(url_for('teacher_register'))
 
-        if Teacher.query.filter_by(email=email).first():
-            flash('Учитель с таким email уже существует', 'danger')
+        # Проверяем уникальность email в обеих таблицах
+        if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
+            flash('Пользователь с таким email уже существует', 'danger')
             return redirect(url_for('teacher_register'))
 
-        if Teacher.query.filter_by(phone=full_phone).first():
-            flash('Учитель с таким номером телефона уже существует', 'danger')
+        # Проверяем уникальность телефона в обеих таблицах
+        if User.query.filter_by(phone=full_phone).first() or Teacher.query.filter_by(phone=full_phone).first():
+            flash('Пользователь с таким номером телефона уже существует', 'danger')
             return redirect(url_for('teacher_register'))
 
         teacher = Teacher(

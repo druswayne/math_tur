@@ -735,9 +735,52 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         const isValid = phoneRegex.test(phone);
-        showValidationIcon('phone', isValid);
         
-        validationState.phone = isValid;
+        if (!isValid) {
+            showValidationIcon('phone', false);
+            validationState.phone = false;
+            return;
+        }
+        
+        // Проверяем уникальность телефона
+        const fullPhone = countryCode + phone;
+        showValidationIcon('phone', false, true);
+        
+        fetch('/check-phone', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ phone: fullPhone })
+        })
+        .then(async response => {
+            if (response.status === 429) {
+                const retryAfter = response.headers.get('Retry-After');
+                const waitMsg = retryAfter ? `Повторите попытку через ${retryAfter} секунд` : 'Повторите попытку чуть позже';
+                showValidationIcon('phone', false);
+                validationState.phone = false;
+                console.warn('Превышен лимит проверок телефона. ' + waitMsg);
+                if (typeof showNotification === 'function') {
+                    showNotification('Слишком много попыток', waitMsg, 'warning');
+                }
+                return { available: false };
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.available) {
+                showValidationIcon('phone', true);
+                validationState.phone = true;
+            } else {
+                showValidationIcon('phone', false);
+                validationState.phone = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showValidationIcon('phone', false);
+            validationState.phone = false;
+        });
     }
 
     // Функция для проверки email
