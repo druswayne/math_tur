@@ -6,7 +6,7 @@
     <div class="alert alert-info mb-4">
         <h4 class="alert-heading">Ваше место в рейтинге</h4>
         <p class="mb-0">
-            В категории {{ current_user.category }}: <strong>{{ current_user.category_rank }} место</strong><br>
+            В категории {% if current_user.category == '1-2' %}1-2 класс{% else %}{{ current_user.category }} класс{% endif %}: <strong>{{ current_user.category_rank }} место</strong><br>
             Всего баллов: <strong>{{ current_user.balance }}</strong>
             {% if show_full_rating %}
             <br><small class="text-muted">Вы видите полный рейтинг, так как участвовали в {{ current_user.tournaments_count }} турнире(ах)</small>
@@ -22,11 +22,11 @@
             <div class="alert alert-info mb-4">
                 <i class="bi bi-info-circle me-2"></i>
                 {% if show_full_rating %}
-                    <strong>Полный рейтинг участников</strong> - отображаются все участники в каждой группе.
+                    <strong>Полный рейтинг участников</strong> - отображаются все участники в каждой параллели.
                 {% else %}
-                    В каждой группе отображаются только <strong>10 лучших участников</strong>. 
+                    В каждой параллели отображаются только <strong>10 лучших участников</strong>. 
                     {% if current_user.is_authenticated and not current_user.is_admin %}
-                    Если вы не входите в топ-10 своей группы, ваша запись будет выделена отдельно.
+                    Если вы не входите в топ-10 своей параллели, ваша запись будет выделена отдельно.
                     {% endif %}
                 {% endif %}
             </div>
@@ -56,7 +56,7 @@
             </div>
             {% endif %}
 
-            <!-- Кнопки выбора группы (десктоп) -->
+            <!-- Кнопки выбора параллели (десктоп) -->
             <div class="nav nav-pills mb-4 d-none d-md-flex" id="categoryTabs" role="tablist">
                 <button class="btn btn-outline-primary me-2 {% if selected_category == '1-2' %}active{% endif %}" data-category="1-2" role="tab">1-2 класс</button>
                 <button class="btn btn-outline-primary me-2 {% if selected_category == '3' %}active{% endif %}" data-category="3" role="tab">3 класс</button>
@@ -86,7 +86,7 @@
                 </select>
             </div>
 
-            <!-- Таблицы для каждой группы -->
+            <!-- Таблицы для каждой параллели -->
             <div class="tab-content">
                 {% for category in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11'] %}
                 <div class="tab-pane fade {% if category == selected_category %}show active{% endif %}" id="tab-{{ category }}" role="tabpanel">
@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const url = new URL(window.location);
         url.searchParams.set('category', category);
         
-        // Сохраняем параметры пагинации для всех групп
+        // Сохраняем параметры пагинации для всех параллелей
         const urlParams = new URLSearchParams(window.location.search);
         for (const [key, value] of urlParams.entries()) {
             if (key.startsWith('page_')) {
@@ -576,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 url.searchParams.delete('mode');
             }
             
-            // Сохраняем параметры пагинации для всех групп
+            // Сохраняем параметры пагинации для всех параллелей
             const urlParams = new URLSearchParams(window.location.search);
             for (const [key, value] of urlParams.entries()) {
                 if (key.startsWith('page_') || key === 'category') {
