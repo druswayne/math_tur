@@ -497,4 +497,28 @@ function selectPaymentSystem(system, paymentMethod = null) {
     </div>
 
 
+{% endblock %}
+
+{% block scripts %}
+<style>
+/* Специальные стили для страницы покупки жетонов */
+body.buy-tickets-page .feedback-tooltip {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateX(30%) translateY(-5px) !important;
+}
+</style>
+
+<script>
+// Добавляем класс к body для идентификации страницы
+document.addEventListener('DOMContentLoaded', function() {
+    document.body.classList.add('buy-tickets-page');
+    
+    // Изменяем текст подсказки на странице покупки жетонов
+    const feedbackTooltip = document.querySelector('.feedback-tooltip');
+    if (feedbackTooltip) {
+        feedbackTooltip.textContent = 'Помочь с оплатой?';
+    }
+});
+</script>
 {% endblock %} 

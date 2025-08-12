@@ -100,31 +100,121 @@
         }
 
         /* Стили для формы обратной связи */
-        .feedback-button {
+        .feedback-button-container {
             position: fixed;
             bottom: 30px;
             right: 30px;
-            width: 60px;
-            height: 60px;
+            z-index: 1000;
+        }
+
+        .feedback-button {
+            width: 65px;
+            height: 65px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
             border: none;
             color: var(--text-color);
-            font-size: 24px;
-            box-shadow: var(--box-shadow);
-            z-index: 1000;
-            transition: var(--transition);
+            font-size: 26px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            animation: feedbackButtonFloat 3s ease-in-out infinite;
+        }
+
+        /* Стили для всплывающей подсказки */
+        .feedback-tooltip {
+            position: absolute;
+            right: 50%;
+            top: -45px;
+            transform: translateX(50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .feedback-tooltip::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 100%;
+            transform: translateX(-50%);
+            border-top: 6px solid rgba(0, 0, 0, 0.8);
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+        }
+
+        /* Показываем подсказку при наведении на контейнер */
+        .feedback-button-container:hover .feedback-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(50%) translateY(-5px);
         }
 
         .feedback-button:hover {
             background: linear-gradient(135deg, var(--primary-dark) 0%, var(--secondary-dark) 100%);
-            box-shadow: var(--box-shadow-hover);
-            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4), 0 0 0 5px rgba(255, 255, 255, 0.2);
+            transform: translateY(-4px) scale(1.1);
         }
 
         .feedback-button:active {
             transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Анимация плавающего эффекта */
+        @keyframes feedbackButtonFloat {
+            0%, 100% {
+                transform: translateY(0px);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Анимация пульсации для привлечения внимания */
+        .feedback-button-pulse {
+            animation: feedbackButtonPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes feedbackButtonPulse {
+            0% {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.1);
+            }
+            50% {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 8px rgba(255, 255, 255, 0.3);
+            }
+            100% {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* Эффект мерцания для привлечения внимания */
+        .feedback-button-attention {
+            animation: feedbackButtonAttention 1.5s ease-in-out infinite;
+        }
+
+        @keyframes feedbackButtonAttention {
+            0%, 100% {
+                transform: scale(1) rotate(0deg);
+            }
+            25% {
+                transform: scale(1.05) rotate(2deg);
+            }
+            50% {
+                transform: scale(1.1) rotate(0deg);
+            }
+            75% {
+                transform: scale(1.05) rotate(-2deg);
+            }
         }
 
         .feedback-modal .modal-dialog {
@@ -1022,12 +1112,47 @@
                 feedbackButton.addEventListener('click', function() {
                     const modal = new bootstrap.Modal(document.getElementById('feedbackModal'));
                     modal.show();
+                    
+                    // Убираем все анимации при клике
+                    feedbackButton.classList.remove('feedback-button-pulse', 'feedback-button-attention');
                 });
 
-                // Добавляем анимацию пульсации через 3 секунды
+                // Добавляем анимацию пульсации через 5 секунд
                 setTimeout(function() {
                     feedbackButton.classList.add('feedback-button-pulse');
-                }, 3000);
+                }, 5000);
+
+                // Добавляем эффект привлечения внимания через 10 секунд
+                setTimeout(function() {
+                    if (!feedbackButton.classList.contains('feedback-button-pulse')) {
+                        feedbackButton.classList.add('feedback-button-attention');
+                    }
+                }, 10000);
+
+                // Добавляем эффект при скролле страницы
+                let lastScrollTop = 0;
+                window.addEventListener('scroll', function() {
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    // Если пользователь прокрутил страницу вниз более чем на 300px
+                    if (scrollTop > 300 && scrollTop > lastScrollTop) {
+                        if (!feedbackButton.classList.contains('feedback-button-pulse') && 
+                            !feedbackButton.classList.contains('feedback-button-attention')) {
+                            feedbackButton.classList.add('feedback-button-pulse');
+                            
+                            // Убираем анимацию через 3 секунды
+                            setTimeout(function() {
+                                feedbackButton.classList.remove('feedback-button-pulse');
+                            }, 3000);
+                        }
+                    }
+                    lastScrollTop = scrollTop;
+                });
+
+                // Добавляем эффект при наведении мыши на кнопку
+                feedbackButton.addEventListener('mouseenter', function() {
+                    this.classList.remove('feedback-button-pulse', 'feedback-button-attention');
+                });
             }
 
             // Обработчик формы обратной связи
@@ -1155,9 +1280,12 @@
     </div>
 
     <!-- Кнопка обратной связи -->
-    <button class="feedback-button" id="feedbackButton" title="Обратная связь">
-        <i class="fas fa-comments"></i>
-    </button>
+    <div class="feedback-button-container">
+        <button class="feedback-button" id="feedbackButton" title="Обратная связь">
+            <i class="fas fa-comments"></i>
+        </button>
+        <div class="feedback-tooltip">Есть вопросы?</div>
+    </div>
 
            <!-- Модальное окно обратной связи -->
        <div class="modal fade feedback-modal" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
@@ -1173,24 +1301,28 @@
                     <form id="feedbackForm" class="feedback-form">
                                                    <div class="mb-2">
                                <label for="feedbackName" class="form-label small mb-1">Имя *</label>
-                               <input type="text" class="form-control form-control-sm" id="feedbackName" name="name" required>
+                               <input type="text" class="form-control form-control-sm" id="feedbackName" name="name" 
+                                      required placeholder="Введите ваше имя">
                            </div>
                            <div class="mb-2">
                                <label for="feedbackPhone" class="form-label small mb-1">Номер телефона *</label>
                                <input type="tel" class="form-control form-control-sm" id="feedbackPhone" name="phone" 
-                                      required placeholder="Введите номер телефона">
+                                      required>
                            </div>
                            <div class="mb-2">
                                <label for="feedbackEmail" class="form-label small mb-1">Email *</label>
-                               <input type="email" class="form-control form-control-sm" id="feedbackEmail" name="email" required>
+                               <input type="email" class="form-control form-control-sm" id="feedbackEmail" name="email" 
+                                      required placeholder="example@email.com">
                            </div>
                            <div class="mb-2">
                                <label for="feedbackSubject" class="form-label small mb-1">Тема сообщения *</label>
-                               <input type="text" class="form-control form-control-sm" id="feedbackSubject" name="subject" required>
+                               <input type="text" class="form-control form-control-sm" id="feedbackSubject" name="subject" 
+                                      required placeholder="Кратко опишите тему вашего обращения">
                            </div>
                            <div class="mb-3">
                                <label for="feedbackMessage" class="form-label small mb-1">Текст сообщения *</label>
-                               <textarea class="form-control form-control-sm" id="feedbackMessage" name="message" rows="3" required></textarea>
+                               <textarea class="form-control form-control-sm" id="feedbackMessage" name="message" rows="3" 
+                                         required placeholder="Опишите подробно ваш вопрос или предложение..."></textarea>
                            </div>
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary flex-fill">
