@@ -4163,6 +4163,38 @@ def cleanup_scheduler_jobs():
     except Exception as e:
         pass
 
+def get_simple_task_selection(available_tasks, solved_tasks, tournament_id):
+    """
+    Простая система выдачи задач: сначала все задачи кроме самых сложных,
+    в конце - самые сложные задачи.
+    """
+    if not available_tasks:
+        return None
+    
+    # Получаем общее количество задач в турнире для категории пользователя
+    total_tasks_in_tournament = Task.query.filter(
+        Task.tournament_id == tournament_id,
+        Task.category == current_user.category
+    ).count()
+    
+    # Вычисляем прогресс (процент пройденных задач)
+    solved_count = len(solved_tasks)
+    progress_percentage = (solved_count / total_tasks_in_tournament) * 100
+    
+    # Находим максимальную сложность среди доступных задач
+    max_points = max(task.points for task in available_tasks)
+    
+    # Разделяем задачи на обычные и самые сложные
+    regular_tasks = [task for task in available_tasks if task.points < max_points]
+    hardest_tasks = [task for task in available_tasks if task.points == max_points]
+    
+    # Если остались только самые сложные задачи, выдаем их
+    if not regular_tasks:
+        return random.choice(hardest_tasks)
+    
+    # Если есть обычные задачи, выдаем случайную из них
+    return random.choice(regular_tasks)
+
 @app.route('/tournament/<int:tournament_id>/task')
 @login_required
 def tournament_task(tournament_id):
@@ -4218,8 +4250,8 @@ def tournament_task(tournament_id):
                                      task=task,
                                      timedelta=timedelta)
     
-    # Если нет сохраненной задачи или она уже решена, выбираем новую
-    task = random.choice(available_tasks)
+    # Если нет сохраненной задачи или она уже решена, выбираем новую по простой схеме
+    task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
     
     # Сохраняем ID задачи в сессии
     session[f'current_task_{tournament_id}'] = task.id
