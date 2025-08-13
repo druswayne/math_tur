@@ -104,31 +104,15 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
 app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное имя куки
 
 mail = Mail(app)
-# Rate limiting с автоматическим выбором storage
-import platform
-
-# Определяем ОС и выбираем storage
-if platform.system() == "Windows":
-    # На Windows используем in-memory storage (не требует установки)
-    print("🪟 Windows обнаружена - используется in-memory storage для rate limiting")
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["200 per hour"],
-        strategy="fixed-window",
-        key_prefix="rate_limit"
-    )
-else:
-    # На Linux/Unix используем Memcached
-    print("🐧 Linux/Unix обнаружена - используется Memcached storage для rate limiting")
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        storage_uri="memcached://localhost:11211",
-        default_limits=["200 per hour"],
-        strategy="fixed-window",
-        key_prefix="rate_limit"
-    )
+# Rate limiting - используем in-memory storage для стабильности
+print("🔧 Используется in-memory storage для rate limiting")
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per hour"],
+    strategy="fixed-window",
+    key_prefix="rate_limit"
+)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
