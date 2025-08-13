@@ -3373,12 +3373,20 @@ def create_payment():
             # URL для возврата после оплаты
             return_url = url_for('purchase_history', _external=True)
             
-            # Создаем платеж в ЮKassa
+            # Создаем платеж в ЮKassa с метаданными пользователя
+            payment_metadata = {
+                "user_id": str(current_user.id),
+                "purchase_id": str(purchase.id),
+                "quantity": str(quantity),
+                "currency": "RUB"
+            }
+            
             payment_info = yukassa_service.create_payment(
                 amount=total_price,
                 description=description,
                 return_url=return_url,
-                capture=True  # Автоматическое списание
+                capture=True,  # Автоматическое списание
+                metadata=payment_metadata
             )
             
             # Сохраняем данные платежа

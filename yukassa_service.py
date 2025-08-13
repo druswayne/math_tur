@@ -21,7 +21,7 @@ class YukassaService:
         self.base_url = "https://api.yookassa.ru/v3"  # API ЮKassa
         self.logger = logging.getLogger(__name__)
     
-    def create_payment(self, amount, description, return_url, capture=True, receipt=None, payment_method_data=None):
+    def create_payment(self, amount, description, return_url, capture=True, receipt=None, payment_method_data=None, metadata=None):
         """
         Создает платеж в ЮKassa
         
@@ -32,11 +32,21 @@ class YukassaService:
             capture (bool): Автоматическое списание (True) или двухстадийный платеж (False)
             receipt (dict): Данные для чека (54-ФЗ)
             payment_method_data (dict): Данные способа оплаты
+            metadata (dict): Дополнительные метаданные (например, user_id, order_id)
         
         Returns:
             dict: Ответ от ЮKassa с данными платежа
         """
         try:
+            # Базовые метаданные
+            base_metadata = {
+                "order_id": str(uuid.uuid4())
+            }
+            
+            # Добавляем переданные метаданные
+            if metadata:
+                base_metadata.update(metadata)
+            
             payment_data = {
                 "amount": {
                     "value": str(amount),
@@ -48,9 +58,7 @@ class YukassaService:
                 },
                 "capture": capture,
                 "description": description,
-                "metadata": {
-                    "order_id": str(uuid.uuid4())
-                }
+                "metadata": base_metadata
             }
             
             # Добавляем данные для чека, если переданы

@@ -100,6 +100,17 @@ def process_yukassa_webhook(webhook_token):
         print(f"   - Статус: {object_data.get('status')}")
         print(f"   - Сумма: {object_data.get('amount', {}).get('value')} {object_data.get('amount', {}).get('currency')}")
         
+        # Логируем метаданные, если они есть
+        metadata = object_data.get('metadata', {})
+        if metadata:
+            print(f"   - Метаданные: {metadata}")
+            user_id = metadata.get('user_id')
+            purchase_id = metadata.get('purchase_id')
+            if user_id:
+                print(f"   - ID пользователя: {user_id}")
+            if purchase_id:
+                print(f"   - ID покупки: {purchase_id}")
+        
         # 7. Обработка различных типов событий
         if event_type == 'payment.succeeded':
             return handle_payment_succeeded(object_data)
@@ -153,6 +164,20 @@ def handle_payment_succeeded(payment_data):
     if not purchase:
         print(f"❌ Покупка с payment_id {payment_id} не найдена")
         return jsonify({'error': 'Purchase not found'}), 404
+    
+    # Дополнительная проверка через метаданные
+    metadata = payment_data.get('metadata', {})
+    if metadata:
+        expected_user_id = metadata.get('user_id')
+        expected_purchase_id = metadata.get('purchase_id')
+        
+        if expected_user_id and str(purchase.user_id) != expected_user_id:
+            print(f"⚠️  Несоответствие ID пользователя: ожидалось {expected_user_id}, найдено {purchase.user_id}")
+            # Не блокируем обработку, но логируем для мониторинга
+        
+        if expected_purchase_id and str(purchase.id) != expected_purchase_id:
+            print(f"⚠️  Несоответствие ID покупки: ожидалось {expected_purchase_id}, найдено {purchase.id}")
+            # Не блокируем обработку, но логируем для мониторинга
     
     # Проверяем, не был ли уже обработан этот платеж
     if purchase.payment_status == 'succeeded':
