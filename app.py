@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory
+from functools import wraps
 import PyPDF2
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter, A4
@@ -103,18 +104,50 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
 app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное имя куки
 
 mail = Mail(app)
-# Rate limiting (простой вариант без капчи)
-limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per hour"]
-)
+# Rate limiting с автоматическим выбором storage
+import platform
+
+# Определяем ОС и выбираем storage
+if platform.system() == "Windows":
+    # На Windows используем in-memory storage (не требует установки)
+    print("🪟 Windows обнаружена - используется in-memory storage для rate limiting")
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["200 per hour"],
+        strategy="fixed-window",
+        key_prefix="rate_limit"
+    )
+else:
+    # На Linux/Unix используем Memcached
+    print("🐧 Linux/Unix обнаружена - используется Memcached storage для rate limiting")
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        storage_uri="memcached://localhost:11211",
+        default_limits=["200 per hour"],
+        strategy="fixed-window",
+        key_prefix="rate_limit"
+    )
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Пожалуйста, войдите в систему для доступа к этой странице.'
 login_manager.login_message_category = 'info'
+
+def redirect_if_authenticated(f):
+    """
+    Декоратор для перенаправления авторизованных пользователей на главную страницу
+    Используется для страниц авторизации, регистрации и восстановления пароля
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.is_authenticated:
+            flash('Вы уже авторизованы в системе.', 'info')
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def generate_session_token():
     """Генерирует уникальный токен сессии"""
@@ -950,6 +983,7 @@ def send_teacher_reset_password_email(teacher):
     add_to_queue(app, mail, msg)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
+@redirect_if_authenticated
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
@@ -969,6 +1003,7 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 @app.route('/reset-password/<token>', methods=['GET', 'POST'])
+@redirect_if_authenticated
 def reset_password(token):
     user = User.query.filter_by(reset_password_token=token).first()
     
@@ -1010,6 +1045,7 @@ def reset_password(token):
     return render_template('reset_password.html', token=token)
 
 @app.route('/reset-teacher-password/<token>', methods=['GET', 'POST'])
+@redirect_if_authenticated
 def reset_teacher_password(token):
     teacher = Teacher.query.filter_by(reset_password_token=token).first()
     
@@ -1216,6 +1252,7 @@ def parse_user_agent(user_agent_string):
     }
 
 @app.route('/login', methods=['GET', 'POST'])
+@redirect_if_authenticated
 def login():
     # Проверяем, не заблокирован ли вход
     if is_login_blocked():
@@ -2557,6 +2594,7 @@ def check_phone():
 
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
+@redirect_if_authenticated
 def register():
     # Получаем реферальный код и код учителя из параметров запроса
     referral_code = request.args.get('ref')
@@ -2719,6 +2757,7 @@ def register():
 
 # Маршруты для учителей
 @app.route('/teacher-register', methods=['GET', 'POST'])
+@redirect_if_authenticated
 def teacher_register():
     if request.method == 'POST':
         username = sanitize_input(request.form.get('username'), 80)
@@ -2829,6 +2868,7 @@ def teacher_register():
     return render_template('teacher_register.html')
 
 @app.route('/confirm/<token>')
+@redirect_if_authenticated
 def confirm_email(token):
     user = User.query.filter_by(email_confirmation_token=token).first()
     if user:
@@ -2852,6 +2892,7 @@ def confirm_email(token):
     return redirect(url_for('login'))
 
 @app.route('/confirm-teacher/<token>')
+@redirect_if_authenticated
 def confirm_teacher_email(token):
     """Подтверждение email для учителя"""
     teacher = Teacher.query.filter_by(email_confirmation_token=token).first()
