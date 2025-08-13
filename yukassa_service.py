@@ -217,38 +217,33 @@ class YukassaService:
     
     def verify_webhook_signature(self, body, signature):
         """
-        Проверяет подпись webhook'а от ЮKassa
+        Проверяет подпись webhook'а от ЮKassa согласно документации
         
         Args:
-            body (str): Тело запроса
-            signature (str): Подпись из заголовка
+            body (str): Тело запроса в виде строки
+            signature (str): Подпись из заголовка X-YooKassa-Signature
         
         Returns:
             bool: True если подпись верна
         """
         try:
-            # В тестовой среде подпись не проверяется
-            if 'test_' in self.secret_key:
-                return True
-            
-            # В продакшене проверяем HMAC-SHA256 подпись
-            import hmac
-            import hashlib
-            
             # Получаем секретный ключ для проверки подписи
             webhook_secret = os.getenv('YUKASSA_WEBHOOK_SECRET')
             if not webhook_secret:
                 self.logger.warning("YUKASSA_WEBHOOK_SECRET не настроен, пропускаем проверку подписи")
                 return True
             
-            # Вычисляем ожидаемую подпись
+            # Вычисляем HMAC-SHA256 подпись
+            import hmac
+            import hashlib
+            
             expected_signature = hmac.new(
                 webhook_secret.encode('utf-8'),
                 body.encode('utf-8'),
                 hashlib.sha256
             ).hexdigest()
             
-            # Сравниваем подписи
+            # Безопасное сравнение подписей
             return hmac.compare_digest(signature, expected_signature)
             
         except Exception as e:
