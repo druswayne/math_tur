@@ -728,6 +728,13 @@ footer a:hover i {
     footer .row {
         flex-direction: column !important;
     }
+    
+    /* Исправление для линии копирайта */
+    footer .container .row {
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+    }
     footer .col-md-6 {
         max-width: 100%;
         flex: 0 0 100%;
