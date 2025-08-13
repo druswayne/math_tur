@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Сервис для работы с ЮKassa (тестовая среда)
+Сервис для работы с ЮKassa
 """
 
 import requests
@@ -18,7 +18,7 @@ class YukassaService:
         # Получаем данные из переменных окружения
         self.shop_id = os.getenv('YUKASSA_SHOP_ID')
         self.secret_key = os.getenv('YUKASSA_SECRET_KEY')
-        self.base_url = "https://api.yookassa.ru/v3"  # Тестовая среда
+        self.base_url = "https://api.yookassa.ru/v3"  # API ЮKassa
         self.logger = logging.getLogger(__name__)
     
     def create_payment(self, amount, description, return_url, capture=True, receipt=None, payment_method_data=None):
