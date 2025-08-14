@@ -1,3 +1,4 @@
+import psutil
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory
 from functools import wraps
 import PyPDF2
@@ -42,6 +43,7 @@ import hashlib
 import smtplib
 import math
 from dotenv import load_dotenv
+import time
 load_dotenv()
 # Переменная окружения для уникального идентификатора сервера
 # В продакшене должна быть установлена в .env файле
@@ -105,14 +107,35 @@ app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное �
 
 mail = Mail(app)
 # Rate limiting - используем in-memory storage для стабильности
-print("🔧 Используется in-memory storage для rate limiting")
+
 limiter = Limiter(
-    get_remote_address,
-    app=app,
-    default_limits=["200 per hour"],
-    strategy="fixed-window",
-    key_prefix="rate_limit"
+    key_func=get_remote_address,
+    storage_uri="memcached://127.0.0.1:11211",  # Адрес Memcached
+    default_limits=["100 per hour"]  # Лимит по умолчанию
 )
+
+def memory_cleanup():
+    process = psutil.Process()
+    threshold = 50 * 1024 * 1024  # 50 МБ
+    interval_normal = 600  # 10 минут
+    interval_high = 60     # 1 минута
+
+    while True:
+        mem_before = process.memory_info().rss
+        # Выбираем интервал в зависимости от текущей памяти
+        if mem_before > threshold:
+            interval = interval_high
+        else:
+            interval = interval_normal
+
+        # Очищаем все устаревшие ключи лимитов
+        keys_removed = limiter._storage.reset()
+        mem_after = process.memory_info().rss
+
+        print(f"[MemoryCleaner] Cleared {keys_removed} keys, "
+              f"memory {mem_before//1024//1024} MB -> {mem_after//1024//1024} MB")
+
+        time.sleep(interval)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
