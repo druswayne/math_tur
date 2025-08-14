@@ -1,3 +1,4 @@
+import psutil
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory
 from functools import wraps
 import PyPDF2
@@ -106,14 +107,67 @@ app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное �
 
 mail = Mail(app)
 # Rate limiting - используем in-memory storage для стабильности
-
+print("🔧 Используется in-memory storage для rate limiting")
 limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri="memcached://127.0.0.1:11211",  # Адрес Memcached
-    default_limits=["200 per hour"]  # Лимит по умолчанию
+    get_remote_address,
+    app=app,
+    default_limits=["200 per hour"],
+    strategy="fixed-window",
+    key_prefix="rate_limit"
 )
 
+def memory_cleanup():
+    """Фоновая очистка памяти для Flask-Limiter"""
+    process = psutil.Process()
+    mem_threshold_percent = 80  # срабатывание при 80% использования RAM
+    interval_normal = 1200  # 20 минут
+    interval_high = 60     # 1 минута
 
+    print("🧹 Поток очистки памяти запущен и работает в фоновом режиме")
+
+    while True:
+        try:
+            # Процент использования всей памяти сервера
+            mem_percent = psutil.virtual_memory().percent
+
+            # Выбираем интервал в зависимости от загрузки
+            if mem_percent > mem_threshold_percent:
+                interval = interval_high
+                print(f"⚠️ Высокая нагрузка на память ({mem_percent}%), переключаемся на частую очистку")
+            else:
+                interval = interval_normal
+
+            mem_before = process.memory_info().rss
+
+            # Безопасная очистка устаревших ключей лимитов
+            keys_removed = 0
+            try:
+                keys_removed = limiter._storage.reset()
+            except Exception as e:
+                print(f"❌ Ошибка очистки rate limiter storage: {e}")
+                # Продолжаем работу даже при ошибке очистки
+
+            mem_after = process.memory_info().rss
+
+            # Логируем результаты очистки
+            with open('1.txt', 'a', encoding='utf-8') as file:
+                file.write(
+                    f"[MemoryCleaner] Cleared {keys_removed} keys, "
+                    f"memory {mem_before//1024//1024} MB -> {mem_after//1024//1024} MB, "
+                    f"RAM usage: {mem_percent}%\n"
+                )
+
+            # Выводим информацию в консоль для мониторинга
+            if keys_removed > 0 or mem_percent > 70:
+                print(f"🧹 Очищено {keys_removed} ключей, память: {mem_before//1024//1024}MB → {mem_after//1024//1024}MB, RAM: {mem_percent}%")
+
+        except Exception as e:
+            print(f"❌ Критическая ошибка в memory_cleanup: {e}")
+            # При критической ошибке делаем паузу перед повторной попыткой
+            time.sleep(60)
+            continue
+
+        time.sleep(interval)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -242,15 +296,35 @@ def cleanup_scheduler_jobs():
     except Exception as e:
         pass
 
+# Глобальная переменная для отслеживания состояния потока очистки памяти
+_cleanup_thread_started = False
+_cleanup_thread_lock = threading.Lock()
+
+def start_memory_cleanup_once():
+    """Запускает поток очистки памяти только один раз с защитой от race conditions"""
+    global _cleanup_thread_started
+    
+    with _cleanup_thread_lock:
+        if not _cleanup_thread_started:
+            cleanup_thread = threading.Thread(target=memory_cleanup, daemon=True, name="MemoryCleanup")
+            cleanup_thread.start()
+            _cleanup_thread_started = True
+            print("🧹 Поток очистки памяти запущен")
+        else:
+            print("🧹 Поток очистки памяти уже запущен")
+
 @app.before_request
 def before_request():
+    # Запускаем поток очистки памяти только один раз при старте приложения
+    start_memory_cleanup_once()
     """Инициализация перед каждым запросом"""
     # Создаем сессию базы данных для текущего потока
     thread_local.db = db.create_scoped_session()
     
     # Обновляем статус турниров
     update_tournament_status()
-    
+
+
     # Проверяем сессию для авторизованных пользователей
     if current_user.is_authenticated:
         session_token = session.get('session_token')
@@ -6832,5 +6906,8 @@ def copy_referral_link():
 if __name__ == '__main__':
     #logging.basicConfig(filename='err.log', level=logging.DEBUG)
     logging.basicConfig(level=logging.DEBUG)
+    
+    # Запускаем поток очистки памяти только один раз при старте приложения
+    start_memory_cleanup_once()
 
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
