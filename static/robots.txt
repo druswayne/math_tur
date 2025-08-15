@@ -1,0 +1,36 @@
+User-agent: *
+Allow: /
+
+# Разрешаем индексацию основных страниц
+Allow: /about
+Allow: /news
+Allow: /tournaments
+Allow: /rating
+Allow: /shop
+Allow: /cooperation
+Allow: /how-to-participate
+
+# Запрещаем индексацию административных и служебных страниц
+Disallow: /admin/
+Disallow: /db_admin/
+Disallow: /login
+Disallow: /register
+Disallow: /logout
+Disallow: /profile
+Disallow: /api/
+Disallow: /webhook/
+Disallow: /static/uploads/
+Disallow: /static/admin/
+
+# Запрещаем индексацию файлов
+Disallow: /*.pdf$
+Disallow: /*.doc$
+Disallow: /*.docx$
+Disallow: /*.xls$
+Disallow: /*.xlsx$
+
+# Указываем расположение sitemap
+Sitemap: https://liga-znatokov.by/sitemap.xml
+
+# Время задержки между запросами (в секундах)
+Crawl-delay: 1

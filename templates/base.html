@@ -3,10 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лига Знатоков</title>
+    
+    <!-- SEO Meta Tags -->
+    <title>{% block title %}Лига Знатоков - Мультипрофильные онлайн турниры для школьников{% endblock %}</title>
+    <meta name="description" content="{% block description %}Лига Знатоков - платформа для проведения мультипрофильных онлайн турниров среди школьников 1-11 классов. Участвуйте в соревнованиях по всем школьным предметам, зарабатывайте баллы и получайте призы.{% endblock %}">
+    <meta name="keywords" content="{% block keywords %}онлайн турниры, школьные олимпиады, мультипрофильные соревнования, турниры для школьников, олимпиады по предметам, лига знатоков, онлайн соревнования{% endblock %}">
+    <meta name="author" content="Лига Знатоков">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="ru">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="{% block og_title %}Лига Знатоков - Мультипрофильные онлайн турниры для школьников{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Участвуйте в мультипрофильных онлайн турнирах по всем школьным предметам, зарабатывайте баллы и получайте призы{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:image" content="{{ get_s3_url('logo.png', 'static') }}">
+    <meta property="og:site_name" content="Лига Знатоков">
+    <meta property="og:locale" content="ru_RU">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}Лига Знатоков - Мультипрофильные турниры{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Участвуйте в мультипрофильных онлайн турнирах по всем школьным предметам{% endblock %}">
+    <meta name="twitter:image" content="{{ get_s3_url('logo.png', 'static') }}">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="{{ request.url }}">
+    
+    <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ get_s3_url('icon.png', 'static') }}">
     <link rel="shortcut icon" type="image/png" href="{{ get_s3_url('icon.png', 'static') }}">
     <link rel="apple-touch-icon" href="{{ get_s3_url('icon.png', 'static') }}">
+    
+    <!-- Preconnect для ускорения загрузки -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    
+    <!-- Fonts и CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.5') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
@@ -14,6 +54,28 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='1.5') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Лига Знатоков",
+        "description": "Платформа для проведения мультипрофильных онлайн турниров среди школьников 1-11 классов",
+        "url": "https://liga-znatokov.by",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://liga-znatokov.by/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Лига Знатоков",
+            "url": "https://liga-znatokov.by"
+        }
+    }
+    </script>
+    
     <style>
         .cookie-consent-modal .modal-dialog {
             position: fixed;

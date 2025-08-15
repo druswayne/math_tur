@@ -5804,6 +5804,16 @@ def change_password():
         'message': 'Пароль успешно изменен'
     })
 
+@app.route('/robots.txt')
+def robots_txt():
+    """Маршрут для robots.txt"""
+    return send_from_directory('static', 'robots.txt', mimetype='text/plain')
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    """Маршрут для sitemap.xml"""
+    return send_from_directory('static', 'sitemap.xml', mimetype='application/xml')
+
 @app.route('/privacy-policy')
 def privacy_policy():
     return render_template('privacy_policy.html', title='Политика конфиденциальности')
