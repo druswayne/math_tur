@@ -315,8 +315,7 @@ def start_memory_cleanup_once():
 
 @app.before_request
 def before_request():
-    # Запускаем поток очистки памяти только один раз при старте приложения
-    start_memory_cleanup_once()
+
     """Инициализация перед каждым запросом"""
     # Создаем сессию базы данных для текущего потока
     thread_local.db = db.create_scoped_session()
@@ -393,6 +392,10 @@ def start_tournament_job(tournament_id):
                 tournament.status = 'started'
                 db.session.commit()
                 
+                # Кэшируем задачи турнира для снижения нагрузки на БД
+                print(f"🚀 [ПЛАНИРОВЩИК] Начинаем кэширование задач турнира {tournament_id}")
+                tournament_task_cache.cache_tournament_tasks(tournament_id)
+                
                 # Удаляем запись о задаче из БД после выполнения
                 job_id = f'start_tournament_{tournament_id}'
                 scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
@@ -450,6 +453,10 @@ def end_tournament_job(tournament_id):
                 update_category_ranks()
                 
                 db.session.commit()
+                
+                # Очищаем кэш задач турнира
+                print(f"🏁 [ПЛАНИРОВЩИК] Очищаем кэш задач турнира {tournament_id}")
+                tournament_task_cache.clear_tournament_cache(tournament_id)
                 
                 # Удаляем запись о задаче из БД после выполнения
                 job_id = f'end_tournament_{tournament_id}'
@@ -527,6 +534,154 @@ def remove_scheduler_job(tournament_id, job_type):
     except Exception as e:
         db.session.rollback()
         print(f"Ошибка при удалении задачи из планировщика: {e}")
+
+# Система кэширования задач турнира
+class TournamentTaskCache:
+    """Кэш задач турнира в памяти для снижения нагрузки на БД"""
+    
+    def __init__(self):
+        self._cache = {}  # {tournament_id: {category: [tasks]}}
+        self._cache_timestamps = {}  # {tournament_id: timestamp}
+    
+    def cache_tournament_tasks(self, tournament_id):
+        """Кэширует все задачи турнира по категориям"""
+        try:
+            # Используем глобальную переменную db для доступа к Task
+            tasks = db.session.query(Task).filter_by(tournament_id=tournament_id).all()
+            
+            # Группируем задачи по категориям и создаем копии данных
+            tasks_by_category = {}
+            for task in tasks:
+                if task.category not in tasks_by_category:
+                    tasks_by_category[task.category] = []
+                
+                # Создаем копию данных задачи
+                task_data = {
+                    'id': task.id,
+                    'tournament_id': task.tournament_id,
+                    'title': task.title,
+                    'description': task.description,
+                    'image': task.image,
+                    'points': task.points,
+                    'correct_answer': task.correct_answer,
+                    'category': task.category,
+                    'topic': task.topic,
+                    'solution_text': task.solution_text,
+                    'solution_image': task.solution_image,
+                    'created_at': task.created_at,
+                    'updated_at': task.updated_at
+                }
+                tasks_by_category[task.category].append(task_data)
+            
+            # Сохраняем в кэш
+            self._cache[tournament_id] = tasks_by_category
+            self._cache_timestamps[tournament_id] = datetime.now()
+            
+            print(f"✅ Кэшированы задачи турнира {tournament_id}: {len(tasks)} задач для {len(tasks_by_category)} категорий")
+            
+        except Exception as e:
+            print(f"❌ Ошибка при кэшировании задач турнира {tournament_id}: {e}")
+    
+    def get_tournament_tasks(self, tournament_id, category=None, verbose=None):
+        """Получает задачи турнира из кэша"""
+        # Используем глобальный флаг, если verbose не указан
+        if verbose is None:
+            verbose = CACHE_DEBUG
+            
+        if tournament_id not in self._cache:
+            if verbose:
+                print(f"❌ [КЭШ] Турнир {tournament_id} не найден в кэше")
+            return None
+        
+        if verbose:
+            print(f"✅ [КЭШ] Турнир {tournament_id} найден в кэше")
+        if category:
+            task_data_list = self._cache[tournament_id].get(category, [])
+            tasks = [CachedTask(task_data) for task_data in task_data_list]
+            if verbose:
+                print(f"📋 [КЭШ] Возвращено {len(tasks)} задач категории {category} из кэша")
+            return tasks
+        else:
+            # Возвращаем все задачи всех категорий
+            all_tasks = []
+            for category_tasks in self._cache[tournament_id].values():
+                all_tasks.extend([CachedTask(task_data) for task_data in category_tasks])
+            if verbose:
+                print(f"📋 [КЭШ] Возвращено {len(all_tasks)} задач всех категорий из кэша")
+            return all_tasks
+    
+    def get_task_by_id(self, tournament_id, task_id, verbose=None):
+        """Получает конкретную задачу из кэша по ID"""
+        # Используем глобальный флаг, если verbose не указан
+        if verbose is None:
+            verbose = CACHE_DEBUG
+            
+        if tournament_id not in self._cache:
+            if verbose:
+                print(f"❌ [КЭШ] Турнир {tournament_id} не найден в кэше для задачи {task_id}")
+            return None
+        
+        for category_tasks in self._cache[tournament_id].values():
+            for task_data in category_tasks:
+                if task_data['id'] == task_id:
+                    if verbose:
+                        print(f"✅ [КЭШ] Задача {task_id} найдена в кэше турнира {tournament_id}")
+                    return CachedTask(task_data)
+        
+        if verbose:
+            print(f"❌ [КЭШ] Задача {task_id} не найдена в кэше турнира {tournament_id}")
+        return None
+    
+    def clear_tournament_cache(self, tournament_id):
+        """Очищает кэш для конкретного турнира"""
+        if tournament_id in self._cache:
+            del self._cache[tournament_id]
+        if tournament_id in self._cache_timestamps:
+            del self._cache_timestamps[tournament_id]
+        print(f"🗑️ Очищен кэш турнира {tournament_id}")
+    
+    def clear_all_cache(self):
+        """Очищает весь кэш"""
+        self._cache.clear()
+        self._cache_timestamps.clear()
+        print("🗑️ Очищен весь кэш задач турниров")
+    
+    def get_cache_info(self):
+        """Возвращает информацию о кэше"""
+        return {
+            'cached_tournaments': list(self._cache.keys()),
+            'total_tournaments': len(self._cache),
+            'timestamps': self._cache_timestamps.copy()
+        }
+
+class CachedTask:
+    """Класс-обертка для кэшированных задач"""
+    def __init__(self, task_data):
+        self.id = task_data['id']
+        self.tournament_id = task_data['tournament_id']
+        self.title = task_data['title']
+        self.description = task_data['description']
+        self.image = task_data['image']
+        self.points = task_data['points']
+        self.correct_answer = task_data['correct_answer']
+        self.category = task_data['category']
+        self.topic = task_data['topic']
+        self.solution_text = task_data['solution_text']
+        self.solution_image = task_data['solution_image']
+        self.created_at = task_data['created_at']
+        self.updated_at = task_data['updated_at']
+
+# Создаем глобальный экземпляр кэша
+tournament_task_cache = TournamentTaskCache()
+
+# Флаг для отладочных сообщений кэша
+CACHE_DEBUG = False
+
+def set_cache_debug(enabled=True):
+    """Включает или выключает отладочные сообщения кэша"""
+    global CACHE_DEBUG
+    CACHE_DEBUG = enabled
+    print(f"🔧 [КЭШ] Отладочные сообщения {'включены' if enabled else 'выключены'}")
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -2022,17 +2177,17 @@ def admin_tournament_stats(tournament_id):
         .scalar()
     
     # Получаем статистику по задачам
-    tasks_stats = db.session.query(
-        Task.id,
-        Task.title,
-        Task.points,
-        func.count(SolvedTask.id).label('solved_count'),
-        func.sum(case((SolvedTask.is_correct == True, 1), else_=0)).label('correct_count')
-    ).select_from(Task)\
-     .filter(Task.tournament_id == tournament_id)\
-     .outerjoin(SolvedTask, Task.id == SolvedTask.task_id)\
-     .group_by(Task.id, Task.title, Task.points)\
-     .all()
+    all_tasks = get_tournament_tasks_cached(tournament_id)
+    
+    # Собираем статистику для каждой задачи
+    tasks_stats = []
+    for task in all_tasks:
+        solved_count = db.session.query(func.count(SolvedTask.id))\
+            .filter(SolvedTask.task_id == task.id).scalar()
+        correct_count = db.session.query(func.count(SolvedTask.id))\
+            .filter(SolvedTask.task_id == task.id, SolvedTask.is_correct == True).scalar()
+        
+        tasks_stats.append((task.id, task.title, task.points, solved_count, correct_count))
     
     # Формируем статистику по задачам
     tasks_data = []
@@ -2083,6 +2238,33 @@ def admin_shop():
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     return render_template('admin/shop.html', title='Управление магазином')
+
+@app.route('/admin/cache/info')
+@login_required
+def admin_cache_info():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    cache_info = tournament_task_cache.get_cache_info()
+    return render_template('admin/cache_info.html', cache_info=cache_info)
+
+@app.route('/admin/cache/clear', methods=['POST'])
+@login_required
+def admin_clear_cache():
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('admin_cache_info'))
+    
+    tournament_id = request.form.get('tournament_id', type=int)
+    if tournament_id:
+        tournament_task_cache.clear_tournament_cache(tournament_id)
+        flash(f'Кэш турнира {tournament_id} очищен', 'success')
+    else:
+        tournament_task_cache.clear_all_cache()
+        flash('Весь кэш очищен', 'success')
+    
+    return redirect(url_for('admin_cache_info'))
 
 @app.route('/admin/shop/tickets')
 @login_required
@@ -3299,10 +3481,8 @@ def teacher_student_tournament_results(student_id, tournament_id):
         return redirect(url_for('teacher_student_details', student_id=student_id))
     
     # Получаем все задачи турнира для категории ученика
-    user_tasks = Task.query.filter_by(
-        tournament_id=tournament_id,
-        category=student.category
-    ).order_by(Task.id).all()
+    user_tasks = get_tournament_tasks_cached(tournament_id, student.category)
+    user_tasks.sort(key=lambda x: x.id)  # Сортируем по ID
     
     # Получаем решенные задачи ученика
     solved_tasks = SolvedTask.query.filter_by(
@@ -4185,6 +4365,80 @@ def cleanup_scheduler_jobs():
     except Exception as e:
         pass
 
+def get_tournament_tasks_cached(tournament_id, category=None, verbose=None):
+    """
+    Получает задачи турнира с использованием кэша.
+    Если турнир активен и задачи в кэше - берет из кэша, иначе из БД.
+    """
+    # Используем глобальный флаг, если verbose не указан
+    if verbose is None:
+        verbose = CACHE_DEBUG
+    
+    # Проверяем, активен ли турнир
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament or tournament.status != 'started':
+        # Турнир не активен - берем из БД
+        if verbose:
+            print(f"📊 [КЭШ] Турнир {tournament_id} не активен - берем из БД")
+        if category:
+            return Task.query.filter(
+                Task.tournament_id == tournament_id,
+                Task.category == category
+            ).all()
+        else:
+            return Task.query.filter_by(tournament_id=tournament_id).all()
+    
+    # Турнир активен - пробуем кэш
+    cached_tasks = tournament_task_cache.get_tournament_tasks(tournament_id, category, verbose)
+    if cached_tasks is not None:
+        if verbose:
+            print(f"⚡ [КЭШ] Задачи турнира {tournament_id} получены из кэша ({len(cached_tasks)} задач)")
+        return cached_tasks
+    
+    # В кэше нет - берем из БД и кэшируем
+    if verbose:
+        print(f"🔄 [КЭШ] Задачи турнира {tournament_id} не найдены в кэше - берем из БД и кэшируем")
+    if category:
+        tasks = Task.query.filter(
+            Task.tournament_id == tournament_id,
+            Task.category == category
+        ).all()
+    else:
+        tasks = Task.query.filter_by(tournament_id=tournament_id).all()
+    
+    # Кэшируем задачи
+    tournament_task_cache.cache_tournament_tasks(tournament_id)
+    
+    return tasks
+
+def get_task_by_id_cached(tournament_id, task_id, verbose=None):
+    """
+    Получает задачу по ID с использованием кэша.
+    """
+    # Используем глобальный флаг, если verbose не указан
+    if verbose is None:
+        verbose = CACHE_DEBUG
+    
+    # Проверяем, активен ли турнир
+    tournament = Tournament.query.get(tournament_id)
+    if not tournament or tournament.status != 'started':
+        # Турнир не активен - берем из БД
+        if verbose:
+            print(f"📊 [КЭШ] Задача {task_id} турнира {tournament_id} - турнир не активен, берем из БД")
+        return Task.query.get(task_id)
+    
+    # Турнир активен - пробуем кэш
+    cached_task = tournament_task_cache.get_task_by_id(tournament_id, task_id, verbose)
+    if cached_task is not None:
+        if verbose:
+            print(f"⚡ [КЭШ] Задача {task_id} турнира {tournament_id} получена из кэша")
+        return cached_task
+    
+    # В кэше нет - берем из БД
+    if verbose:
+        print(f"🔄 [КЭШ] Задача {task_id} турнира {tournament_id} не найдена в кэше - берем из БД")
+    return Task.query.get(task_id)
+
 def get_simple_task_selection(available_tasks, solved_tasks, tournament_id):
     """
     Простая система выдачи задач: сначала все задачи кроме самых сложных,
@@ -4252,11 +4506,8 @@ def tournament_task(tournament_id):
     current_task_id = session.get(f'current_task_{tournament_id}')
     
     # Получаем все задачи турнира для категории пользователя, исключая уже решенные
-    available_tasks = Task.query.filter(
-        Task.tournament_id == tournament_id,
-        Task.id.notin_(solved_task_ids),
-        Task.category == current_user.category  # Фильтруем по категории пользователя
-    ).all()
+    all_tasks = get_tournament_tasks_cached(tournament_id, current_user.category)
+    available_tasks = [task for task in all_tasks if task.id not in solved_task_ids]
     
     if not available_tasks:
         # Если все задачи решены, перенаправляем на страницу результатов
@@ -4265,7 +4516,7 @@ def tournament_task(tournament_id):
     if current_task_id:
         # Проверяем, что задача все еще доступна и соответствует категории пользователя
         if current_task_id not in solved_task_ids:
-            task = Task.query.get(current_task_id)
+            task = get_task_by_id_cached(tournament_id, current_task_id)
             if task and task.tournament_id == tournament_id and task.category == current_user.category:
                 return render_template('tournament_task.html', 
                                      tournament=tournament, 
@@ -4287,7 +4538,10 @@ def tournament_task(tournament_id):
 @login_required
 def submit_task_answer(tournament_id, task_id):
     tournament = Tournament.query.get_or_404(tournament_id)
-    task = Task.query.get_or_404(task_id)
+    task = get_task_by_id_cached(tournament_id, task_id)
+    if not task:
+        flash('Задача не найдена', 'error')
+        return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
     # Проверяем, идет ли турнир
     current_time = datetime.now()  # Используем локальное время
@@ -4340,10 +4594,7 @@ def submit_task_answer(tournament_id, task_id):
         
         # Проверяем на подозрительную активность
         # Получаем все задачи турнира для категории пользователя
-        all_tasks = Task.query.filter_by(
-            tournament_id=tournament_id,
-            category=current_user.category
-        ).all()
+        all_tasks = get_tournament_tasks_cached(tournament_id, current_user.category)
         total_tasks = len(all_tasks)
         
         # Получаем все решенные задачи пользователя в этом турнире
@@ -4410,10 +4661,8 @@ def tournament_results(tournament_id):
         return redirect(url_for('tournament_history'))
     
     # Получаем все задачи турнира для категории пользователя
-    user_tasks = Task.query.filter_by(
-        tournament_id=tournament_id,
-        category=current_user.category
-    ).order_by(Task.id).all()
+    user_tasks = get_tournament_tasks_cached(tournament_id, current_user.category)
+    user_tasks.sort(key=lambda x: x.id)  # Сортируем по ID
     
     # Получаем решенные задачи пользователя
     solved_tasks = SolvedTask.query.filter_by(
@@ -5483,6 +5732,8 @@ def admin_teacher_details(teacher_id):
 @app.before_first_request
 def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
+    # Запускаем поток очистки памяти только один раз при старте приложения
+    start_memory_cleanup_once()
     cleanup_all_sessions()
     with app.app_context():
         # Сначала создаем все таблицы
