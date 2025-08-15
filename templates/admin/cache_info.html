@@ -48,19 +48,27 @@
                 </div>
                 <div class="card-body">
                     <div class="row mb-4">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="card bg-primary text-white">
                                 <div class="card-body text-center">
-                                    <h5 class="card-title">Всего турниров в кэше</h5>
+                                    <h5 class="card-title">Турниров в кэше</h5>
                                     <h2 class="mb-0">{{ cache_info.total_tournaments }}</h2>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <div class="card bg-info text-white">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Всего задач</h5>
+                                    <h2 class="mb-0">{{ cache_info.total_tasks }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
                             <div class="card bg-success text-white">
                                 <div class="card-body text-center">
-                                    <h5 class="card-title">Кэшированные турниры</h5>
-                                    <h2 class="mb-0">{{ cache_info.cached_tournaments|length }}</h2>
+                                    <h5 class="card-title">Категорий задач</h5>
+                                    <h2 class="mb-0">{{ cache_info.total_categories }}</h2>
                                 </div>
                             </div>
                         </div>

@@ -648,9 +648,20 @@ class TournamentTaskCache:
     
     def get_cache_info(self):
         """Возвращает информацию о кэше"""
+        total_tasks = 0
+        total_categories = 0
+        
+        # Подсчитываем общее количество задач и категорий
+        for tournament_tasks in self._cache.values():
+            for category_tasks in tournament_tasks.values():
+                total_tasks += len(category_tasks)
+            total_categories += len(tournament_tasks)
+        
         return {
             'cached_tournaments': list(self._cache.keys()),
             'total_tournaments': len(self._cache),
+            'total_tasks': total_tasks,
+            'total_categories': total_categories,
             'timestamps': self._cache_timestamps.copy()
         }
 
