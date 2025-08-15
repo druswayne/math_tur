@@ -28,4 +28,5 @@ Werkzeug==2.0.1
 psycopg2-binary==2.9.9
 boto3==1.34.69
 requests
+psutil
 # pymemcache==4.0.0  # Опционально - только для Linux с Memcached
