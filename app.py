@@ -52,8 +52,8 @@ DEBAG = bool(os.environ.get('DEBAG'))
 
 
 # Константы для реферальной системы
-REFERRAL_BONUS_POINTS = 150  # Бонусные баллы за приглашенного пользователя
-REFERRAL_BONUS_TICKETS = 10   # Бонусные жетоны за приглашенного пользователя
+REFERRAL_BONUS_POINTS = 50  # Бонусные баллы за приглашенного пользователя
+REFERRAL_BONUS_TICKETS = 0   # Бонусные жетоны за приглашенного пользователя
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
 # Создаем пул потоков
@@ -104,6 +104,9 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Защита от CSRF
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=3650)  # 10 лет
 app.config['SESSION_COOKIE_NAME'] = 'math_tur_session'  # Уникальное имя куки
+
+# Настройка протокола для URL (HTTPS)
+app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 mail = Mail(app)
 # Rate limiting - используем in-memory storage для стабильности
@@ -1100,11 +1103,16 @@ def send_admin_notification(subject, message, recipient_email=None):
 
 def send_confirmation_email(user):
     token = user.generate_confirmation_token()
+    confirmation_url = url_for('confirm_email', token=token, _external=True)
     msg = Message('Подтверждение регистрации',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
     msg.body = f'''Для подтверждения вашей регистрации перейдите по следующей ссылке:
-{url_for('confirm_email', token=token, _external=True)}
+{confirmation_url}
+
+Если ссылка «Подтвердить регистрацию» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
+
+{confirmation_url}
 
 Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
 '''
@@ -1113,13 +1121,18 @@ def send_confirmation_email(user):
 def send_teacher_confirmation_email(teacher):
     """Отправляет письмо с подтверждением регистрации для учителя"""
     token = teacher.generate_confirmation_token()
+    confirmation_url = url_for('confirm_teacher_email', token=token, _external=True)
     msg = Message('Подтверждение регистрации учителя',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
     msg.body = f'''Уважаемый {teacher.full_name}!
 
 Для подтверждения вашей регистрации как учителя перейдите по следующей ссылке:
-{url_for('confirm_teacher_email', token=token, _external=True)}
+{confirmation_url}
+
+Если ссылка «Подтвердить регистрацию» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
+
+{confirmation_url}
 
 После подтверждения вы получите доступ к личному кабинету учителя с возможностью:
 - Создавать пригласительные ссылки для учащихся
@@ -1177,11 +1190,16 @@ def send_reset_password_email(user):
     user.reset_password_token_expires = datetime.now() + timedelta(hours=1)
     db.session.commit()
     
+    reset_url = url_for('reset_password', token=token, _external=True)
     msg = Message('Сброс пароля',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
     msg.body = f'''Для сброса пароля перейдите по следующей ссылке:
-{url_for('reset_password', token=token, _external=True)}
+{reset_url}
+
+Если ссылка «Сбросить пароль» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
+
+{reset_url}
 
 Ссылка действительна в течение 1 часа.
 
@@ -1195,11 +1213,16 @@ def send_teacher_reset_password_email(teacher):
     teacher.reset_password_token_expires = datetime.now() + timedelta(hours=1)
     db.session.commit()
     
+    reset_url = url_for('reset_teacher_password', token=token, _external=True)
     msg = Message('Сброс пароля учителя',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
     msg.body = f'''Для сброса пароля учителя перейдите по следующей ссылке:
-{url_for('reset_teacher_password', token=token, _external=True)}
+{reset_url}
+
+Если ссылка «Сбросить пароль» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
+
+{reset_url}
 
 Ссылка действительна в течение 1 часа.
 
@@ -2981,11 +3004,11 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # Обрабатываем реферальную ссылку
+        # Обрабатываем пригласительную ссылку
         if referral_link:
             try:
                 create_referral(referral_link.user_id, user.id, referral_link.id)
-                flash('Вы зарегистрировались по реферальной ссылке!', 'info')
+                flash('Вы зарегистрировались по пригласительной ссылке!', 'info')
             except Exception as e:
                 print(f"Ошибка при создании реферала: {e}")
 
@@ -6535,6 +6558,19 @@ class TeacherInviteLink(db.Model):
     # Связи
     teacher = db.relationship('Teacher', backref=db.backref('invite_links', lazy=True))
 
+class CurrencyRate(db.Model):
+    """Модель для хранения курсов валют"""
+    __tablename__ = "currency_rates"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    currency_pair = db.Column(db.String(10), nullable=False, index=True)  # например "BYN_RUB"
+    rate = db.Column(db.Float, nullable=False)
+    source = db.Column(db.String(50), nullable=False)  # "nbrb", "cbr", "fallback"
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+    
+    def __repr__(self):
+        return f"<CurrencyRate(currency_pair='{self.currency_pair}', rate={self.rate}, source='{self.source}')>"
+
 def cleanup_all_sessions():
     """Деактивирует все активные сессии при перезагрузке сервера"""
     try:
@@ -6680,16 +6716,16 @@ def block_login():
     )
     return response
 
-# Функции для работы с реферальными ссылками
+# Функции для работы с пригласительными ссылками
 def generate_referral_code():
-    """Генерирует уникальный реферальный код"""
+    """Генерирует уникальный пригласительный код"""
     while True:
         code = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=8))
         if not ReferralLink.query.filter_by(referral_code=code).first():
             return code
 
 def create_referral_link(user_id):
-    """Создает реферальную ссылку для пользователя"""
+    """Создает пригласительную ссылку для пользователя"""
     # Проверяем, есть ли уже активная ссылка
     existing_link = ReferralLink.query.filter_by(user_id=user_id, is_active=True).first()
     if existing_link:
@@ -6707,11 +6743,11 @@ def create_referral_link(user_id):
     return new_link
 
 def get_referral_link_by_code(code):
-    """Получает реферальную ссылку по коду"""
+    """Получает пригласительную ссылку по коду"""
     return ReferralLink.query.filter_by(referral_code=code, is_active=True).first()
 
 def create_referral(referrer_id, referred_id, referral_link_id):
-    """Создает запись о реферале"""
+    """Создает запись о приглашенном друге"""
     referral = Referral(
         referrer_id=referrer_id,
         referred_id=referred_id,
@@ -6723,7 +6759,7 @@ def create_referral(referrer_id, referred_id, referral_link_id):
     return referral
 
 def pay_referral_bonus(referral_id):
-    """Выплачивает бонус за реферала"""
+    """Выплачивает бонус за приглашенного друга"""
     referral = Referral.query.get(referral_id)
     if not referral or referral.bonus_paid:
         return False
@@ -6778,9 +6814,9 @@ def get_teacher_invite_link_by_code(code):
     return TeacherInviteLink.query.filter_by(invite_code=code, is_active=True).first()
 
 def check_and_pay_referral_bonuses():
-    """Проверяет и выплачивает бонусы за рефералов, которые участвовали в турнирах"""
+    """Проверяет и выплачивает бонусы за друзей, которые участвовали в турнирах"""
     try:
-        # Находим рефералов, которые участвовали в турнирах, но бонус еще не выплачен
+        # Находим друзей, которые участвовали в турнирах, но бонус еще не выплачен
         referrals_to_pay = db.session.query(Referral).join(
             User, Referral.referred_id == User.id
         ).filter(
@@ -6794,12 +6830,12 @@ def check_and_pay_referral_bonuses():
                 paid_count += 1
         
         if paid_count > 0:
-            print(f"Выплачено {paid_count} реферальных бонусов")
+            print(f"Выплачено {paid_count} бонусов за друзей")
         
         return paid_count
         
     except Exception as e:
-        print(f"Ошибка при проверке реферальных бонусов: {e}")
+        print(f"Ошибка при проверке бонусов за друзей: {e}")
         return 0
 
 @app.route('/rating/search')
@@ -7049,7 +7085,7 @@ def initialize_scheduler_jobs():
         else:
             print("Задача проверки истекших платежей уже существует")
 
-        # Настраиваем периодическую проверку реферальных бонусов (только если задача еще не существует)
+        # Настраиваем периодическую проверку бонусов за друзей (только если задача еще не существует)
         existing_referral_job = SchedulerJob.query.filter_by(
             job_type='check_referral_bonuses',
             is_active=True
@@ -7063,9 +7099,9 @@ def initialize_scheduler_jobs():
                 'check_referral_bonuses',
                 interval_hours=1  # Повторять каждые 1 часов
             )
-            print("Создана задача проверки реферальных бонусов")
+            print("Создана задача проверки бонусов за друзей")
         else:
-            print("Задача проверки реферальных бонусов уже существует")
+            print("Задача проверки бонусов за друзей уже существует")
 
         # Настраиваем периодическую очистку сессий (только если задача еще не существует)
         existing_cleanup_job = SchedulerJob.query.filter_by(
@@ -7112,15 +7148,15 @@ def search_educational_institutions():
     institutions = [{'id': inst.id, 'name': inst.name, 'address': inst.address} for inst in results]
     return jsonify({'institutions': institutions})
 
-# Маршруты для реферальной системы
+# Маршруты для клуба друзей
 @app.route('/referral')
 @login_required
 def referral_dashboard():
-    """Страница реферальной системы"""
-    # Получаем или создаем реферальную ссылку
+    """Страница клуба друзей"""
+    # Получаем или создаем пригласительную ссылку
     referral_link = create_referral_link(current_user.id)
     
-    # Получаем статистику рефералов
+    # Получаем статистику друзей
     referrals = Referral.query.filter_by(referrer_id=current_user.id).all()
     
     # Подсчитываем статистику
@@ -7128,16 +7164,16 @@ def referral_dashboard():
     paid_referrals = len([r for r in referrals if r.bonus_paid])
     pending_referrals = total_referrals - paid_referrals
     
-    # Пагинация для списка рефералов
+    # Пагинация для списка друзей
     page = request.args.get('page', 1, type=int)
-    per_page = 10  # Количество рефералов на странице
+    per_page = 10  # Количество друзей на странице
     
-    # Получаем рефералов с пагинацией
+    # Получаем друзей с пагинацией
     referrals_paginated = Referral.query.filter_by(referrer_id=current_user.id)\
         .order_by(Referral.created_at.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
     
-    # Получаем список рефералов с информацией для текущей страницы
+    # Получаем список друзей с информацией для текущей страницы
     referrals_info = []
     for referral in referrals_paginated.items:
         referred_user = User.query.get(referral.referred_id)
@@ -7166,10 +7202,10 @@ def referral_dashboard():
 @app.route('/referral/copy-link', methods=['POST'])
 @login_required
 def copy_referral_link():
-    """Копирует реферальную ссылку в буфер обмена"""
+    """Копирует пригласительную ссылку в буфер обмена"""
     referral_link = ReferralLink.query.filter_by(user_id=current_user.id, is_active=True).first()
     if not referral_link:
-        return jsonify({'success': False, 'error': 'Реферальная ссылка не найдена'})
+        return jsonify({'success': False, 'error': 'Пригласительная ссылка не найдена'})
     
     referral_url = url_for('register', ref=referral_link.referral_code, _external=True)
     return jsonify({

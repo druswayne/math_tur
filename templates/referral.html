@@ -93,9 +93,9 @@
                     <div class="alert alert-info">
                         <h5>Как это работает:</h5>
                         <ul class="mb-0">
-                            <li>Поделитесь своей реферальной ссылкой с друзьями</li>
+                            <li>Поделитесь своей пригласительной ссылкой с друзьями</li>
                             <li>Когда они зарегистрируются по вашей ссылке и поучаствуют в турнире, вы получите бонус</li>
-                            <li>За каждого приглашенного пользователя: <strong>{{ bonus_points }} баллов</strong>{% if bonus_tickets > 0 %} и <strong>{{ bonus_tickets }} жетонов</strong>{% endif %}</li>
+                            <li>За каждого приглашенного друга: <strong>{{ bonus_points }} баллов</strong>{% if bonus_tickets > 0 %} и <strong>{{ bonus_tickets }} жетонов</strong>{% endif %}</li>
                         </ul>
                     </div>
 
@@ -207,7 +207,7 @@
                     
                     <!-- Пагинация -->
                     {% if referrals_paginated.pages > 1 %}
-                    <nav aria-label="Навигация по страницам рефералов">
+                    <nav aria-label="Навигация по страницам друзей">
                         <ul class="pagination justify-content-center">
                             <!-- Кнопка "Предыдущая" -->
                             {% if referrals_paginated.has_prev %}
@@ -266,8 +266,8 @@
             <div class="card">
                 <div class="card-body text-center">
                     <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h5>У вас пока нет рефералов</h5>
-                    <p class="text-muted">Поделитесь своей реферальной ссылкой с друзьями, чтобы начать зарабатывать бонусы!</p>
+                    <h5>У вас пока нет друзей</h5>
+                    <p class="text-muted">Поделитесь своей пригласительной ссылкой с друзьями, чтобы начать зарабатывать бонусы!</p>
                 </div>
             </div>
             {% endif %}
@@ -282,11 +282,11 @@
                     <ul class="list-unstyled">
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            Бонус выплачивается только после участия реферала в турнире
+                            Бонус выплачивается только после участия друга в турнире
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            За каждого реферала: {{ bonus_points }} баллов{% if bonus_tickets > 0 %} + {{ bonus_tickets }} жетонов{% endif %}
+                            За каждого друга: {{ bonus_points }} баллов{% if bonus_tickets > 0 %} + {{ bonus_tickets }} жетонов{% endif %}
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
@@ -294,7 +294,7 @@
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            Нет ограничений на количество рефералов
+                            Нет ограничений на количество друзей
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
@@ -302,7 +302,7 @@
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            Один пользователь может быть приглашен только одним рефералом
+                            Один пользователь может быть приглашен только одним другом
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
@@ -314,7 +314,7 @@
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
-                            Система отслеживает активность рефералов в реальном времени
+                            Система отслеживает активность друзей в реальном времени
                         </li>
                         <li class="mb-2">
                             <i class="fas fa-check text-success"></i>
