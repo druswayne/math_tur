@@ -138,7 +138,7 @@
                         <div class="card-body">
                             <div class="input-group">
                                 <input type="text" class="form-control" id="referralUrl" 
-                                       value="{{ url_for('register', ref=referral_link.referral_code, _external=True) }}" readonly>
+                                       value="{{ url_for('register', ref=referral_link.referral_code, _external=True, _scheme='https') }}" readonly>
                                 <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyLink()">
                                     <i class="fas fa-copy"></i>
                                 </button>

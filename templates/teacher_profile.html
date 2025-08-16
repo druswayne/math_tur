@@ -69,7 +69,7 @@
                     <div class="input-group mb-3">
                         <input type="text" class="form-control" 
                                id="inviteLink" 
-                               value="{{ url_for('register', teacher=invite_link.invite_code, _external=True) }}" 
+                               value="{{ url_for('register', teacher=invite_link.invite_code, _external=True, _scheme='https') }}" 
                                readonly>
                         <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
                             <i class="fas fa-copy me-1"></i>Копировать

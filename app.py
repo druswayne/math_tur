@@ -1103,7 +1103,7 @@ def send_admin_notification(subject, message, recipient_email=None):
 
 def send_confirmation_email(user):
     token = user.generate_confirmation_token()
-    confirmation_url = url_for('confirm_email', token=token, _external=True)
+    confirmation_url = url_for('confirm_email', token=token, _external=True, _scheme='https')
     msg = Message('Подтверждение регистрации',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
@@ -1121,7 +1121,7 @@ def send_confirmation_email(user):
 def send_teacher_confirmation_email(teacher):
     """Отправляет письмо с подтверждением регистрации для учителя"""
     token = teacher.generate_confirmation_token()
-    confirmation_url = url_for('confirm_teacher_email', token=token, _external=True)
+    confirmation_url = url_for('confirm_teacher_email', token=token, _external=True, _scheme='https')
     msg = Message('Подтверждение регистрации учителя',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
@@ -1190,7 +1190,7 @@ def send_reset_password_email(user):
     user.reset_password_token_expires = datetime.now() + timedelta(hours=1)
     db.session.commit()
     
-    reset_url = url_for('reset_password', token=token, _external=True)
+    reset_url = url_for('reset_password', token=token, _external=True, _scheme='https')
     msg = Message('Сброс пароля',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
@@ -1213,7 +1213,7 @@ def send_teacher_reset_password_email(teacher):
     teacher.reset_password_token_expires = datetime.now() + timedelta(hours=1)
     db.session.commit()
     
-    reset_url = url_for('reset_teacher_password', token=token, _external=True)
+    reset_url = url_for('reset_teacher_password', token=token, _external=True, _scheme='https')
     msg = Message('Сброс пароля учителя',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
@@ -7207,7 +7207,7 @@ def copy_referral_link():
     if not referral_link:
         return jsonify({'success': False, 'error': 'Пригласительная ссылка не найдена'})
     
-    referral_url = url_for('register', ref=referral_link.referral_code, _external=True)
+    referral_url = url_for('register', ref=referral_link.referral_code, _external=True, _scheme='https')
     return jsonify({
         'success': True,
         'referral_url': referral_url,
