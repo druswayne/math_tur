@@ -6,15 +6,23 @@
     
     <!-- SEO Meta Tags -->
     <title>{% block title %}Лига Знатоков - Онлайн олимпиады для школьников{% endblock %}</title>
-    <meta name="description" content="{% block description %}Лига Знатоков - ведущая платформа онлайн олимпиад для школьников 1-11 классов. Участвуйте в турнирах по математике, физике, химии и другим предметам.{% endblock %}">
-    <meta name="keywords" content="{% block keywords %}онлайн олимпиады, школьные турниры, математические олимпиады, физика олимпиады, химия олимпиады, лига знатоков, онлайн соревнования{% endblock %}">
+    {% block description %}
+    <meta name="description" content="Лига Знатоков - ведущая платформа онлайн олимпиад для школьников 1-11 классов. Участвуйте в турнирах по математике, физике, химии и другим предметам.">
+    {% endblock %}
+    {% block keywords %}
+    <meta name="keywords" content="онлайн олимпиады, школьные турниры, математические олимпиады, физика олимпиады, химия олимпиады, лига знатоков, онлайн соревнования">
+    {% endblock %}
     <meta name="author" content="Лига Знатоков">
     <meta name="robots" content="index, follow">
     <meta name="language" content="ru">
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="{% block og_title %}Лига Знатоков - Онлайн олимпиады для школьников{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Участвуйте в онлайн олимпиадах по математике, физике, химии и другим предметам. Зарабатывайте баллы и получайте призы{% endblock %}">
+    {% block og_title %}
+    <meta property="og:title" content="Лига Знатоков - Онлайн олимпиады для школьников">
+    {% endblock %}
+    {% block og_description %}
+    <meta property="og:description" content="Участвуйте в онлайн олимпиадах по математике, физике, химии и другим предметам. Зарабатывайте баллы и получайте призы">
+    {% endblock %}
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     <meta property="og:image" content="{{ get_s3_url('logo.png', 'static') }}">
@@ -23,8 +31,12 @@
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block twitter_title %}Лига Знатоков - Мультипрофильные турниры{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}Участвуйте в мультипрофильных онлайн турнирах по всем школьным предметам{% endblock %}">
+    {% block twitter_title %}
+    <meta name="twitter:title" content="Лига Знатоков - Мультипрофильные турниры">
+    {% endblock %}
+    {% block twitter_description %}
+    <meta name="twitter:description" content="Участвуйте в мультипрофильных онлайн турнирах по всем школьным предметам">
+    {% endblock %}
     <meta name="twitter:image" content="{{ get_s3_url('logo.png', 'static') }}">
     
     <!-- Canonical URL -->
