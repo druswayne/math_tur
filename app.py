@@ -178,6 +178,29 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Пожалуйста, войдите в систему для доступа к этой странице.'
 login_manager.login_message_category = 'info'
 
+def add_logo_to_email_body(body_text):
+    """Добавляет логотип сайта в конец текста письма в HTML формате"""
+    logo_html = '''
+    
+    <br><br>
+    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
+    <div style="text-align: center; padding: 20px 0;">
+        <img src="https://liga-znatokov.by/static/static_logo.jpg" alt="Лига Знатоков" style="max-width: 300px; height: auto;">
+        <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">
+            <strong>ЛИГА ЗНАТОКОВ</strong><br>
+            <span style="color: #ff6b35;">УЧИСЬ. ИГРАЙ. ПОБЕЖДАЙ.</span>
+        </p>
+    </div>
+    '''
+    
+    # Если текст уже содержит HTML теги, добавляем логотип как HTML
+    if '<' in body_text and '>' in body_text:
+        return body_text + logo_html
+    else:
+        # Если это обычный текст, конвертируем в HTML
+        html_body = body_text.replace('\n', '<br>')
+        return html_body + logo_html
+
 def redirect_if_authenticated(f):
     """
     Декоратор для перенаправления авторизованных пользователей на главную страницу
@@ -1016,7 +1039,11 @@ def send_admin_mass_email(subject, message, recipient_email):
         msg = Message(subject,
                      sender=admin_mail_config['MAIL_USERNAME'],
                      recipients=[recipient_email])
-        msg.body = message
+        
+        # Добавляем логотип к тексту письма
+        html_message = add_logo_to_email_body(message)
+        msg.html = html_message
+        msg.body = message  # Оставляем текстовую версию для совместимости
         
         # Отправляем через очередь с административными настройками
         add_to_queue(app, mail, msg, admin_mail_config)
@@ -1060,7 +1087,11 @@ Email: {email}
         msg = Message(email_subject,
                      sender=admin_mail_config['MAIL_USERNAME'],
                      recipients=['th@liga-znatokov.by'])
-        msg.body = email_body.strip()
+        
+        # Добавляем логотип к тексту письма
+        html_email_body = add_logo_to_email_body(email_body.strip())
+        msg.html = html_email_body
+        msg.body = email_body.strip()  # Оставляем текстовую версию для совместимости
         
         # Отправляем через очередь с административными настройками
         add_to_queue(app, mail, msg, admin_mail_config)
@@ -1077,7 +1108,11 @@ def send_admin_notification(subject, message, recipient_email=None):
             msg = Message(subject,
                          sender=app.config['MAIL_USERNAME'],
                          recipients=[recipient_email])
-            msg.body = message
+            
+            # Добавляем логотип к тексту письма
+            html_message = add_logo_to_email_body(message)
+            msg.html = html_message
+            msg.body = message  # Оставляем текстовую версию для совместимости
             add_to_queue(app, mail, msg)
         else:
             # Отправляем всем администраторам
@@ -1092,7 +1127,11 @@ def send_admin_notification(subject, message, recipient_email=None):
                 msg = Message(subject,
                              sender=app.config['MAIL_USERNAME'],
                              recipients=[admin.email])
-                msg.body = message
+                
+                # Добавляем логотип к тексту письма
+                html_message = add_logo_to_email_body(message)
+                msg.html = html_message
+                msg.body = message  # Оставляем текстовую версию для совместимости
                 messages.append(msg)
             
             # Отправляем массово через очередь
@@ -1107,7 +1146,8 @@ def send_confirmation_email(user):
     msg = Message('Подтверждение регистрации',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
-    msg.body = f'''Для подтверждения вашей регистрации перейдите по следующей ссылке:
+    
+    email_body = f'''Для подтверждения вашей регистрации перейдите по следующей ссылке:
 {confirmation_url}
 
 Если ссылка «Подтвердить регистрацию» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
@@ -1116,6 +1156,11 @@ def send_confirmation_email(user):
 
 Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
 '''
+    
+    # Добавляем логотип к тексту письма
+    html_email_body = add_logo_to_email_body(email_body)
+    msg.html = html_email_body
+    msg.body = email_body  # Оставляем текстовую версию для совместимости
     add_to_queue(app, mail, msg)
 
 def send_teacher_confirmation_email(teacher):
@@ -1125,7 +1170,8 @@ def send_teacher_confirmation_email(teacher):
     msg = Message('Подтверждение регистрации учителя',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
-    msg.body = f'''Уважаемый {teacher.full_name}!
+    
+    email_body = f'''Уважаемый {teacher.full_name}!
 
 Для подтверждения вашей регистрации как учителя перейдите по следующей ссылке:
 {confirmation_url}
@@ -1141,6 +1187,11 @@ def send_teacher_confirmation_email(teacher):
 
 Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.
 '''
+    
+    # Добавляем логотип к тексту письма
+    html_email_body = add_logo_to_email_body(email_body)
+    msg.html = html_email_body
+    msg.body = email_body  # Оставляем текстовую версию для совместимости
     add_to_queue(app, mail, msg)
 
 def send_teacher_credentials_email(teacher, password):
@@ -1148,7 +1199,8 @@ def send_teacher_credentials_email(teacher, password):
     msg = Message('Ваши данные для входа',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
-    msg.body = f'''Уважаемый {teacher.full_name}!
+    
+    email_body = f'''Уважаемый {teacher.full_name}!
 
 Ваш email успешно подтвержден! Теперь вы можете войти в систему как учитель.
 
@@ -1170,18 +1222,29 @@ def send_teacher_credentials_email(teacher, password):
 С уважением,
 Команда Лиги Знатоков
 '''
+    
+    # Добавляем логотип к тексту письма
+    html_email_body = add_logo_to_email_body(email_body)
+    msg.html = html_email_body
+    msg.body = email_body  # Оставляем текстовую версию для совместимости
     add_to_queue(app, mail, msg)
 
 def send_credentials_email(user, password):
     msg = Message('Ваши учетные данные',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
-    msg.body = f'''Ваш аккаунт успешно подтвержден!
+    
+    email_body = f'''Ваш аккаунт успешно подтвержден!
 
 Ваши учетные данные:
 Логин: {user.username}
 Пароль: {password}
 '''
+    
+    # Добавляем логотип к тексту письма
+    html_email_body = add_logo_to_email_body(email_body)
+    msg.html = html_email_body
+    msg.body = email_body  # Оставляем текстовую версию для совместимости
     add_to_queue(app, mail, msg)
 
 def send_reset_password_email(user):
@@ -1194,7 +1257,8 @@ def send_reset_password_email(user):
     msg = Message('Сброс пароля',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[user.email])
-    msg.body = f'''Для сброса пароля перейдите по следующей ссылке:
+    
+    email_body = f'''Для сброса пароля перейдите по следующей ссылке:
 {reset_url}
 
 Если ссылка «Сбросить пароль» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
@@ -1205,6 +1269,11 @@ def send_reset_password_email(user):
 
 Если вы не запрашивали сброс пароля, проигнорируйте это письмо.
 '''
+    
+    # Добавляем логотип к тексту письма
+    html_email_body = add_logo_to_email_body(email_body)
+    msg.html = html_email_body
+    msg.body = email_body  # Оставляем текстовую версию для совместимости
     add_to_queue(app, mail, msg)
 
 def send_teacher_reset_password_email(teacher):
@@ -1217,7 +1286,8 @@ def send_teacher_reset_password_email(teacher):
     msg = Message('Сброс пароля учителя',
                   sender=app.config['MAIL_USERNAME'],
                   recipients=[teacher.email])
-    msg.body = f'''Для сброса пароля учителя перейдите по следующей ссылке:
+    
+    email_body = f'''Для сброса пароля учителя перейдите по следующей ссылке:
 {reset_url}
 
 Если ссылка «Сбросить пароль» не работает, скопируйте и вставьте указанную ниже ссылку в адресную строку браузера и нажмите Enter.
@@ -1228,6 +1298,11 @@ def send_teacher_reset_password_email(teacher):
 
 Если вы не запрашивали сброс пароля, проигнорируйте это письмо.
 '''
+    
+    # Добавляем логотип к тексту письма
+    html_email_body = add_logo_to_email_body(email_body)
+    msg.html = html_email_body
+    msg.body = email_body  # Оставляем текстовую версию для совместимости
     add_to_queue(app, mail, msg)
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
