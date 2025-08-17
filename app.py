@@ -186,10 +186,6 @@ def add_logo_to_email_body(body_text):
     <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
     <div style="text-align: center; padding: 20px 0;">
         <img src="https://liga-znatokov.by/static/static_logo.jpg" alt="Лига Знатоков" style="max-width: 300px; height: auto;">
-        <p style="margin: 10px 0 0 0; color: #666; font-size: 14px;">
-            <strong>ЛИГА ЗНАТОКОВ</strong><br>
-            <span style="color: #ff6b35;">УЧИСЬ. ИГРАЙ. ПОБЕЖДАЙ.</span>
-        </p>
     </div>
     '''
     
