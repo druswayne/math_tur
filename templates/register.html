@@ -190,6 +190,12 @@
                                 Мне разъяснены <a href="{{ url_for('rights_notification_pdf') }}" target="_blank" class="text-decoration-none">права</a> мои права, связанные с обработкой персональных данных и я <a href="{{ url_for('consent_pdf') }}" target="_blank" class="text-decoration-none">согласен (на)</a> на обработку моих персональных данных
                             </label>
                         </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="agree_terms" name="agree_terms" required>
+                            <label class="form-check-label" for="agree_terms">
+                                Я согласен(а) с <a href="{{ url_for('static', filename='Условия публичной оферты.pdf') }}" target="_blank" class="text-decoration-none">условиями публичной оферты</a>
+                            </label>
+                        </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary" id="registerButton">Зарегистрироваться</button>
                         </div>
@@ -496,11 +502,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const phoneCountrySelect = document.getElementById('phone_country');
     const emailInput = document.getElementById('email');
     const agreeCheckbox = document.getElementById('agree');
+    const agreeTermsCheckbox = document.getElementById('agree_terms');
 
     // Проверяем, что все элементы найдены
     if (!usernameInput || !passwordInput || !confirmPasswordInput || 
         !studentNameInput || !parentNameInput || !phoneInput || 
-        !emailInput || !agreeCheckbox) {
+        !emailInput || !agreeCheckbox || !agreeTermsCheckbox) {
         console.error('Some form elements not found');
         return;
     }
@@ -514,7 +521,8 @@ document.addEventListener('DOMContentLoaded', function() {
         parentName: false,
         phone: false,
         email: false,
-        agree: false
+        agree: false,
+        agree_terms: false
     };
 
     // Функция для показа индикатора
@@ -837,6 +845,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateAgree() {
         if (!agreeCheckbox) return;
         validationState.agree = agreeCheckbox.checked;
+        
+        if (!agreeTermsCheckbox) return;
+        validationState.agree_terms = agreeTermsCheckbox.checked;
     }
 
     // Функция для проверки всей формы
@@ -958,6 +969,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (agreeCheckbox) {
         agreeCheckbox.addEventListener('change', function() {
+            validateAgree();
+            validateForm();
+        });
+    }
+
+    if (agreeTermsCheckbox) {
+        agreeTermsCheckbox.addEventListener('change', function() {
             validateAgree();
             validateForm();
         });

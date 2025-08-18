@@ -3028,6 +3028,15 @@ def register():
             flash('Пожалуйста, выберите группу', 'danger')
             return redirect(url_for('register'))
 
+        # Проверяем согласие с условиями
+        if not request.form.get('agree'):
+            flash('Необходимо согласиться с обработкой персональных данных', 'danger')
+            return redirect(url_for('register'))
+
+        if not request.form.get('agree_terms'):
+            flash('Необходимо согласиться с условиями публичной оферты', 'danger')
+            return redirect(url_for('register'))
+
         # Проверяем уникальность логина в обеих таблицах
         if User.query.filter(User.username.ilike(username)).first() or Teacher.query.filter(Teacher.username.ilike(username)).first():
             flash('Пользователь с таким логином уже существует', 'danger')

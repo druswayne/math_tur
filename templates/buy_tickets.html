@@ -65,7 +65,7 @@
                     <div class="mb-3">
                         <label for="quantity" class="form-label">Количество жетонов</label>
                         <input type="number" class="form-control" id="quantity" name="quantity" 
-                               min="1" required onchange="updatePrice()" onkeydown="preventEnterSubmit(event)">
+                               min="1" required onchange="updatePrice()">
                     </div>
                     
                     {% if discounts %}
@@ -103,17 +103,9 @@
                         <p id="totalPrice" class="form-text">-</p>
                     </div>
                     
-                    <!-- Чекбокс согласия с условиями -->
-                    <div class="mb-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="agreementCheckbox" onchange="updatePurchaseButton()" onkeydown="handleCheckboxEnter(event)">
-                            <label class="form-check-label" for="agreementCheckbox">
-                                Я согласен(а) с <a href="{{ agreement_url }}" target="_blank" class="text-decoration-none">условиями Договора возмездного оказания услуг на условиях публичной оферты</a>
-                            </label>
-                        </div>
-                    </div>
+
                     
-                    <button type="button" class="btn btn-secondary w-100" id="purchaseButton" onclick="showPaymentModal()" onkeydown="handleButtonEnter(event)" disabled>
+                    <button type="button" class="btn btn-secondary w-100" id="purchaseButton" onclick="showPaymentModal()" disabled>
                         <i class="fas fa-shopping-cart me-2"></i>Оформить покупку
                     </button>
                 </div>
@@ -167,77 +159,10 @@
     font-weight: bold;
 }
 
-/* Стили для чекбокса согласия */
-.form-check-input:checked {
-    background-color: #28a745;
-    border-color: #28a745;
-}
 
-.form-check-label a {
-    color: #007bff;
-    text-decoration: none;
-}
-
-.form-check-label a:hover {
-    color: #0056b3;
-    text-decoration: underline;
-}
-
-/* Анимация мерцания для чекбокса */
-@keyframes checkbox-pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0.3);
-        transform: scale(1.05);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
-        transform: scale(1);
-    }
-}
-
-.checkbox-pulse {
-    animation: checkbox-pulse 1.5s infinite;
-}
 </style>
 
 <script>
-function preventEnterSubmit(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        // Переводим фокус на чекбокс согласия
-        document.getElementById('agreementCheckbox').focus();
-        return false;
-    }
-}
-
-function handleCheckboxEnter(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        const purchaseButton = document.getElementById('purchaseButton');
-        // Если кнопка активна, переводим на неё фокус, иначе просто переключаем чекбокс
-        if (!purchaseButton.disabled) {
-            purchaseButton.focus();
-        }
-        return false;
-    }
-}
-
-function handleButtonEnter(event) {
-    if (event.key === 'Enter') {
-        event.preventDefault();
-        // Если кнопка активна, открываем модальное окно
-        const purchaseButton = document.getElementById('purchaseButton');
-        if (!purchaseButton.disabled) {
-            showPaymentModal();
-        }
-        return false;
-    }
-}
-
 function updatePrice() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
     const basePrice = {{ base_price.price }};
@@ -265,17 +190,9 @@ function updatePrice() {
         const roundedPriceRub = Math.ceil(totalPriceRub / 10) * 10;
         document.getElementById('totalPrice').innerHTML = totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ ' + roundedPriceRub + ' RUB</small>';
         
-        // Обновляем состояние кнопки с учетом чекбокса
+        // Обновляем состояние кнопки
         updatePurchaseButton();
         quantityInput.classList.remove('input-pulse');
-        
-        // Добавляем мерцание к чекбоксу согласия, если он не отмечен
-        const agreementCheckbox = document.getElementById('agreementCheckbox');
-        if (!agreementCheckbox.checked) {
-            agreementCheckbox.classList.add('checkbox-pulse');
-        } else {
-            agreementCheckbox.classList.remove('checkbox-pulse');
-        }
         
         // Обновляем информацию о скидках
         if (discountInfo) {
@@ -308,17 +225,14 @@ function updatePrice() {
 
 function updatePurchaseButton() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
-    const agreementCheckbox = document.getElementById('agreementCheckbox');
     const purchaseButton = document.getElementById('purchaseButton');
     
-    if (quantity > 0 && agreementCheckbox.checked) {
+    if (quantity > 0) {
         // Активируем кнопку и добавляем эффект мерцания
         purchaseButton.classList.remove('btn-secondary');
         purchaseButton.classList.add('btn-success');
         purchaseButton.disabled = false;
         purchaseButton.classList.add('purchase-button-pulse');
-        // Убираем мерцание чекбокса при его отметке
-        agreementCheckbox.classList.remove('checkbox-pulse');
     } else {
         // Деактивируем кнопку и убираем эффект мерцания
         purchaseButton.classList.remove('btn-success', 'purchase-button-pulse');
@@ -364,15 +278,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function showPaymentModal() {
     const quantity = parseInt(document.getElementById('quantity').value) || 0;
-    const agreementCheckbox = document.getElementById('agreementCheckbox');
     
     if (quantity <= 0) {
         alert('Пожалуйста, выберите количество жетонов');
-        return;
-    }
-    
-    if (!agreementCheckbox.checked) {
-        alert('Пожалуйста, согласитесь с условиями Договора возмездного оказания услуг');
         return;
     }
     
