@@ -329,56 +329,67 @@
 
 {% if next_tournament %}
 <script>
-(function() {
-    function updateCountdown() {
-        const tournamentStartDate = new Date("{{ next_tournament.start_date.isoformat() }}");
-        const tournamentDuration = {{ next_tournament.duration }}; // длительность в минутах
-        const currentTime = new Date();
-        
-        let targetDate;
-        let isStarted = tournamentStartDate <= currentTime;
-        
-        if (!isStarted) {
-            // Если турнир еще не начался, показываем время до начала
-            targetDate = tournamentStartDate;
-            document.querySelector('.text-muted.mb-3').textContent = 'До начала турнира осталось:';
-        } else {
-            // Если турнир уже начался, показываем время до окончания
-            targetDate = new Date(tournamentStartDate.getTime() + tournamentDuration * 60000);
-            document.querySelector('.text-muted.mb-3').textContent = 'До окончания турнира осталось:';
-        }
-        
-        const diff = targetDate - currentTime;
-        
-        // Если время истекло, перезагружаем страницу
-        if (diff <= 0) {
-            // Добавляем небольшую задержку перед перезагрузкой
-            setTimeout(() => {
-                location.reload();
-            }, 100);
-            return;
-        }
+let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
 
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+function getServerTime() {
+    const clientNow = new Date();
+    return new Date(clientNow.getTime() + serverTimeOffset);
+}
 
-        document.getElementById('days').textContent = String(days).padStart(2, '0');
-        document.getElementById('hours').textContent = String(hours).padStart(2, '0');
-        document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
-        document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+function updateCountdown() {
+    const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
+    const tournamentDuration = {{ next_tournament.duration }}; // длительность в минутах
+    const serverNow = getServerTime();
+    
+    let targetDate;
+    let isStarted = startDate <= serverNow;
+    
+    if (!isStarted) {
+        // Если турнир еще не начался, показываем время до начала
+        targetDate = startDate;
+        document.querySelector('.text-muted.mb-3').textContent = 'До начала турнира осталось:';
+    } else {
+        // Если турнир уже начался, показываем время до окончания
+        targetDate = new Date(startDate.getTime() + tournamentDuration * 60000);
+        document.querySelector('.text-muted.mb-3').textContent = 'До окончания турнира осталось:';
+    }
+    
+    const diff = targetDate - serverNow;
+    
+    // Если время истекло, перезагружаем страницу
+    if (diff <= 0) {
+        // Добавляем небольшую задержку перед перезагрузкой
+        setTimeout(() => {
+            location.reload();
+        }, 100);
+        return;
     }
 
-    // Обновляем таймер каждую секунду
-    setInterval(updateCountdown, 1000);
-    updateCountdown(); // Запускаем сразу
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-    // Добавляем дополнительную проверку для начала турнира
-    const checkStartDate = new Date("{{ next_tournament.start_date.isoformat() }}");
-    const checkCurrentTime = new Date();
-    if (checkStartDate > checkCurrentTime) {
-        const timeToStart = checkStartDate - checkCurrentTime;
+    document.getElementById('days').textContent = String(days).padStart(2, '0');
+    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+    document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+    document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+}
+
+// Инициализация смещения времени при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    const serverNow = new Date("{{ now.isoformat() }}");
+    const clientNow = new Date();
+    serverTimeOffset = serverNow.getTime() - clientNow.getTime();
+    
+    // Запускаем таймер
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    
+    // Проверка начала турнира
+    const startDate = new Date("{{ next_tournament.start_date.isoformat() }}");
+    if (startDate > serverNow) {
+        const timeToStart = startDate - serverNow;
         const maxTimeout = 2147483647; // Максимальное значение для setTimeout (~24.8 дней)
         
         if (timeToStart <= maxTimeout) {
@@ -390,6 +401,7 @@
         // Если время больше максимального значения, не устанавливаем таймер
         // Страница будет перезагружена через updateCountdown() когда время подойдет
     }
+});
 
     // Обработчик для кнопки "Участвовать"
     document.addEventListener('DOMContentLoaded', function() {
