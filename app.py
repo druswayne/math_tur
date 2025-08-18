@@ -54,6 +54,9 @@ DEBAG = bool(os.environ.get('DEBAG'))
 # Константы для реферальной системы
 REFERRAL_BONUS_POINTS = 50  # Бонусные баллы за приглашенного пользователя
 REFERRAL_BONUS_TICKETS = 0   # Бонусные жетоны за приглашенного пользователя
+
+# Константы для системы бонусов учителей
+TEACHER_REFERRAL_BONUS_POINTS = 100  # Бонусные баллы учителю за приглашенного ученика
 # Получаем количество ядер CPU
 CPU_COUNT = multiprocessing.cpu_count()
 # Создаем пул потоков
@@ -3095,6 +3098,9 @@ def register():
         # Обрабатываем приглашение учителя
         if teacher_invite_link:
             try:
+                user.teacher_id = teacher_invite_link.teacher_id
+                # Создаем запись о приглашении учителем
+                create_teacher_referral(teacher_invite_link.teacher_id, user.id, teacher_invite_link.id)
                 flash('Вы успешно прикреплены к учителю!', 'info')
             except Exception as e:
                 print(f"Ошибка при прикреплении к учителю: {e}")
@@ -3350,6 +3356,12 @@ def teacher_profile():
     total_students = len(students)
     active_students = len([s for s in students if s.tournaments_count > 0])
     
+    # Получаем статистику бонусов учителя
+    teacher_referrals = TeacherReferral.query.filter_by(teacher_id=current_user.id).all()
+    total_referrals = len(teacher_referrals)
+    paid_referrals = len([r for r in teacher_referrals if r.bonus_paid])
+    pending_referrals = total_referrals - paid_referrals
+    
     # Пагинация для списка учеников
     page = request.args.get('page', 1, type=int)
     per_page = 15  # Количество учеников на странице
@@ -3389,7 +3401,11 @@ def teacher_profile():
                          total_students=total_students,
                          active_students=active_students,
                          students_info=students_info,
-                         students_paginated=students_paginated)
+                         students_paginated=students_paginated,
+                         total_referrals=total_referrals,
+                         paid_referrals=paid_referrals,
+                         pending_referrals=pending_referrals,
+                         bonus_points=TEACHER_REFERRAL_BONUS_POINTS)
 
 @app.route('/update-teacher-profile', methods=['POST'])
 @login_required
@@ -4425,6 +4441,10 @@ def restore_scheduler_jobs():
                     job_func = check_and_pay_referral_bonuses
                     args = []
                     interval_hours = 1  # Интервальная задача каждые 6 часов
+                elif job.job_type == 'check_teacher_referral_bonuses':
+                    job_func = check_and_pay_teacher_referral_bonuses
+                    args = []
+                    interval_hours = 1  # Интервальная задача каждые 1 час
                 else:
                     # Неизвестный тип задачи, пропускаем
                     continue
@@ -6641,6 +6661,22 @@ class TeacherInviteLink(db.Model):
     # Связи
     teacher = db.relationship('Teacher', backref=db.backref('invite_links', lazy=True))
 
+class TeacherReferral(db.Model):
+    __tablename__ = "teacher_referrals"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    teacher_invite_link_id = db.Column(db.Integer, db.ForeignKey('teacher_invite_links.id'), nullable=False)
+    bonus_paid = db.Column(db.Boolean, default=False)  # Выплачен ли бонус
+    bonus_paid_at = db.Column(db.DateTime, nullable=True)  # Когда выплачен бонус
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    # Связи
+    teacher = db.relationship('Teacher', foreign_keys=[teacher_id], backref=db.backref('teacher_referrals_sent', lazy=True, cascade='all, delete-orphan'))
+    student = db.relationship('User', foreign_keys=[student_id], backref=db.backref('teacher_referrals_received', lazy=True, cascade='all, delete-orphan'))
+    teacher_invite_link = db.relationship('TeacherInviteLink', backref=db.backref('teacher_referrals', lazy=True, cascade='all, delete-orphan'))
+
 class CurrencyRate(db.Model):
     """Модель для хранения курсов валют"""
     __tablename__ = "currency_rates"
@@ -6921,6 +6957,68 @@ def check_and_pay_referral_bonuses():
         print(f"Ошибка при проверке бонусов за друзей: {e}")
         return 0
 
+def create_teacher_referral(teacher_id, student_id, teacher_invite_link_id):
+    """Создает запись о приглашенном ученике учителем"""
+    teacher_referral = TeacherReferral(
+        teacher_id=teacher_id,
+        student_id=student_id,
+        teacher_invite_link_id=teacher_invite_link_id,
+        bonus_paid=False
+    )
+    db.session.add(teacher_referral)
+    db.session.commit()
+    return teacher_referral
+
+def pay_teacher_referral_bonus(teacher_referral_id):
+    """Выплачивает бонус учителю за приглашенного ученика"""
+    teacher_referral = TeacherReferral.query.get(teacher_referral_id)
+    if not teacher_referral or teacher_referral.bonus_paid:
+        return False
+    
+    try:
+        # Начисляем бонусы учителю
+        teacher = Teacher.query.get(teacher_referral.teacher_id)
+        if teacher:
+            teacher.balance += TEACHER_REFERRAL_BONUS_POINTS
+            
+            # Отмечаем бонус как выплаченный
+            teacher_referral.bonus_paid = True
+            teacher_referral.bonus_paid_at = datetime.now()
+            
+            db.session.commit()
+            return True
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при выплате бонуса учителю: {e}")
+        return False
+    
+    return False
+
+def check_and_pay_teacher_referral_bonuses():
+    """Проверяет и выплачивает бонусы учителям за учеников, которые участвовали в турнирах"""
+    try:
+        # Находим учеников, которые участвовали в турнирах, но бонус учителю еще не выплачен
+        teacher_referrals_to_pay = db.session.query(TeacherReferral).join(
+            User, TeacherReferral.student_id == User.id
+        ).filter(
+            TeacherReferral.bonus_paid == False,
+            User.tournaments_count > 0
+        ).all()
+        
+        paid_count = 0
+        for teacher_referral in teacher_referrals_to_pay:
+            if pay_teacher_referral_bonus(teacher_referral.id):
+                paid_count += 1
+        
+        if paid_count > 0:
+            print(f"Выплачено {paid_count} бонусов учителям за учеников")
+        
+        return paid_count
+        
+    except Exception as e:
+        print(f"Ошибка при проверке бонусов учителям: {e}")
+        return 0
+
 @app.route('/rating/search')
 def rating_search():
     query = sanitize_input(request.args.get('q', ''), 100)
@@ -7185,6 +7283,24 @@ def initialize_scheduler_jobs():
             print("Создана задача проверки бонусов за друзей")
         else:
             print("Задача проверки бонусов за друзей уже существует")
+
+        # Настраиваем периодическую проверку бонусов учителям (только если задача еще не существует)
+        existing_teacher_referral_job = SchedulerJob.query.filter_by(
+            job_type='check_teacher_referral_bonuses',
+            is_active=True
+        ).first()
+
+        if not existing_teacher_referral_job:
+            add_scheduler_job(
+                check_and_pay_teacher_referral_bonuses,
+                datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
+                None,
+                'check_teacher_referral_bonuses',
+                interval_hours=1  # Повторять каждые 1 час
+            )
+            print("Создана задача проверки бонусов учителям")
+        else:
+            print("Задача проверки бонусов учителям уже существует")
 
         # Настраиваем периодическую очистку сессий (только если задача еще не существует)
         existing_cleanup_job = SchedulerJob.query.filter_by(
