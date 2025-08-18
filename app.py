@@ -4234,11 +4234,15 @@ def join_tournament(tournament_id):
     
 
     
-    # Проверяем, не является ли пользователь администратором
-    if current_user.is_admin:
-
+    # Проверяем, не является ли пользователь администратором или учителем
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
+    
+    # Проверяем, не является ли пользователь учителем
+    if isinstance(current_user, Teacher):
+        flash('Учителя не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('teacher_profile'))
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
@@ -4271,10 +4275,15 @@ def join_tournament(tournament_id):
 def tournament_menu(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Проверяем, не является ли пользователь администратором
-    if current_user.is_admin:
+    # Проверяем, не является ли пользователь администратором или учителем
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
+    
+    # Проверяем, не является ли пользователь учителем
+    if isinstance(current_user, Teacher):
+        flash('Учителя не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('teacher_profile'))
     
     # Проверяем, начался ли турнир
     current_time = datetime.now()
@@ -4312,10 +4321,15 @@ def start_tournament(tournament_id):
         flash('У вас недостаточно билетов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
-    # Проверяем, не является ли пользователь администратором
-    if current_user.is_admin:
+    # Проверяем, не является ли пользователь администратором или учителем
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         flash('Администраторы не могут участвовать в турнирах', 'warning')
         return redirect(url_for('home'))
+    
+    # Проверяем, не является ли пользователь учителем
+    if isinstance(current_user, Teacher):
+        flash('Учителя не могут участвовать в турнирах', 'warning')
+        return redirect(url_for('teacher_profile'))
     
     # Проверяем, участвует ли уже пользователь в турнире
     participation = TournamentParticipation.query.filter_by(
