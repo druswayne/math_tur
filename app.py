@@ -4454,11 +4454,11 @@ def restore_scheduler_jobs():
                 elif job.job_type == 'check_referral_bonuses':
                     job_func = check_and_pay_referral_bonuses
                     args = []
-                    interval_hours = 1  # Интервальная задача каждые 6 часов
+                    interval_hours = 24  # Интервальная задача каждые 24 часа
                 elif job.job_type == 'check_teacher_referral_bonuses':
                     job_func = check_and_pay_teacher_referral_bonuses
                     args = []
-                    interval_hours = 1  # Интервальная задача каждые 1 час
+                    interval_hours = 24  # Интервальная задача каждые 24 часа
                 else:
                     # Неизвестный тип задачи, пропускаем
                     continue
@@ -7289,10 +7289,10 @@ def initialize_scheduler_jobs():
         if not existing_referral_job:
             add_scheduler_job(
                 check_and_pay_referral_bonuses,
-                datetime.now() + timedelta(hours=1),  # Первый запуск через 2 часа
+                datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
                 None,
                 'check_referral_bonuses',
-                interval_hours=1  # Повторять каждые 1 часов
+                interval_hours=24  # Повторять каждые 24 часа
             )
             print("Создана задача проверки бонусов за друзей")
         else:
@@ -7310,7 +7310,7 @@ def initialize_scheduler_jobs():
                 datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
                 None,
                 'check_teacher_referral_bonuses',
-                interval_hours=1  # Повторять каждые 1 час
+                interval_hours=24  # Повторять каждые 24 часа
             )
             print("Создана задача проверки бонусов учителям")
         else:
