@@ -6606,6 +6606,9 @@ class Teacher(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
+    # Баланс учителя в баллах
+    balance = db.Column(db.Integer, default=0, nullable=False)
+    
     # Связь с образовательным учреждением
     educational_institution_id = db.Column(db.Integer, db.ForeignKey('educational_institutions.id'), nullable=True)
     educational_institution = db.relationship('EducationalInstitution', backref=db.backref('teachers', lazy=True))

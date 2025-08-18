@@ -31,7 +31,7 @@
 
             <!-- Статистика -->
             <div class="row mb-4 g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="stats-card h-100">
                         <div class="card-body text-center">
                             <i class="fas fa-users fa-2x mb-2 icon-gradient"></i>
@@ -40,12 +40,21 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <div class="stats-card h-100">
                         <div class="card-body text-center">
                             <i class="fas fa-trophy fa-2x mb-2 icon-gradient"></i>
                             <div class="card-title">Активных учащихся</div>
                             <div class="card-value">{{ active_students }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stats-card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-coins fa-2x mb-2 icon-gradient"></i>
+                            <div class="card-title">Баланс</div>
+                            <div class="card-value">{{ current_user.balance }} баллов</div>
                         </div>
                     </div>
                 </div>
