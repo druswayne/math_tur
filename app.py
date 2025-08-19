@@ -22,6 +22,7 @@ from flask_mail import Mail, Message
 import re
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 import random
 from flask import session
 from sqlalchemy import func
@@ -286,7 +287,7 @@ def update_session_activity(session_token):
 # Инициализация планировщика
 scheduler = BackgroundScheduler(timezone='Europe/Moscow')
 scheduler.start()
-print(scheduler.timezone)
+print(f"Планировщик запущен: {scheduler.timezone}, состояние: {scheduler.running}")
 
 # Запускаем обработчик очереди писем
 start_email_worker()
@@ -498,19 +499,26 @@ def add_scheduler_job(job_func, run_date, tournament_id, job_type, interval_hour
     """Добавляет задачу в планировщик и сохраняет информацию в БД"""
     job_id = f'{job_type}_tournament_{tournament_id}' if tournament_id else f'{job_type}'
     
+    print(f"add_scheduler_job: job_id={job_id}, run_date={run_date}, interval_hours={interval_hours}")
+    
     try:
         # Проверяем, не существует ли уже такая задача в БД
         existing_job = SchedulerJob.query.filter_by(job_id=job_id).first()
         if existing_job:
             # Задача уже существует, не добавляем дубликат
+            print(f"Задача {job_id} уже существует в БД, пропускаем")
             return False
         
         if interval_hours:
-            # Интервальная задача (например, очистка сессий)
+            # Интервальная задача с отложенным стартом
+            print(f"Создаем интервальную задачу {job_id} с start_date={run_date}, interval_hours={interval_hours}")
             scheduler.add_job(
                 job_func,
-                trigger='interval',
-                hours=interval_hours,
+                trigger=IntervalTrigger(
+                    hours=interval_hours,
+                    start_date=run_date  # Первый запуск в указанное время
+                ),
+                args=[tournament_id] if tournament_id else [],
                 id=job_id,
                 replace_existing=True
             )
@@ -536,6 +544,7 @@ def add_scheduler_job(job_func, run_date, tournament_id, job_type, interval_hour
         db.session.add(scheduler_job)
         db.session.commit()
         
+        print(f"Задача {job_id} успешно добавлена в планировщик и БД")
         return True
     except Exception as e:
         db.session.rollback()
@@ -4463,20 +4472,44 @@ def restore_scheduler_jobs():
                     # Неизвестный тип задачи, пропускаем
                     continue
                 
-                # Проверяем, не истекло ли время выполнения (только для обычных задач)
-                if interval_hours is None and job.run_date <= datetime.now():
-                    # Время истекло, удаляем задачу из БД
-                    db.session.delete(job)
-                    db.session.commit()
-                    continue
+                # Проверяем, не истекло ли время выполнения
+                if job.run_date <= datetime.now():
+                    if interval_hours is None:
+                        # Обычная задача - время истекло, удаляем
+                        db.session.delete(job)
+                        db.session.commit()
+                        continue
+                    else:
+                        # Интервальная задача - обновляем run_date как при создании новой задачи
+                        from datetime import timedelta
+                        # Используем ту же логику, что и при создании задачи
+                        if job.job_type == 'check_expired_payments':
+                            new_run_date = datetime.now() + timedelta(hours=1)
+                        elif job.job_type == 'check_referral_bonuses':
+                            new_run_date = datetime.now() + timedelta(hours=1)
+                        elif job.job_type == 'check_teacher_referral_bonuses':
+                            new_run_date = datetime.now() + timedelta(seconds=1)
+                        elif job.job_type == 'cleanup_sessions':
+                            new_run_date = datetime.now() + timedelta(hours=24)
+                        else:
+                            # Для неизвестных типов используем стандартный интервал
+                            new_run_date = datetime.now() + timedelta(hours=interval_hours)
+                        
+                        print(f"Обновляем время для задачи {job.job_id}: было {job.run_date}, будет {new_run_date}")
+                        job.run_date = new_run_date
+                        db.session.commit()
                 
                 # Добавляем задачу в планировщик
                 if interval_hours:
-                    # Интервальная задача
+                    # Интервальная задача с учетом run_date из БД
+                    print(f"Восстанавливаем интервальную задачу {job.job_id} с start_date={job.run_date}")
                     scheduler.add_job(
                         job_func,
-                        trigger='interval',
-                        hours=interval_hours,
+                        trigger=IntervalTrigger(
+                            hours=interval_hours,
+                            start_date=job.run_date  # Используем run_date из БД
+                        ),
+                        args=args,
                         id=job.job_id,
                         replace_existing=True
                     )
@@ -5905,6 +5938,12 @@ def clear_sessions():
         print("Проверка истекших платежей...")
         check_expired_payments()
 
+        # Проверяем состояние планировщика
+        print(f"Состояние планировщика после инициализации: {scheduler.running}")
+        print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+        for job in scheduler.get_jobs():
+            print(f"  - {job.id}: {job.trigger}")
+
         print("Приложение готово к запуску!")
 
 @app.route('/change-password', methods=['POST'])
@@ -6728,6 +6767,8 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 def cleanup_old_sessions():
+    with open ('d.txt', 'a', encoding='utf-8') as file:
+        file.write('cleanup_old_sessions\n')
     """Удаляет устаревшие сессии и пользователей с неподтвержденными email из базы данных"""
     try:
         # Удаляем сессии старше 1 недели (неактивные)
@@ -6947,6 +6988,8 @@ def get_teacher_invite_link_by_code(code):
     return TeacherInviteLink.query.filter_by(invite_code=code, is_active=True).first()
 
 def check_and_pay_referral_bonuses():
+    with open ('d.txt', 'a', encoding='utf-8') as file:
+        file.write('check_and_pay_referral_bonuses\n')
     """Проверяет и выплачивает бонусы за друзей, которые участвовали в турнирах"""
     try:
         # Находим друзей, которые участвовали в турнирах, но бонус еще не выплачен
@@ -7009,6 +7052,8 @@ def pay_teacher_referral_bonus(teacher_referral_id):
     return False
 
 def check_and_pay_teacher_referral_bonuses():
+    with open('d.txt', 'a', encoding='utf-8') as file:
+        file.write('check_and_pay_teacher_referral_bonuses\n')
     """Проверяет и выплачивает бонусы учителям за учеников, которые участвовали в турнирах"""
     try:
         # Находим учеников, которые участвовали в турнирах, но бонус учителю еще не выплачен
@@ -7018,7 +7063,7 @@ def check_and_pay_teacher_referral_bonuses():
             TeacherReferral.bonus_paid == False,
             User.tournaments_count > 0
         ).all()
-        
+        print(teacher_referrals_to_pay, 123)
         paid_count = 0
         for teacher_referral in teacher_referrals_to_pay:
             if pay_teacher_referral_bonus(teacher_referral.id):
@@ -7032,7 +7077,6 @@ def check_and_pay_teacher_referral_bonuses():
     except Exception as e:
         print(f"Ошибка при проверке бонусов учителям: {e}")
         return 0
-
 @app.route('/rating/search')
 def rating_search():
     query = sanitize_input(request.args.get('q', ''), 100)
@@ -7157,6 +7201,8 @@ def cleanup_other_servers_jobs():
         print(f"Ошибка при очистке задач других серверов: {e}")
 
 def check_expired_payments():
+    with open ('d.txt', 'a', encoding='utf-8') as file:
+        file.write('check_expired_payments\n')
     """Проверяет и обновляет статусы истекших платежей для всех платежных систем"""
     try:
         # Проверяем платежи ЮKassa
@@ -7305,9 +7351,11 @@ def initialize_scheduler_jobs():
         ).first()
 
         if not existing_teacher_referral_job:
+            print(f"Создаем задачу check_teacher_referral_bonuses с start_date={datetime.now() + timedelta(seconds=1)}")
             add_scheduler_job(
                 check_and_pay_teacher_referral_bonuses,
                 datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
+
                 None,
                 'check_teacher_referral_bonuses',
                 interval_hours=24  # Повторять каждые 24 часа
@@ -7325,7 +7373,7 @@ def initialize_scheduler_jobs():
         if not existing_cleanup_job:
             add_scheduler_job(
                 cleanup_old_sessions,
-                datetime.now() + timedelta(hours=24),  # run_date не используется для interval
+                datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
                 None,
                 'cleanup_sessions',
                 interval_hours=24  # Интервальная задача каждые 24 часа
