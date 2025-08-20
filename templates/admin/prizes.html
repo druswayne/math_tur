@@ -41,12 +41,19 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-12 mb-3">
+                    <div class="col-md-6 mb-3">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_unique" name="is_unique">
                             <label class="form-check-label" for="is_unique">Уникальный приз</label>
                         </div>
                         <small class="text-muted">Уникальный приз можно купить только один раз</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="is_for_teachers" name="is_for_teachers">
+                            <label class="form-check-label" for="is_for_teachers">Для учителей</label>
+                        </div>
+                        <small class="text-muted">Приз доступен только для учителей</small>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">
@@ -76,6 +83,9 @@
                                 Неограниченно
                                 {% else %}
                                 {{ prize.quantity }} шт.
+                                {% endif %}
+                                {% if prize.is_for_teachers %}
+                                <br><span class="badge bg-info">Для учителей</span>
                                 {% endif %}
                             </p>
                             <div class="btn-group">

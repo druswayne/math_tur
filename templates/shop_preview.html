@@ -9,7 +9,7 @@
                 <div>
                     {% if not current_user.is_authenticated %}
                         <a href="{{ url_for('login') }}" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt me-2"></i>Войти для покупки
+                            <i class="fas fa-sign-in-alt me-2"></i>Войти для обмена
                         </a>
                     {% elif isinstance(current_user, Teacher) %}
                         <span class="text-muted">Учителя могут только просматривать призы</span>
@@ -20,9 +20,9 @@
             <div class="alert alert-info">
                 <h5><i class="fas fa-info-circle me-2"></i>Информация о лавке призов</h5>
                 <p class="mb-0">
-                    Здесь вы можете увидеть все доступные призы, которые можно приобрести за баллы, заработанные в турнирах. 
+                    Здесь вы можете увидеть все доступные призы, которые можно обменять на баллы, заработанные в турнирах. 
                     {% if not current_user.is_authenticated %}
-                        <strong>Для покупки призов необходимо войти в систему.</strong>
+                        <strong>Для обмена призов необходимо войти в систему.</strong>
                     {% elif isinstance(current_user, Teacher) %}
                         <strong>Учителя могут только просматривать призы.</strong>
                     {% endif %}
@@ -41,9 +41,16 @@
                                         <i class="fas fa-gift fa-3x text-muted"></i>
                                     </div>
                                 {% endif %}
-                                <div class="card-body">
+                                <div class="card-body d-flex flex-column">
                                     <h5 class="card-title">{{ prize.name }}</h5>
-                                    <p class="card-text">{{ prize.description }}</p>
+                                    <div class="mb-2">
+                                        {% if prize.is_unique %}
+                                        <span class="badge bg-warning text-dark me-1">Уникальный приз</span>
+                                        {% endif %}
+                                    </div>
+                                    <p class="card-text flex-grow-1">{{ prize.description }}</p>
+                                </div>
+                                <div class="card-footer bg-transparent">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="badge bg-warning text-dark">
                                             <i class="fas fa-coins me-1"></i>{{ prize.points_cost }} баллов
@@ -54,8 +61,6 @@
                                             <span class="badge bg-info">Осталось: {{ prize.quantity }}</span>
                                         {% endif %}
                                     </div>
-                                </div>
-                                <div class="card-footer bg-transparent">
                                 </div>
                             </div>
                         </div>

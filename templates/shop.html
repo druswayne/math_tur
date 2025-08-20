@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block content %}
@@ -105,26 +106,26 @@
         font-size: 14px;
         padding: 8px 12px;
     }
-    
+
     .card-body .d-flex {
         gap: 10px;
     }
-    
+
     .form-label {
         font-size: 14px;
     }
-    
+
     /* Адаптивность для заголовка и кнопки возврата */
     .shop-title {
         font-size: 1.5rem;
         margin-bottom: 0;
     }
-    
+
     .back-btn {
         font-size: 0.875rem;
         padding: 0.375rem 0.75rem;
     }
-    
+
     .back-btn i {
         font-size: 0.75rem;
         margin-right: 0.5rem !important;
@@ -135,12 +136,12 @@
     .shop-title {
         font-size: 1.25rem;
     }
-    
+
     .back-btn {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
     }
-    
+
     .back-btn i {
         font-size: 0.625rem;
         margin-right: 0.375rem !important;
@@ -219,8 +220,8 @@
         Лавка призов закрыта до конца сезона турниров. Покупки недоступны, но вы можете просматривать доступные призы.
     </div>
     {% endif %}
-    
-    {% if not can_shop and settings.is_open %}
+
+    {% if not can_shop and settings.is_open and not current_user.is_teacher %}
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
             В вашей категории ({{ current_user.category }}) покупки доступны только для {{ settings['top_users_percentage_' + current_user.category.replace('-', '_')] }}% лучших пользователей.
@@ -238,9 +239,11 @@
                     {% endif %}
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title">{{ prize.name }}</h5>
-                        {% if prize.is_unique %}
-                        <span class="badge bg-warning text-dark mb-2">Уникальный приз</span>
-                        {% endif %}
+                        <div class="mb-2">
+                            {% if prize.is_unique %}
+                            <span class="badge bg-warning text-dark me-1">Уникальный приз</span>
+                            {% endif %}
+                        </div>
                         <p class="card-text flex-grow-1">{{ prize.description }}</p>
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
@@ -269,7 +272,7 @@
             </div>
             {% endfor %}
         </div>
-        
+
         <!-- Пагинация -->
         {% if pagination.pages > 1 %}
         <nav aria-label="Навигация по страницам призов" class="mt-4">
@@ -288,7 +291,7 @@
                     </span>
                 </li>
                 {% endif %}
-                
+
                 <!-- Номера страниц -->
                 {% for page_num in pagination.iter_pages(left_edge=1, left_current=1, right_current=2, right_edge=1) %}
                     {% if page_num %}
@@ -307,7 +310,7 @@
                     </li>
                     {% endif %}
                 {% endfor %}
-                
+
                 <!-- Кнопка "Следующая" -->
                 {% if pagination.has_next %}
                 <li class="page-item">
@@ -324,11 +327,11 @@
                 {% endif %}
             </ul>
         </nav>
-        
+
         <!-- Информация о страницах -->
         <div class="text-center text-muted mt-3">
             <small>
-                Страница {{ pagination.page }} из {{ pagination.pages }} 
+                Страница {{ pagination.page }} из {{ pagination.pages }}
                 (всего {{ pagination.total }} призов)
             </small>
         </div>
@@ -399,13 +402,13 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', function() {
             const prizeId = this.dataset.prizeId;
             let quantity = 1;
-            
+
             // Если это не уникальный приз, получаем количество из input
             if (!this.closest('.card').querySelector('.badge.bg-warning')) {
                 const quantityInput = this.closest('.card').querySelector('.prize-quantity');
                 quantity = parseInt(quantityInput.value);
             }
-            
+
             fetch('/add-to-cart', {
                 method: 'POST',
                 headers: {

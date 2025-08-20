@@ -52,6 +52,11 @@
                             <label class="form-check-label" for="is_unique">Уникальный приз</label>
                             <small class="text-muted d-block">Уникальный приз можно купить только один раз</small>
                         </div>
+                        <div class="form-check mb-2">
+                            <input type="checkbox" class="form-check-input" id="is_for_teachers" name="is_for_teachers" {% if prize.is_for_teachers %}checked{% endif %}>
+                            <label class="form-check-label" for="is_for_teachers">Для учителей</label>
+                            <small class="text-muted d-block">Приз доступен только для учителей</small>
+                        </div>
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_active" name="is_active" {% if prize.is_active %}checked{% endif %}>
                             <label class="form-check-label" for="is_active">Активный приз</label>

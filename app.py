@@ -1131,6 +1131,7 @@ class Prize(db.Model):
     quantity = db.Column(db.Integer, default=0)  # 0 означает неограниченное количество
     is_active = db.Column(db.Boolean, default=True)
     is_unique = db.Column(db.Boolean, default=False)  # Флаг уникального приза
+    is_for_teachers = db.Column(db.Boolean, default=False)  # Флаг приза для учителей
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 class PrizePurchase(db.Model):
@@ -1148,6 +1149,21 @@ class PrizePurchase(db.Model):
     user = db.relationship('User', backref=db.backref('prize_purchases', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('purchases', lazy=True))
 
+class TeacherPrizePurchase(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
+    prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    points_cost = db.Column(db.Integer, nullable=False)
+    full_name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    address = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    
+    teacher = db.relationship('Teacher', backref=db.backref('teacher_prize_purchases', lazy=True))
+    prize = db.relationship('Prize', backref=db.backref('teacher_purchases', lazy=True))
+
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -1157,6 +1173,16 @@ class CartItem(db.Model):
     
     user = db.relationship('User', backref=db.backref('cart_items', lazy=True))
     prize = db.relationship('Prize', backref=db.backref('cart_items', lazy=True))
+
+class TeacherCartItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
+    prize_id = db.Column(db.Integer, db.ForeignKey('prize.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    
+    teacher = db.relationship('Teacher', backref=db.backref('teacher_cart_items', lazy=True))
+    prize = db.relationship('Prize', backref=db.backref('teacher_cart_items', lazy=True))
 
 class ShopSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1187,6 +1213,14 @@ class ShopSettings(db.Model):
         if not self.is_open:
             return False
         
+        # Для учителей всегда разрешаем доступ к магазину
+        if isinstance(user, Teacher):
+            return True
+        
+        # Для обычных пользователей проверяем категорию
+        if not hasattr(user, 'category'):
+            return False
+            
         # Получаем процент для категории пользователя
         category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
         
@@ -1720,8 +1754,8 @@ def cooperation():
 @app.route('/shop-preview')
 def shop_preview():
     """Страница предварительного просмотра лавки призов для неавторизованных пользователей и учителей"""
-    # Получаем активные призы
-    prizes = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).all()
+    # Получаем активные призы (только для обычных пользователей)
+    prizes = Prize.query.filter_by(is_active=True, is_for_teachers=False).order_by(Prize.points_cost.asc()).all()
     
     return render_template('shop_preview.html', title='Лавка призов', prizes=prizes)
 
@@ -2733,6 +2767,7 @@ def admin_add_prize():
     points_cost = request.form.get('points_cost', type=int)
     quantity = request.form.get('quantity', type=int, default=0)
     is_unique = 'is_unique' in request.form
+    is_for_teachers = 'is_for_teachers' in request.form
     
     if not all([name, description, points_cost]):
         flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -2754,7 +2789,8 @@ def admin_add_prize():
         image=image_filename,
         points_cost=points_cost,
         quantity=quantity,
-        is_unique=is_unique
+        is_unique=is_unique,
+        is_for_teachers=is_for_teachers
     )
     
     db.session.add(prize)
@@ -2801,6 +2837,7 @@ def admin_edit_prize(prize_id):
         quantity = request.form.get('quantity', type=int, default=0)
         is_unique = 'is_unique' in request.form
         is_active = 'is_active' in request.form
+        is_for_teachers = 'is_for_teachers' in request.form
         
         if not all([name, description, points_cost]):
             flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -2827,6 +2864,7 @@ def admin_edit_prize(prize_id):
         prize.quantity = quantity
         prize.is_unique = is_unique
         prize.is_active = is_active
+        prize.is_for_teachers = is_for_teachers
         
         db.session.commit()
         flash('Приз успешно обновлен', 'success')
@@ -5366,6 +5404,14 @@ def shop():
     # Базовый запрос
     query = Prize.query.filter(Prize.is_active == True)
     
+    # Фильтрация призов в зависимости от типа пользователя
+    if isinstance(current_user, Teacher):
+        # Для учителей показываем только призы для учителей
+        query = query.filter(Prize.is_for_teachers == True)
+    else:
+        # Для обычных пользователей показываем только призы НЕ для учителей
+        query = query.filter(Prize.is_for_teachers == False)
+    
     # Применяем сортировку
     if sort == 'price_asc':
         query = query.order_by(Prize.points_cost.asc())
@@ -5399,11 +5445,14 @@ def shop():
 @app.route('/cart')
 @login_required
 def cart():
-    if current_user.is_admin:
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    # Получаем товары из корзины
-    cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    # Получаем товары из корзины в зависимости от типа пользователя
+    if isinstance(current_user, Teacher):
+        cart_items = TeacherCartItem.query.filter_by(teacher_id=current_user.id).all()
+    else:
+        cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
     
     # Считаем общую стоимость
     total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
@@ -5416,7 +5465,7 @@ def cart():
 @app.route('/add-to-cart', methods=['POST'])
 @login_required
 def add_to_cart():
-    if current_user.is_admin:
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
     
     # Проверяем, открыт ли магазин
@@ -5438,11 +5487,18 @@ def add_to_cart():
     # Проверяем, не является ли приз уникальным
     if prize.is_unique:
         # Проверяем, не покупал ли пользователь уже этот приз (все статусы кроме отмененного)
-        existing_purchase = PrizePurchase.query.filter(
-            PrizePurchase.user_id == current_user.id,
-            PrizePurchase.prize_id == prize_id,
-            PrizePurchase.status != 'cancelled'  # Проверяем все статусы кроме отмененного
-        ).first()
+        if isinstance(current_user, Teacher):
+            existing_purchase = TeacherPrizePurchase.query.filter(
+                TeacherPrizePurchase.teacher_id == current_user.id,
+                TeacherPrizePurchase.prize_id == prize_id,
+                TeacherPrizePurchase.status != 'cancelled'
+            ).first()
+        else:
+            existing_purchase = PrizePurchase.query.filter(
+                PrizePurchase.user_id == current_user.id,
+                PrizePurchase.prize_id == prize_id,
+                PrizePurchase.status != 'cancelled'
+            ).first()
         
         if existing_purchase:
             return jsonify({'success': False, 'message': 'Вы уже приобрели этот уникальный приз'})
@@ -5453,10 +5509,16 @@ def add_to_cart():
         return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
     
     # Проверяем, есть ли уже такой товар в корзине
-    cart_item = CartItem.query.filter_by(
-        user_id=current_user.id,
-        prize_id=prize_id
-    ).first()
+    if isinstance(current_user, Teacher):
+        cart_item = TeacherCartItem.query.filter_by(
+            teacher_id=current_user.id,
+            prize_id=prize_id
+        ).first()
+    else:
+        cart_item = CartItem.query.filter_by(
+            user_id=current_user.id,
+            prize_id=prize_id
+        ).first()
     
     if cart_item:
         # Если товар уже есть, обновляем количество
@@ -5469,17 +5531,27 @@ def add_to_cart():
         cart_item.quantity = new_quantity
     else:
         # Если товара нет, создаем новую запись
-        cart_item = CartItem(
-            user_id=current_user.id,
-            prize_id=prize_id,
-            quantity=quantity
-        )
+        if isinstance(current_user, Teacher):
+            cart_item = TeacherCartItem(
+                teacher_id=current_user.id,
+                prize_id=prize_id,
+                quantity=quantity
+            )
+        else:
+            cart_item = CartItem(
+                user_id=current_user.id,
+                prize_id=prize_id,
+                quantity=quantity
+            )
         db.session.add(cart_item)
     
     db.session.commit()
     
     # Получаем обновленное количество товаров в корзине
-    cart_items_count = CartItem.query.filter_by(user_id=current_user.id).count()
+    if isinstance(current_user, Teacher):
+        cart_items_count = TeacherCartItem.query.filter_by(teacher_id=current_user.id).count()
+    else:
+        cart_items_count = CartItem.query.filter_by(user_id=current_user.id).count()
     
     return jsonify({
         'success': True,
@@ -5490,7 +5562,7 @@ def add_to_cart():
 @app.route('/update-cart', methods=['POST'])
 @login_required
 def update_cart():
-    if current_user.is_admin:
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
     
     # Проверяем, открыт ли магазин
@@ -5516,10 +5588,16 @@ def update_cart():
         return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
     
     # Находим товар в корзине
-    cart_item = CartItem.query.filter_by(
-        user_id=current_user.id,
-        prize_id=prize_id
-    ).first()
+    if isinstance(current_user, Teacher):
+        cart_item = TeacherCartItem.query.filter_by(
+            teacher_id=current_user.id,
+            prize_id=prize_id
+        ).first()
+    else:
+        cart_item = CartItem.query.filter_by(
+            user_id=current_user.id,
+            prize_id=prize_id
+        ).first()
     
     if not cart_item:
         return jsonify({'success': False, 'message': 'Товар не найден в корзине'})
@@ -5536,7 +5614,7 @@ def update_cart():
 @app.route('/remove-from-cart', methods=['POST'])
 @login_required
 def remove_from_cart():
-    if current_user.is_admin:
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
     
     # Проверяем, открыт ли магазин
@@ -5551,10 +5629,16 @@ def remove_from_cart():
         return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
     
     # Находим товар в корзине
-    cart_item = CartItem.query.filter_by(
-        user_id=current_user.id,
-        prize_id=prize_id
-    ).first()
+    if isinstance(current_user, Teacher):
+        cart_item = TeacherCartItem.query.filter_by(
+            teacher_id=current_user.id,
+            prize_id=prize_id
+        ).first()
+    else:
+        cart_item = CartItem.query.filter_by(
+            user_id=current_user.id,
+            prize_id=prize_id
+        ).first()
     
     if not cart_item:
         return jsonify({'success': False, 'message': 'Товар не найден в корзине'})
@@ -5571,7 +5655,7 @@ def remove_from_cart():
 @app.route('/checkout', methods=['POST'])
 @login_required
 def checkout():
-    if current_user.is_admin:
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
         return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
     
     settings = ShopSettings.get_settings()
@@ -5590,7 +5674,11 @@ def checkout():
         return jsonify({'success': False, 'message': 'Пожалуйста, заполните все поля'})
     
     # Получаем все товары из корзины
-    cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    if isinstance(current_user, Teacher):
+        cart_items = TeacherCartItem.query.filter_by(teacher_id=current_user.id).all()
+    else:
+        cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    
     if not cart_items:
         return jsonify({'success': False, 'message': 'Ваша корзина пуста'})
     
@@ -5608,16 +5696,28 @@ def checkout():
         # Создаем записи о покупке для каждого товара
         for item in cart_items:
             # Создаем запись о покупке
-            purchase = PrizePurchase(
-                user_id=current_user.id,
-                prize_id=item.prize.id,
-                quantity=item.quantity,
-                points_cost=item.prize.points_cost * item.quantity,
-                full_name=full_name,
-                phone=phone,
-                address=address,
-                status='pending'
-            )
+            if isinstance(current_user, Teacher):
+                purchase = TeacherPrizePurchase(
+                    teacher_id=current_user.id,
+                    prize_id=item.prize.id,
+                    quantity=item.quantity,
+                    points_cost=item.prize.points_cost * item.quantity,
+                    full_name=full_name,
+                    phone=phone,
+                    address=address,
+                    status='pending'
+                )
+            else:
+                purchase = PrizePurchase(
+                    user_id=current_user.id,
+                    prize_id=item.prize.id,
+                    quantity=item.quantity,
+                    points_cost=item.prize.points_cost * item.quantity,
+                    full_name=full_name,
+                    phone=phone,
+                    address=address,
+                    status='pending'
+                )
             db.session.add(purchase)
             
             # Уменьшаем количество доступных товаров
@@ -5628,7 +5728,10 @@ def checkout():
         current_user.balance -= total_cost
         
         # Очищаем корзину
-        CartItem.query.filter_by(user_id=current_user.id).delete()
+        if isinstance(current_user, Teacher):
+            TeacherCartItem.query.filter_by(teacher_id=current_user.id).delete()
+        else:
+            CartItem.query.filter_by(user_id=current_user.id).delete()
         
         db.session.commit()
         return jsonify({'success': True, 'message': 'Заказ успешно оформлен'})
@@ -5647,10 +5750,89 @@ def admin_orders():
     page = request.args.get('page', 1, type=int)
     per_page = 20  # количество записей на странице
     
-    # Получаем заявки с пагинацией, отсортированные по дате (новые сверху)
-    orders = PrizePurchase.query.order_by(PrizePurchase.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
+    # Получаем заказы обычных пользователей
+    user_orders = PrizePurchase.query.order_by(PrizePurchase.created_at.desc()).all()
+    
+    # Получаем заказы учителей
+    teacher_orders = TeacherPrizePurchase.query.order_by(TeacherPrizePurchase.created_at.desc()).all()
+    
+    # Объединяем и сортируем все заказы по дате создания (новые сверху)
+    all_orders = []
+    
+    # Добавляем заказы обычных пользователей с типом 'user'
+    for order in user_orders:
+        all_orders.append({
+            'id': order.id,
+            'type': 'user',
+            'created_at': order.created_at,
+            'user': order.user,
+            'teacher': None,
+            'prize': order.prize,
+            'quantity': order.quantity,
+            'points_cost': order.points_cost,
+            'status': order.status,
+            'full_name': order.full_name,
+            'phone': order.phone,
+            'address': order.address
+        })
+    
+    # Добавляем заказы учителей с типом 'teacher'
+    for order in teacher_orders:
+        all_orders.append({
+            'id': order.id,
+            'type': 'teacher',
+            'created_at': order.created_at,
+            'user': None,
+            'teacher': order.teacher,
+            'prize': order.prize,
+            'quantity': order.quantity,
+            'points_cost': order.points_cost,
+            'status': order.status,
+            'full_name': order.full_name,
+            'phone': order.phone,
+            'address': order.address
+        })
+    
+    # Сортируем по дате создания (новые сверху)
+    all_orders.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # Пагинация
+    total_orders = len(all_orders)
+    total_pages = (total_orders + per_page - 1) // per_page
+    
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    orders_page = all_orders[start_idx:end_idx]
+    
+    # Создаем объект пагинации
+    class Pagination:
+        def __init__(self, items, page, per_page, total, pages):
+            self.items = items
+            self.page = page
+            self.per_page = per_page
+            self.total = total
+            self.pages = pages
+            self.has_prev = page > 1
+            self.has_next = page < pages
+            self.prev_num = page - 1 if page > 1 else None
+            self.next_num = page + 1 if page < pages else None
+        
+        def iter_pages(self, left_edge=2, left_current=2, right_current=5, right_edge=2):
+            """
+            Генерирует номера страниц для пагинации
+            """
+            last = 0
+            for num in range(1, self.pages + 1):
+                if (num <= left_edge or 
+                    (num > self.page - left_current - 1 and 
+                     num < self.page + right_current) or 
+                    num > self.pages - right_edge):
+                    if last + 1 != num:
+                        yield None
+                    yield num
+                    last = num
+    
+    orders = Pagination(orders_page, page, per_page, total_orders, total_pages)
     
     return render_template('admin/orders.html', 
                          title='Управление заявками',
@@ -5662,16 +5844,38 @@ def admin_order_details(order_id):
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Недостаточно прав'})
     
-    order = PrizePurchase.query.get_or_404(order_id)
+    # Пытаемся найти заказ в таблице обычных пользователей
+    order = PrizePurchase.query.get(order_id)
+    order_type = 'user'
+    
+    # Если не найден, ищем в таблице учителей
+    if not order:
+        order = TeacherPrizePurchase.query.get(order_id)
+        order_type = 'teacher'
+    
+    if not order:
+        return jsonify({'success': False, 'message': 'Заказ не найден'}), 404
+    
+    # Формируем данные пользователя в зависимости от типа
+    if order_type == 'user':
+        user_data = {
+            'username': order.user.username,
+            'email': order.user.email,
+            'type': 'Ученик'
+        }
+    else:
+        user_data = {
+            'username': order.teacher.full_name,
+            'email': order.teacher.email,
+            'type': 'Учитель'
+        }
     
     return jsonify({
         'id': order.id,
+        'type': order_type,
         'created_at': order.created_at.strftime('%d.%m.%Y %H:%M'),
         'status': order.status,
-        'user': {
-            'username': order.user.username,
-            'email': order.user.email
-        },
+        'user': user_data,
         'prize': {
             'name': order.prize.name
         },
@@ -5688,7 +5892,15 @@ def admin_toggle_order_status(order_id):
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Недостаточно прав'})
     
-    order = PrizePurchase.query.get_or_404(order_id)
+    # Пытаемся найти заказ в таблице обычных пользователей
+    order = PrizePurchase.query.get(order_id)
+    
+    # Если не найден, ищем в таблице учителей
+    if not order:
+        order = TeacherPrizePurchase.query.get(order_id)
+    
+    if not order:
+        return jsonify({'success': False, 'message': 'Заказ не найден'}), 404
     
     # Меняем статус заказа
     order.status = 'completed' if order.status == 'pending' else 'pending'
@@ -5705,7 +5917,15 @@ def admin_delete_order(order_id):
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': 'Недостаточно прав'})
     
-    order = PrizePurchase.query.get_or_404(order_id)
+    # Пытаемся найти заказ в таблице обычных пользователей
+    order = PrizePurchase.query.get(order_id)
+    
+    # Если не найден, ищем в таблице учителей
+    if not order:
+        order = TeacherPrizePurchase.query.get(order_id)
+    
+    if not order:
+        return jsonify({'success': False, 'message': 'Заказ не найден'}), 404
     
     # Удаляем заказ
     db.session.delete(order)
@@ -7038,6 +7258,17 @@ class Teacher(UserMixin, db.Model):
     # Связь с образовательным учреждением
     educational_institution_id = db.Column(db.Integer, db.ForeignKey('educational_institutions.id'), nullable=True)
     educational_institution = db.relationship('EducationalInstitution', backref=db.backref('teachers', lazy=True))
+    
+    # Связи с корзиной и покупками призов
+    @property
+    def cart_items(self):
+        """Возвращает товары в корзине для учителя"""
+        return TeacherCartItem.query.filter_by(teacher_id=self.id).all()
+    
+    @property
+    def prize_purchases(self):
+        """Возвращает покупки призов для учителя"""
+        return TeacherPrizePurchase.query.filter_by(teacher_id=self.id).all()
     
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)

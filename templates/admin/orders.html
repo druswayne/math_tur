@@ -33,9 +33,19 @@
                             <td>{{ order.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>
                                 <div>
-                                    <strong>{{ order.user.username }}</strong>
-                                    <br>
-                                    <small class="text-muted">{{ order.user.email }}</small>
+                                    {% if order.type == 'user' %}
+                                        <strong>{{ order.user.username }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ order.user.email }}</small>
+                                        <br>
+                                        <span class="badge bg-primary">Ученик</span>
+                                    {% else %}
+                                        <strong>{{ order.teacher.full_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ order.teacher.email }}</small>
+                                        <br>
+                                        <span class="badge bg-info">Учитель</span>
+                                    {% endif %}
                                 </div>
                             </td>
                             <td>
@@ -196,6 +206,7 @@ function showOrderDetails(orderId) {
                     <h6>Информация о пользователе</h6>
                     <p><strong>Логин:</strong> ${data.user.username}</p>
                     <p><strong>Email:</strong> ${data.user.email}</p>
+                    <p><strong>Тип:</strong> <span class="badge ${data.type === 'teacher' ? 'bg-info' : 'bg-primary'}">${data.user.type}</span></p>
                 </div>
                 <div class="mb-3">
                     <h6>Информация о товаре</h6>
