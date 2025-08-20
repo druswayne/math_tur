@@ -159,6 +159,57 @@
     font-weight: bold;
 }
 
+/* Стили для флагов в кнопках оплаты */
+.flag {
+    display: inline-block;
+    width: 20px;
+    height: 15px;
+    margin-right: 8px;
+    border: 1px solid #ccc;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
+.flag-by {
+    background: linear-gradient(to bottom, #d52b1e 0%, #d52b1e 70%, #009739 70%, #009739 100%);
+    position: relative;
+}
+
+.flag-by::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 15px;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 1px,
+        #fff 1px,
+        #fff 2px
+    );
+    opacity: 0.8;
+}
+
+.flag-ru {
+    background: linear-gradient(to bottom, #fff 0%, #fff 33%, #0039a6 33%, #0039a6 66%, #d52b1e 66%, #d52b1e 100%);
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 576px) {
+    .flag {
+        width: 18px;
+        height: 13px;
+        margin-right: 6px;
+    }
+    
+    #paymentModal .btn-outline-primary {
+        font-size: 0.9rem;
+        padding: 0.75rem 0.5rem;
+    }
+}
+
 
 </style>
 
@@ -351,14 +402,14 @@ function selectPaymentSystem(system, paymentMethod = null) {
                     <div class="row g-2">
                         <div class="col-12">
                             <button type="button" class="btn btn-outline-primary w-100 py-2" onclick="selectPaymentSystem('express_pay', 'erip')">
-                                <i class="fas fa-university me-2"></i>
+                                <span class="flag flag-by"></span>
                                 <span style="color: #000000; font-weight: bold;">Оплатить в BYN</span><br>
                                 <small class="text-muted">ЕРИП, E-POS, WebPay*, МИР</small>
                             </button>
                         </div>
                         <div class="col-12">
                             <button type="button" class="btn btn-outline-primary w-100 py-2" onclick="selectPaymentSystem('yukassa')">
-                                <i class="fas fa-credit-card me-2"></i>
+                                <span class="flag flag-ru"></span>
                                 <span style="color: #000000; font-weight: bold;">Оплатить в ₽</span><br>
                                 <small class="text-muted">ЮKassa</small>
                             </button>
