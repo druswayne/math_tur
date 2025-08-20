@@ -46,6 +46,232 @@ import math
 from dotenv import load_dotenv
 import time
 load_dotenv()
+
+# Функции для блокировки планировщика
+import os
+import time
+import platform
+from contextlib import contextmanager
+
+# Импорт в зависимости от платформы
+if platform.system() != 'Windows':
+    import fcntl
+else:
+    import msvcrt
+
+def get_lock_file_path():
+    """Возвращает путь к файлу блокировки в зависимости от ОС"""
+    if platform.system() == 'Windows':
+        return os.path.join(os.environ.get('TEMP', 'C:\\temp'), 'math_tur_scheduler.lock')
+    else:
+        return '/tmp/math_tur_scheduler.lock'
+
+@contextmanager
+def scheduler_lock():
+    """Кроссплатформенный контекстный менеджер для блокировки планировщика"""
+    lock_file = get_lock_file_path()
+    
+    if platform.system() == 'Windows':
+        # Windows версия
+        try:
+            # Создаем файл блокировки
+            fd = os.open(lock_file, os.O_CREAT | os.O_RDWR | os.O_TRUNC)
+            
+            # Пытаемся заблокировать файл (Windows)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            
+            # Записываем PID воркера
+            worker_pid = os.getpid()
+            os.write(fd, str(worker_pid).encode())
+            os.fsync(fd)
+            
+            print(f"🔒 Планировщик заблокирован воркером PID: {worker_pid} (Windows)")
+            
+            yield True
+            
+        except (IOError, OSError) as e:
+            # Блокировка уже занята другим воркером
+            print(f"🔒 Планировщик уже заблокирован другим воркером (Windows)")
+            try:
+                os.close(fd)
+            except:
+                pass
+            yield False
+            
+        finally:
+            try:
+                # Освобождаем блокировку
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                os.close(fd)
+                print(f"🔓 Планировщик разблокирован (Windows)")
+            except:
+                pass
+    else:
+        # Unix/Linux версия
+        try:
+            # Создаем файл блокировки
+            fd = os.open(lock_file, os.O_CREAT | os.O_RDWR)
+            
+            # Пытаемся получить эксклюзивную блокировку
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            
+            # Если блокировка получена, записываем PID воркера
+            worker_pid = os.getpid()
+            os.write(fd, str(worker_pid).encode())
+            os.fsync(fd)
+            
+            print(f"🔒 Планировщик заблокирован воркером PID: {worker_pid} (Unix)")
+            
+            yield True
+            
+        except IOError:
+            # Блокировка уже занята другим воркером
+            print(f"🔒 Планировщик уже заблокирован другим воркером (Unix)")
+            yield False
+            
+        finally:
+            try:
+                # Освобождаем блокировку
+                fcntl.flock(fd, fcntl.LOCK_UN)
+                os.close(fd)
+                print(f"🔓 Планировщик разблокирован (Unix)")
+            except:
+                pass
+
+def is_scheduler_available():
+    """Проверяет, доступен ли планировщик для блокировки"""
+    lock_file = get_lock_file_path()
+    
+    if platform.system() == 'Windows':
+        # Windows версия
+        try:
+            fd = os.open(lock_file, os.O_CREAT | os.O_RDWR)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            os.close(fd)
+            return True
+        except (IOError, OSError):
+            try:
+                os.close(fd)
+            except:
+                pass
+            return False
+    else:
+        # Unix/Linux версия
+        try:
+            fd = os.open(lock_file, os.O_CREAT | os.O_RDWR)
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)
+            return True
+        except IOError:
+            return False
+
+# Функции для блокировки через БД
+@contextmanager
+def scheduler_db_lock(lock_name='scheduler_main', timeout_minutes=30):
+    """Контекстный менеджер для блокировки планировщика через БД"""
+    worker_pid = os.getpid()
+    expires_at = datetime.now() + timedelta(minutes=timeout_minutes)
+    
+    try:
+        # Очищаем истекшие блокировки
+        SchedulerLock.query.filter(
+            SchedulerLock.expires_at < datetime.now()
+        ).delete()
+        db.session.commit()
+        
+        # Пытаемся создать блокировку
+        lock = SchedulerLock(
+            lock_name=lock_name,
+            worker_pid=worker_pid,
+            server_id=SERVER_ID or 'unknown',
+            expires_at=expires_at,
+            is_active=True
+        )
+        
+        db.session.add(lock)
+        db.session.commit()
+        
+        print(f"🔒 Планировщик заблокирован воркером PID: {worker_pid} через БД")
+        
+        yield True
+        
+    except Exception as e:
+        # Блокировка уже существует
+        print(f"🔒 Планировщик уже заблокирован другим воркером (БД): {e}")
+        db.session.rollback()
+        yield False
+        
+    finally:
+        try:
+            # Удаляем блокировку
+            SchedulerLock.query.filter_by(
+                lock_name=lock_name,
+                worker_pid=worker_pid
+            ).delete()
+            db.session.commit()
+            print(f"🔓 Планировщик разблокирован (БД)")
+        except:
+            pass
+
+def acquire_scheduler_lock_db(lock_name='scheduler_main', timeout_minutes=30):
+    """Пытается получить блокировку планировщика через БД"""
+    worker_pid = os.getpid()
+    expires_at = datetime.now() + timedelta(minutes=timeout_minutes)
+    
+    try:
+        # Очищаем истекшие блокировки
+        SchedulerLock.query.filter(
+            SchedulerLock.expires_at < datetime.now()
+        ).delete()
+        db.session.commit()
+        
+        # Проверяем, есть ли активная блокировка
+        existing_lock = SchedulerLock.query.filter_by(
+            lock_name=lock_name,
+            is_active=True
+        ).first()
+        
+        if existing_lock:
+            return False
+        
+        # Создаем новую блокировку
+        lock = SchedulerLock(
+            lock_name=lock_name,
+            worker_pid=worker_pid,
+            server_id=SERVER_ID or 'unknown',
+            expires_at=expires_at,
+            is_active=True
+        )
+        
+        db.session.add(lock)
+        db.session.commit()
+        
+        print(f"🔒 Планировщик заблокирован воркером PID: {worker_pid} через БД")
+        return True
+        
+    except Exception as e:
+        print(f"Ошибка при получении блокировки: {e}")
+        db.session.rollback()
+        return False
+
+def release_scheduler_lock_db(lock_name='scheduler_main'):
+    """Освобождает блокировку планировщика через БД"""
+    worker_pid = os.getpid()
+    
+    try:
+        SchedulerLock.query.filter_by(
+            lock_name=lock_name,
+            worker_pid=worker_pid
+        ).delete()
+        db.session.commit()
+        print(f"🔓 Планировщик разблокирован (БД)")
+        return True
+    except Exception as e:
+        print(f"Ошибка при освобождении блокировки: {e}")
+        db.session.rollback()
+        return False
 # Переменная окружения для уникального идентификатора сервера
 # В продакшене должна быть установлена в .env файле
 SERVER_ID = os.environ.get('SERVER_ID')
@@ -5910,6 +6136,130 @@ def admin_teacher_details(teacher_id):
                          students=students_to_show,
                          students_pagination=students_pagination)
 
+# Глобальная переменная для отслеживания инициализации планировщика
+_scheduler_initialized = False
+_scheduler_lock_global = threading.Lock()
+
+def try_acquire_scheduler():
+    """Пытается получить планировщик если он не занят"""
+    global _scheduler_initialized
+    
+    with _scheduler_lock_global:
+        if _scheduler_initialized:
+            return False
+        
+        use_db_lock = os.environ.get('USE_DB_LOCK', 'false').lower() == 'true'
+        
+        if use_db_lock:
+            # Используем блокировку через БД
+            if acquire_scheduler_lock_db('scheduler_main', timeout_minutes=30):
+                print("🔧 Этот воркер подхватил планировщик (БД блокировка)")
+                print("Восстановление задач планировщика...")
+                restore_scheduler_jobs()
+
+                print("Инициализация задач планировщика...")
+                initialize_scheduler_jobs()
+
+                print("Проверка истекших платежей...")
+                check_expired_payments()
+
+                # Проверяем состояние планировщика
+                print(f"Состояние планировщика после инициализации: {scheduler.running}")
+                print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+                for job in scheduler.get_jobs():
+                    print(f"  - {job.id}: {job.trigger}")
+                
+                _scheduler_initialized = True
+                return True
+            else:
+                print("🔧 Планировщик уже занят другим воркером (БД)")
+                return False
+        else:
+            # Используем файловую блокировку
+            lock_file = get_lock_file_path()
+            
+            if platform.system() == 'Windows':
+                # Windows версия
+                try:
+                    fd = os.open(lock_file, os.O_CREAT | os.O_RDWR | os.O_TRUNC)
+                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                    
+                    worker_pid = os.getpid()
+                    os.write(fd, str(worker_pid).encode())
+                    os.fsync(fd)
+                    
+                    print("🔧 Этот воркер подхватил планировщик (файловая блокировка Windows)")
+                    print("Восстановление задач планировщика...")
+                    restore_scheduler_jobs()
+
+                    print("Инициализация задач планировщика...")
+                    initialize_scheduler_jobs()
+
+                    print("Проверка истекших платежей...")
+                    check_expired_payments()
+
+                    # Проверяем состояние планировщика
+                    print(f"Состояние планировщика после инициализации: {scheduler.running}")
+                    print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+                    for job in scheduler.get_jobs():
+                        print(f"  - {job.id}: {job.trigger}")
+                    
+                    _scheduler_initialized = True
+                    return True
+                except (IOError, OSError):
+                    print("🔧 Планировщик уже занят другим воркером (файл Windows)")
+                    return False
+            else:
+                # Unix/Linux версия
+                try:
+                    fd = os.open(lock_file, os.O_CREAT | os.O_RDWR)
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    
+                    worker_pid = os.getpid()
+                    os.write(fd, str(worker_pid).encode())
+                    os.fsync(fd)
+                    
+                    print("🔧 Этот воркер подхватил планировщик (файловая блокировка Unix)")
+                    print("Восстановление задач планировщика...")
+                    restore_scheduler_jobs()
+
+                    print("Инициализация задач планировщика...")
+                    initialize_scheduler_jobs()
+
+                    print("Проверка истекших платежей...")
+                    check_expired_payments()
+
+                    # Проверяем состояние планировщика
+                    print(f"Состояние планировщика после инициализации: {scheduler.running}")
+                    print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+                    for job in scheduler.get_jobs():
+                        print(f"  - {job.id}: {job.trigger}")
+                    
+                    _scheduler_initialized = True
+                    return True
+                except IOError:
+                    print("🔧 Планировщик уже занят другим воркером (файл Unix)")
+                    return False
+
+def start_scheduler_recovery_thread():
+    """Запускает поток для мониторинга и восстановления планировщика"""
+    def recovery_worker():
+        while True:
+            try:
+                time.sleep(30)  # Проверяем каждые 30 секунд
+                
+                # Если планировщик не инициализирован, пытаемся его получить
+                if not _scheduler_initialized:
+                    print("🔍 Планировщик не активен, пытаемся подхватить...")
+                    try_acquire_scheduler()
+                
+            except Exception as e:
+                print(f"Ошибка в потоке восстановления планировщика: {e}")
+    
+    recovery_thread = threading.Thread(target=recovery_worker, daemon=True, name="SchedulerRecovery")
+    recovery_thread.start()
+    print("🔄 Поток восстановления планировщика запущен")
+
 @app.before_first_request
 def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
@@ -5929,20 +6279,11 @@ def clear_sessions():
         print("Очистка сессий...")
         cleanup_all_sessions()
 
-        print("Восстановление задач планировщика...")
-        restore_scheduler_jobs()
-
-        print("Инициализация задач планировщика...")
-        initialize_scheduler_jobs()
-
-        print("Проверка истекших платежей...")
-        check_expired_payments()
-
-        # Проверяем состояние планировщика
-        print(f"Состояние планировщика после инициализации: {scheduler.running}")
-        print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
-        for job in scheduler.get_jobs():
-            print(f"  - {job.id}: {job.trigger}")
+        # Пытаемся получить планировщик
+        try_acquire_scheduler()
+        
+        # Запускаем поток восстановления планировщика
+        start_scheduler_recovery_thread()
 
         print("Приложение готово к запуску!")
 
@@ -6621,6 +6962,18 @@ class SchedulerJob(db.Model):
     
     # Связь с турниром (если задача связана с турниром)
     tournament = db.relationship('Tournament', backref=db.backref('scheduler_jobs', lazy=True))
+
+class SchedulerLock(db.Model):
+    """Модель для блокировки планировщика между воркерами"""
+    __tablename__ = "scheduler_locks"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    lock_name = db.Column(db.String(100), unique=True, nullable=False, index=True)  # Имя блокировки
+    worker_pid = db.Column(db.Integer, nullable=False)  # PID воркера, который держит блокировку
+    server_id = db.Column(db.String(100), nullable=False)  # ID сервера
+    acquired_at = db.Column(db.DateTime, default=datetime.now)  # Когда получена блокировка
+    expires_at = db.Column(db.DateTime, nullable=False)  # Когда истекает блокировка
+    is_active = db.Column(db.Boolean, default=True)  # Активна ли блокировка
 
 class EducationalInstitution(db.Model):
     __tablename__ = "educational_institutions"
@@ -7373,7 +7726,7 @@ def initialize_scheduler_jobs():
         if not existing_cleanup_job:
             add_scheduler_job(
                 cleanup_old_sessions,
-                datetime.now() + timedelta(hours=1),  # Первый запуск через 1 час
+                datetime.now() + timedelta(hours=1),  # run_date не используется для interval
                 None,
                 'cleanup_sessions',
                 interval_hours=24  # Интервальная задача каждые 24 часа
