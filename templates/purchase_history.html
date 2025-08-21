@@ -280,6 +280,9 @@
                                             {% if purchase.prize.is_unique %}
                                             <span class="badge bg-warning text-dark ms-1">Уникальный</span>
                                             {% endif %}
+                                            {% if purchase.season_number %}
+                                            <span class="badge bg-info text-dark ms-1">Сезон #{{ purchase.season_number }}</span>
+                                            {% endif %}
                                         </h6>
                                         <small class="text-muted">{{ purchase.prize.description }}</small>
                                     </div>
@@ -334,6 +337,9 @@
                                 {{ purchase.prize.name }}
                                 {% if purchase.prize.is_unique %}
                                 <span class="badge bg-warning text-dark ms-1">Уникальный</span>
+                                {% endif %}
+                                {% if purchase.season_number %}
+                                <span class="badge bg-info text-dark ms-1">Сезон #{{ purchase.season_number }}</span>
                                 {% endif %}
                             </h6>
                             <small class="text-muted">{{ purchase.prize.description }}</small>

@@ -1159,6 +1159,7 @@ class PrizePurchase(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     address = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
+    season_number = db.Column(db.Integer, nullable=True)  # Номер сезона, в котором была покупка
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     
     user = db.relationship('User', backref=db.backref('prize_purchases', lazy=True))
@@ -1174,6 +1175,7 @@ class TeacherPrizePurchase(db.Model):
     phone = db.Column(db.String(20), nullable=False)
     address = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='pending')
+    season_number = db.Column(db.Integer, nullable=True)  # Номер сезона, в котором была покупка
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     
     teacher = db.relationship('Teacher', backref=db.backref('teacher_prize_purchases', lazy=True))
@@ -1268,6 +1270,7 @@ class TournamentSettings(db.Model):
     is_season_active = db.Column(db.Boolean, default=True)
     allow_category_change = db.Column(db.Boolean, default=True)  # Разрешить изменение группы
     closed_season_message = db.Column(db.Text, nullable=True)
+    current_season_number = db.Column(db.Integer, default=1)  # Номер текущего сезона
     updated_at = db.Column(db.DateTime, default=datetime.now)
 
     @staticmethod
@@ -2864,17 +2867,21 @@ def admin_prizes():
     page = request.args.get('page', 1, type=int)
     per_page = 12  # Количество призов на странице (3x4 сетка)
     
-    # Получаем активные призы с пагинацией, отсортированные по стоимости
-    pagination = Prize.query.filter_by(is_active=True).order_by(Prize.points_cost.asc()).paginate(
+    # Получаем все призы с пагинацией, отсортированные по стоимости
+    pagination = Prize.query.order_by(Prize.points_cost.asc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
     
     prizes = pagination.items
     
+    # Получаем настройки турниров для отображения текущего сезона
+    tournament_settings = TournamentSettings.get_settings()
+    
     return render_template('admin/prizes.html', 
                          title='Управление призами',
                          prizes=prizes,
-                         pagination=pagination)
+                         pagination=pagination,
+                         tournament_settings=tournament_settings)
 
 @app.route('/admin/shop/prizes/add', methods=['POST'])
 @login_required
@@ -5633,22 +5640,27 @@ def add_to_cart():
     
     # Проверяем, не является ли приз уникальным
     if prize.is_unique:
-        # Проверяем, не покупал ли пользователь уже этот приз (все статусы кроме отмененного)
+        # Получаем текущий номер сезона
+        current_season = TournamentSettings.get_settings().current_season_number
+        
+        # Проверяем, не покупал ли пользователь уже этот приз в текущем сезоне (все статусы кроме отмененного)
         if isinstance(current_user, Teacher):
             existing_purchase = TeacherPrizePurchase.query.filter(
                 TeacherPrizePurchase.teacher_id == current_user.id,
                 TeacherPrizePurchase.prize_id == prize_id,
+                TeacherPrizePurchase.season_number == current_season,
                 TeacherPrizePurchase.status != 'cancelled'
             ).first()
         else:
             existing_purchase = PrizePurchase.query.filter(
                 PrizePurchase.user_id == current_user.id,
                 PrizePurchase.prize_id == prize_id,
+                PrizePurchase.season_number == current_season,
                 PrizePurchase.status != 'cancelled'
             ).first()
         
         if existing_purchase:
-            return jsonify({'success': False, 'message': 'Вы уже приобрели этот уникальный приз'})
+            return jsonify({'success': False, 'message': 'Вы уже приобрели этот уникальный приз в текущем сезоне'})
         
         # Для уникального приза устанавливаем количество 1
         quantity = 1
@@ -5841,24 +5853,31 @@ def checkout():
         
         # Проверяем, не является ли приз уникальным и не покупал ли пользователь его уже
         if item.prize.is_unique:
+            # Получаем текущий номер сезона
+            current_season = TournamentSettings.get_settings().current_season_number
+            
             if isinstance(current_user, Teacher):
                 existing_purchase = TeacherPrizePurchase.query.filter(
                     TeacherPrizePurchase.teacher_id == current_user.id,
                     TeacherPrizePurchase.prize_id == item.prize.id,
+                    TeacherPrizePurchase.season_number == current_season,
                     TeacherPrizePurchase.status != 'cancelled'
                 ).first()
             else:
                 existing_purchase = PrizePurchase.query.filter(
                     PrizePurchase.user_id == current_user.id,
                     PrizePurchase.prize_id == item.prize.id,
+                    PrizePurchase.season_number == current_season,
                     PrizePurchase.status != 'cancelled'
                 ).first()
             
             if existing_purchase:
-                return jsonify({'success': False, 'message': f'Вы уже приобрели уникальный приз "{item.prize.name}"'})
+                return jsonify({'success': False, 'message': f'Вы уже приобрели уникальный приз "{item.prize.name}" в текущем сезоне'})
     
     try:
         # Создаем записи о покупке для каждого товара
+        current_season = TournamentSettings.get_settings().current_season_number
+        
         for item in cart_items:
             # Создаем запись о покупке
             if isinstance(current_user, Teacher):
@@ -5870,7 +5889,8 @@ def checkout():
                     full_name=full_name,
                     phone=phone,
                     address=address,
-                    status='pending'
+                    status='pending',
+                    season_number=current_season
                 )
             else:
                 purchase = PrizePurchase(
@@ -5881,7 +5901,8 @@ def checkout():
                     full_name=full_name,
                     phone=phone,
                     address=address,
-                    status='pending'
+                    status='pending',
+                    season_number=current_season
                 )
             db.session.add(purchase)
             
@@ -6203,11 +6224,22 @@ def tournament_settings():
     settings = TournamentSettings.get_settings()
     
     if request.method == 'POST':
+        # Проверяем, был ли сезон закрыт и теперь открывается
+        was_season_inactive = not settings.is_season_active
         settings.is_season_active = 'is_season_active' in request.form
+        
+        # Если сезон был закрыт и теперь открывается, увеличиваем номер сезона
+        if was_season_inactive and settings.is_season_active:
+            settings.current_season_number += 1
+            flash(f'Сезон турниров открыт! Начат сезон #{settings.current_season_number}', 'success')
+        
         settings.allow_category_change = 'allow_category_change' in request.form
         settings.closed_season_message = request.form.get('closed_season_message', '')
         db.session.commit()
-        flash('Настройки турниров обновлены', 'success')
+        
+        if not was_season_inactive or not settings.is_season_active:
+            flash('Настройки турниров обновлены', 'success')
+        
         return redirect(url_for('tournament_settings'))
     
     return render_template('admin/tournament_settings.html', settings=settings)
