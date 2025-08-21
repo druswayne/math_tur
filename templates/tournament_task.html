@@ -63,8 +63,16 @@
                         {% if task.image %}
                         <div class="text-center mb-4">
                             <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}" 
-                                 class="img-fluid no-select" 
-                                 alt="Изображение к задаче">
+                                 class="img-fluid task-image" 
+                                 alt="Изображение к задаче"
+                                 data-bs-toggle="modal" 
+                                 data-bs-target="#imageModal"
+                                 style="cursor: pointer; max-height: 400px; object-fit: contain;">
+                            <div class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-search-plus me-1"></i>Нажмите на изображение для увеличения
+                                </small>
+                            </div>
                         </div>
                         {% endif %}
                         
@@ -113,6 +121,46 @@
     </div>
 </div>
 
+<!-- Модальное окно для просмотра изображения -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Изображение к задаче</h5>
+                <div class="zoom-controls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomIn">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="zoomOut">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="resetZoom">
+                        <i class="fas fa-expand-arrows-alt"></i>
+                    </button>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <div class="image-container" id="imageContainer">
+                    <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}" 
+                         class="zoomable-image" 
+                         alt="Изображение к задаче"
+                         id="zoomableImage">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="zoom-info">
+                    <small class="text-muted">
+                        <span id="zoomLevel">100%</span> | 
+                        <span id="zoomHint">Используйте колесико мыши для зума, зажмите левую кнопку для перемещения</span>
+                    </small>
+                </div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 
 /* Стили для защиты от копирования */
@@ -122,6 +170,106 @@
     -moz-user-select: none;
     -ms-user-select: none;
     pointer-events: none;
+}
+
+/* Стили для изображения задачи */
+.task-image {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+}
+
+.task-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #007bff;
+}
+
+/* Стили для модального окна изображения */
+#imageModal .modal-dialog {
+    max-width: 90vw;
+}
+
+#imageModal .modal-body {
+    background-color: #f8f9fa;
+    overflow: hidden;
+    position: relative;
+}
+
+#imageModal img {
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для зума изображения */
+.image-container {
+    width: 100%;
+    height: 70vh;
+    overflow: hidden;
+    position: relative;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.zoomable-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transition: transform 0.1s ease;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.zoomable-image:active {
+    cursor: grabbing;
+}
+
+.zoomable-image.zoomed {
+    cursor: grab;
+}
+
+/* Контролы зума */
+.zoom-controls {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.zoom-controls .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.zoom-info {
+    flex-grow: 1;
+    text-align: left;
+}
+
+/* Мобильные стили */
+@media (max-width: 768px) {
+    .image-container {
+        height: 60vh;
+    }
+    
+    .zoom-controls {
+        gap: 3px;
+    }
+    
+    .zoom-controls .btn {
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+    
+    #zoomHint {
+        display: none;
+    }
 }
 
 .task-content {
@@ -435,6 +583,230 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Обработка модального окна изображения с зумом
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        const imageContainer = document.getElementById('imageContainer');
+        const zoomableImage = document.getElementById('zoomableImage');
+        const zoomInBtn = document.getElementById('zoomIn');
+        const zoomOutBtn = document.getElementById('zoomOut');
+        const resetZoomBtn = document.getElementById('resetZoom');
+        const zoomLevel = document.getElementById('zoomLevel');
+        
+        let currentZoom = 1;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let translateX = 0;
+        let translateY = 0;
+        
+        // Функция обновления трансформации
+        function updateTransform() {
+            zoomableImage.style.transform = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${currentZoom})`;
+            zoomLevel.textContent = Math.round(currentZoom * 100) + '%';
+        }
+        
+        // Функция сброса зума
+        function resetZoom() {
+            currentZoom = 1;
+            translateX = 0;
+            translateY = 0;
+            constrainTranslation();
+            updateTransform();
+            zoomableImage.classList.remove('zoomed');
+        }
+        
+        // Функция зума
+        function zoom(delta, x, y) {
+            const oldZoom = currentZoom;
+            currentZoom = Math.max(0.5, Math.min(5, currentZoom + delta));
+            
+            if (currentZoom !== oldZoom) {
+                // Центрируем зум на позиции курсора
+                const rect = imageContainer.getBoundingClientRect();
+                const mouseX = x - rect.left;
+                const mouseY = y - rect.top;
+                
+                const zoomRatio = currentZoom / oldZoom;
+                translateX = mouseX - (mouseX - translateX) * zoomRatio;
+                translateY = mouseY - (mouseY - translateY) * zoomRatio;
+                
+                // Ограничиваем перемещение, чтобы изображение не уходило за границы
+                constrainTranslation();
+                
+                updateTransform();
+                
+                if (currentZoom > 1) {
+                    zoomableImage.classList.add('zoomed');
+                } else {
+                    zoomableImage.classList.remove('zoomed');
+                }
+            }
+        }
+        
+        // Функция ограничения перемещения
+        function constrainTranslation() {
+            const rect = imageContainer.getBoundingClientRect();
+            const imgRect = zoomableImage.getBoundingClientRect();
+            
+            // Вычисляем границы для перемещения
+            const maxTranslateX = Math.max(0, (imgRect.width * currentZoom - rect.width) / 2);
+            const maxTranslateY = Math.max(0, (imgRect.height * currentZoom - rect.height) / 2);
+            
+            // Ограничиваем перемещение
+            translateX = Math.max(-maxTranslateX, Math.min(maxTranslateX, translateX));
+            translateY = Math.max(-maxTranslateY, Math.min(maxTranslateY, translateY));
+        }
+        
+        // Обработчик колесика мыши
+        imageContainer.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            zoom(delta, e.clientX, e.clientY);
+        });
+        
+        // Обработчики кнопок зума
+        zoomInBtn.addEventListener('click', function() {
+            const rect = imageContainer.getBoundingClientRect();
+            zoom(0.2, rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+        
+        zoomOutBtn.addEventListener('click', function() {
+            const rect = imageContainer.getBoundingClientRect();
+            zoom(-0.2, rect.left + rect.width / 2, rect.top + rect.height / 2);
+        });
+        
+        resetZoomBtn.addEventListener('click', resetZoom);
+        
+        // Обработчики перетаскивания (десктоп)
+        zoomableImage.addEventListener('mousedown', function(e) {
+            if (currentZoom > 1) {
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+                zoomableImage.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                constrainTranslation();
+                updateTransform();
+            }
+        });
+        
+        document.addEventListener('mouseup', function() {
+            if (isDragging) {
+                isDragging = false;
+                zoomableImage.style.cursor = 'grab';
+            }
+        });
+        
+        // Обработчики для мобильных устройств
+        let initialDistance = 0;
+        let initialZoom = 1;
+        let initialTranslateX = 0;
+        let initialTranslateY = 0;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+        
+        // Обработчик касания для зума
+        imageContainer.addEventListener('touchstart', function(e) {
+            if (e.touches.length === 2) {
+                // Два пальца - зум
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                initialDistance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+                initialZoom = currentZoom;
+                initialTranslateX = translateX;
+                initialTranslateY = translateY;
+            } else if (e.touches.length === 1) {
+                // Один палец - перемещение
+                const touch = e.touches[0];
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+            }
+        });
+        
+        imageContainer.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Зум двумя пальцами
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const distance = Math.sqrt(
+                    Math.pow(touch2.clientX - touch1.clientX, 2) +
+                    Math.pow(touch2.clientY - touch1.clientY, 2)
+                );
+                
+                const zoomDelta = (distance - initialDistance) / 100;
+                currentZoom = Math.max(0.5, Math.min(5, initialZoom + zoomDelta));
+                
+                // Центрируем зум
+                const centerX = (touch1.clientX + touch2.clientX) / 2;
+                const centerY = (touch1.clientY + touch2.clientY) / 2;
+                const rect = imageContainer.getBoundingClientRect();
+                const mouseX = centerX - rect.left;
+                const mouseY = centerY - rect.top;
+                
+                const zoomRatio = currentZoom / initialZoom;
+                translateX = mouseX - (mouseX - initialTranslateX) * zoomRatio;
+                translateY = mouseY - (mouseY - initialTranslateY) * zoomRatio;
+                
+                constrainTranslation();
+                updateTransform();
+                
+                if (currentZoom > 1) {
+                    zoomableImage.classList.add('zoomed');
+                } else {
+                    zoomableImage.classList.remove('zoomed');
+                }
+            } else if (e.touches.length === 1 && currentZoom > 1) {
+                // Перемещение одним пальцем
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - lastTouchX;
+                const deltaY = touch.clientY - lastTouchY;
+                
+                translateX += deltaX;
+                translateY += deltaY;
+                
+                constrainTranslation();
+                
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+                
+                updateTransform();
+            }
+        });
+        
+        imageContainer.addEventListener('touchend', function(e) {
+            // Сброс состояния
+        });
+        
+        // Двойной клик для сброса зума
+        zoomableImage.addEventListener('dblclick', resetZoom);
+        
+        // Закрытие модального окна по клавише Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = bootstrap.Modal.getInstance(imageModal);
+                if (modal && imageModal.classList.contains('show')) {
+                    modal.hide();
+                }
+            }
+        });
+        
+        // Сброс зума при открытии модального окна
+        imageModal.addEventListener('shown.bs.modal', resetZoom);
+    }
 });
 </script>
 {% endblock %} 

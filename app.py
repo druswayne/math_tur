@@ -4993,7 +4993,8 @@ def tournament_task(tournament_id):
                 return render_template('tournament_task.html', 
                                      tournament=tournament, 
                                      task=task,
-                                     timedelta=timedelta)
+                                     timedelta=timedelta,
+                                     now=datetime.now())
     
     # Если нет сохраненной задачи или она уже решена, выбираем новую по простой схеме
     task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
