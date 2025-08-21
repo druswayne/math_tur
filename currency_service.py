@@ -77,7 +77,7 @@ class CurrencyService:
             
             if byn_rate:
                 # Конвертируем: 1 BYN = X RUB
-                return float(byn_rate)*1.05
+                return float(byn_rate)*1.07
             
             return None
             
@@ -95,7 +95,7 @@ class CurrencyService:
             data = response.json()
             
             # Получаем курс RUB к BYN
-            rub_rate = float(data.get('Cur_OfficialRate')/100)*0.95
+            rub_rate = float(data.get('Cur_OfficialRate')/100)*0.93
             if rub_rate:
                 # Конвертируем: 1 BYN = 1/RUB_rate RUB
                 return 1.0 / float(rub_rate)
