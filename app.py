@@ -694,13 +694,28 @@ def end_tournament_job(tournament_id):
                     plist_sorted = sorted(plist, key=lambda p: (-p.score, (p.end_time or current_time) - (p.start_time or current_time)))
                     for rank, participation in enumerate(plist_sorted, 1):
                         participation.place = rank
-                        # Устанавливаем время окончания участия, если оно еще не установлено
-                        if not participation.end_time:
-                            participation.end_time = current_time
-                        # Вычисляем время участия в турнире и добавляем к общему времени пользователя
-                        if participation.start_time and participation.end_time:
-                            time_spent = (participation.end_time - participation.start_time).total_seconds()
-                            participation.user.total_tournament_time += int(time_spent)
+                        
+                        # Проверяем, есть ли у пользователя решенные задачи в этом турнире
+                        solved_tasks = SolvedTask.query.filter_by(
+                            user_id=participation.user_id
+                        ).join(Task).filter(
+                            Task.tournament_id == tournament_id
+                        ).all()
+                        
+                        if solved_tasks:
+                            # Если есть решенные задачи, устанавливаем end_time как время последней решенной задачи
+                            if not participation.end_time:
+                                last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
+                                participation.end_time = last_solved_task.solved_at
+                            
+                            # Вычисляем время участия в турнире и добавляем к общему времени пользователя
+                            if participation.start_time and participation.end_time:
+                                time_spent = (participation.end_time - participation.start_time).total_seconds()
+                                participation.user.total_tournament_time += int(time_spent)
+                        else:
+                            # Если нет решенных задач, время участия = 0
+                            # end_time остается None
+                            pass
                 # Обновляем рейтинги в категориях
                 update_category_ranks()
                 
@@ -3918,11 +3933,23 @@ def teacher_student_tournament_results(student_id, tournament_id):
     
     # Вычисляем время участия
     if participation.end_time:
-        # Если есть время окончания, используем его
+        # Если есть время окончания (пользователь отправил хотя бы один ответ), используем его
         time_spent = (participation.end_time - participation.start_time).total_seconds()
     else:
-        # Если нет времени окончания, используем текущее время
-        time_spent = (datetime.now() - participation.start_time).total_seconds()
+        # Если нет времени окончания (пользователь не отправил ни одного ответа), 
+        # используем время последнего решенного задания или 0
+        last_solved_task = SolvedTask.query.filter_by(
+            user_id=student.id
+        ).join(Task).filter(
+            Task.tournament_id == tournament_id
+        ).order_by(SolvedTask.solved_at.desc()).first()
+        
+        if last_solved_task:
+            # Если есть решенные задачи, используем время последней
+            time_spent = (last_solved_task.solved_at - participation.start_time).total_seconds()
+        else:
+            # Если нет решенных задач, время участия = 0
+            time_spent = 0
     
     # Собираем темы для повторения
     topics_to_review = set()  # Темы неправильно решенных задач
@@ -4977,7 +5004,8 @@ def tournament_task(tournament_id):
     return render_template('tournament_task.html', 
                          tournament=tournament, 
                          task=task,
-                         timedelta=timedelta)
+                         timedelta=timedelta,
+                         now=datetime.now())
 
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
@@ -5140,11 +5168,23 @@ def tournament_results(tournament_id):
     
     # Вычисляем время участия
     if participation.end_time:
-        # Если есть время окончания, используем его
+        # Если есть время окончания (пользователь отправил хотя бы один ответ), используем его
         time_spent = (participation.end_time - participation.start_time).total_seconds()
     else:
-        # Если нет времени окончания, используем текущее время
-        time_spent = (datetime.now() - participation.start_time).total_seconds()
+        # Если нет времени окончания (пользователь не отправил ни одного ответа), 
+        # используем время последнего решенного задания или 0
+        last_solved_task = SolvedTask.query.filter_by(
+            user_id=current_user.id
+        ).join(Task).filter(
+            Task.tournament_id == tournament_id
+        ).order_by(SolvedTask.solved_at.desc()).first()
+        
+        if last_solved_task:
+            # Если есть решенные задачи, используем время последней
+            time_spent = (last_solved_task.solved_at - participation.start_time).total_seconds()
+        else:
+            # Если нет решенных задач, время участия = 0
+            time_spent = 0
     
     # Собираем темы для повторения
     topics_to_review = set()  # Темы неправильно решенных задач

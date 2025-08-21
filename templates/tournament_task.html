@@ -29,8 +29,7 @@
             <div class="card mb-4">
                 <div class="card-body text-center">
                     <h4 class="card-title mb-3">До окончания турнира осталось:</h4>
-                    <div class="countdown-timer" 
-                         data-end="{{ (tournament.start_date + timedelta(minutes=tournament.duration)).isoformat() }}">
+                    <div class="countdown-timer">
                         <div class="countdown-items">
                             <div class="countdown-item">
                                 <div class="countdown-number" id="hours">00</div>
@@ -193,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     }
 
-    const endTime = new Date(document.querySelector('.countdown-timer').dataset.end);
+    let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
     let isSubmitting = false;
     let isLeaving = false;
     
@@ -269,9 +268,19 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.body.appendChild(warningOverlay);
     
+    function getServerTime() {
+        const clientNow = new Date();
+        return new Date(clientNow.getTime() + serverTimeOffset);
+    }
+
     function updateTimer() {
-        const now = new Date();
-        const timeLeft = endTime - now;
+        const startDate = new Date("{{ tournament.start_date.isoformat() }}");
+        const tournamentDuration = {{ tournament.duration }}; // длительность в минутах
+        const serverNow = getServerTime();
+        
+        // Вычисляем время окончания турнира
+        const endTime = new Date(startDate.getTime() + tournamentDuration * 60000);
+        const timeLeft = endTime - serverNow;
         
         if (timeLeft <= 0) {
             // Если время вышло, перенаправляем на страницу результатов
@@ -289,6 +298,11 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
         document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
     }
+    
+    // Инициализация смещения времени при загрузке страницы
+    const serverNow = new Date("{{ now.isoformat() }}");
+    const clientNow = new Date();
+    serverTimeOffset = serverNow.getTime() - clientNow.getTime();
     
     // Обновляем таймер каждую секунду
     updateTimer();
