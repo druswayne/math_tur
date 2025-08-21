@@ -275,7 +275,12 @@
                                          class="img-thumbnail me-2 purchase-history-image">
                                     {% endif %}
                                     <div>
-                                        <h6 class="mb-0">{{ purchase.prize.name }}</h6>
+                                        <h6 class="mb-0">
+                                            {{ purchase.prize.name }}
+                                            {% if purchase.prize.is_unique %}
+                                            <span class="badge bg-warning text-dark ms-1">Уникальный</span>
+                                            {% endif %}
+                                        </h6>
                                         <small class="text-muted">{{ purchase.prize.description }}</small>
                                     </div>
                                 </div>
@@ -325,7 +330,12 @@
                              style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
                         {% endif %}
                         <div class="flex-grow-1">
-                            <h6 class="mb-1">{{ purchase.prize.name }}</h6>
+                            <h6 class="mb-1">
+                                {{ purchase.prize.name }}
+                                {% if purchase.prize.is_unique %}
+                                <span class="badge bg-warning text-dark ms-1">Уникальный</span>
+                                {% endif %}
+                            </h6>
                             <small class="text-muted">{{ purchase.prize.description }}</small>
                         </div>
                     </div>

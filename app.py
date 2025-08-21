@@ -5834,10 +5834,28 @@ def checkout():
     if current_user.balance < total_cost:
         return jsonify({'success': False, 'message': 'Недостаточно баллов для оформления заказа'})
     
-    # Проверяем доступность всех товаров
+    # Проверяем доступность всех товаров и уникальность
     for item in cart_items:
         if item.prize.quantity > 0 and item.quantity > item.prize.quantity:
             return jsonify({'success': False, 'message': f'Товар "{item.prize.name}" доступен только в количестве {item.prize.quantity} шт.'})
+        
+        # Проверяем, не является ли приз уникальным и не покупал ли пользователь его уже
+        if item.prize.is_unique:
+            if isinstance(current_user, Teacher):
+                existing_purchase = TeacherPrizePurchase.query.filter(
+                    TeacherPrizePurchase.teacher_id == current_user.id,
+                    TeacherPrizePurchase.prize_id == item.prize.id,
+                    TeacherPrizePurchase.status != 'cancelled'
+                ).first()
+            else:
+                existing_purchase = PrizePurchase.query.filter(
+                    PrizePurchase.user_id == current_user.id,
+                    PrizePurchase.prize_id == item.prize.id,
+                    PrizePurchase.status != 'cancelled'
+                ).first()
+            
+            if existing_purchase:
+                return jsonify({'success': False, 'message': f'Вы уже приобрели уникальный приз "{item.prize.name}"'})
     
     try:
         # Создаем записи о покупке для каждого товара
@@ -6086,15 +6104,34 @@ def admin_delete_order(order_id):
 @app.route('/purchase/<int:purchase_id>/cancel', methods=['POST'])
 @login_required
 def cancel_purchase(purchase_id):
-    purchase = PrizePurchase.query.get_or_404(purchase_id)
+    # Ищем покупку в таблице обычных пользователей
+    purchase = PrizePurchase.query.get(purchase_id)
+    is_teacher_purchase = False
+    
+    # Если не найдена, ищем в таблице учителей
+    if not purchase:
+        purchase = TeacherPrizePurchase.query.get(purchase_id)
+        is_teacher_purchase = True
+    
+    if not purchase:
+        return jsonify({'success': False, 'message': 'Покупка не найдена'}), 404
     
     # Проверяем, что покупка принадлежит текущему пользователю
-    if purchase.user_id != current_user.id:
-        return jsonify({'success': False, 'message': 'У вас нет прав для отмены этой покупки'}), 403
+    if is_teacher_purchase:
+        if purchase.teacher_id != current_user.id:
+            return jsonify({'success': False, 'message': 'У вас нет прав для отмены этой покупки'}), 403
+    else:
+        if purchase.user_id != current_user.id:
+            return jsonify({'success': False, 'message': 'У вас нет прав для отмены этой покупки'}), 403
     
     # Проверяем, что покупка еще не обработана
     if purchase.status != 'pending':
         return jsonify({'success': False, 'message': 'Нельзя отменить уже обработанную покупку'}), 400
+    
+    # Для уникальных призов добавляем предупреждение
+    warning_message = ""
+    if purchase.prize.is_unique:
+        warning_message = " Внимание: это уникальный приз. После отмены вы сможете купить его снова."
     
     try:
         # Возвращаем баллы пользователю
@@ -6109,7 +6146,7 @@ def cancel_purchase(purchase_id):
         db.session.commit()
         return jsonify({
             'success': True, 
-            'message': 'Покупка успешно отменена. Баллы возвращены на ваш счет.'
+            'message': 'Покупка успешно отменена. Баллы возвращены на ваш счет.' + warning_message
         })
     except Exception as e:
         db.session.rollback()
