@@ -781,6 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const subject = document.getElementById('emailSubject').value.trim();
             const message = document.getElementById('emailMessage').value.trim();
+            const attachmentFile = document.getElementById('emailAttachment').files[0];
             const submitButton = this.querySelector('button[type="submit"]');
             
             if (!subject || !message) {
@@ -796,39 +797,107 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отправка...';
             
             try {
-                const response = await fetch('{{ url_for("admin_mass_email") }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        subject: subject,
-                        message: message
-                    })
-                });
+                // Подготавливаем данные для отправки
+                const requestData = {
+                    subject: subject,
+                    message: message
+                };
                 
-                const data = await response.json();
-                
-                // Закрываем модальное окно
-                const massEmailModal = bootstrap.Modal.getInstance(document.getElementById('massEmailModal'));
-                massEmailModal.hide();
-                
-                // Показываем уведомление
-                alert(data.message);
-                
-                if (data.success) {
-                    // Очищаем форму
-                    document.getElementById('emailSubject').value = '';
-                    document.getElementById('emailMessage').value = '';
+                // Если есть прикрепленный файл, добавляем его
+                if (attachmentFile) {
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        requestData.attachment_filename = attachmentFile.name;
+                        requestData.attachment_data = e.target.result;
+                        
+                        await sendEmail(requestData);
+                    };
+                    reader.readAsDataURL(attachmentFile);
+                } else {
+                    await sendEmail(requestData);
                 }
+                
             } catch (error) {
                 console.error('Ошибка:', error);
                 alert('Произошла ошибка при отправке писем');
-            } finally {
                 submitButton.disabled = false;
                 submitButton.innerHTML = 'Отправить письма';
             }
         });
+    }
+    
+    // Функция отправки письма
+    async function sendEmail(requestData) {
+        try {
+            const response = await fetch('{{ url_for("admin_mass_email") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const data = await response.json();
+            
+            // Закрываем модальное окно
+            const massEmailModal = bootstrap.Modal.getInstance(document.getElementById('massEmailModal'));
+            massEmailModal.hide();
+            
+            // Показываем уведомление
+            alert(data.message);
+            
+            if (data.success) {
+                // Очищаем форму
+                document.getElementById('emailSubject').value = '';
+                document.getElementById('emailMessage').value = '';
+                document.getElementById('emailAttachment').value = '';
+                document.getElementById('attachmentPreview').style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при отправке писем');
+        } finally {
+            const submitButton = document.querySelector('#massEmailForm button[type="submit"]');
+            submitButton.disabled = false;
+            submitButton.innerHTML = 'Отправить письма';
+        }
+    }
+    
+    // Обработчик загрузки изображения
+    const emailAttachment = document.getElementById('emailAttachment');
+    if (emailAttachment) {
+        emailAttachment.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // Проверяем размер файла (5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Размер файла не должен превышать 5MB');
+                    this.value = '';
+                    return;
+                }
+                
+                // Проверяем тип файла
+                if (!file.type.startsWith('image/')) {
+                    alert('Пожалуйста, выберите изображение');
+                    this.value = '';
+                    return;
+                }
+                
+                // Показываем превью
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImage').src = e.target.result;
+                    document.getElementById('attachmentPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Функция удаления прикрепленного файла
+    function removeAttachment() {
+        document.getElementById('emailAttachment').value = '';
+        document.getElementById('attachmentPreview').style.display = 'none';
     }
 });
 </script>
@@ -858,6 +927,20 @@ document.addEventListener('DOMContentLoaded', function() {
                                   placeholder="Введите текст письма"></textarea>
                         <div class="form-text">
                             <small>Максимальная длина текста: 5000 символов</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="emailAttachment" class="form-label">Прикрепить изображение (необязательно)</label>
+                        <input type="file" class="form-control" id="emailAttachment" name="attachment" accept="image/*">
+                        <div class="form-text">
+                            <small>Поддерживаемые форматы: JPG, PNG, GIF. Максимальный размер: 5MB</small>
+                        </div>
+                        <div id="attachmentPreview" class="mt-2" style="display: none;">
+                            <img id="previewImage" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeAttachment()">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
                         </div>
                     </div>
                 </div>

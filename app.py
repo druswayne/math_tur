@@ -1335,6 +1335,81 @@ def send_admin_mass_email(subject, message, recipient_email):
         print(f"Ошибка отправки административного письма пользователю {recipient_email}: {e}")
         raise e
 
+def send_admin_mass_email_with_attachment(subject, message, recipient_email, attachment_filename=None, attachment_data=None):
+    """Отправка административного письма пользователю с вложением"""
+    try:
+        # Создаем отдельную конфигурацию для административных писем
+        admin_mail_config = {
+            'MAIL_SERVER': app.config['MAIL_SERVER'],
+            'MAIL_PORT': app.config['MAIL_PORT'],
+            'MAIL_USE_SSL': app.config['MAIL_USE_SSL'],
+            'MAIL_USE_TLS': app.config['MAIL_USE_TLS'],
+            'MAIL_USERNAME': app.config['MAIL_USERNAME_ADMIN'],
+            'MAIL_PASSWORD': app.config['MAIL_PASSWORD_ADMIN']
+        }
+        
+        # Создаем сообщение с административным отправителем
+        msg = Message(subject,
+                     sender=admin_mail_config['MAIL_USERNAME'],
+                     recipients=[recipient_email])
+        
+        # Если есть прикрепленный файл, встраиваем его в текст письма
+        if attachment_filename and attachment_data:
+            # Конвертируем бинарные данные в base64 для встраивания в HTML
+            import base64
+            base64_image = base64.b64encode(attachment_data).decode('utf-8')
+            
+            # Определяем MIME-тип изображения по расширению файла
+            file_extension = attachment_filename.lower().split('.')[-1]
+            mime_type_map = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif'
+            }
+            mime_type = mime_type_map.get(file_extension, 'image/jpeg')
+            
+            # Создаем HTML-версию с встроенным изображением
+            html_message = f"""
+{message}
+<br><br>
+<div style="text-align: center; margin: 20px 0;">
+    <img src="data:{mime_type};base64,{base64_image}" 
+         style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" 
+         alt="Прикрепленное изображение">
+</div>
+<br><br>
+{add_logo_to_email_body('')}
+            """
+            
+            # Текстовая версия без изображения
+            text_message = f"""
+{message}
+
+[Изображение прикреплено к письму: {attachment_filename}]
+
+---
+Это письмо отправлено с сайта Лига Знатоков
+            """
+            
+            msg.html = html_message
+            msg.body = text_message
+            
+            # Также прикрепляем файл для совместимости
+            msg.attach(attachment_filename, mime_type, attachment_data)
+        else:
+            # Если нет прикрепленного файла, используем стандартную версию
+            html_message = add_logo_to_email_body(message)
+            msg.html = html_message
+            msg.body = message
+        
+        # Отправляем через очередь с административными настройками
+        add_to_queue(app, mail, msg, admin_mail_config)
+        
+    except Exception as e:
+        print(f"Ошибка отправки административного письма с вложением пользователю {recipient_email}: {e}")
+        raise e
+
 def send_feedback_email(name, phone, email, subject, message):
     """Отправка письма с обратной связью администратору"""
     try:
@@ -2284,6 +2359,8 @@ def admin_mass_email():
         
         subject = sanitize_input(data.get('subject', ''), 200)
         message = validate_text_content(data.get('message', ''), 5000)
+        attachment_filename = data.get('attachment_filename')
+        attachment_data = data.get('attachment_data')  # base64 encoded image data
         
         if not subject or not message:
             return jsonify({'success': False, 'message': 'Тема и текст письма обязательны'})
@@ -2294,14 +2371,27 @@ def admin_mass_email():
         if not users:
             return jsonify({'success': False, 'message': 'Нет пользователей для отправки писем'})
         
+        # Декодируем base64 данные изображения, если они есть
+        decoded_attachment_data = None
+        if attachment_data:
+            try:
+                import base64
+                decoded_attachment_data = base64.b64decode(attachment_data.split(',')[1] if ',' in attachment_data else attachment_data)
+            except Exception as e:
+                print(f"Ошибка декодирования изображения: {e}")
+                return jsonify({'success': False, 'message': 'Ошибка обработки изображения'})
+        
         # Отправляем письма всем пользователям
         sent_count = 0
         failed_count = 0
         
         for user in users:
             try:
-                # Используем новую функцию для отправки административных писем
-                send_admin_mass_email(subject, message, user.email)
+                # Используем функцию для отправки с вложением или без
+                if attachment_filename and decoded_attachment_data:
+                    send_admin_mass_email_with_attachment(subject, message, user.email, attachment_filename, decoded_attachment_data)
+                else:
+                    send_admin_mass_email(subject, message, user.email)
                 sent_count += 1
             except Exception as e:
                 failed_count += 1
@@ -2337,6 +2427,8 @@ def admin_teachers_mass_email():
 
         subject = sanitize_input(data.get('subject', ''), 200)
         message = validate_text_content(data.get('message', ''), 5000)
+        attachment_filename = data.get('attachment_filename')
+        attachment_data = data.get('attachment_data')  # base64 encoded image data
 
         if not subject or not message:
             return jsonify({'success': False, 'message': 'Тема и текст письма обязательны'})
@@ -2345,11 +2437,25 @@ def admin_teachers_mass_email():
         if not teachers:
             return jsonify({'success': False, 'message': 'Нет учителей для отправки писем'})
 
+        # Декодируем base64 данные изображения, если они есть
+        decoded_attachment_data = None
+        if attachment_data:
+            try:
+                import base64
+                decoded_attachment_data = base64.b64decode(attachment_data.split(',')[1] if ',' in attachment_data else attachment_data)
+            except Exception as e:
+                print(f"Ошибка декодирования изображения: {e}")
+                return jsonify({'success': False, 'message': 'Ошибка обработки изображения'})
+
         sent_count = 0
         failed_count = 0
         for teacher in teachers:
             try:
-                send_admin_mass_email(subject, message, teacher.email)
+                # Используем функцию для отправки с вложением или без
+                if attachment_filename and decoded_attachment_data:
+                    send_admin_mass_email_with_attachment(subject, message, teacher.email, attachment_filename, decoded_attachment_data)
+                else:
+                    send_admin_mass_email(subject, message, teacher.email)
                 sent_count += 1
             except Exception as e:
                 failed_count += 1
@@ -6083,7 +6189,7 @@ def admin_news():
 @login_required
 def admin_add_news():
     if not current_user.is_admin:
-        flash('У вас нет доступа к этой страницы', 'danger')
+        flash('У вас нет доступа к этой странице', 'danger')
         return redirect(url_for('home'))
     
     if request.method == 'POST':

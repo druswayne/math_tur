@@ -254,6 +254,20 @@
                         <textarea class="form-control" id="emailTeachersMessage" name="message" rows="10" required placeholder="Введите текст письма"></textarea>
                         <div class="form-text"><small>Максимальная длина текста: 5000 символов</small></div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="emailTeachersAttachment" class="form-label">Прикрепить изображение (необязательно)</label>
+                        <input type="file" class="form-control" id="emailTeachersAttachment" name="attachment" accept="image/*">
+                        <div class="form-text">
+                            <small>Поддерживаемые форматы: JPG, PNG, GIF. Максимальный размер: 5MB</small>
+                        </div>
+                        <div id="teachersAttachmentPreview" class="mt-2" style="display: none;">
+                            <img id="teachersPreviewImage" class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeTeachersAttachment()">
+                                <i class="bi bi-trash"></i> Удалить
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -315,6 +329,7 @@
                 e.preventDefault();
                 const subject = document.getElementById('emailTeachersSubject').value.trim();
                 const message = document.getElementById('emailTeachersMessage').value.trim();
+                const attachmentFile = document.getElementById('emailTeachersAttachment').files[0];
                 const submitButton = this.querySelector('button[type="submit"]');
                 if (!subject || !message) {
                     alert('Пожалуйста, заполните тему и текст письма');
@@ -326,28 +341,98 @@
                 submitButton.disabled = true;
                 submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Отправка...';
                 try {
-                    const response = await fetch('{{ url_for("admin_teachers_mass_email") }}', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ subject, message })
-                    });
-                    const data = await response.json();
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('massEmailTeachersModal'));
-                    if (modal) modal.hide();
-                    alert(data.message || 'Готово');
-                    if (data.success) {
-                        document.getElementById('emailTeachersSubject').value = '';
-                        document.getElementById('emailTeachersMessage').value = '';
+                    // Подготавливаем данные для отправки
+                    const requestData = {
+                        subject: subject,
+                        message: message
+                    };
+                    
+                    // Если есть прикрепленный файл, добавляем его
+                    if (attachmentFile) {
+                        const reader = new FileReader();
+                        reader.onload = async function(e) {
+                            requestData.attachment_filename = attachmentFile.name;
+                            requestData.attachment_data = e.target.result;
+                            
+                            await sendTeachersEmail(requestData);
+                        };
+                        reader.readAsDataURL(attachmentFile);
+                    } else {
+                        await sendTeachersEmail(requestData);
                     }
                 } catch (err) {
                     console.error(err);
                     alert('Произошла ошибка при отправке писем');
-                } finally {
                     submitButton.disabled = false;
                     submitButton.innerHTML = 'Отправить письма';
                 }
             });
+            
+            // Обработчик загрузки изображения для учителей
+            const emailTeachersAttachment = document.getElementById('emailTeachersAttachment');
+            if (emailTeachersAttachment) {
+                emailTeachersAttachment.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Проверяем размер файла (5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                            alert('Размер файла не должен превышать 5MB');
+                            this.value = '';
+                            return;
+                        }
+                        
+                        // Проверяем тип файла
+                        if (!file.type.startsWith('image/')) {
+                            alert('Пожалуйста, выберите изображение');
+                            this.value = '';
+                            return;
+                        }
+                        
+                        // Показываем превью
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('teachersPreviewImage').src = e.target.result;
+                            document.getElementById('teachersAttachmentPreview').style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
         });
+        
+        // Функция отправки письма учителям
+        async function sendTeachersEmail(requestData) {
+            try {
+                const response = await fetch('{{ url_for("admin_teachers_mass_email") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                const data = await response.json();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('massEmailTeachersModal'));
+                if (modal) modal.hide();
+                alert(data.message || 'Готово');
+                if (data.success) {
+                    document.getElementById('emailTeachersSubject').value = '';
+                    document.getElementById('emailTeachersMessage').value = '';
+                    document.getElementById('emailTeachersAttachment').value = '';
+                    document.getElementById('teachersAttachmentPreview').style.display = 'none';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Произошла ошибка при отправке писем');
+            } finally {
+                const submitButton = document.querySelector('#massEmailTeachersForm button[type="submit"]');
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Отправить письма';
+            }
+        }
+        
+        // Функция удаления прикрепленного файла для учителей
+        function removeTeachersAttachment() {
+            document.getElementById('emailTeachersAttachment').value = '';
+            document.getElementById('teachersAttachmentPreview').style.display = 'none';
+        }
     </script>
 </body>
 </html>
