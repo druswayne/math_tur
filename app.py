@@ -8014,6 +8014,30 @@ def check_expired_payments():
     except Exception as e:
         print(f"Ошибка при проверке истекших платежей: {e}")
 
+def create_database_backup():
+    """Создает резервную копию базы данных"""
+    try:
+        from remote_backup_service import RemoteBackupService
+        
+        print("🔄 Запуск запланированного создания бекапа БД...")
+        
+        # Создаем экземпляр сервиса бекапов
+        backup_service = RemoteBackupService()
+        
+        # Создаем бекап
+        success = backup_service.create_backup()
+        
+        if success:
+            print("✅ Запланированный бекап создан успешно")
+        else:
+            print("❌ Ошибка при создании запланированного бекапа")
+            
+        return success
+        
+    except Exception as e:
+        print(f"❌ Критическая ошибка при создании бекапа: {e}")
+        return False
+
 def check_yukassa_expired_payments():
     """Проверяет и обновляет статусы истекших платежей ЮKassa"""
     try:
@@ -8181,6 +8205,36 @@ def initialize_scheduler_jobs():
             print("Создана задача очистки сессий")
         else:
             print("Задача очистки сессий уже существует")
+
+        # Настраиваем периодическое создание бекапов БД (только если задача еще не существует)
+        existing_backup_job = SchedulerJob.query.filter_by(
+            job_type='database_backup',
+            is_active=True
+        ).first()
+
+        if not existing_backup_job:
+            # Получаем настройки времени из переменных окружения
+            backup_hour = int(os.environ.get('BACKUP_TIME_HOUR', '2'))
+            backup_minute = int(os.environ.get('BACKUP_TIME_MINUTE', '0'))
+            
+            # Вычисляем время первого запуска (сегодня в указанное время)
+            now = datetime.now()
+            first_run = now.replace(hour=backup_hour, minute=backup_minute, second=0, microsecond=0)
+            
+            # Если указанное время уже прошло сегодня, запускаем завтра
+            if first_run <= now:
+                first_run += timedelta(days=1)
+            
+            add_scheduler_job(
+                create_database_backup,
+                first_run,
+                None,  # tournament_id не нужен для бекапов
+                'database_backup',
+                interval_hours=24  # Повторять каждый день
+            )
+            print(f"Создана задача создания бекапов БД. Первый запуск: {first_run}")
+        else:
+            print("Задача создания бекапов БД уже существует")
     except Exception as e:
         print(f"Ошибка при инициализации задач планировщика: {e}")
 
