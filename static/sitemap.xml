@@ -2,56 +2,56 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://liga-znatokov.by/</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://liga-znatokov.by/about</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://liga-znatokov.by/news</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://liga-znatokov.by/tournaments</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://liga-znatokov.by/rating</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://liga-znatokov.by/shop</loc>
-    <lastmod>2025-08-16</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://liga-znatokov.by/cooperation</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://liga-znatokov.by/how-to-participate</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://liga-znatokov.by/privacy-policy</loc>
-    <lastmod>2025-08-16</lastmod>
+    <lastmod>2025-08-22</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://liga-znatokov.by/shop-preview</loc>
+    <lastmod>2025-08-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
