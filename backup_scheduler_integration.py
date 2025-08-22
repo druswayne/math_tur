@@ -50,8 +50,8 @@ def add_backup_job_to_scheduler(scheduler, app):
         from app import add_scheduler_job
         
         # Получаем настройки времени из конфигурации
-        backup_hour = int(os.environ.get('BACKUP_TIME_HOUR', '2'))
-        backup_minute = int(os.environ.get('BACKUP_TIME_MINUTE', '0'))
+        backup_hour = int(os.environ.get('BACKUP_TIME_HOUR',))
+        backup_minute = int(os.environ.get('BACKUP_TIME_MINUTE',))
         
         # Проверяем, не существует ли уже задача бекапа
         from app import SchedulerJob

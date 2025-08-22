@@ -8221,9 +8221,16 @@ def initialize_scheduler_jobs():
             now = datetime.now()
             first_run = now.replace(hour=backup_hour, minute=backup_minute, second=0, microsecond=0)
             
-            # Если указанное время уже прошло сегодня, запускаем завтра
-            if first_run <= now:
+            # Проверяем, прошло ли время с учетом небольшого окна (1 минута)
+            time_diff = abs((now - first_run).total_seconds())
+            
+            if time_diff < 60:  # Если разница меньше 1 минуты, используем сегодня
+                print(f"Время совпадает (разница: {time_diff:.0f} сек), используем сегодня")
+            elif first_run <= now:
                 first_run += timedelta(days=1)
+                print(f"Время уже прошло, переносим на завтра")
+            else:
+                print(f"Время еще не прошло, используем сегодня")
             
             add_scheduler_job(
                 create_database_backup,
