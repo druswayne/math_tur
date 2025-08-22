@@ -4,11 +4,10 @@ Allow: /
 # Разрешаем индексацию основных страниц
 Allow: /about
 Allow: /news
-Allow: /tournaments
-Allow: /rating
-Allow: /shop
 Allow: /cooperation
 Allow: /how-to-participate
+Allow: /shop-preview
+Allow: /privacy-policy
 
 # Запрещаем индексацию административных и служебных страниц
 Disallow: /admin/
@@ -17,10 +16,21 @@ Disallow: /login
 Disallow: /register
 Disallow: /logout
 Disallow: /profile
+Disallow: /teacher-profile
 Disallow: /api/
 Disallow: /webhook/
 Disallow: /static/uploads/
 Disallow: /static/admin/
+
+# Запрещаем индексацию страниц, требующих авторизации
+Disallow: /shop
+Disallow: /rating
+Disallow: /cart
+Disallow: /buy-tickets
+Disallow: /referral
+Disallow: /completed-tournaments
+Disallow: /purchase-history
+Disallow: /tournament/
 
 # Запрещаем индексацию файлов
 Disallow: /*.pdf$
