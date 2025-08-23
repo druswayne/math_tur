@@ -224,6 +224,33 @@
 .cooperation-btn:hover {
     color: #000 !important;
 }
+
+/* Стили для подсказок */
+.tooltip-message {
+    animation: fadeIn 0.3s ease-in;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    border-left: 3px solid;
+}
+
+.tooltip-message.text-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-left-color: #dc3545;
+    color: #dc3545;
+}
+
+.tooltip-message.text-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left-color: #ffc107;
+    color: #856404;
+}
+
+.tooltip-message i {
+    margin-right: 0.5rem;
+}
 </style>
 
 <script>
@@ -240,6 +267,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const agreeTermsField = document.getElementById('agree_terms');
     const submitButton = document.getElementById('registerButton');
     const overlay = document.getElementById('registerOverlay');
+
+    // Функция для показа подсказки
+    function showTooltip(fieldId, message, type = 'danger') {
+        const input = document.getElementById(fieldId);
+        if (!input) return;
+        
+        // Удаляем существующую подсказку
+        const existingTooltip = document.getElementById(fieldId + '-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+        
+        // Создаем новую подсказку
+        const tooltip = document.createElement('div');
+        tooltip.id = fieldId + '-tooltip';
+        tooltip.className = `tooltip-message text-${type}`;
+        tooltip.innerHTML = `<i class="fas fa-info-circle"></i>${message}`;
+        
+        // Вставляем подсказку после поля
+        const fieldContainer = input.closest('.mb-3');
+        if (fieldContainer) {
+            fieldContainer.appendChild(tooltip);
+        }
+    }
+
+    // Функция для удаления подсказки
+    function removeTooltip(fieldId) {
+        const existingTooltip = document.getElementById(fieldId + '-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+    }
 
     // Валидация логина
     function validateUsername() {
@@ -285,9 +344,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.available) {
                 check.style.display = 'inline';
                 usernameField.isValid = true;
+                removeTooltip('username');
             } else {
                 times.style.display = 'inline';
                 usernameField.isValid = false;
+                showTooltip('username', 'Этот логин уже занят. Попробуйте другой или добавьте цифры/символы.');
             }
             checkFormValidity();
         })
@@ -501,9 +562,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.available) {
                 check.style.display = 'inline';
                 phoneField.isValid = true;
+                removeTooltip('phone');
             } else {
                 times.style.display = 'inline';
                 phoneField.isValid = false;
+                showTooltip('phone', 'Этот номер телефона уже используется. Попробуйте другой номер или войдите в систему.');
             }
             checkFormValidity();
         })
@@ -568,9 +631,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.available) {
                 check.style.display = 'inline';
                 emailField.isValid = true;
+                removeTooltip('email');
             } else {
                 times.style.display = 'inline';
                 emailField.isValid = false;
+                showTooltip('email', 'Этот email уже используется. Попробуйте другой адрес или войдите в систему.');
             }
             checkFormValidity();
         })
@@ -640,7 +705,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Обработчики событий
-    usernameField.addEventListener('input', validateUsername);
+    usernameField.addEventListener('input', function() {
+        removeTooltip('username');
+        validateUsername();
+    });
     passwordField.addEventListener('input', validatePassword);
     confirmPasswordField.addEventListener('input', validateConfirmPassword);
     fullNameField.addEventListener('input', validateFullName);
@@ -662,6 +730,7 @@ document.addEventListener('DOMContentLoaded', function() {
             times.style.display = 'none';
             
             phoneField.isValid = false;
+            removeTooltip('phone');
             checkFormValidity();
             return;
         }
@@ -671,7 +740,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     });
     
-    emailField.addEventListener('input', validateEmail);
+    emailField.addEventListener('input', function() {
+        removeTooltip('email');
+        validateEmail();
+    });
     educationalInstitutionField.addEventListener('input', validateEducationalInstitution);
     agreeTermsField.addEventListener('change', checkFormValidity);
     
