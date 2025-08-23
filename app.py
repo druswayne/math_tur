@@ -3228,6 +3228,12 @@ def validate_email(email):
     import re
     if not email:
         return False
+    
+    # Проверяем на русские символы
+    russian_pattern = r'[а-яёА-ЯЁ]'
+    if re.search(russian_pattern, email):
+        return False
+    
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
@@ -3384,7 +3390,12 @@ def register():
             return redirect(url_for('register'))
 
         if not validate_email(email):
-            flash('Некорректный email адрес', 'danger')
+            # Проверяем на русские символы для более точного сообщения
+            russian_pattern = r'[а-яёА-ЯЁ]'
+            if re.search(russian_pattern, email):
+                flash('Email не должен содержать русские символы. Используйте латинские буквы.', 'danger')
+            else:
+                flash('Некорректный email адрес', 'danger')
             return redirect(url_for('register'))
 
         if not validate_name(student_name):
@@ -3537,7 +3548,12 @@ def teacher_register():
             return redirect(url_for('teacher_register'))
 
         if not validate_email(email):
-            flash('Некорректный email адрес', 'danger')
+            # Проверяем на русские символы для более точного сообщения
+            russian_pattern = r'[а-яёА-ЯЁ]'
+            if re.search(russian_pattern, email):
+                flash('Email не должен содержать русские символы. Используйте латинские буквы.', 'danger')
+            else:
+                flash('Некорректный email адрес', 'danger')
             return redirect(url_for('teacher_register'))
 
         if not validate_name(full_name):

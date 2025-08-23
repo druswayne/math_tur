@@ -315,16 +315,25 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (username.length < 3) {
             times.style.display = 'inline';
+            usernameField.isValid = false;
+            showTooltip('username', 'Логин должен содержать минимум 3 символа.');
+            checkFormValidity();
             return false;
         }
         
         if (!/^[a-zA-Z0-9_]+$/.test(username)) {
             times.style.display = 'inline';
+            usernameField.isValid = false;
+            showTooltip('username', 'Логин может содержать только латинские буквы, цифры и знак подчеркивания (_).');
+            checkFormValidity();
             return false;
         }
         
         if (!/[a-zA-Z]/.test(username)) {
             times.style.display = 'inline';
+            usernameField.isValid = false;
+            showTooltip('username', 'Логин должен содержать хотя бы одну латинскую букву.');
+            checkFormValidity();
             return false;
         }
         
@@ -592,11 +601,22 @@ document.addEventListener('DOMContentLoaded', function() {
         check.style.display = 'none';
         times.style.display = 'none';
         
+        // Проверяем на русские символы
+        const russianRegex = /[а-яёА-ЯЁ]/;
+        if (russianRegex.test(email)) {
+            times.style.display = 'inline';
+            emailField.isValid = false;
+            showTooltip('email', 'Email не должен содержать русские символы. Используйте латинские буквы.');
+            checkFormValidity();
+            return false;
+        }
+        
         if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             if (email.length > 0) {
                 times.style.display = 'inline';
             }
             emailField.isValid = false;
+            removeTooltip('email');
             return false;
         }
         

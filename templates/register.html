@@ -628,6 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (username.length < 3) {
             showValidationIcon('username', false);
             validationState.username = false;
+            showTooltip('username', 'Логин должен содержать минимум 3 символа.');
             return;
         }
         
@@ -635,6 +636,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!usernameRegex.test(username)) {
             showValidationIcon('username', false);
             validationState.username = false;
+            
+            // Определяем тип ошибки для более точной подсказки
+            if (!/^[a-zA-Z]/.test(username)) {
+                showTooltip('username', 'Логин должен начинаться с латинской буквы.');
+            } else if (/[^a-zA-Z0-9_]/.test(username)) {
+                showTooltip('username', 'Логин может содержать только латинские буквы, цифры и знак подчеркивания (_).');
+            } else {
+                showTooltip('username', 'Логин содержит недопустимые символы. Используйте только латинские буквы, цифры и знак подчеркивания (_).');
+            }
             return;
         }
 
@@ -859,10 +869,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateEmail(email) {
         if (!emailInput) return;
         
+        // Проверяем на русские символы
+        const russianRegex = /[а-яёА-ЯЁ]/;
+        if (russianRegex.test(email)) {
+            showValidationIcon('email', false);
+            validationState.email = false;
+            showTooltip('email', 'Email не должен содержать русские символы. Используйте латинские буквы.');
+            return;
+        }
+        
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             showValidationIcon('email', false);
             validationState.email = false;
+            removeTooltip('email');
             return;
         }
 
@@ -937,6 +957,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Функция для проверки всей формы
     function validateForm() {
+        // Обновляем состояние согласий перед проверкой
+        validateAgree();
         const allValid = Object.values(validationState).every(state => state === true);
         registerButton.disabled = !allValid;
         return allValid;
@@ -1051,6 +1073,15 @@ document.addEventListener('DOMContentLoaded', function() {
             clearTimeout(emailTimeout);
             // Удаляем подсказку при начале ввода
             removeTooltip('email');
+            // Проверяем на русские символы сразу при вводе
+            const russianRegex = /[а-яёА-ЯЁ]/;
+            if (russianRegex.test(this.value)) {
+                showValidationIcon('email', false);
+                validationState.email = false;
+                showTooltip('email', 'Email не должен содержать русские символы. Используйте латинские буквы.');
+                validateForm();
+                return;
+            }
             emailTimeout = setTimeout(() => {
                 validateEmail(this.value);
                 validateForm();
