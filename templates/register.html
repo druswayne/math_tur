@@ -1113,6 +1113,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Добавляем код страны к номеру телефона
+        const phoneCountry = document.getElementById('phone_country').value;
+        
+        // Создаем скрытое поле для кода страны
+        const hiddenPhoneCountryField = document.createElement('input');
+        hiddenPhoneCountryField.type = 'hidden';
+        hiddenPhoneCountryField.name = 'phone_country';
+        hiddenPhoneCountryField.value = phoneCountry;
+        registerForm.appendChild(hiddenPhoneCountryField);
+        
         // Показываем оверлей
         registerOverlay.style.display = 'flex';
         // Блокируем кнопку
