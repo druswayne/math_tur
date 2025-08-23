@@ -118,7 +118,7 @@
                             <label for="educational_institution" class="form-label">Учреждение образования</label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="educational_institution_search" 
-                                       placeholder="Средняя школа №2 г. Минск" autocomplete="off">
+                                       placeholder="Средняя школа №2 г. Минск" autocomplete="off" required>
                                 <span class="input-group-text validation-icon" id="educational_institution-icon">
                                     <i class="fas fa-check text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -236,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fullNameField = document.getElementById('full_name');
     const phoneField = document.getElementById('phone');
     const emailField = document.getElementById('email');
+    const educationalInstitutionField = document.getElementById('educational_institution_search');
     const agreeTermsField = document.getElementById('agree_terms');
     const submitButton = document.getElementById('registerButton');
     const overlay = document.getElementById('registerOverlay');
@@ -583,6 +584,39 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    // Валидация учреждения образования
+    function validateEducationalInstitution() {
+        const searchValue = educationalInstitutionField.value.trim();
+        const institutionIdField = document.getElementById('educational_institution_id');
+        const institutionNameField = document.getElementById('educational_institution_name');
+        const icon = document.querySelector('#educational_institution-icon');
+        const check = icon.querySelector('.fa-check');
+        const times = icon.querySelector('.fa-times');
+        
+        // Скрываем все иконки
+        check.style.display = 'none';
+        times.style.display = 'none';
+        
+        const hasId = institutionIdField.value.trim() !== '';
+        const hasName = institutionNameField.value.trim() !== '';
+        
+        // Поле валидно, если есть значение в поиске И (есть ID выбранного учреждения ИЛИ есть название нового учреждения)
+        const isValid = searchValue.length >= 2 && (hasId || hasName);
+        
+        if (isValid) {
+            check.style.display = 'inline';
+            educationalInstitutionField.isValid = true;
+        } else if (searchValue.length > 0) {
+            times.style.display = 'inline';
+            educationalInstitutionField.isValid = false;
+        } else {
+            educationalInstitutionField.isValid = false;
+        }
+        
+        checkFormValidity();
+        return educationalInstitutionField.isValid;
+    }
+
     // Проверка общей валидности формы
     function checkFormValidity() {
         const isValid = usernameField.isValid && 
@@ -591,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function() {
                        fullNameField.isValid && 
                        phoneField.isValid && 
                        emailField.isValid && 
+                       educationalInstitutionField.isValid && 
                        agreeTermsField.checked;
         
         submitButton.disabled = !isValid;
@@ -637,6 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     emailField.addEventListener('input', validateEmail);
+    educationalInstitutionField.addEventListener('input', validateEducationalInstitution);
     agreeTermsField.addEventListener('change', checkFormValidity);
     
     // Обработчик изменения кода страны для телефона
@@ -752,6 +788,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 institutionIdField.value = institution.id;
                                 institutionNameField.value = '';
                                 resultsContainer.style.display = 'none';
+                                validateEducationalInstitution();
                             });
                             
                             resultsContainer.appendChild(item);
@@ -775,6 +812,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             institutionIdField.value = '';
                             institutionNameField.value = query;
                             resultsContainer.style.display = 'none';
+                            validateEducationalInstitution();
                         });
                         
                         resultsContainer.appendChild(item);
@@ -826,6 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fullNameField.isValid = false;
     phoneField.isValid = false;
     emailField.isValid = false;
+    educationalInstitutionField.isValid = false;
     
     checkFormValidity();
 });

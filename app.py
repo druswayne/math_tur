@@ -3305,7 +3305,7 @@ def check_username():
     return jsonify({'available': is_available})
 
 @app.route('/check-email', methods=['POST'])
-@limiter.limit("10 per minute; 3 per 10 seconds")
+@limiter.limit("10 per minute; 5 per 10 seconds")
 def check_email():
     data = request.get_json()
     email = data.get('email', '').strip()
@@ -3324,7 +3324,7 @@ def check_email():
     return jsonify({'available': is_available})
 
 @app.route('/check-phone', methods=['POST'])
-@limiter.limit("10 per minute; 3 per 10 seconds")
+@limiter.limit("10 per minute; 5 per 10 seconds")
 def check_phone():
     data = request.get_json()
     phone = data.get('phone', '').strip()
@@ -5401,7 +5401,7 @@ def tournament_history():
                          pagination=tournaments)
 
 @app.route('/rating')
-@limiter.limit("15 per minute; 3 per 10 seconds")
+@limiter.limit("15 per minute; 5 per 10 seconds")
 def rating():
     from sqlalchemy import func, case
 

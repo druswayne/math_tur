@@ -521,6 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
         parentName: false,
         phone: false,
         email: false,
+        educationalInstitution: false,
         agree: false,
         agree_terms: false
     };
@@ -850,6 +851,25 @@ document.addEventListener('DOMContentLoaded', function() {
         validationState.agree_terms = agreeTermsCheckbox.checked;
     }
 
+    // Функция для проверки учреждения образования
+    function validateEducationalInstitution() {
+        const searchField = document.getElementById('educational_institution_search');
+        const institutionIdField = document.getElementById('educational_institution_id');
+        const institutionNameField = document.getElementById('educational_institution_name');
+        
+        if (!searchField) return;
+        
+        const searchValue = searchField.value.trim();
+        const hasId = institutionIdField.value.trim() !== '';
+        const hasName = institutionNameField.value.trim() !== '';
+        
+        // Поле валидно, если есть значение в поиске И (есть ID выбранного учреждения ИЛИ есть название нового учреждения)
+        const isValid = searchValue.length >= 2 && (hasId || hasName);
+        
+        showValidationIcon('educational_institution', isValid);
+        validationState.educationalInstitution = isValid;
+    }
+
     // Функция для проверки всей формы
     function validateForm() {
         const allValid = Object.values(validationState).every(state => state === true);
@@ -981,6 +1001,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+
+
     // Обработчик отправки формы
     registerForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -1022,6 +1044,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             clearTimeout(searchTimeout);
             
+            // Вызываем валидацию при каждом изменении
+            validateEducationalInstitution();
+            validateForm();
+            
             if (query.length < 2) {
                 resultsContainer.style.display = 'none';
                 institutionIdField.value = '';
@@ -1052,6 +1078,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                     institutionIdField.value = institution.id;
                                     institutionNameField.value = '';
                                     resultsContainer.style.display = 'none';
+                                    validateEducationalInstitution();
+                                    validateForm();
                                 });
                                 
                                 resultsContainer.appendChild(item);
@@ -1075,6 +1103,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 institutionIdField.value = '';
                                 institutionNameField.value = query;
                                 resultsContainer.style.display = 'none';
+                                validateEducationalInstitution();
+                                validateForm();
                             });
                             
                             resultsContainer.appendChild(item);
