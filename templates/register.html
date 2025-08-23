@@ -948,8 +948,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasId = institutionIdField.value.trim() !== '';
         const hasName = institutionNameField.value.trim() !== '';
         
+        // Если пользователь ввел текст, но не выбрал из списка и не нажал "Создать",
+        // автоматически считаем это новым учреждением
+        if (searchValue.length >= 2 && !hasId && !hasName) {
+            institutionNameField.value = searchValue;
+        }
+        
         // Поле валидно, если есть значение в поиске И (есть ID выбранного учреждения ИЛИ есть название нового учреждения)
-        const isValid = searchValue.length >= 2 && (hasId || hasName);
+        const isValid = searchValue.length >= 2 && (hasId || institutionNameField.value.trim() !== '');
         
         showValidationIcon('educational_institution', isValid);
         validationState.educationalInstitution = isValid;
