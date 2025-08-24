@@ -4888,6 +4888,10 @@ def restore_scheduler_jobs():
                     job_func = check_and_pay_teacher_referral_bonuses
                     args = []
                     interval_hours = 24  # Интервальная задача каждые 24 часа
+                elif job.job_type == 'database_backup':
+                    job_func = create_database_backup
+                    args = []
+                    interval_hours = 24  # Интервальная задача каждые 24 часа
                 else:
                     # Неизвестный тип задачи, пропускаем
                     continue
@@ -4911,6 +4915,16 @@ def restore_scheduler_jobs():
                             new_run_date = datetime.now() + timedelta(seconds=1)
                         elif job.job_type == 'cleanup_sessions':
                             new_run_date = datetime.now() + timedelta(hours=24)
+                        elif job.job_type == 'database_backup':
+                            # Для задачи бекапа используем логику из initialize_scheduler_jobs
+                            backup_hour = int(os.environ.get('BACKUP_TIME_HOUR', '2'))
+                            backup_minute = int(os.environ.get('BACKUP_TIME_MINUTE', '0'))
+                            now = datetime.now()
+                            new_run_date = now.replace(hour=backup_hour, minute=backup_minute, second=0, microsecond=0)
+                            
+                            # Если время уже прошло, переносим на завтра
+                            if new_run_date <= now:
+                                new_run_date += timedelta(days=1)
                         else:
                             # Для неизвестных типов используем стандартный интервал
                             new_run_date = datetime.now() + timedelta(hours=interval_hours)
