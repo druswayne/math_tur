@@ -1453,10 +1453,10 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
         <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
             <img src="{image_url}" 
                  style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" 
-                 alt="Прикрепленное изображение">
-        </div>
+         alt="Прикрепленное изображение">
+</div>
         
-        {add_logo_to_email_body('')}
+{add_logo_to_email_body('')}
     </div>
 </body>
 </html>
@@ -2601,7 +2601,7 @@ def admin_teachers_mass_email():
             image_url = save_email_attachment(decoded_attachment_data, attachment_filename)
             if not image_url:
                 return jsonify({'success': False, 'message': 'Ошибка сохранения изображения'})
-        
+
         sent_count = 0
         failed_count = 0
         for teacher in teachers:
