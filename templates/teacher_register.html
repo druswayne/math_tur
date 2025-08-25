@@ -134,13 +134,13 @@
                             <!-- Список результатов поиска -->
                             <div id="institution_results" class="list-group position-absolute w-100" style="z-index: 1000; display: none; max-height: 200px; overflow-y: auto;"></div>
                             
-                            <div class="form-text">Выберите учреждение из списка или введите новое название</div>
+                            <div class="form-text">Начните вводить название учреждения, выберите из списка или введите свое - оно будет сохранено</div>
                         </div>
 
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="agree_terms" name="agree_terms" required>
                             <label class="form-check-label" for="agree_terms">
-                                Мне разъяснены <a href="{{ url_for('rights_notification_pdf') }}" target="_blank" class="text-decoration-none">права</a> мои права, связанные с обработкой персональных данных и я <a href="{{ url_for('teacher_consent_pdf') }}" target="_blank" class="text-decoration-none">согласен (на)</a> на обработку моих персональных данных
+                                Мне разъяснены мои <a href="{{ url_for('rights_notification_pdf') }}" target="_blank" class="text-decoration-none">права</a>, связанные с обработкой персональных данных и я <a href="{{ url_for('teacher_consent_pdf') }}" target="_blank" class="text-decoration-none">согласен (на)</a> на обработку моих персональных данных
                             </label>
                         </div>
 
