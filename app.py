@@ -1474,17 +1474,6 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
             
             msg.html = html_message
             msg.body = text_message
-            
-            # Также прикрепляем файл для совместимости
-            file_extension = attachment_filename.lower().split('.')[-1]
-            mime_type_map = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'gif': 'image/gif'
-            }
-            mime_type = mime_type_map.get(file_extension, 'image/jpeg')
-            msg.attach(attachment_filename, mime_type, attachment_data)
         else:
             # Если нет прикрепленного файла, используем стандартную версию
             html_message = f"""
