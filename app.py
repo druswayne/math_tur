@@ -1417,7 +1417,7 @@ def cleanup_old_email_attachments():
     except Exception as e:
         print(f"Ошибка очистки старых изображений писем: {e}")
 
-def send_admin_mass_email_with_attachment(subject, message, recipient_email, attachment_filename=None, attachment_data=None):
+def send_admin_mass_email_with_attachment(subject, message, recipient_email, attachment_filename=None, attachment_data=None, image_url=None):
     """Отправка административного письма пользователю с вложением"""
     try:
         # Создаем отдельную конфигурацию для административных писем
@@ -1435,14 +1435,10 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
                      sender=admin_mail_config['MAIL_USERNAME'],
                      recipients=[recipient_email])
         
-        # Если есть прикрепленный файл, сохраняем его и встраиваем как внешнюю ссылку
-        if attachment_filename and attachment_data:
-            # Сохраняем изображение на сервер
-            image_url = save_email_attachment(attachment_data, attachment_filename)
-            
-            if image_url:
-                # Создаем HTML-версию с встроенным изображением через внешнюю ссылку
-                html_message = f"""
+        # Если есть прикрепленный файл и URL изображения
+        if attachment_filename and attachment_data and image_url:
+            # Создаем HTML-версию с встроенным изображением через внешнюю ссылку
+            html_message = f"""
 <!DOCTYPE html>
 <html>
 <head>
@@ -1464,56 +1460,31 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
     </div>
 </body>
 </html>
-                """
-                
-                # Текстовая версия без изображения
-                text_message = f"""
+            """
+            
+            # Текстовая версия без изображения
+            text_message = f"""
 {message}
 
 [Изображение прикреплено к письму: {attachment_filename}]
 
 ---
 Это письмо отправлено с сайта Лига Знатоков
-                """
-                
-                msg.html = html_message
-                msg.body = text_message
-                
-                # Также прикрепляем файл для совместимости
-                file_extension = attachment_filename.lower().split('.')[-1]
-                mime_type_map = {
-                    'jpg': 'image/jpeg',
-                    'jpeg': 'image/jpeg',
-                    'png': 'image/png',
-                    'gif': 'image/gif'
-                }
-                mime_type = mime_type_map.get(file_extension, 'image/jpeg')
-                msg.attach(attachment_filename, mime_type, attachment_data)
-            else:
-                # Если не удалось сохранить изображение, отправляем без него
-                html_message = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{subject}</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        {message.replace(chr(10), '<br>')}
-        
-        <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; color: #666;">
-            <p>Изображение не удалось загрузить</p>
-        </div>
-        
-        {add_logo_to_email_body('')}
-    </div>
-</body>
-</html>
-                """
-                msg.html = html_message
-                msg.body = message
+            """
+            
+            msg.html = html_message
+            msg.body = text_message
+            
+            # Также прикрепляем файл для совместимости
+            file_extension = attachment_filename.lower().split('.')[-1]
+            mime_type_map = {
+                'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg',
+                'png': 'image/png',
+                'gif': 'image/gif'
+            }
+            mime_type = mime_type_map.get(file_extension, 'image/jpeg')
+            msg.attach(attachment_filename, mime_type, attachment_data)
         else:
             # Если нет прикрепленного файла, используем стандартную версию
             html_message = f"""
@@ -2562,6 +2533,13 @@ def admin_mass_email():
                 print(f"Ошибка декодирования изображения: {e}")
                 return jsonify({'success': False, 'message': 'Ошибка обработки изображения'})
         
+        # Если есть изображение, сохраняем его один раз для всей рассылки
+        image_url = None
+        if attachment_filename and decoded_attachment_data:
+            image_url = save_email_attachment(decoded_attachment_data, attachment_filename)
+            if not image_url:
+                return jsonify({'success': False, 'message': 'Ошибка сохранения изображения'})
+        
         # Отправляем письма всем пользователям
         sent_count = 0
         failed_count = 0
@@ -2569,8 +2547,8 @@ def admin_mass_email():
         for user in users:
             try:
                 # Используем функцию для отправки с вложением или без
-                if attachment_filename and decoded_attachment_data:
-                    send_admin_mass_email_with_attachment(subject, message, user.email, attachment_filename, decoded_attachment_data)
+                if image_url:
+                    send_admin_mass_email_with_attachment(subject, message, user.email, attachment_filename, decoded_attachment_data, image_url)
                 else:
                     send_admin_mass_email(subject, message, user.email)
                 sent_count += 1
@@ -2628,13 +2606,20 @@ def admin_teachers_mass_email():
                 print(f"Ошибка декодирования изображения: {e}")
                 return jsonify({'success': False, 'message': 'Ошибка обработки изображения'})
 
+        # Если есть изображение, сохраняем его один раз для всей рассылки
+        image_url = None
+        if attachment_filename and decoded_attachment_data:
+            image_url = save_email_attachment(decoded_attachment_data, attachment_filename)
+            if not image_url:
+                return jsonify({'success': False, 'message': 'Ошибка сохранения изображения'})
+        
         sent_count = 0
         failed_count = 0
         for teacher in teachers:
             try:
                 # Используем функцию для отправки с вложением или без
-                if attachment_filename and decoded_attachment_data:
-                    send_admin_mass_email_with_attachment(subject, message, teacher.email, attachment_filename, decoded_attachment_data)
+                if image_url:
+                    send_admin_mass_email_with_attachment(subject, message, teacher.email, attachment_filename, decoded_attachment_data, image_url)
                 else:
                     send_admin_mass_email(subject, message, teacher.email)
                 sent_count += 1
