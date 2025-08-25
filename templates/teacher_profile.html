@@ -55,13 +55,11 @@
                             <i class="fas fa-coins fa-2x mb-2 icon-gradient"></i>
                             <div class="card-title">Баланс</div>
                             <div class="card-value">{{ current_user.balance }} баллов</div>
-                            {% if current_user.balance > 0 %}
                             <div class="mt-3">
                                 <a href="{{ url_for('shop') }}" class="btn btn-success btn-sm">
                                     <i class="fas fa-gift me-1"></i>Обменять баллы
                                 </a>
                             </div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
