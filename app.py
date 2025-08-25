@@ -415,7 +415,8 @@ def add_logo_to_email_body(body_text):
     <br><br>
     <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
     <div style="text-align: center; padding: 20px 0;">
-        <img src="https://liga-znatokov.by/static/static_logo.jpg" alt="Лига Знатоков" style="max-width: 300px; height: auto;">
+        <img src="https://liga-znatokov.by/static/static_logo.jpg" alt="Лига Знатоков" style="max-width: 300px; height: auto; border-radius: 8px;">
+        <p style="color: #666; font-size: 12px; margin-top: 10px;">© 2025 ООО "Лига Знатоков". Все права защищены.</p>
     </div>
     '''
     
@@ -1326,8 +1327,25 @@ def send_admin_mass_email(subject, message, recipient_email):
                      sender=admin_mail_config['MAIL_USERNAME'],
                      recipients=[recipient_email])
         
-        # Добавляем логотип к тексту письма
-        html_message = add_logo_to_email_body(message)
+        # Создаем улучшенный HTML-шаблон
+        html_message = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        {message.replace(chr(10), '<br>')}
+        
+        {add_logo_to_email_body('')}
+    </div>
+</body>
+</html>
+        """
+        
         msg.html = html_message
         msg.body = message  # Оставляем текстовую версию для совместимости
         
@@ -1337,6 +1355,67 @@ def send_admin_mass_email(subject, message, recipient_email):
     except Exception as e:
         print(f"Ошибка отправки административного письма пользователю {recipient_email}: {e}")
         raise e
+
+def save_email_attachment(attachment_data, attachment_filename):
+    """Сохраняет прикрепленное изображение в папку static/uploads/email_attachments"""
+    import os
+    import uuid
+    from datetime import datetime
+    
+    try:
+        # Создаем папку, если её нет
+        upload_dir = os.path.join(app.static_folder, 'uploads', 'email_attachments')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Генерируем уникальное имя файла
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_id = str(uuid.uuid4())[:8]
+        file_extension = attachment_filename.lower().split('.')[-1]
+        new_filename = f"email_attachment_{timestamp}_{unique_id}.{file_extension}"
+        
+        # Сохраняем файл
+        file_path = os.path.join(upload_dir, new_filename)
+        with open(file_path, 'wb') as f:
+            f.write(attachment_data)
+        
+        # Очищаем старые файлы (старше 30 дней)
+        cleanup_old_email_attachments()
+        
+        # Возвращаем URL для доступа к файлу
+        return f"https://liga-znatokov.by/static/uploads/email_attachments/{new_filename}"
+        
+    except Exception as e:
+        print(f"Ошибка сохранения прикрепленного файла: {e}")
+        return None
+
+def cleanup_old_email_attachments():
+    """Очищает старые изображения писем (старше 30 дней)"""
+    import os
+    from datetime import datetime, timedelta
+    
+    try:
+        upload_dir = os.path.join(app.static_folder, 'uploads', 'email_attachments')
+        if not os.path.exists(upload_dir):
+            return
+        
+        # Получаем список всех файлов в папке
+        files = os.listdir(upload_dir)
+        cutoff_date = datetime.now() - timedelta(days=30)
+        
+        for filename in files:
+            if filename.startswith('email_attachment_') and '.' in filename:
+                file_path = os.path.join(upload_dir, filename)
+                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                
+                if file_time < cutoff_date:
+                    try:
+                        os.remove(file_path)
+                        print(f"Удален старый файл изображения письма: {filename}")
+                    except Exception as e:
+                        print(f"Ошибка удаления файла {filename}: {e}")
+                        
+    except Exception as e:
+        print(f"Ошибка очистки старых изображений писем: {e}")
 
 def send_admin_mass_email_with_attachment(subject, message, recipient_email, attachment_filename=None, attachment_data=None):
     """Отправка административного письма пользователю с вложением"""
@@ -1356,53 +1435,104 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
                      sender=admin_mail_config['MAIL_USERNAME'],
                      recipients=[recipient_email])
         
-        # Если есть прикрепленный файл, встраиваем его в текст письма
+        # Если есть прикрепленный файл, сохраняем его и встраиваем как внешнюю ссылку
         if attachment_filename and attachment_data:
-            # Конвертируем бинарные данные в base64 для встраивания в HTML
-            import base64
-            base64_image = base64.b64encode(attachment_data).decode('utf-8')
+            # Сохраняем изображение на сервер
+            image_url = save_email_attachment(attachment_data, attachment_filename)
             
-            # Определяем MIME-тип изображения по расширению файла
-            file_extension = attachment_filename.lower().split('.')[-1]
-            mime_type_map = {
-                'jpg': 'image/jpeg',
-                'jpeg': 'image/jpeg',
-                'png': 'image/png',
-                'gif': 'image/gif'
-            }
-            mime_type = mime_type_map.get(file_extension, 'image/jpeg')
-            
-            # Создаем HTML-версию с встроенным изображением
-            html_message = f"""
-{message}
-<br><br>
-<div style="text-align: center; margin: 20px 0;">
-    <img src="data:{mime_type};base64,{base64_image}" 
-         style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" 
-         alt="Прикрепленное изображение">
-</div>
-<br><br>
-{add_logo_to_email_body('')}
-            """
-            
-            # Текстовая версия без изображения
-            text_message = f"""
+            if image_url:
+                # Создаем HTML-версию с встроенным изображением через внешнюю ссылку
+                html_message = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        {message.replace(chr(10), '<br>')}
+        
+        <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+            <img src="{image_url}" 
+                 style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" 
+                 alt="Прикрепленное изображение">
+        </div>
+        
+        {add_logo_to_email_body('')}
+    </div>
+</body>
+</html>
+                """
+                
+                # Текстовая версия без изображения
+                text_message = f"""
 {message}
 
 [Изображение прикреплено к письму: {attachment_filename}]
 
 ---
 Это письмо отправлено с сайта Лига Знатоков
-            """
-            
-            msg.html = html_message
-            msg.body = text_message
-            
-            # Также прикрепляем файл для совместимости
-            msg.attach(attachment_filename, mime_type, attachment_data)
+                """
+                
+                msg.html = html_message
+                msg.body = text_message
+                
+                # Также прикрепляем файл для совместимости
+                file_extension = attachment_filename.lower().split('.')[-1]
+                mime_type_map = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif'
+                }
+                mime_type = mime_type_map.get(file_extension, 'image/jpeg')
+                msg.attach(attachment_filename, mime_type, attachment_data)
+            else:
+                # Если не удалось сохранить изображение, отправляем без него
+                html_message = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        {message.replace(chr(10), '<br>')}
+        
+        <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; color: #666;">
+            <p>Изображение не удалось загрузить</p>
+        </div>
+        
+        {add_logo_to_email_body('')}
+    </div>
+</body>
+</html>
+                """
+                msg.html = html_message
+                msg.body = message
         else:
             # Если нет прикрепленного файла, используем стандартную версию
-            html_message = add_logo_to_email_body(message)
+            html_message = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        {message.replace(chr(10), '<br>')}
+        
+        {add_logo_to_email_body('')}
+    </div>
+</body>
+</html>
+            """
             msg.html = html_message
             msg.body = message
         
@@ -1449,8 +1579,37 @@ Email: {email}
                      sender=admin_mail_config['MAIL_USERNAME'],
                      recipients=['th@liga-znatokov.by'])
         
-        # Добавляем логотип к тексту письма
-        html_email_body = add_logo_to_email_body(email_body.strip())
+        # Создаем улучшенный HTML-шаблон
+        html_email_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{email_subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #FF8C00; margin-bottom: 20px;">Новое сообщение с сайта Лига Знатоков</h2>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p><strong>Отправитель:</strong> {name}</p>
+            <p><strong>Телефон:</strong> {phone}</p>
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Тема:</strong> {subject}</p>
+        </div>
+        
+        <div style="background-color: #fff; padding: 15px; border-left: 4px solid #FF8C00; margin-bottom: 20px;">
+            <h4 style="margin-top: 0;">Сообщение:</h4>
+            <p style="margin-bottom: 0;">{message.replace(chr(10), '<br>')}</p>
+        </div>
+        
+        {add_logo_to_email_body('')}
+    </div>
+</body>
+</html>
+        """
+        
         msg.html = html_email_body
         msg.body = email_body.strip()  # Оставляем текстовую версию для совместимости
         
@@ -1464,14 +1623,35 @@ Email: {email}
 def send_admin_notification(subject, message, recipient_email=None):
     """Отправка уведомления всем администраторам или конкретному получателю"""
     try:
+        # Создаем улучшенный HTML-шаблон
+        html_message = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+        <h2 style="color: #FF8C00; margin-bottom: 20px;">Уведомление администратора</h2>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <p style="margin-bottom: 0;">{message.replace(chr(10), '<br>')}</p>
+        </div>
+        
+        {add_logo_to_email_body('')}
+    </div>
+</body>
+</html>
+        """
+        
         if recipient_email:
             # Отправляем конкретному получателю
             msg = Message(subject,
                          sender=app.config['MAIL_USERNAME'],
                          recipients=[recipient_email])
             
-            # Добавляем логотип к тексту письма
-            html_message = add_logo_to_email_body(message)
             msg.html = html_message
             msg.body = message  # Оставляем текстовую версию для совместимости
             add_to_queue(app, mail, msg)
@@ -1489,8 +1669,6 @@ def send_admin_notification(subject, message, recipient_email=None):
                              sender=app.config['MAIL_USERNAME'],
                              recipients=[admin.email])
                 
-                # Добавляем логотип к тексту письма
-                html_message = add_logo_to_email_body(message)
                 msg.html = html_message
                 msg.body = message  # Оставляем текстовую версию для совместимости
                 messages.append(msg)
