@@ -47,17 +47,17 @@ def send_bulk_emails_async(app, mail, messages, mail_config=None):
                 with admin_mail.connect() as conn:
                     for i, msg in enumerate(messages):
                         conn.send(msg)
-                        # Добавляем задержку в 1 секунду между письмами (кроме последнего)
+                        # Добавляем задержку в 2 секунды между письмами (кроме последнего)
                         if i < len(messages) - 1:
-                            time.sleep(1)
+                            time.sleep(2)
             else:
                 # Используем стандартную конфигурацию
                 with mail.connect() as conn:
                     for i, msg in enumerate(messages):
                         conn.send(msg)
-                        # Добавляем задержку в 1 секунду между письмами (кроме последнего)
+                        # Добавляем задержку в 2 секунды между письмами (кроме последнего)
                         if i < len(messages) - 1:
-                            time.sleep(1)
+                            time.sleep(2)
         except Exception as e:
             print(f"Ошибка массовой отправки писем: {e}")
 
