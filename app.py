@@ -4267,6 +4267,416 @@ def teacher_student_tournament_results(student_id, tournament_id):
                          topics_to_review=sorted(list(topics_to_review)),
                          additional_topics=sorted(list(additional_topics)))
 
+@app.route('/teacher-buy-tickets')
+@login_required
+def teacher_buy_tickets():
+    """Страница покупки жетонов для учителей"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        flash('Доступ только для учителей', 'error')
+        return redirect(url_for('home'))
+    
+    base_price = TicketPackage.query.filter_by(is_active=True).first()
+    if not base_price:
+        flash('В данный момент покупка билетов недоступна', 'warning')
+        return redirect(url_for('teacher_profile'))
+    
+    # Получаем скидки и преобразуем их в словари
+    discounts = TicketDiscount.query.filter_by(is_active=True).order_by(TicketDiscount.min_quantity.asc()).all()
+    discounts_data = [{
+        'min_quantity': discount.min_quantity,
+        'discount': discount.discount
+    } for discount in discounts]
+    
+    # Получаем курс валют
+    from currency_service import currency_service
+    currency_rate = currency_service.get_byn_to_rub_rate()
+    currency_rate_formatted = currency_service.get_formatted_rate()
+    
+    # URL документа пользовательского соглашения (локальный файл)
+    agreement_url = url_for('static', filename='Пользовательское соглашение.pdf')
+    
+    return render_template('buy_tickets.html', 
+                         title='Покупка жетонов',
+                         base_price=base_price,
+                         discounts=discounts_data,
+                         currency_rate=currency_rate,
+                         currency_rate_formatted=currency_rate_formatted,
+                         agreement_url=agreement_url,
+                         is_teacher=True,
+                         back_url=url_for('teacher_profile'))
+
+@app.route('/teacher-create-payment', methods=['POST'])
+@login_required
+def teacher_create_payment():
+    """Создание платежа для покупки жетонов учителем"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'error': 'Доступ только для учителей'})
+    
+    data = request.get_json()
+    quantity = data.get('quantity', 0)
+    payment_system = data.get('payment_system', '')
+    
+    if not quantity or quantity < 1:
+        return jsonify({'success': False, 'error': 'Укажите корректное количество жетонов'})
+    
+    if payment_system not in ['yukassa', 'express_pay', 'bepaid']:
+        return jsonify({'success': False, 'error': 'Неверная платежная система'})
+    
+    base_price = TicketPackage.query.filter_by(is_active=True).first()
+    if not base_price:
+        return jsonify({'success': False, 'error': 'В данный момент покупка жетонов недоступна'})
+    
+    # Получаем скидку для указанного количества
+    discount = TicketDiscount.get_discount_for_quantity(quantity)
+    
+    # Рассчитываем итоговую стоимость в BYN
+    total_price_byn = base_price.price * quantity * (1 - discount / 100)
+    
+    # Конвертируем валюту в зависимости от платежной системы
+    from currency_service import currency_service
+    if payment_system == 'yukassa':
+        # Конвертируем в рубли и округляем вверх до целого десятка
+        total_price_rub = currency_service.convert_byn_to_rub(total_price_byn)
+        total_price = round_up_to_ten(total_price_rub)
+        currency = 'RUB'
+    else:
+        total_price = total_price_byn
+        currency = 'BYN'
+    
+    # Создаем запись о покупке
+    purchase = TeacherTicketPurchase(
+        teacher_id=current_user.id,
+        quantity=quantity,
+        amount=total_price_byn,  # Сохраняем сумму в BYN
+        discount=discount,
+        payment_system=payment_system,
+        payment_status='pending',
+        currency=currency
+    )
+    
+    db.session.add(purchase)
+    db.session.commit()
+    
+    try:
+        if payment_system == 'yukassa':
+            # Интеграция с ЮKassa
+            from yukassa_service import yukassa_service
+            
+            # Создаем описание платежа
+            description = f"Покупка {quantity} жетонов для учителя"
+            
+            # URL для возврата после оплаты
+            return_url = url_for('teacher_purchase_history', _external=True)
+            
+            # Создаем метаданные для учителя
+            payment_metadata = {
+                "teacher_id": str(current_user.id),
+                "purchase_id": str(purchase.id),
+                "quantity": str(quantity),
+                "currency": currency,
+                "purchase_type": "teacher_tickets"
+            }
+            
+            # Создаем платеж в ЮKassa
+            payment = yukassa_service.create_payment(
+                amount=total_price,
+                description=description,
+                return_url=return_url,
+                capture=True,  # Автоматическое списание
+                metadata=payment_metadata
+            )
+            
+            if payment and payment.get('id'):
+                purchase.payment_id = payment['id']
+                purchase.payment_url = payment.get('confirmation', {}).get('confirmation_url')
+                purchase.payment_created_at = datetime.now()
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'payment_url': purchase.payment_url,
+                    'payment_id': purchase.payment_id
+                })
+            else:
+                db.session.delete(purchase)
+                db.session.commit()
+                return jsonify({'success': False, 'error': 'Ошибка создания платежа'})
+                
+        elif payment_system == 'express_pay':
+            # Интеграция с ExpressPay (используем тот же интерфейс, что и для пользователей)
+            from express_pay_service import express_pay_service
+
+            # Способ оплаты (epos или erip)
+            payment_method = data.get('payment_method', 'erip')
+
+            # Создаем описание платежа и параметры
+            description = f"Покупка {quantity} жетонов для учителя"
+            return_url = url_for('teacher_purchase_history', _external=True)
+            order_id = str(purchase.id)
+
+            # Создаем платеж в Express-Pay
+            payment_info = express_pay_service.create_payment(
+                amount=total_price,
+                order_id=order_id,
+                description=description,
+                return_url=return_url,
+                payment_method=payment_method
+            )
+
+            # Сохраняем данные платежа
+            invoice_no = payment_info.get('InvoiceNo')
+            if not invoice_no:
+                db.session.delete(purchase)
+                db.session.commit()
+                return jsonify({'success': False, 'error': 'Express-Pay не вернул номер счета'})
+
+            purchase.payment_id = str(invoice_no)
+            purchase.payment_status = 'pending'
+            purchase.payment_method = payment_method
+            purchase.payment_url = payment_info.get('InvoiceUrl')
+            purchase.payment_created_at = datetime.now()
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'payment_url': purchase.payment_url,
+                'payment_id': purchase.payment_id
+            })
+                
+        else:
+            return jsonify({'success': False, 'error': 'Неподдерживаемая платежная система'})
+            
+    except Exception as e:
+        db.session.delete(purchase)
+        db.session.commit()
+        return jsonify({'success': False, 'error': f'Ошибка создания платежа: {str(e)}'})
+
+@app.route('/teacher-purchase-history')
+@login_required
+def teacher_purchase_history():
+    """История покупок учителя"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        flash('Доступ только для учителей', 'error')
+        return redirect(url_for('home'))
+    
+    # Получаем параметры пагинации
+    ticket_page = request.args.get('ticket_page', 1, type=int)
+    prize_page = request.args.get('prize_page', 1, type=int)
+    per_page = 10  # количество записей на странице
+    
+    # Получаем историю покупок билетов с пагинацией
+    ticket_purchases = TeacherTicketPurchase.query.filter_by(teacher_id=current_user.id)\
+        .order_by(TeacherTicketPurchase.purchase_date.desc())\
+        .paginate(page=ticket_page, per_page=per_page, error_out=False)
+    
+    # Получаем историю покупок призов с пагинацией
+    prize_purchases = TeacherPrizePurchase.query.filter_by(teacher_id=current_user.id)\
+        .order_by(TeacherPrizePurchase.created_at.desc())\
+        .paginate(page=prize_page, per_page=per_page, error_out=False)
+    
+    return render_template('purchase_history.html', 
+                         title='История активности',
+                         ticket_purchases=ticket_purchases,
+                         prize_purchases=prize_purchases,
+                         is_teacher=True,
+                         back_url=url_for('teacher_profile'))
+
+@app.route('/teacher-check-payment-status/<payment_id>')
+@login_required
+def teacher_check_payment_status(payment_id):
+    """Проверка статуса платежа учителя"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        # Находим покупку
+        purchase = TeacherTicketPurchase.query.filter_by(payment_id=payment_id).first()
+        if not purchase:
+            return jsonify({'error': 'Purchase not found'}), 404
+        
+        # Проверяем, что покупка принадлежит текущему учителю
+        if purchase.teacher_id != current_user.id:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Получаем актуальную информацию о платеже в зависимости от платежной системы
+        old_status = purchase.payment_status
+        
+        if purchase.payment_system == 'yukassa':
+            from yukassa_service import yukassa_service
+            payment_info = yukassa_service.get_payment_info(payment_id)
+            new_status = yukassa_service.get_payment_status_with_expiry(payment_info)
+            status_description = yukassa_service.get_payment_status_description(new_status)
+        elif purchase.payment_system == 'express_pay':
+            from express_pay_service import ExpressPayService
+            express_pay_service = ExpressPayService()
+            
+            # Проверяем, что payment_id не None
+            if not payment_id or payment_id == 'None' or payment_id == 'null':
+                return jsonify({'error': 'Invalid payment ID'}), 400
+                
+            # Получаем статус через специальный endpoint
+            status_response = express_pay_service.get_payment_status(payment_id)
+            status_code = status_response.get('Status')
+            new_status = express_pay_service.parse_payment_status(status_code)
+            status_description = express_pay_service.get_payment_status_description(new_status)
+        else:
+            return jsonify({'error': 'Unsupported payment system'}), 400
+        
+        purchase.payment_status = new_status
+        
+        # Если платеж успешен, начисляем жетоны
+        if new_status == 'succeeded' and old_status != 'succeeded':
+            current_user.tickets += purchase.quantity
+            purchase.payment_confirmed_at = datetime.now()
+            db.session.commit()
+        
+        return jsonify({
+            'status': new_status,
+            'description': status_description,
+            'payment_id': payment_id
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error checking payment status: {str(e)}'}), 500
+
+@app.route('/teacher/transfer-tokens', methods=['POST'])
+@login_required
+def teacher_transfer_tokens():
+    """Передача жетонов от учителя к ученику"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+    
+    data = request.get_json()
+    student_id = data.get('student_id')
+    tokens_amount = data.get('tokens_amount', 0)
+    
+    if not student_id or not tokens_amount or tokens_amount <= 0:
+        return jsonify({'success': False, 'message': 'Укажите корректные данные'})
+    
+    try:
+        # Проверяем, что у учителя достаточно жетонов
+        if current_user.tickets < tokens_amount:
+            return jsonify({'success': False, 'message': 'Недостаточно жетонов для передачи'})
+        
+        # Находим ученика и проверяем, что он является учеником этого учителя
+        student = User.query.get(student_id)
+        if not student:
+            return jsonify({'success': False, 'message': 'Ученик не найден'})
+        
+        # Проверяем связь учитель-ученик через TeacherReferral
+        teacher_referral = TeacherReferral.query.filter_by(
+            teacher_id=current_user.id,
+            student_id=student_id
+        ).first()
+        
+        if not teacher_referral:
+            return jsonify({'success': False, 'message': 'Этот ученик не является вашим учеником'})
+        
+        # Создаем запись о передаче
+        transfer = TeacherStudentTransfer(
+            teacher_id=current_user.id,
+            student_id=student_id,
+            tokens_amount=tokens_amount
+        )
+        
+        # Обновляем балансы
+        current_user.tickets -= tokens_amount
+        student.tickets += tokens_amount
+        
+        db.session.add(transfer)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Успешно передано {tokens_amount} жетонов ученику {student.student_name}',
+            'transfer_id': transfer.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Ошибка при передаче жетонов: {str(e)}'})
+
+@app.route('/teacher/cancel-transfer/<int:transfer_id>', methods=['POST'])
+@login_required
+def teacher_cancel_transfer(transfer_id):
+    """Отмена передачи жетонов"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+    
+    try:
+        # Находим передачу
+        transfer = TeacherStudentTransfer.query.get(transfer_id)
+        if not transfer:
+            return jsonify({'success': False, 'message': 'Передача не найдена'})
+        
+        # Проверяем, что передача принадлежит текущему учителю
+        if transfer.teacher_id != current_user.id:
+            return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+        
+        # Проверяем, что передача активна
+        if transfer.status != 'active':
+            return jsonify({'success': False, 'message': 'Передача уже отменена'})
+        
+        # Проверяем, что прошло не более 5 минут
+        if not transfer.can_be_cancelled:
+            return jsonify({'success': False, 'message': 'Отмена возможна только в течение 5 минут после передачи'})
+        
+        # Находим ученика
+        student = User.query.get(transfer.student_id)
+        if not student:
+            return jsonify({'success': False, 'message': 'Ученик не найден'})
+        
+        # Проверяем, что у ученика достаточно жетонов для возврата
+        if student.tickets < transfer.tokens_amount:
+            return jsonify({'success': False, 'message': 'Ученик уже потратил часть жетонов, отмена невозможна'})
+        
+        # Отменяем передачу
+        transfer.status = 'cancelled'
+        transfer.cancellation_date = datetime.now()
+        transfer.cancellation_reason = 'Отменено учителем'
+        
+        # Возвращаем жетоны
+        current_user.tickets += transfer.tokens_amount
+        student.tickets -= transfer.tokens_amount
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Передача {transfer.tokens_amount} жетонов отменена'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Ошибка при отмене передачи: {str(e)}'})
+
+@app.route('/teacher/transfer-history')
+@login_required
+def teacher_transfer_history():
+    """История передач жетонов учителя"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        flash('Доступ только для учителей', 'error')
+        return redirect(url_for('home'))
+    
+    # Получаем историю передач с пагинацией
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    transfers = TeacherStudentTransfer.query.filter_by(teacher_id=current_user.id)\
+        .order_by(TeacherStudentTransfer.transfer_date.desc())\
+        .paginate(page=page, per_page=per_page, error_out=False)
+    
+    return render_template('teacher_transfer_history.html', 
+                         title='История передач жетонов',
+                         transfers=transfers)
+
 @app.route('/buy-tickets')
 @login_required
 def buy_tickets():
@@ -4299,7 +4709,9 @@ def buy_tickets():
                          discounts=discounts_data,
                          currency_rate=currency_rate,
                          currency_rate_formatted=currency_rate_formatted,
-                         agreement_url=agreement_url)
+                         agreement_url=agreement_url,
+                         is_teacher=False,
+                         back_url=url_for('profile'))
 
 def round_up_to_ten(amount):
     """Округляет сумму вверх до целого десятка"""
@@ -4486,7 +4898,9 @@ def purchase_history():
     return render_template('purchase_history.html', 
                          title='История активности',
                          ticket_purchases=ticket_purchases,
-                         prize_purchases=prize_purchases)
+                         prize_purchases=prize_purchases,
+                         is_teacher=False,
+                         back_url=url_for('profile'))
 
 @app.route('/purchase/<int:purchase_id>/details')
 @login_required
@@ -7657,6 +8071,9 @@ class Teacher(UserMixin, db.Model):
     # Баланс учителя в баллах
     balance = db.Column(db.Integer, default=0, nullable=False)
     
+    # Жетоны учителя
+    tickets = db.Column(db.Integer, default=0, nullable=False)
+    
     # Связь с образовательным учреждением
     educational_institution_id = db.Column(db.Integer, db.ForeignKey('educational_institutions.id'), nullable=True)
     educational_institution = db.relationship('EducationalInstitution', backref=db.backref('teachers', lazy=True))
@@ -7717,6 +8134,53 @@ class TeacherReferral(db.Model):
     teacher = db.relationship('Teacher', foreign_keys=[teacher_id], backref=db.backref('teacher_referrals_sent', lazy=True, cascade='all, delete-orphan'))
     student = db.relationship('User', foreign_keys=[student_id], backref=db.backref('teacher_referrals_received', lazy=True, cascade='all, delete-orphan'))
     teacher_invite_link = db.relationship('TeacherInviteLink', backref=db.backref('teacher_referrals', lazy=True, cascade='all, delete-orphan'))
+
+class TeacherTicketPurchase(db.Model):
+    __tablename__ = "teacher_ticket_purchases"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    discount = db.Column(db.Integer, default=0)  # Скидка в процентах
+    purchase_date = db.Column(db.DateTime, default=datetime.now)
+    
+    # Поля для платежей
+    payment_system = db.Column(db.String(20), nullable=True)  # 'yukassa', 'express_pay' или 'bepaid'
+    payment_id = db.Column(db.String(100), nullable=True)
+    payment_status = db.Column(db.String(20), default='pending')  # 'pending', 'succeeded', 'failed', 'canceled'
+    payment_url = db.Column(db.Text, nullable=True)
+    payment_created_at = db.Column(db.DateTime, nullable=True)
+    payment_confirmed_at = db.Column(db.DateTime, nullable=True)
+    payment_method = db.Column(db.String(20), nullable=True)  # 'epos', 'erip' для ExpressPay
+    currency = db.Column(db.String(3), default='BYN')
+    
+    # Связи
+    teacher = db.relationship('Teacher', backref=db.backref('teacher_ticket_purchases', lazy=True))
+
+class TeacherStudentTransfer(db.Model):
+    __tablename__ = "teacher_student_transfers"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    tokens_amount = db.Column(db.Integer, nullable=False)
+    transfer_date = db.Column(db.DateTime, default=datetime.now)
+    status = db.Column(db.String(20), default='active')  # 'active', 'cancelled'
+    cancellation_date = db.Column(db.DateTime, nullable=True)
+    cancellation_reason = db.Column(db.Text, nullable=True)
+    
+    # Связи
+    teacher = db.relationship('Teacher', foreign_keys=[teacher_id], backref=db.backref('student_transfers_sent', lazy=True))
+    student = db.relationship('User', foreign_keys=[student_id], backref=db.backref('teacher_transfers_received', lazy=True))
+    
+    @property
+    def can_be_cancelled(self):
+        """Проверяет, можно ли отменить передачу (в течение 5 минут)"""
+        if self.status != 'active':
+            return False
+        time_diff = datetime.now() - self.transfer_date
+        return time_diff.total_seconds() <= 300  # 5 минут = 300 секунд
 
 class CurrencyRate(db.Model):
     """Модель для хранения курсов валют"""

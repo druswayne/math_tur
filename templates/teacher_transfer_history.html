@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок страницы -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="fas fa-history me-2"></i>{{ title }}
+                </h2>
+                <a href="{{ url_for('teacher_profile') }}" class="btn btn-outline-secondary d-none d-md-inline-flex">
+                    <i class="fas fa-arrow-left me-1"></i>Назад в личный кабинет
+                </a>
+                <a href="{{ url_for('teacher_profile') }}" class="btn btn-outline-secondary btn-sm d-md-none">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+            </div>
+
+            
+
+            <!-- Таблица истории передач -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>История передач жетонов
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if transfers.items %}
+                        <!-- Десктопная версия таблицы -->
+                        <div class="table-responsive d-none d-md-block">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Учащийся</th>
+                                        <th>Количество жетонов</th>
+                                        <th>Дата передачи</th>
+                                        <th>Статус</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transfer in transfers.items %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ transfer.student.student_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ transfer.student.username }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning fs-6">
+                                                <i class="fas fa-ticket-alt me-1"></i>{{ transfer.tokens_amount }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div>{{ transfer.transfer_date.strftime('%d.%m.%Y') }}</div>
+                                            <small class="text-muted">{{ transfer.transfer_date.strftime('%H:%M') }}</small>
+                                        </td>
+                                        <td>
+                                            {% if transfer.status == 'active' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Активна
+                                                </span>
+                                            {% elif transfer.status == 'cancelled' %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times me-1"></i>Отменена
+                                                </span>
+                                                {% if transfer.cancellation_date %}
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        {{ transfer.cancellation_date.strftime('%d.%m.%Y %H:%M') }}
+                                                    </small>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if transfer.status == 'active' and transfer.can_be_cancelled %}
+                                                <button class="btn btn-sm btn-outline-danger cancel-transfer-btn" 
+                                                        data-transfer-id="{{ transfer.id }}"
+                                                        data-tokens-amount="{{ transfer.tokens_amount }}"
+                                                        data-student-name="{{ transfer.student.student_name }}">
+                                                    <i class="fas fa-undo me-1"></i>Отменить
+                                                </button>
+                                            {% elif transfer.status == 'active' and not transfer.can_be_cancelled %}
+                                                <span class="text-muted small">
+                                                    <i class="fas fa-clock me-1"></i>Время отмены истекло
+                                                </span>
+                                            {% elif transfer.status == 'cancelled' %}
+                                                <span class="text-muted small">
+                                                    <i class="fas fa-info-circle me-1"></i>Уже отменена
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Мобильная версия карточек -->
+                        <div class="d-md-none">
+                            {% for transfer in transfers.items %}
+                            <div class="card mb-3 transfer-card-mobile">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">
+                                                <strong>{{ transfer.student.student_name }}</strong>
+                                            </h6>
+                                            <small class="text-muted">{{ transfer.student.username }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-warning fs-6">
+                                                <i class="fas fa-ticket-alt me-1"></i>{{ transfer.tokens_amount }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">Дата передачи:</small>
+                                            <div>{{ transfer.transfer_date.strftime('%d.%m.%Y') }}</div>
+                                            <small class="text-muted">{{ transfer.transfer_date.strftime('%H:%M') }}</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Статус:</small>
+                                            <div>
+                                                {% if transfer.status == 'active' %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-check me-1"></i>Активна
+                                                    </span>
+                                                {% elif transfer.status == 'cancelled' %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-times me-1"></i>Отменена
+                                                    </span>
+                                                    {% if transfer.cancellation_date %}
+                                                        <br>
+                                                        <small class="text-muted">
+                                                            {{ transfer.cancellation_date.strftime('%d.%m.%Y %H:%M') }}
+                                                        </small>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        {% if transfer.status == 'active' and transfer.can_be_cancelled %}
+                                            <button class="btn btn-sm btn-outline-danger cancel-transfer-btn w-100" 
+                                                    data-transfer-id="{{ transfer.id }}"
+                                                    data-tokens-amount="{{ transfer.tokens_amount }}"
+                                                    data-student-name="{{ transfer.student.student_name }}">
+                                                <i class="fas fa-undo me-1"></i>Отменить передачу
+                                            </button>
+                                        {% elif transfer.status == 'active' and not transfer.can_be_cancelled %}
+                                            <span class="text-muted small d-block text-center">
+                                                <i class="fas fa-clock me-1"></i>Время отмены истекло
+                                            </span>
+                                        {% elif transfer.status == 'cancelled' %}
+                                            <span class="text-muted small d-block text-center">
+                                                <i class="fas fa-info-circle me-1"></i>Уже отменена
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Пагинация -->
+                        {% if transfers.pages > 1 %}
+                            <nav aria-label="Пагинация истории передач">
+                                <ul class="pagination justify-content-center">
+                                    {% if transfers.has_prev %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('teacher_transfer_history', page=transfers.prev_num) }}">
+                                                <i class="fas fa-chevron-left"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for page_num in transfers.iter_pages() %}
+                                        {% if page_num %}
+                                            {% if page_num != transfers.page %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="{{ url_for('teacher_transfer_history', page=page_num) }}">{{ page_num }}</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ page_num }}</span>
+                                                </li>
+                                            {% endif %}
+                                        {% else %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if transfers.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('teacher_transfer_history', page=transfers.next_num) }}">
+                                                <i class="fas fa-chevron-right"></i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">История передач пуста</h5>
+                            <p class="text-muted">Вы пока не передавали жетоны своим ученикам</p>
+                            <a href="{{ url_for('teacher_profile') }}" class="btn btn-primary">
+                                <i class="fas fa-gift me-1"></i>Передать жетоны
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно подтверждения отмены -->
+<div class="modal fade" id="cancelTransferModal" tabindex="-1" aria-labelledby="cancelTransferModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelTransferModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>Подтверждение отмены
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Вы уверены, что хотите отменить передачу <strong id="cancelTransferInfo"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Внимание:</strong> Отмена возможна только в течение 5 минут после передачи.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelTransfer">
+                    <i class="fas fa-undo me-1"></i>Да, отменить передачу
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Стили для мобильных карточек передач */
+@media (max-width: 768px) {
+    .transfer-card-mobile {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        transition: box-shadow 0.2s ease;
+        margin-bottom: 1rem;
+    }
+    
+    .transfer-card-mobile:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .transfer-card-mobile .card-body {
+        padding: 1rem;
+    }
+    
+    .transfer-card-mobile h6 {
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .transfer-card-mobile .badge {
+        font-size: 0.75rem;
+    }
+    
+    .transfer-card-mobile .row {
+        margin-bottom: 0.5rem;
+    }
+    
+    .transfer-card-mobile .col-6 {
+        padding: 0 0.25rem;
+    }
+    
+    .transfer-card-mobile small {
+        font-size: 0.75rem;
+    }
+    
+    .transfer-card-mobile .text-muted {
+        font-size: 0.8rem;
+    }
+    
+    .transfer-card-mobile .btn {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentTransferId = null;
+    
+    // Обработчик кнопок отмены передачи
+    document.querySelectorAll('.cancel-transfer-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const transferId = this.getAttribute('data-transfer-id');
+            const tokensAmount = this.getAttribute('data-tokens-amount');
+            const studentName = this.getAttribute('data-student-name');
+            
+            currentTransferId = transferId;
+            
+            // Заполняем модальное окно
+            document.getElementById('cancelTransferInfo').textContent = 
+                `${tokensAmount} жетонов учащемуся ${studentName}`;
+            
+            // Показываем модальное окно
+            const modal = new bootstrap.Modal(document.getElementById('cancelTransferModal'));
+            modal.show();
+        });
+    });
+    
+    // Обработчик подтверждения отмены
+    document.getElementById('confirmCancelTransfer').addEventListener('click', async function() {
+        if (!currentTransferId) return;
+        
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-undo me-1"></i>Отмена...';
+        
+        try {
+            const response = await fetch(`/teacher/cancel-transfer/${currentTransferId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification(data.message, 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('cancelTransferModal'));
+                if (modal) modal.hide();
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showNotification(data.message || 'Ошибка при отмене передачи', 'danger');
+            }
+        } catch (error) {
+            showNotification('Произошла ошибка при отмене передачи', 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-undo me-1"></i>Да, отменить передачу';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -157,9 +157,17 @@ def handle_payment_succeeded(payment_data):
         print(f"❌ Ошибка получения информации о платеже: {e}")
         return jsonify({'error': 'Failed to get payment info'}), 500
     
-    # Находим покупку в базе данных
-    from app import TicketPurchase, User, db
+    # Находим покупку в базе данных (проверяем как обычные покупки, так и покупки учителей)
+    from app import TicketPurchase, TeacherTicketPurchase, User, Teacher, db
+    
+    # Сначала ищем в обычных покупках
     purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+    purchase_type = 'user'
+    
+    # Если не найдено, ищем в покупках учителей
+    if not purchase:
+        purchase = TeacherTicketPurchase.query.filter_by(payment_id=payment_id).first()
+        purchase_type = 'teacher'
     
     if not purchase:
         print(f"❌ Покупка с payment_id {payment_id} не найдена")
@@ -169,43 +177,69 @@ def handle_payment_succeeded(payment_data):
     metadata = payment_data.get('metadata', {})
     if metadata:
         expected_user_id = metadata.get('user_id')
+        expected_teacher_id = metadata.get('teacher_id')
         expected_purchase_id = metadata.get('purchase_id')
         
-        if expected_user_id and str(purchase.user_id) != expected_user_id:
+        if purchase_type == 'user' and expected_user_id and str(purchase.user_id) != expected_user_id:
             print(f"⚠️  Несоответствие ID пользователя: ожидалось {expected_user_id}, найдено {purchase.user_id}")
-            # Не блокируем обработку, но логируем для мониторинга
+        elif purchase_type == 'teacher' and expected_teacher_id and str(purchase.teacher_id) != expected_teacher_id:
+            print(f"⚠️  Несоответствие ID учителя: ожидалось {expected_teacher_id}, найдено {purchase.teacher_id}")
         
         if expected_purchase_id and str(purchase.id) != expected_purchase_id:
             print(f"⚠️  Несоответствие ID покупки: ожидалось {expected_purchase_id}, найдено {purchase.id}")
-            # Не блокируем обработку, но логируем для мониторинга
     
     # Проверяем, не был ли уже обработан этот платеж
     if purchase.payment_status == 'succeeded':
         print(f"⚠️  Платеж {payment_id} уже был обработан")
         return jsonify({'success': True, 'message': 'Payment already processed'}), 200
     
-    # Начисляем жетоны пользователю
-    user = User.query.get(purchase.user_id)
-    if user:
-        old_tickets = user.tickets
-        user.tickets += purchase.quantity
-        purchase.payment_status = 'succeeded'
-        purchase.payment_confirmed_at = datetime.now()
-        
-        db.session.commit()
-        
-        print(f"💰 Начислено {purchase.quantity} жетонов пользователю {user.id}")
-        print(f"   - Было: {old_tickets}, стало: {user.tickets}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Payment processed successfully',
-            'tickets_added': purchase.quantity,
-            'user_id': user.id
-        }), 200
-    else:
-        print(f"❌ Пользователь {purchase.user_id} не найден")
-        return jsonify({'error': 'User not found'}), 404
+    # Начисляем жетоны пользователю или учителю
+    if purchase_type == 'user':
+        user = User.query.get(purchase.user_id)
+        if user:
+            old_tickets = user.tickets
+            user.tickets += purchase.quantity
+            purchase.payment_status = 'succeeded'
+            purchase.payment_confirmed_at = datetime.now()
+            
+            db.session.commit()
+            
+            print(f"💰 Начислено {purchase.quantity} жетонов пользователю {user.id}")
+            print(f"   - Было: {old_tickets}, стало: {user.tickets}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Payment processed successfully',
+                'tickets_added': purchase.quantity,
+                'user_id': user.id,
+                'purchase_type': 'user'
+            }), 200
+        else:
+            print(f"❌ Пользователь {purchase.user_id} не найден")
+            return jsonify({'error': 'User not found'}), 404
+    else:  # purchase_type == 'teacher'
+        teacher = Teacher.query.get(purchase.teacher_id)
+        if teacher:
+            old_tickets = teacher.tickets
+            teacher.tickets += purchase.quantity
+            purchase.payment_status = 'succeeded'
+            purchase.payment_confirmed_at = datetime.now()
+            
+            db.session.commit()
+            
+            print(f"💰 Начислено {purchase.quantity} жетонов учителю {teacher.id}")
+            print(f"   - Было: {old_tickets}, стало: {teacher.tickets}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Payment processed successfully',
+                'tickets_added': purchase.quantity,
+                'teacher_id': teacher.id,
+                'purchase_type': 'teacher'
+            }), 200
+        else:
+            print(f"❌ Учитель {purchase.teacher_id} не найден")
+            return jsonify({'error': 'Teacher not found'}), 404
 
 def handle_payment_canceled(payment_data):
     """
@@ -220,9 +254,15 @@ def handle_payment_canceled(payment_data):
     payment_id = payment_data.get('id')
     print(f"❌ Платеж {payment_id} отменен")
     
-    # Обновляем статус в базе данных
-    from app import TicketPurchase, db
+    # Обновляем статус в базе данных (проверяем как обычные покупки, так и покупки учителей)
+    from app import TicketPurchase, TeacherTicketPurchase, db
+    
+    # Сначала ищем в обычных покупках
     purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+    
+    # Если не найдено, ищем в покупках учителей
+    if not purchase:
+        purchase = TeacherTicketPurchase.query.filter_by(payment_id=payment_id).first()
     
     if purchase:
         purchase.payment_status = 'canceled'
@@ -244,9 +284,15 @@ def handle_payment_waiting_for_capture(payment_data):
     payment_id = payment_data.get('id')
     print(f"⏳ Платеж {payment_id} ожидает подтверждения")
     
-    # Обновляем статус в базе данных
-    from app import TicketPurchase, db
+    # Обновляем статус в базе данных (проверяем как обычные покупки, так и покупки учителей)
+    from app import TicketPurchase, TeacherTicketPurchase, db
+    
+    # Сначала ищем в обычных покупках
     purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+    
+    # Если не найдено, ищем в покупках учителей
+    if not purchase:
+        purchase = TeacherTicketPurchase.query.filter_by(payment_id=payment_id).first()
     
     if purchase:
         purchase.payment_status = 'waiting_for_capture'
@@ -268,9 +314,15 @@ def handle_payment_failed(payment_data):
     payment_id = payment_data.get('id')
     print(f"💥 Платеж {payment_id} завершился с ошибкой")
     
-    # Обновляем статус в базе данных
-    from app import TicketPurchase, db
+    # Обновляем статус в базе данных (проверяем как обычные покупки, так и покупки учителей)
+    from app import TicketPurchase, TeacherTicketPurchase, db
+    
+    # Сначала ищем в обычных покупках
     purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+    
+    # Если не найдено, ищем в покупках учителей
+    if not purchase:
+        purchase = TeacherTicketPurchase.query.filter_by(payment_id=payment_id).first()
     
     if purchase:
         purchase.payment_status = 'failed'
@@ -292,9 +344,15 @@ def handle_payment_pending(payment_data):
     payment_id = payment_data.get('id')
     print(f"⏰ Платеж {payment_id} ожидает оплаты")
     
-    # Обновляем статус в базе данных
-    from app import TicketPurchase, db
+    # Обновляем статус в базе данных (проверяем как обычные покупки, так и покупки учителей)
+    from app import TicketPurchase, TeacherTicketPurchase, db
+    
+    # Сначала ищем в обычных покупках
     purchase = TicketPurchase.query.filter_by(payment_id=payment_id).first()
+    
+    # Если не найдено, ищем в покупках учителей
+    if not purchase:
+        purchase = TeacherTicketPurchase.query.filter_by(payment_id=payment_id).first()
     
     if purchase:
         purchase.payment_status = 'pending'

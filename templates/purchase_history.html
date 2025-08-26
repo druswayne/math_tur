@@ -65,10 +65,10 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h1>История активности</h1>
-        <a href="{{ url_for('profile') }}" class="btn btn-secondary d-none d-md-inline-flex">
+        <a href="{{ back_url if back_url else url_for('profile') }}" class="btn btn-secondary d-none d-md-inline-flex">
             <i class="fas fa-arrow-left me-2"></i>Назад в личный кабинет
         </a>
-        <a href="{{ url_for('profile') }}" class="btn btn-secondary btn-sm d-md-none">
+        <a href="{{ back_url if back_url else url_for('profile') }}" class="btn btn-secondary btn-sm d-md-none">
             <i class="fas fa-arrow-left"></i>
         </a>
     </div>

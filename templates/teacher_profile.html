@@ -31,7 +31,7 @@
 
             <!-- Статистика -->
             <div class="row mb-4 g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="stats-card h-100">
                         <div class="card-body text-center">
                             <i class="fas fa-users fa-2x mb-2 icon-gradient"></i>
@@ -40,7 +40,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="stats-card h-100">
                         <div class="card-body text-center">
                             <i class="fas fa-trophy fa-2x mb-2 icon-gradient"></i>
@@ -49,17 +49,52 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="stats-card h-100">
+                <div class="col-md-3">
+                    <div class="stats-card h-100 balance-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('shop') }}'">
                         <div class="card-body text-center">
                             <i class="fas fa-coins fa-2x mb-2 icon-gradient"></i>
                             <div class="card-title">Баланс</div>
                             <div class="card-value">{{ current_user.balance }} баллов</div>
-                            <div class="mt-3">
-                                <a href="{{ url_for('shop') }}" class="btn btn-success btn-sm">
-                                    <i class="fas fa-gift me-1"></i>Обменять баллы
-                                </a>
-                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card h-100 tickets-card" style="cursor: pointer;" onclick="window.location.href='{{ url_for('teacher_buy_tickets') }}'">
+                        <div class="card-body text-center">
+                            <i class="fas fa-ticket-alt fa-2x mb-2 icon-gradient"></i>
+                            <div class="card-title">Жетоны</div>
+                            <div class="card-value">{{ current_user.tickets }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Действия -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Действия</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('teacher_buy_tickets') }}" class="btn btn-primary btn-lg w-100 buy-tickets-btn">
+                                <i class="fas fa-ticket-alt"></i> Купить жетоны
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('shop') }}" class="btn btn-primary btn-lg w-100 shop-btn">
+                                <i class="fas fa-shopping-cart"></i> Обменять баллы
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('teacher_purchase_history') }}" class="btn btn-primary btn-lg w-100 purchase-history-btn">
+                                <i class="fas fa-history"></i> История активности
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('teacher_transfer_history') }}" class="btn btn-warning btn-lg w-100 transfer-history-btn">
+                                <i class="fas fa-gift"></i> История передач
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -142,6 +177,8 @@
                                         <th>ФИО</th>
                                         <th>Группа</th>
                                         <th>Баллы</th>
+                                        <th>Жетоны</th>
+                                        <th>Передача жетонов</th>
                                         <th>Турниры</th>
                                         <th>Дата регистрации</th>
                                         <th>Статус</th>
@@ -159,6 +196,21 @@
                                             <span class="text-success">
                                                 <i class="fas fa-coins me-1"></i>{{ student.balance }}
                                             </span>
+                                        </td>
+                                        <td>
+                                            <span class="text-warning">
+                                                <i class="fas fa-ticket-alt me-1"></i>{{ student.tickets }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary transfer-tokens-btn" 
+                                                    data-student-id="{{ student.id }}" 
+                                                    data-student-name="{{ student.student_name }}"
+                                                    data-teacher-tokens="{{ current_user.tickets }}"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#transferTokensModal">
+                                                <i class="fas fa-gift me-1"></i>Передать
+                                            </button>
                                         </td>
                                         <td>
                                             {% if student.tournaments_count > 0 %}
@@ -215,6 +267,28 @@
                                             <small class="text-muted">Баллы:</small>
                                             <div class="text-success">
                                                 <i class="fas fa-coins me-1"></i>{{ student.balance }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <small class="text-muted">Жетоны:</small>
+                                            <div class="text-warning">
+                                                <i class="fas fa-ticket-alt me-1"></i>{{ student.tickets }}
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <small class="text-muted">Передача:</small>
+                                            <div>
+                                                <button class="btn btn-sm btn-outline-primary transfer-tokens-btn" 
+                                                        data-student-id="{{ student.id }}" 
+                                                        data-student-name="{{ student.student_name }}"
+                                                        data-teacher-tokens="{{ current_user.tickets }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#transferTokensModal">
+                                                    <i class="fas fa-gift me-1"></i>Передать
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -413,6 +487,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .stats-card:hover::before { opacity: 1; }
 .stats-card:hover { transform: translateY(-2px); box-shadow: var(--box-shadow-hover); }
+
+/* Специальные стили для кликабельного блока баланса */
+.balance-card:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+.balance-card:hover .card-title {
+    color: var(--primary-color) !important;
+}
+
+.balance-card:hover .card-value {
+    color: var(--primary-color) !important;
+}
 
 .stats-card .card-title { font-weight: 600; color: var(--text-color); margin-bottom: 0.25rem; }
 .stats-card .card-value { font-size: 2rem; font-weight: 700; }
@@ -720,5 +809,163 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   });
 });
+
+// Обработчик для передачи жетонов
+document.addEventListener('DOMContentLoaded', function() {
+  // Обработчик кнопок передачи жетонов
+  document.querySelectorAll('.transfer-tokens-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const studentId = this.getAttribute('data-student-id');
+      const studentName = this.getAttribute('data-student-name');
+      const teacherTokens = parseInt(this.getAttribute('data-teacher-tokens')) || 0;
+      
+      // Заполняем модальное окно данными ученика
+      document.getElementById('transferStudentName').textContent = studentName;
+      document.getElementById('transferStudentId').value = studentId;
+      document.getElementById('transferTokensAmount').value = '';
+      
+      // Устанавливаем максимальное значение равное количеству жетонов учителя
+      const tokensInput = document.getElementById('transferTokensAmount');
+      tokensInput.max = teacherTokens;
+      tokensInput.placeholder = `Введите количество жетонов (максимум: ${teacherTokens})`;
+      
+      // Обновляем информацию о доступных жетонах
+      const availableTokensInfo = document.getElementById('availableTokensInfo');
+      if (availableTokensInfo) {
+        availableTokensInfo.textContent = `У вас доступно: ${teacherTokens} жетонов`;
+        if (teacherTokens === 0) {
+          availableTokensInfo.className = 'form-text text-danger';
+          availableTokensInfo.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>У вас нет жетонов для передачи';
+        } else {
+          availableTokensInfo.className = 'form-text text-success';
+        }
+      }
+      
+      // Блокируем кнопку отправки, если нет жетонов
+      const submitBtn = document.getElementById('transferTokensSubmit');
+      if (teacherTokens === 0) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-ban me-1"></i>Нет жетонов для передачи';
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-gift me-1"></i>Передать жетоны';
+      }
+    });
+  });
+
+  // Обработчик отправки формы передачи жетонов
+  document.getElementById('transferTokensForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const studentId = document.getElementById('transferStudentId').value;
+    const tokensAmount = parseInt(document.getElementById('transferTokensAmount').value);
+    const maxTokens = parseInt(document.getElementById('transferTokensAmount').max) || 0;
+    
+    if (!tokensAmount || tokensAmount <= 0) {
+      showNotification('Укажите корректное количество жетонов', 'danger');
+      return;
+    }
+    
+    if (tokensAmount > maxTokens) {
+      showNotification(`Количество жетонов не может превышать ${maxTokens}`, 'danger');
+      return;
+    }
+    
+    const submitBtn = document.getElementById('transferTokensSubmit');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-gift me-1"></i>Передача...';
+    
+    try {
+      const response = await fetch('/teacher/transfer-tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          tokens_amount: tokensAmount
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showNotification('Жетоны успешно переданы!', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('transferTokensModal'));
+        if (modal) modal.hide();
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showNotification(data.message || 'Ошибка при передаче жетонов', 'danger');
+      }
+    } catch (error) {
+      showNotification('Произошла ошибка при передаче жетонов', 'danger');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Передать жетоны';
+    }
+  });
+  
+  // Обработчик ввода в поле количества жетонов
+  document.getElementById('transferTokensAmount').addEventListener('input', function() {
+    const value = parseInt(this.value) || 0;
+    const maxValue = parseInt(this.max) || 0;
+    const submitBtn = document.getElementById('transferTokensSubmit');
+    
+    if (value > maxValue && maxValue > 0) {
+      this.classList.add('is-invalid');
+      submitBtn.disabled = true;
+    } else {
+      this.classList.remove('is-invalid');
+      submitBtn.disabled = false;
+    }
+  });
+});
 </script>
+
+<!-- Модальное окно для передачи жетонов -->
+<div class="modal fade" id="transferTokensModal" tabindex="-1" aria-labelledby="transferTokensModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="transferTokensModalLabel">
+          <i class="fas fa-gift me-2"></i>Передача жетонов
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="transferTokensForm">
+        <div class="modal-body">
+          <input type="hidden" id="transferStudentId" name="student_id">
+          
+          <div class="mb-3">
+            <label class="form-label">Учащийся:</label>
+            <div class="form-control-plaintext" id="transferStudentName"></div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="transferTokensAmount" class="form-label">Количество жетонов для передачи:</label>
+            <input type="number" class="form-control" id="transferTokensAmount" name="tokens_amount" 
+                   min="1" required placeholder="Введите количество жетонов">
+            <div class="form-text text-success" id="availableTokensInfo">
+              <i class="fas fa-info-circle me-1"></i>
+              У вас доступно: {{ current_user.tickets }} жетонов
+            </div>
+            <div class="form-text">
+              <i class="fas fa-clock me-1"></i>
+              Вы можете отменить передачу в течение 5 минут после её совершения
+            </div>
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Важно:</strong> Передача жетонов уменьшит ваш баланс жетонов на указанное количество.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-primary" id="transferTokensSubmit">
+            <i class="fas fa-gift me-1"></i>Передать жетоны
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %} 
