@@ -8667,11 +8667,13 @@ def check_expired_payments():
         file.write('check_expired_payments\n')
     """Проверяет и обновляет статусы истекших платежей для всех платежных систем"""
     try:
-        # Проверяем платежи ЮKassa
+        # Проверяем платежи обычных пользователей
         check_yukassa_expired_payments()
-        
-        # Проверяем платежи Express-Pay
         check_express_pay_expired_payments()
+        
+        # Проверяем платежи учителей
+        check_teacher_yukassa_expired_payments()
+        check_teacher_express_pay_expired_payments()
         
     except Exception as e:
         print(f"Ошибка при проверке истекших платежей: {e}")
@@ -8789,6 +8791,97 @@ def check_express_pay_expired_payments():
         
     except Exception as e:
         print(f"Ошибка при проверке истекших платежей Express-Pay: {e}")
+        db.session.rollback()
+
+def check_teacher_yukassa_expired_payments():
+    """Проверяет и обновляет статусы истекших платежей учителей ЮKassa"""
+    try:
+        from yukassa_service import yukassa_service
+        
+        # Получаем все pending платежи учителей ЮKassa
+        pending_purchases = TeacherTicketPurchase.query.filter_by(
+            payment_status='pending',
+            payment_system='yukassa'
+        ).all()
+        
+        expired_count = 0
+        for purchase in pending_purchases:
+            if purchase.payment_id:
+                try:
+                    # Получаем актуальную информацию о платеже
+                    payment_info = yukassa_service.get_payment_info(purchase.payment_id)
+                    
+                    # Проверяем, истек ли платеж
+                    if yukassa_service.is_payment_expired(payment_info):
+                        purchase.payment_status = 'expired'
+                        expired_count += 1
+                        print(f"Платеж учителя ЮKassa {purchase.payment_id} помечен как истекший")
+                        
+                except Exception as e:
+                    print(f"Ошибка при проверке платежа учителя ЮKassa {purchase.payment_id}: {e}")
+                    continue
+        
+        if expired_count > 0:
+            db.session.commit()
+            print(f"Обновлено {expired_count} истекших платежей учителей ЮKassa")
+        
+    except Exception as e:
+        print(f"Ошибка при проверке истекших платежей учителей ЮKassa: {e}")
+        db.session.rollback()
+
+def check_teacher_express_pay_expired_payments():
+    """Проверяет и обновляет статусы истекших платежей учителей Express-Pay"""
+    try:
+        from express_pay_service import ExpressPayService
+        
+        # Получаем все pending платежи учителей Express-Pay
+        pending_purchases = TeacherTicketPurchase.query.filter_by(
+            payment_status='pending',
+            payment_system='express_pay'
+        ).all()
+        
+        if not pending_purchases:
+            return
+        
+        # Создаем экземпляр сервиса Express-Pay
+        express_pay_service = ExpressPayService()
+        
+        expired_count = 0
+        for purchase in pending_purchases:
+            # Проверяем, что payment_id не None и не пустой
+            if not purchase.payment_id or purchase.payment_id == 'None' or purchase.payment_id == 'null':
+                print(f"Пропускаем покупку учителя {purchase.id}: payment_id отсутствует или равен None")
+                continue
+            try:
+                old_status = purchase.payment_status
+                # Получаем актуальный статус платежа через специальный endpoint
+                status_response = express_pay_service.get_payment_status(purchase.payment_id)
+                status_code = status_response.get('Status')
+                status = express_pay_service.parse_payment_status(status_code)
+                purchase.payment_status = status
+
+                # Если статус изменился на 'succeeded', начисляем жетоны
+                if status == 'succeeded' and old_status != 'succeeded':
+                    teacher = Teacher.query.get(purchase.teacher_id)
+                    if teacher:
+                        teacher.tickets += purchase.quantity
+                        purchase.payment_confirmed_at = datetime.now()
+                        print(f"Автоматическая проверка: начислено {purchase.quantity} жетонов учителю {teacher.id}")
+
+                # Если платеж истек или отменен, увеличиваем счетчик
+                if status in ['expired', 'canceled']:
+                    expired_count += 1
+                    print(f"Платеж учителя Express-Pay {purchase.payment_id} помечен как {status}")
+            except Exception as e:
+                print(f"Ошибка при проверке платежа учителя Express-Pay {purchase.payment_id}: {e}")
+                continue
+        
+        if expired_count > 0:
+            db.session.commit()
+            print(f"Обновлено {expired_count} истекших платежей учителей Express-Pay")
+        
+    except Exception as e:
+        print(f"Ошибка при проверке истекших платежей учителей Express-Pay: {e}")
         db.session.rollback()
 
 def initialize_scheduler_jobs():
