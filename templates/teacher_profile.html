@@ -18,14 +18,23 @@
                         <button class="btn btn-outline-primary d-inline-flex d-md-none edit-profile-mobile" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
                             <i class="fas fa-user-edit me-1"></i>Редактировать профиль
                         </button>
+                        <!-- Мобильная кнопка обучения (видна только на мобильных) -->
+                        <button class="btn btn-outline-info d-inline-flex d-md-none" style="color: #000;" onclick="resetTeacherTutorial()">
+                            <i class="fas fa-graduation-cap me-1"></i>Обучение
+                        </button>
                     </div>
                 </div>
                 <div class="text-muted ms-3 d-none d-md-flex flex-column align-items-end">
-                    <small class="mb-2">{{ current_user.full_name }}</small>
-                    <!-- Десктопная кнопка редактирования (скрыта на мобильных) -->
-                    <button class="btn btn-sm btn-outline-primary" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
-                        <i class="fas fa-user-edit me-1"></i>Редактировать профиль
-                    </button>
+                    <div class="mb-2 fw-bold">{{ current_user.full_name }}</div>
+                    <!-- Десктопные кнопки (скрыты на мобильных) -->
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
+                            <i class="fas fa-user-edit me-1"></i>Редактировать профиль
+                        </button>
+                        <button class="btn btn-outline-info" style="color: #000;" onclick="resetTeacherTutorial()">
+                            <i class="fas fa-graduation-cap me-1"></i>Обучение
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -70,7 +79,7 @@
             </div>
 
             <!-- Действия -->
-            <div class="card mb-4">
+            <div class="card mb-4 actions-card">
                 <div class="card-header">
                     <h4 class="mb-0">Действия</h4>
                 </div>
@@ -101,7 +110,7 @@
             </div>
 
             <!-- Пригласительная ссылка -->
-            <div class="card mb-4">
+            <div class="card mb-4 invite-link-card">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-link me-2"></i>Пригласительная ссылка для учащихся
@@ -159,7 +168,7 @@
             </div>
 
                             <!-- Таблица учащихся -->
-            <div class="card">
+            <div class="card students-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-table me-2"></i>Мои учащиеся
@@ -489,19 +498,44 @@ document.addEventListener('DOMContentLoaded', function() {
 .stats-card:hover::before { opacity: 1; }
 .stats-card:hover { transform: translateY(-2px); box-shadow: var(--box-shadow-hover); }
 
-/* Специальные стили для кликабельного блока баланса */
-.balance-card:hover {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-    transform: translateY(-3px) !important;
-    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+/* Убираем специальные стили для кликабельных блоков - теперь все блоки имеют одинаковые эффекты */
+
+/* Единые стили для всех карточек с эффектами при наведении */
+.actions-card,
+.invite-link-card,
+.students-card {
+    background: linear-gradient(135deg, white 0%, var(--light-bg) 100%);
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    overflow: hidden;
+    position: relative;
 }
 
-.balance-card:hover .card-title {
-    color: var(--primary-color) !important;
+.actions-card::before,
+.invite-link-card::before,
+.students-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    opacity: 0;
+    transition: var(--transition);
 }
 
-.balance-card:hover .card-value {
-    color: var(--primary-color) !important;
+.actions-card:hover::before,
+.invite-link-card:hover::before,
+.students-card:hover::before { 
+    opacity: 1; 
+}
+
+.actions-card:hover,
+.invite-link-card:hover,
+.students-card:hover { 
+    transform: translateY(-2px); 
+    box-shadow: var(--box-shadow-hover); 
 }
 
 .stats-card .card-title { font-weight: 600; color: var(--text-color); margin-bottom: 0.25rem; }
@@ -919,7 +953,35 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+
+function resetTeacherTutorial() {
+    fetch('/reset-teacher-tutorial', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Обучение сброшено. Страница будет перезагружена...', 'success');
+            // Перезагружаем страницу через 1 секунду
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showNotification('Ошибка при сбросе обучения', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Произошла ошибка при сбросе обучения', 'danger');
+    });
+}
 </script>
+
+<!-- Загружаем скрипт обучения для учителей -->
+<script src="{{ url_for('static', filename='js/teacher_tutorial.js') }}"></script>
 
 <!-- Модальное окно для передачи жетонов -->
 <div class="modal fade" id="transferTokensModal" tabindex="-1" aria-labelledby="transferTokensModalLabel" aria-hidden="true">

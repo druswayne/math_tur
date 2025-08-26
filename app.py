@@ -9015,6 +9015,21 @@ def reset_tutorial():
     
     return response
 
+@app.route('/reset-teacher-tutorial', methods=['POST'])
+@login_required
+def reset_teacher_tutorial():
+    """Сброс обучения для учителя"""
+    response = make_response(jsonify({'success': True}))
+    
+    # Удаляем старый куки (для обратной совместимости)
+    response.delete_cookie('teacher_tutorial_completed')
+    
+    # Удаляем куки для конкретного учителя
+    cookie_name = f'teacher_tutorial_completed_{current_user.id}'
+    response.delete_cookie(cookie_name)
+    
+    return response
+
 @app.route('/api/search-educational-institutions')
 def search_educational_institutions():
     query = sanitize_input(request.args.get('q', ''), 200)
