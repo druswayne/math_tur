@@ -3928,8 +3928,8 @@ def teacher_profile():
     # Получаем статистику бонусов учителя
     teacher_referrals = TeacherReferral.query.filter_by(teacher_id=current_user.id).all()
     total_referrals = len(teacher_referrals)
-    paid_referrals = len([r for r in teacher_referrals if r.bonus_paid])
-    pending_referrals = total_referrals - paid_referrals
+    total_bonuses_paid = sum([r.bonuses_paid_count for r in teacher_referrals])
+    pending_referrals = sum([max(0, User.query.get(r.student_id).tournaments_count - r.bonuses_paid_count) if User.query.get(r.student_id) else 0 for r in teacher_referrals])
     
     # Пагинация для списка учеников
     page = request.args.get('page', 1, type=int)
@@ -3972,7 +3972,7 @@ def teacher_profile():
                          students_info=students_info,
                          students_paginated=students_paginated,
                          total_referrals=total_referrals,
-                         paid_referrals=paid_referrals,
+                         paid_referrals=total_bonuses_paid,
                          pending_referrals=pending_referrals,
                          bonus_points=TEACHER_REFERRAL_BONUS_POINTS)
 
@@ -7703,8 +7703,10 @@ class TeacherReferral(db.Model):
     teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False, index=True)
     student_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
     teacher_invite_link_id = db.Column(db.Integer, db.ForeignKey('teacher_invite_links.id'), nullable=False)
-    bonus_paid = db.Column(db.Boolean, default=False)  # Выплачен ли бонус
-    bonus_paid_at = db.Column(db.DateTime, nullable=True)  # Когда выплачен бонус
+    bonus_paid = db.Column(db.Boolean, default=False)  # Выплачен ли бонус (для обратной совместимости)
+    bonus_paid_at = db.Column(db.DateTime, nullable=True)  # Когда выплачен бонус (для обратной совместимости)
+    bonuses_paid_count = db.Column(db.Integer, default=0)  # Количество выплаченных бонусов
+    last_bonus_paid_at = db.Column(db.DateTime, nullable=True)  # Когда выплачен последний бонус
     created_at = db.Column(db.DateTime, default=datetime.now)
     
     # Связи
@@ -8011,7 +8013,7 @@ def create_teacher_referral(teacher_id, student_id, teacher_invite_link_id):
 def pay_teacher_referral_bonus(teacher_referral_id):
     """Выплачивает бонус учителю за приглашенного ученика"""
     teacher_referral = TeacherReferral.query.get(teacher_referral_id)
-    if not teacher_referral or teacher_referral.bonus_paid:
+    if not teacher_referral:
         return False
     
     try:
@@ -8020,7 +8022,11 @@ def pay_teacher_referral_bonus(teacher_referral_id):
         if teacher:
             teacher.balance += TEACHER_REFERRAL_BONUS_POINTS
             
-            # Отмечаем бонус как выплаченный
+            # Увеличиваем счетчик выплаченных бонусов
+            teacher_referral.bonuses_paid_count += 1
+            teacher_referral.last_bonus_paid_at = datetime.now()
+            
+            # Для обратной совместимости
             teacher_referral.bonus_paid = True
             teacher_referral.bonus_paid_at = datetime.now()
             
@@ -8038,18 +8044,24 @@ def check_and_pay_teacher_referral_bonuses():
         file.write('check_and_pay_teacher_referral_bonuses\n')
     """Проверяет и выплачивает бонусы учителям за учеников, которые участвовали в турнирах"""
     try:
-        # Находим учеников, которые участвовали в турнирах, но бонус учителю еще не выплачен
-        teacher_referrals_to_pay = db.session.query(TeacherReferral).join(
+        # Находим всех приглашенных учеников учителей
+        teacher_referrals = db.session.query(TeacherReferral).join(
             User, TeacherReferral.student_id == User.id
         ).filter(
-            TeacherReferral.bonus_paid == False,
             User.tournaments_count > 0
         ).all()
-        print(teacher_referrals_to_pay, 123)
+        
         paid_count = 0
-        for teacher_referral in teacher_referrals_to_pay:
-            if pay_teacher_referral_bonus(teacher_referral.id):
-                paid_count += 1
+        for teacher_referral in teacher_referrals:
+            # Проверяем, нужно ли выплатить бонус
+            # Бонус выплачивается за каждое участие в турнире
+            student = User.query.get(teacher_referral.student_id)
+            if student and student.tournaments_count > teacher_referral.bonuses_paid_count:
+                # Есть новые участия в турнирах, за которые нужно выплатить бонусы
+                bonuses_to_pay = student.tournaments_count - teacher_referral.bonuses_paid_count
+                for _ in range(bonuses_to_pay):
+                    if pay_teacher_referral_bonus(teacher_referral.id):
+                        paid_count += 1
         
         if paid_count > 0:
             print(f"Выплачено {paid_count} бонусов учителям за учеников")
