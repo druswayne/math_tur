@@ -328,6 +328,10 @@ app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_USERNAME_ADMIN'] = os.environ.get('MAIL_USERNAME_ADMIN')
 app.config['MAIL_PASSWORD_ADMIN'] = os.environ.get('MAIL_PASSWORD_ADMIN')
 
+# Настройки для писем обратной связи
+app.config['MAIL_USERNAME_FEEDBACK'] = os.environ.get('MAIL_USERNAME_FEEDBACK')
+app.config['MAIL_PASSWORD_FEEDBACK'] = os.environ.get('MAIL_PASSWORD_FEEDBACK')
+
 # Настройки сессии
 app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('SESSION_COOKIE_SECURE'))  # Куки только по HTTPS
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Защита от XSS
@@ -1506,14 +1510,14 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
 def send_feedback_email(name, phone, email, subject, message):
     """Отправка письма с обратной связью администратору"""
     try:
-        # Создаем отдельную конфигурацию для административных писем
-        admin_mail_config = {
+        # Создаем отдельную конфигурацию для писем обратной связи
+        feedback_mail_config = {
             'MAIL_SERVER': app.config['MAIL_SERVER'],
             'MAIL_PORT': app.config['MAIL_PORT'],
             'MAIL_USE_SSL': app.config['MAIL_USE_SSL'],
             'MAIL_USE_TLS': app.config['MAIL_USE_TLS'],
-            'MAIL_USERNAME': app.config['MAIL_USERNAME_ADMIN'],
-            'MAIL_PASSWORD': app.config['MAIL_PASSWORD_ADMIN']
+            'MAIL_USERNAME': app.config['MAIL_USERNAME_FEEDBACK'],
+            'MAIL_PASSWORD': app.config['MAIL_PASSWORD_FEEDBACK']
         }
         
         # Формируем тему и текст письма
@@ -1536,8 +1540,8 @@ Email: {email}
         
         # Создаем сообщение
         msg = Message(email_subject,
-                     sender=admin_mail_config['MAIL_USERNAME'],
-                     recipients=['th@liga-znatokov.by'])
+                     sender=feedback_mail_config['MAIL_USERNAME'],
+                     recipients=['info@liga-znatokov.by'])
         
         # Создаем улучшенный HTML-шаблон
         html_email_body = f"""
@@ -1573,8 +1577,8 @@ Email: {email}
         msg.html = html_email_body
         msg.body = email_body.strip()  # Оставляем текстовую версию для совместимости
         
-        # Отправляем через очередь с административными настройками
-        add_to_queue(app, mail, msg, admin_mail_config)
+        # Отправляем через очередь с настройками обратной связи
+        add_to_queue(app, mail, msg, feedback_mail_config)
         
     except Exception as e:
         print(f"Ошибка отправки письма с обратной связью: {e}")
