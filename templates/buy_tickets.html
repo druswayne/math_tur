@@ -91,7 +91,7 @@
                     <div class="mb-3">
                         <label class="form-label">Базовая цена</label>
                         <p id="basePrice" class="form-text">
-                            {{ base_price.price }} BYN за жетон
+                            <img src="{{ url_for('static', filename='by.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="BY">{{ base_price.price }} BYN за жетон
                         </p>
                     </div>
                     <div class="mb-3">
@@ -239,7 +239,7 @@ function updatePrice() {
         const currencyRate = {{ currency_rate }};
         const totalPriceRub = totalPrice * currencyRate;
         const roundedPriceRub = Math.ceil(totalPriceRub / 10) * 10;
-        document.getElementById('totalPrice').innerHTML = totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ ' + roundedPriceRub + ' RUB</small>';
+        document.getElementById('totalPrice').innerHTML = '<img src="{{ url_for('static', filename='by.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="BY">' + totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ <img src="{{ url_for('static', filename='ru.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="RU">' + roundedPriceRub + ' RUB</small>';
         
         // Обновляем состояние кнопки
         updatePurchaseButton();
