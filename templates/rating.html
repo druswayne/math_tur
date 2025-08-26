@@ -97,10 +97,10 @@
                                     <th>Место</th>
                                     <th>Участник</th>
                                     <th>Баллы</th>
-                                    <th>Решено задач</th>
-                                    <th>Успешность</th>
-                                    <th>Турниры</th>
                                     <th>Время</th>
+                                    <th>Решено задач</th>
+                                    <th>Турниры</th>
+                                    <th>Успешность</th>
                                 </tr>
                             </thead>
                             <tbody id="table-{{ category }}">
@@ -115,10 +115,10 @@
                                         {% endif %}
                                     </td>
                                     <td>{{ user.balance }}</td>
-                                    <td>{{ user.solved_tasks_count }}</td>
-                                    <td>{{ user.success_rate }}%</td>
-                                    <td>{{ user.tournaments_count }}</td>
                                     <td>{{ "%02d:%02d:%02d"|format((user.total_tournament_time // 3600)|int, ((user.total_tournament_time % 3600) // 60)|int, (user.total_tournament_time % 60)|int) }}</td>
+                                    <td>{{ user.solved_tasks_count }}</td>
+                                    <td>{{ user.tournaments_count }}</td>
+                                    <td>{{ user.success_rate }}%</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
