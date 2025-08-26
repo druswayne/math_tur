@@ -174,7 +174,7 @@
                                 <thead>
                                     <tr>
                                         <th>ФИО</th>
-                                        <th>Группа</th>
+                                        <th>Класс</th>
                                         <th>Баллы</th>
                                         <th>Жетоны</th>
                                         <th>Передача жетонов</th>
@@ -209,7 +209,7 @@
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#transferTokensModal"
                                                     style="color: #000;">
-                                                <i class="fas fa-gift me-1"></i>Передать
+                                                <i class="fas fa-gift me-1"></i>Выдать Жетон
                                             </button>
                                         </td>
                                         <td>
@@ -230,8 +230,8 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-sm btn-outline-info">
-                                                <i class="fas fa-eye"></i>
+                                            <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-outline-info">
+                                                <i class="fas fa-info-circle me-1"></i>Подробнее
                                             </a>
                                         </td>
                                     </tr>
@@ -252,15 +252,15 @@
                                             </h6>
                                         </div>
                                         <div class="text-end">
-                                            <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-sm btn-outline-info">
-                                                <i class="fas fa-eye"></i>
+                                            <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-outline-info">
+                                                <i class="fas fa-info-circle me-1"></i>Подробнее
                                             </a>
                                         </div>
                                     </div>
                                     
                                     <div class="row g-2 mb-2">
                                         <div class="col-6">
-                                            <small class="text-muted">Группа:</small>
+                                            <small class="text-muted">Класс:</small>
                                             <div><span class="badge bg-info">{{ student.category }}</span></div>
                                         </div>
                                         <div class="col-6">
@@ -284,11 +284,11 @@
                                                 <button class="btn btn-sm btn-outline-primary transfer-tokens-btn" 
                                                         data-student-id="{{ student.id }}" 
                                                         data-student-name="{{ student.student_name }}"
-                                                        data-teacher-tokens="{{ current_user.tickets }}"
+                                                        data-teacher-tokens="{{ current_user.tokens }}"
                                                         data-bs-toggle="modal" 
                                                         data-bs-target="#transferTokensModal"
                                                         style="color: #000;">
-                                                    <i class="fas fa-gift me-1"></i>Передать
+                                                    <i class="fas fa-gift me-1"></i>Выдать Жетон
                                                 </button>
                                             </div>
                                         </div>
@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.innerHTML = '<i class="fas fa-ban me-1"></i>Нет жетонов для передачи';
       } else {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-gift me-1"></i>Передать жетоны';
+        submitBtn.innerHTML = '<i class="fas fa-gift me-1"></i>Выдать Жетон';
       }
     });
   });
@@ -900,7 +900,7 @@ document.addEventListener('DOMContentLoaded', function() {
       showNotification('Произошла ошибка при передаче жетонов', 'danger');
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = 'Передать жетоны';
+              submitBtn.innerHTML = 'Выдать Жетон';
     }
   });
   
@@ -962,7 +962,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
           <button type="submit" class="btn btn-primary" id="transferTokensSubmit">
-            <i class="fas fa-gift me-1"></i>Передать жетоны
+            <i class="fas fa-gift me-1"></i>Выдать Жетон
           </button>
         </div>
       </form>

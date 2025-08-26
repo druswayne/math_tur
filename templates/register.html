@@ -36,10 +36,10 @@
                         <div class="mb-3">
                             <label for="username" class="form-label">Логин</label>
                             <div class="input-group">
-                            <input type="text" class="form-control" id="username" name="username" required>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="например ivan2004" required>
                                 <span class="input-group-text validation-icon" id="username-icon">
                                     <i class="fas fa-spinner fa-spin" style="display: none;"></i>
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -53,7 +53,7 @@
                                     <i class="fas fa-eye"></i>
                                 </button>
                                 <span class="input-group-text validation-icon" id="password-icon">
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -61,9 +61,9 @@
                                 <small class="text-muted">Требования к паролю:</small>
                                 <ul class="list-unstyled mt-1 mb-0">
                                     <li id="req-length"><i class="fas fa-circle text-muted"></i> Минимум 8 символов</li>
-                                    <li id="req-uppercase"><i class="fas fa-circle text-muted"></i> Заглавная буква</li>
-                                    <li id="req-lowercase"><i class="fas fa-circle text-muted"></i> Строчная буква</li>
-                                    <li id="req-number"><i class="fas fa-circle text-muted"></i> Цифра</li>
+                                    <li id="req-uppercase"><i class="fas fa-circle text-muted"></i> Заглавная буква: A,B,C...</li>
+                                    <li id="req-lowercase"><i class="fas fa-circle text-muted"></i> Строчная буква: a,b,c...</li>
+                                    <li id="req-number"><i class="fas fa-circle text-muted"></i> Цифра: 0,1,2,3...</li>
                                     <li id="req-special"><i class="fas fa-circle text-muted"></i> Специальный символ (!@#$%^&*()_+-=[]{}|;:,.<>?)</li>
                                 </ul>
                             </div>
@@ -76,7 +76,7 @@
                                     <i class="fas fa-eye"></i>
                                 </button>
                                 <span class="input-group-text validation-icon" id="confirm_password-icon">
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -87,7 +87,7 @@
                             <div class="input-group">
                             <input type="text" class="form-control" id="student_name" name="student_name" placeholder="Иванов Иван" required>
                                 <span class="input-group-text validation-icon" id="student_name-icon">
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -98,7 +98,7 @@
                             <div class="input-group">
                             <input type="text" class="form-control" id="parent_name" name="parent_name" placeholder="Иванов Иван Иванович" required>
                                 <span class="input-group-text validation-icon" id="parent_name-icon">
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -114,7 +114,7 @@
                                 </select>
                                 <input type="tel" class="form-control" id="phone" name="phone" placeholder="291234567" required>
                                 <span class="input-group-text validation-icon" id="phone-icon">
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -126,7 +126,7 @@
                             <input type="email" class="form-control" id="email" name="email" placeholder="example@email.com" required>
                                 <span class="input-group-text validation-icon" id="email-icon">
                                     <i class="fas fa-spinner fa-spin" style="display: none;"></i>
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -139,7 +139,7 @@
                                 <input type="text" class="form-control" id="educational_institution_search" 
                                        placeholder="Средняя школа №2 г. Минск" autocomplete="off" required>
                                 <span class="input-group-text validation-icon" id="educational_institution-icon">
-                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
                                 </span>
                             </div>
@@ -263,6 +263,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    background-color: transparent !important;
+    border: none !important;
 }
 
 .validation-icon i {
@@ -277,6 +279,43 @@
     padding-right: calc(1.5em + 0.75rem);
     background-image: none;
     box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+/* Стили для пульсирующих чекбоксов */
+.form-check-input {
+    transition: all 0.3s ease;
+    border: 2px solid #dee2e6;
+    cursor: pointer;
+    animation: checkboxPulse 2s infinite;
+}
+
+.form-check-input:hover {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    transform: scale(1.1);
+}
+
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+@keyframes checkboxPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.8);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+.form-check-input:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
     background-color: rgba(25, 135, 84, 0.05);
 }
 
@@ -605,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function() {
             input.classList.remove('is-valid', 'is-invalid');
             iconContainer.classList.remove('is-valid', 'is-invalid');
         } else if (isValid) {
-            const checkIcon = iconContainer.querySelector('.fa-check');
+            const checkIcon = iconContainer.querySelector('.fa-check-circle');
             if (checkIcon) checkIcon.style.display = 'inline-block';
             input.classList.add('is-valid');
             input.classList.remove('is-invalid');
@@ -706,7 +745,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const lengthIcon = document.querySelector('#req-length i');
         const lengthText = document.querySelector('#req-length');
         if (hasMinLength) {
-            lengthIcon.className = 'fas fa-check text-success';
+                                lengthIcon.className = 'fas fa-check-circle text-success';
             lengthText.classList.remove('text-muted');
             lengthText.classList.add('text-success');
         } else {
@@ -719,7 +758,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const upperIcon = document.querySelector('#req-uppercase i');
         const upperText = document.querySelector('#req-uppercase');
         if (hasUpperCase) {
-            upperIcon.className = 'fas fa-check text-success';
+            upperIcon.className = 'fas fa-check-circle text-success';
             upperText.classList.remove('text-muted');
             upperText.classList.add('text-success');
         } else {
@@ -732,7 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const lowerIcon = document.querySelector('#req-lowercase i');
         const lowerText = document.querySelector('#req-lowercase');
         if (hasLowerCase) {
-            lowerIcon.className = 'fas fa-check text-success';
+            lowerIcon.className = 'fas fa-check-circle text-success';
             lowerText.classList.remove('text-muted');
             lowerText.classList.add('text-success');
         } else {
@@ -745,7 +784,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const numberIcon = document.querySelector('#req-number i');
         const numberText = document.querySelector('#req-number');
         if (hasNumber) {
-            numberIcon.className = 'fas fa-check text-success';
+            numberIcon.className = 'fas fa-check-circle text-success';
             numberText.classList.remove('text-muted');
             numberText.classList.add('text-success');
         } else {
@@ -758,7 +797,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const specialIcon = document.querySelector('#req-special i');
         const specialText = document.querySelector('#req-special');
         if (hasSpecialChar) {
-            specialIcon.className = 'fas fa-check text-success';
+            specialIcon.className = 'fas fa-check-circle text-success';
             specialText.classList.remove('text-muted');
             specialText.classList.add('text-success');
         } else {
