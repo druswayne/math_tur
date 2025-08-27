@@ -4337,9 +4337,11 @@ def teacher_create_payment():
     # Конвертируем валюту в зависимости от платежной системы
     from currency_service import currency_service
     if payment_system == 'yukassa':
-        # Конвертируем в рубли и округляем вверх до целого десятка
-        total_price_rub = currency_service.convert_byn_to_rub(total_price_byn)
-        total_price = round_up_to_ten(total_price_rub)
+        # Рассчитываем базовую цену в RUB (уже округленную)
+        base_price_rub = round_up_to_ten(currency_service.convert_byn_to_rub(base_price.price))
+        
+        # Рассчитываем итоговую цену в RUB используя базовую цену в RUB
+        total_price = (base_price_rub * quantity * (1 - discount / 100))
         currency = 'RUB'
     else:
         total_price = total_price_byn
@@ -4747,9 +4749,11 @@ def create_payment():
     # Конвертируем валюту в зависимости от платежной системы
     from currency_service import currency_service
     if payment_system == 'yukassa':
-        # Конвертируем в рубли и округляем вверх до целого десятка
-        total_price_rub = currency_service.convert_byn_to_rub(total_price_byn)
-        total_price = round_up_to_ten(total_price_rub)
+        # Рассчитываем базовую цену в RUB (уже округленную)
+        base_price_rub = round_up_to_ten(currency_service.convert_byn_to_rub(base_price.price))
+        
+        # Рассчитываем итоговую цену в RUB используя базовую цену в RUB
+        total_price = (base_price_rub * quantity * (1 - discount / 100))
         currency = 'RUB'
     else:
         total_price = total_price_byn

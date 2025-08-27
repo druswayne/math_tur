@@ -91,7 +91,8 @@
                     <div class="mb-3">
                         <label class="form-label">Базовая цена</label>
                         <p id="basePrice" class="form-text">
-                            <img src="{{ url_for('static', filename='by.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="BY">{{ base_price.price }} BYN за жетон
+                            <img src="{{ url_for('static', filename='by.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="BY">{{ base_price.price }} BYN за жетон<br>
+                            <small class="text-muted">≈ <img src="{{ url_for('static', filename='ru.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="RU">{{ ((base_price.price * currency_rate / 10) | round(0, 'ceil') * 10) | int }} RUB за жетон</small>
                         </p>
                     </div>
                     <div class="mb-3">
@@ -228,18 +229,19 @@ function updatePrice() {
         // Получаем максимальную доступную скидку
         const maxDiscount = getMaxDiscount(quantity);
         
-        // Рассчитываем итоговую цену
+        // Рассчитываем итоговую цену в BYN
         const totalPrice = (basePrice * quantity * (100 - maxDiscount)) / 100;
+        
+        // Рассчитываем базовую цену в RUB (уже округленную)
+        const currencyRate = {{ currency_rate }};
+        const basePriceRub = Math.ceil((basePrice * currencyRate) / 10) * 10;
+        
+        // Рассчитываем итоговую цену в RUB используя базовую цену в RUB
+        const totalPriceRub = (basePriceRub * quantity * (100 - maxDiscount)) / 100;
         
         // Обновляем отображение скидки и цены
         document.getElementById('discount').textContent = maxDiscount + '%';
-        document.getElementById('totalPrice').textContent = totalPrice.toFixed(2) + ' BYN';
-        
-        // Добавляем цену в рублях с округлением вверх до целого десятка
-        const currencyRate = {{ currency_rate }};
-        const totalPriceRub = totalPrice * currencyRate;
-        const roundedPriceRub = Math.ceil(totalPriceRub / 10) * 10;
-        document.getElementById('totalPrice').innerHTML = '<img src="{{ url_for('static', filename='by.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="BY">' + totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ <img src="{{ url_for('static', filename='ru.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="RU">' + roundedPriceRub + ' RUB</small>';
+        document.getElementById('totalPrice').innerHTML = '<img src="{{ url_for('static', filename='by.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="BY">' + totalPrice.toFixed(2) + ' BYN<br><small class="text-muted">≈ <img src="{{ url_for('static', filename='ru.png') }}" style="width: 16px; height: 12px; margin-right: 4px;" alt="RU">' + totalPriceRub + ' RUB</small>';
         
         // Обновляем состояние кнопки
         updatePurchaseButton();
