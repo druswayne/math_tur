@@ -7384,12 +7384,25 @@ def clear_sessions():
         
         # Запускаем поток восстановления планировщика
         start_scheduler_recovery_thread()
-        logging.basicConfig(
-            filename='err.log',
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+        
+        # Настройка логирования с автоматической очисткой файла при достижении 1MB
+        from logging.handlers import RotatingFileHandler
+        handler = RotatingFileHandler(
+            'err.log', 
+            maxBytes=1024*1024,  # 1MB
+            backupCount=1,       # Хранить только 1 резервный файл
+            encoding='utf-8'
         )
+        handler.setFormatter(logging.Formatter(
+            '%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        ))
+        
+        # Настраиваем корневой логгер
+        root_logger = logging.getLogger()
+        root_logger.setLevel(logging.DEBUG)
+        root_logger.addHandler(handler)
+        
         print("Приложение готово к запуску!")
 
 @app.route('/change-password', methods=['POST'])
