@@ -5106,19 +5106,42 @@ def handle_new_payment_notification(data):
         
         print(f"Webhook: новый платеж - AccountNo: {account_no}, InvoiceNo: {invoice_no}, Amount: {amount}")
         
-        # Сначала пытаемся найти по номеру счёта (InvoiceNo), который мы сохраняем в payment_id
+        # Ищем покупку в обеих таблицах
         purchase = None
+        purchase_type = None
+        
+        # Сначала пытаемся найти по номеру счёта (InvoiceNo), который мы сохраняем в payment_id
         if invoice_no:
+            # Ищем в обычных покупках
             purchase = TicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
-        # Если не нашли — пробуем по AccountNo (равен purchase.id при создании)
+            if purchase:
+                purchase_type = 'user'
+            else:
+                # Ищем в покупках учителей
+                purchase = TeacherTicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
+                if purchase:
+                    purchase_type = 'teacher'
+        
+        # Если не нашли по InvoiceNo, пробуем по AccountNo (равен purchase.id при создании)
         if not purchase and account_no:
             try:
+                # Ищем в обычных покупках
                 purchase = TicketPurchase.query.get(int(account_no))
+                if purchase:
+                    purchase_type = 'user'
+                else:
+                    # Ищем в покупках учителей
+                    purchase = TeacherTicketPurchase.query.get(int(account_no))
+                    if purchase:
+                        purchase_type = 'teacher'
             except Exception:
                 purchase = None
+        
         if not purchase:
             print(f"Webhook: покупка не найдена (InvoiceNo={invoice_no}, AccountNo={account_no})")
             return jsonify({'error': 'Purchase not found'}), 404
+        
+        print(f"Webhook: найдена покупка типа {purchase_type} (ID: {purchase.id})")
         
         # Не начисляем по CmdType=1, т.к. далее придёт CmdType=3 со статусом
         # Обновим статус только если он не установлен
@@ -5126,9 +5149,9 @@ def handle_new_payment_notification(data):
             purchase.payment_status = 'pending'
         
         db.session.commit()
-        print(f"Webhook: платеж успешно обработан (InvoiceNo={invoice_no}, AccountNo={account_no})")
+        print(f"Webhook: платеж успешно обработан (InvoiceNo={invoice_no}, AccountNo={account_no}, тип: {purchase_type})")
         
-        return jsonify({'success': True}), 200
+        return jsonify({'success': True, 'purchase_type': purchase_type}), 200
         
     except Exception as e:
         print(f"Webhook: ошибка обработки нового платежа: {str(e)}")
@@ -5142,19 +5165,33 @@ def handle_payment_cancellation(data):
         
         print(f"Webhook: отмена платежа - AccountNo: {account_no}, PaymentNo: {payment_no}")
         
-        # Находим покупку по номеру лицевого счета
+        # Ищем покупку в обеих таблицах
+        purchase = None
+        purchase_type = None
+        
+        # Ищем в обычных покупках
         purchase = TicketPurchase.query.filter_by(payment_id=str(account_no)).first()
+        if purchase:
+            purchase_type = 'user'
+        else:
+            # Ищем в покупках учителей
+            purchase = TeacherTicketPurchase.query.filter_by(payment_id=str(account_no)).first()
+            if purchase:
+                purchase_type = 'teacher'
+        
         if not purchase:
             print(f"Webhook: покупка с payment_id {account_no} не найдена")
             return jsonify({'error': 'Purchase not found'}), 404
+        
+        print(f"Webhook: найдена покупка типа {purchase_type} для отмены (ID: {purchase.id})")
         
         # Обновляем статус платежа
         purchase.payment_status = 'canceled'
         
         db.session.commit()
-        print(f"Webhook: платеж {account_no} отменен")
+        print(f"Webhook: платеж {account_no} отменен (тип: {purchase_type})")
         
-        return jsonify({'success': True}), 200
+        return jsonify({'success': True, 'purchase_type': purchase_type}), 200
         
     except Exception as e:
         print(f"Webhook: ошибка обработки отмены платежа: {str(e)}")
@@ -5171,11 +5208,27 @@ def handle_status_change_notification(data):
         
         print(f"Webhook: изменение статуса - AccountNo: {account_no}, InvoiceNo: {invoice_no}, Status: {status}")
         
+        # Ищем покупку в обеих таблицах
+        purchase = None
+        purchase_type = None
+        
         # Находим покупку по номеру счета (InvoiceNo)
-        purchase = TicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
+        if invoice_no:
+            # Ищем в обычных покупках
+            purchase = TicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
+            if purchase:
+                purchase_type = 'user'
+            else:
+                # Ищем в покупках учителей
+                purchase = TeacherTicketPurchase.query.filter_by(payment_id=str(invoice_no)).first()
+                if purchase:
+                    purchase_type = 'teacher'
+        
         if not purchase:
             print(f"Webhook: покупка с payment_id {invoice_no} не найдена")
             return jsonify({'error': 'Purchase not found'}), 404
+        
+        print(f"Webhook: найдена покупка типа {purchase_type} для изменения статуса (ID: {purchase.id})")
         
         # Определяем новый статус на основе кода статуса
         old_status = purchase.payment_status
@@ -5202,16 +5255,23 @@ def handle_status_change_notification(data):
         
         # Если статус изменился на "оплачен" и ранее не был оплачен, начисляем жетоны
         if new_status == 'succeeded' and old_status != 'succeeded' and not purchase.payment_confirmed_at:
-            user = User.query.get(purchase.user_id)
-            if user:
-                user.tickets += purchase.quantity
-                purchase.payment_confirmed_at = datetime.now()
-                print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+            if purchase_type == 'user':
+                user = User.query.get(purchase.user_id)
+                if user:
+                    user.tickets += purchase.quantity
+                    purchase.payment_confirmed_at = datetime.now()
+                    print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
+            elif purchase_type == 'teacher':
+                teacher = Teacher.query.get(purchase.teacher_id)
+                if teacher:
+                    teacher.tickets += purchase.quantity
+                    purchase.payment_confirmed_at = datetime.now()
+                    print(f"Webhook: начислено {purchase.quantity} жетонов учителю {teacher.id}")
         
         db.session.commit()
-        print(f"Webhook: статус платежа {invoice_no} обновлен с {old_status} на {new_status}")
+        print(f"Webhook: статус платежа {invoice_no} обновлен с {old_status} на {new_status} (тип: {purchase_type})")
         
-        return jsonify({'success': True}), 200
+        return jsonify({'success': True, 'purchase_type': purchase_type}), 200
         
     except Exception as e:
         print(f"Webhook: ошибка обработки изменения статуса: {str(e)}")
