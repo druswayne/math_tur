@@ -7373,7 +7373,7 @@ def clear_sessions():
 
         # Только после создания таблиц выполняем остальные операции
         print("Очистка сессий...")
-        cleanup_all_sessions()
+        #cleanup_all_sessions()
 
         # Пытаемся получить планировщик
         try_acquire_scheduler()

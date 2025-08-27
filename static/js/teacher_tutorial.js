@@ -20,12 +20,12 @@ class TeacherTutorial {
                  target: '.row.mb-4.g-3 .col-md-3:nth-child(2) .stats-card',
                  position: 'bottom'
              },
-             {
-                 title: "Баланс",
-                 description: "Баллы, которые начисляются за каждое участие учащегося в турнире. В конце сезона баллы можно обменять на подарки!",
-                 target: '.row.mb-4.g-3 .col-md-3:nth-child(3) .stats-card',
-                 position: 'bottom'
-             },
+                         {
+                title: "Баланс",
+                description: "Баллы, которые начисляются за каждое участие учащегося в турнире. В конце сезона баллы можно обменять на призы!",
+                target: '.row.mb-4.g-3 .col-md-3:nth-child(3) .stats-card',
+                position: 'bottom'
+            },
              {
                  title: "Жетоны",
                  description: "Жетоны, которые вы можете распределять между своими учениками.",
