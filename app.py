@@ -7361,7 +7361,7 @@ def clear_sessions():
     # Очищаем все токены сессий при запуске приложения
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    cleanup_all_sessions()
+    #cleanup_all_sessions()
     with app.app_context():
         # Сначала создаем все таблицы
         print("Создание таблиц базы данных...")
@@ -8266,12 +8266,12 @@ def cleanup_all_sessions():
 @atexit.register
 def cleanup_on_exit():
     """Вызывается при завершении работы приложения"""
-    cleanup_all_sessions()
+    #cleanup_all_sessions()
 
 def signal_handler(signum, frame):
     """Обработчик сигналов завершения"""
     print(f"Получен сигнал {signum}, завершаем работу...")
-    cleanup_all_sessions()
+    #cleanup_all_sessions()
     exit(0)
 
 # Регистрируем обработчики сигналов
