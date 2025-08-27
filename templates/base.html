@@ -17,7 +17,7 @@
     <meta property="og:description" content="{% block og_description %}Участвуйте в онлайн турнирах по математике, физике, химии и другим предметам. Зарабатывайте баллы и получайте призы{% endblock %}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ get_s3_url('logo.png', 'static') }}">
+    <meta property="og:image" content="{% block og_image %}{{ get_s3_url('logo.png', 'static') }}{% endblock %}">
     <meta property="og:site_name" content="Лига Знатоков">
     <meta property="og:locale" content="ru_RU">
     
@@ -25,7 +25,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}Лига Знатоков - Мультипрофильные турниры{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Участвуйте в мультипрофильных онлайн турнирах по всем школьным предметам{% endblock %}">
-    <meta name="twitter:image" content="{{ get_s3_url('logo.png', 'static') }}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ get_s3_url('logo.png', 'static') }}{% endblock %}">
     
     <!-- Canonical URL -->
     <link rel="canonical" href="{{ request.url }}">
