@@ -7380,7 +7380,12 @@ def clear_sessions():
         
         # Запускаем поток восстановления планировщика
         start_scheduler_recovery_thread()
-
+        logging.basicConfig(
+            filename='err.log',
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
         print("Приложение готово к запуску!")
 
 @app.route('/change-password', methods=['POST'])
@@ -9170,7 +9175,7 @@ def copy_referral_link():
 
 if __name__ == '__main__':
     #logging.basicConfig(filename='err.log', level=logging.DEBUG)
-    logging.basicConfig(level=logging.DEBUG)
+    #logging.basicConfig(level=logging.DEBUG)
     
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
