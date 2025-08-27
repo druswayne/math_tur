@@ -13,23 +13,19 @@
     <meta name="language" content="ru">
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="{% block og_title %}Лига Знатоков - Мир онлайн-турниров{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Добро пожаловать в мир онлайн-турниров! Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}Лига Знатоков - Онлайн турниры для школьников{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Участвуйте в онлайн турнирах по математике, физике, химии и другим предметам. Зарабатывайте баллы и получайте призы{% endblock %}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{% block og_image %}{{ get_s3_url('logo.jpg', 'static') }}{% endblock %}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:type" content="image/jpeg">
+    <meta property="og:image" content="{{ get_s3_url('logo.png', 'static') }}">
     <meta property="og:site_name" content="Лига Знатоков">
     <meta property="og:locale" content="ru_RU">
     
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block twitter_title %}Лига Знатоков - Мир онлайн-турниров{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}Добро пожаловать в мир онлайн-турниров! Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{{ get_s3_url('logo.jpg', 'static') }}{% endblock %}">
-    <meta name="twitter:image:alt" content="Лига Знатоков - Логотип">
+    <meta name="twitter:title" content="{% block twitter_title %}Добро пожаловать в мир онлайн-турниров!{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России{% endblock %}">
+    <meta name="twitter:image" content="{{ get_s3_url('logo.jpg', 'static') }}">
     
     <!-- Canonical URL -->
     <link rel="canonical" href="{{ request.url }}">
