@@ -5,19 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
     <!-- SEO Meta Tags -->
-    <title>{% block title %}Лига Знатоков - Онлайн турниры для школьников{% endblock %}</title>
-    <meta name="description" content="{% block description %}Лига Знатоков - ведущая платформа онлайн турниров для школьников 1-11 классов. Участвуйте в турнирах по математике, физике, химии и другим предметам.{% endblock %}">
-    <meta name="keywords" content="{% block keywords %}онлайн турниры, школьные турниры, математические турниры, физика турниры, химия турниры, лига знатоков, онлайн соревнования{% endblock %}">
+    <title>{% block title %}Добро пожаловать в мир онлайн-турниров! - Лига Знатоков{% endblock %}</title>
+    <meta name="description" content="{% block description %}Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России. Онлайн турниры по математике, физике, химии и другим предметам.{% endblock %}">
+    <meta name="keywords" content="{% block keywords %}онлайн турниры, школьные турниры, математические турниры, физика турниры, химия турниры, лига знатоков, онлайн соревнования, международная платформа{% endblock %}">
     <meta name="author" content="Лига Знатоков">
     <meta name="robots" content="index, follow">
     <meta name="language" content="ru">
     
     <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="{% block og_title %}Лига Знатоков - Онлайн турниры для школьников{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}Участвуйте в онлайн турнирах по математике, физике, химии и другим предметам. Зарабатывайте баллы и получайте призы{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}Добро пожаловать в мир онлайн-турниров!{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России{% endblock %}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
-    <meta property="og:image" content="{{ get_s3_url('logo.png', 'static') }}">
+    <meta property="og:image" content="{{ get_s3_url('logo.jpg', 'static') }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Лига Знатоков - Международная платформа онлайн турниров">
     <meta property="og:site_name" content="Лига Знатоков">
     <meta property="og:locale" content="ru_RU">
     
@@ -26,6 +29,7 @@
     <meta name="twitter:title" content="{% block twitter_title %}Добро пожаловать в мир онлайн-турниров!{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России{% endblock %}">
     <meta name="twitter:image" content="{{ get_s3_url('logo.jpg', 'static') }}">
+    <meta name="twitter:image:alt" content="Лига Знатоков - Международная платформа онлайн турниров">
     
     <!-- Canonical URL -->
     <link rel="canonical" href="{{ request.url }}">
@@ -67,7 +71,7 @@
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "Лига Знатоков",
-        "description": "Платформа для проведения мультипрофильных онлайн турниров среди школьников 1-11 классов",
+        "description": "Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России",
         "url": "https://liga-znatokov.by",
         "potentialAction": {
             "@type": "SearchAction",
