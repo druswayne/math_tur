@@ -11,15 +11,15 @@
                         <i class="fas fa-chalkboard-teacher me-2"></i>Личный кабинет учителя
                     </h2>
                     <div class="d-flex flex-column flex-md-row gap-2 mt-2">
-                        <a href="{{ url_for('cooperation') }}" class="btn btn-outline-warning cooperation-btn" style="color: #000; border-color: #FF8C00;">
+                        <a href="{{ url_for('cooperation') }}" class="btn btn-outline-warning cooperation-btn text-center" style="color: #000; border-color: #FF8C00;">
                             <i class="fas fa-handshake me-2"></i>Узнать больше о сотрудничестве
                         </a>
                         <!-- Мобильная кнопка редактирования (видна только на мобильных) -->
-                        <button class="btn btn-outline-primary d-inline-flex d-md-none edit-profile-mobile" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
+                        <button class="btn btn-outline-primary d-inline-flex d-md-none edit-profile-mobile text-center" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
                             <i class="fas fa-user-edit me-1"></i>Редактировать профиль
                         </button>
                         <!-- Мобильная кнопка обучения (видна только на мобильных) -->
-                        <button class="btn btn-outline-info d-inline-flex d-md-none" style="color: #000;" onclick="resetTeacherTutorial()">
+                        <button class="btn btn-outline-info d-inline-flex d-md-none text-center" style="color: #000;" onclick="resetTeacherTutorial()">
                             <i class="fas fa-graduation-cap me-1"></i>Обучение
                         </button>
                     </div>
@@ -28,10 +28,10 @@
                     <div class="mb-2 fw-bold">{{ current_user.full_name }}</div>
                     <!-- Десктопные кнопки (скрыты на мобильных) -->
                     <div class="d-flex gap-2">
-                        <button class="btn btn-outline-primary" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
+                        <button class="btn btn-outline-primary text-center" style="color: #000;" data-bs-toggle="modal" data-bs-target="#editTeacherProfileModal">
                             <i class="fas fa-user-edit me-1"></i>Редактировать профиль
                         </button>
-                        <button class="btn btn-outline-info" style="color: #000;" onclick="resetTeacherTutorial()">
+                        <button class="btn btn-outline-info text-center" style="color: #000;" onclick="resetTeacherTutorial()">
                             <i class="fas fa-graduation-cap me-1"></i>Обучение
                         </button>
                     </div>
@@ -86,22 +86,22 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('teacher_buy_tickets') }}" class="btn btn-primary btn-lg w-100 buy-tickets-btn">
+                            <a href="{{ url_for('teacher_buy_tickets') }}" class="btn btn-primary btn-lg w-100 buy-tickets-btn text-center">
                                 <i class="fas fa-ticket-alt"></i> Купить жетоны
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('shop') }}" class="btn btn-primary btn-lg w-100 shop-btn">
+                            <a href="{{ url_for('shop') }}" class="btn btn-primary btn-lg w-100 shop-btn text-center">
                                 <i class="fas fa-shopping-cart"></i> Обменять баллы
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('teacher_purchase_history') }}" class="btn btn-primary btn-lg w-100 purchase-history-btn">
+                            <a href="{{ url_for('teacher_purchase_history') }}" class="btn btn-primary btn-lg w-100 purchase-history-btn text-center">
                                 <i class="fas fa-history"></i> История активности
                             </a>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <a href="{{ url_for('teacher_transfer_history') }}" class="btn btn-warning btn-lg w-100 transfer-history-btn">
+                            <a href="{{ url_for('teacher_transfer_history') }}" class="btn btn-warning btn-lg w-100 transfer-history-btn text-center">
                                 <i class="fas fa-gift"></i> История передач
                             </a>
                         </div>
@@ -137,24 +137,24 @@
                                id="inviteLink" 
                                value="{{ url_for('register', teacher=invite_link.invite_code, _external=True, _scheme='https') }}" 
                                readonly>
-                        <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
+                        <button class="btn btn-outline-secondary text-center" type="button" onclick="copyToClipboard()">
                             <i class="fas fa-copy me-1"></i>Копировать
                         </button>
                     </div>
                     
                     <div class="row share-buttons g-2 g-md-3 align-items-stretch">
                         <div class="col-12 col-md-3 mb-2 mb-md-0">
-                            <button class="btn btn-whatsapp w-100" onclick="shareWhatsApp()">
+                            <button class="btn btn-whatsapp w-100 text-center" onclick="shareWhatsApp()">
                                 <i class="fab fa-whatsapp me-1"></i>Поделиться в WhatsApp
                             </button>
                         </div>
                         <div class="col-12 col-md-3 mb-2 mb-md-0">
-                            <button class="btn btn-telegram w-100" onclick="shareTelegram()">
+                            <button class="btn btn-telegram w-100 text-center" onclick="shareTelegram()">
                                 <i class="fab fa-telegram me-1"></i>Поделиться в Telegram
                             </button>
                         </div>
                         <div class="col-12 col-md-3 mb-2 mb-md-0">
-                            <button class="btn btn-viber w-100" onclick="shareViber()">
+                            <button class="btn btn-viber w-100 text-center" onclick="shareViber()">
                                 <i class="fab fa-viber me-1"></i>Поделиться в Viber
                             </button>
                         </div>

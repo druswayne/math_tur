@@ -2820,7 +2820,7 @@ def admin_delete_tournament(tournament_id):
 
 @app.route('/admin/tournaments/<int:tournament_id>/stats')
 @login_required
-@limiter.limit("30 per minute; 5 per 10 seconds")
+@limiter.limit("30 per minute; 10 per 10 seconds")
 def admin_tournament_stats(tournament_id):
     if not current_user.is_admin:
         flash('У вас нет доступа к этой странице', 'danger')
@@ -3410,7 +3410,7 @@ def validate_name(name, max_length=100):
         return False
     # Проверяем, что имя содержит только буквы, пробелы, дефисы и точки
     import re
-    pattern = r'^[а-яА-Яa-zA-Z\s\-\.]+$'
+    pattern = r'^[а-яёА-ЯЁa-zA-Z\s\-\.]+$'
     return re.match(pattern, name) is not None
 
 def validate_text_content(text, max_length=1000):
@@ -3467,7 +3467,7 @@ def check_username():
     return jsonify({'available': is_available})
 
 @app.route('/check-email', methods=['POST'])
-@limiter.limit("10 per minute; 5 per 10 seconds")
+@limiter.limit("30 per minute; 10 per 10 seconds")
 def check_email():
     data = request.get_json()
     email = data.get('email', '').strip()
@@ -3486,7 +3486,7 @@ def check_email():
     return jsonify({'available': is_available})
 
 @app.route('/check-phone', methods=['POST'])
-@limiter.limit("10 per minute; 5 per 10 seconds")
+@limiter.limit("30 per minute; 10 per 10 seconds")
 def check_phone():
     data = request.get_json()
     phone = data.get('phone', '').strip()
@@ -3647,10 +3647,15 @@ def register():
             if existing:
                 user.educational_institution_id = existing.id
             else:
-                new_edu = EducationalInstitution(name=edu_name, address='')
-                db.session.add(new_edu)
-                db.session.commit()
-                user.educational_institution_id = new_edu.id
+                try:
+                    new_edu = EducationalInstitution(name=edu_name, address='')
+                    db.session.add(new_edu)
+                    db.session.flush()  # Получаем ID без коммита
+                    user.educational_institution_id = new_edu.id
+                except Exception as e:
+                    db.session.rollback()
+                    flash('Ошибка при создании учреждения образования. Попробуйте еще раз.', 'danger')
+                    return redirect(url_for('register'))
         
         db.session.add(user)
         db.session.commit()
@@ -3686,6 +3691,7 @@ def register():
 
 # Маршруты для учителей
 @app.route('/teacher-register', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 @redirect_if_authenticated
 def teacher_register():
     if request.method == 'POST':
@@ -3782,10 +3788,15 @@ def teacher_register():
             if existing:
                 teacher.educational_institution_id = existing.id
             else:
-                new_edu = EducationalInstitution(name=edu_name, address='')
-                db.session.add(new_edu)
-                db.session.commit()
-                teacher.educational_institution_id = new_edu.id
+                try:
+                    new_edu = EducationalInstitution(name=edu_name, address='')
+                    db.session.add(new_edu)
+                    db.session.flush()  # Получаем ID без коммита
+                    teacher.educational_institution_id = new_edu.id
+                except Exception as e:
+                    db.session.rollback()
+                    flash('Ошибка при создании учреждения образования. Попробуйте еще раз.', 'danger')
+                    return redirect(url_for('teacher_register'))
         
         db.session.add(teacher)
         db.session.commit()
@@ -4016,10 +4027,14 @@ def update_teacher_profile():
             if existing:
                 current_user.educational_institution_id = existing.id
             else:
-                new_edu = EducationalInstitution(name=edu_name, address='')
-                db.session.add(new_edu)
-                db.session.flush()
-                current_user.educational_institution_id = new_edu.id
+                try:
+                    new_edu = EducationalInstitution(name=edu_name, address='')
+                    db.session.add(new_edu)
+                    db.session.flush()
+                    current_user.educational_institution_id = new_edu.id
+                except Exception as e:
+                    db.session.rollback()
+                    return jsonify({'success': False, 'message': 'Ошибка при создании учреждения образования'}), 500
         else:
             current_user.educational_institution_id = None
 
@@ -6065,7 +6080,7 @@ def tournament_history():
                          pagination=tournaments)
 
 @app.route('/rating')
-@limiter.limit("15 per minute; 5 per 10 seconds")
+@limiter.limit("15 per minute; 10 per 10 seconds")
 def rating():
     from sqlalchemy import func, case
 

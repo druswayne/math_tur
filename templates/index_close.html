@@ -114,7 +114,7 @@
             <div class="modal-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="welcome-step mb-4">
+                        <div class="welcome-step mb-4 registration-step" onclick="window.location.href='{{ url_for('register') }}'" style="cursor: pointer; transition: all 0.3s ease;">
                             <div class="step-icon mb-3">
                                 <i class="fas fa-user-plus fa-2x text-primary"></i>
                             </div>
@@ -263,6 +263,46 @@
     </div>
 </section>
 
+<!-- CSS стили для активного блока регистрации -->
+<style>
+.registration-step {
+    border: 2px solid transparent;
+    border-radius: 10px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.registration-step:hover {
+    border-color: #007bff;
+    background-color: rgba(0, 123, 255, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+
+.registration-step:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.2);
+}
+
+.registration-step .step-icon {
+    transition: transform 0.3s ease;
+}
+
+.registration-step:hover .step-icon {
+    transform: scale(1.1);
+}
+
+.registration-step:hover .step-icon i {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+</style>
+
 <!-- JavaScript для модального окна приветствия -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -302,6 +342,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (registerBtn) {
         registerBtn.addEventListener('click', function() {
             // Закрываем модальное окно
+            const welcomeModal = bootstrap.Modal.getInstance(document.getElementById('welcomeModal'));
+            if (welcomeModal) {
+                welcomeModal.hide();
+            }
+        });
+    }
+    
+    // Обработчик для блока регистрации
+    const registrationStep = document.querySelector('.registration-step');
+    if (registrationStep) {
+        registrationStep.addEventListener('click', function() {
+            // Закрываем модальное окно перед переходом
             const welcomeModal = bootstrap.Modal.getInstance(document.getElementById('welcomeModal'));
             if (welcomeModal) {
                 welcomeModal.hide();

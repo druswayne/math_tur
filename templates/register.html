@@ -1,5 +1,43 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<style>
+/* Стили для курсивных плейсхолдеров */
+.form-control::placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+/* Для разных браузеров */
+.form-control::-webkit-input-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.form-control::-moz-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.form-control:-ms-input-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.form-control:-moz-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -153,7 +191,7 @@
                             <!-- Список результатов поиска -->
                             <div id="institution_results" class="list-group position-absolute w-100" style="z-index: 1000; display: none; max-height: 200px; overflow-y: auto;"></div>
                             
-                            <div class="form-text">Начните вводить название учреждения, выберите из списка или введите свое - оно будет сохранено</div>
+                            <div class="form-text">Введите название и выберите из списка, если не нашли - введите свою школу и добавьте её в наш список</div>
                         </div>
                         <div class="mb-3">
                             <label for="category" class="form-label">Класс</label>
@@ -820,7 +858,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateStudentName(name) {
         if (!studentNameInput) return;
         
-        const isValid = name.trim().length >= 2 && /^[а-яёА-ЯЁ\s]+$/.test(name);
+        const isValid = name.trim().length >= 2 && name.trim().length <= 100 && /^[а-яёА-ЯЁa-zA-Z\s\-\.]+$/.test(name);
         showValidationIcon('student_name', isValid);
         validationState.studentName = isValid;
     }
@@ -829,7 +867,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateParentName(name) {
         if (!parentNameInput) return;
         
-        const isValid = name.trim().length >= 2 && /^[а-яёА-ЯЁ\s]+$/.test(name);
+        // Имя родителя может быть пустым, но если заполнено - должно быть валидным
+        const isValid = name.trim() === '' || (name.trim().length >= 2 && name.trim().length <= 100 && /^[а-яёА-ЯЁa-zA-Z\s\-\.]+$/.test(name));
         showValidationIcon('parent_name', isValid);
         validationState.parentName = isValid;
     }
@@ -996,7 +1035,30 @@ document.addEventListener('DOMContentLoaded', function() {
         // Поле валидно, если есть значение в поиске И (есть ID выбранного учреждения ИЛИ есть название нового учреждения)
         const isValid = searchValue.length >= 2 && (hasId || institutionNameField.value.trim() !== '');
         
-        showValidationIcon('educational_institution', isValid);
+        // Специальная обработка для поля учреждения образования
+        const iconContainer = document.getElementById('educational_institution-icon');
+        const input = document.getElementById('educational_institution_search');
+        
+        if (iconContainer && input) {
+            // Скрываем все иконки
+            iconContainer.querySelectorAll('i').forEach(icon => icon.style.display = 'none');
+            
+            if (isValid) {
+                const checkIcon = iconContainer.querySelector('.fa-check-circle');
+                if (checkIcon) checkIcon.style.display = 'inline-block';
+                input.classList.add('is-valid');
+                input.classList.remove('is-invalid');
+                iconContainer.classList.add('is-valid');
+                iconContainer.classList.remove('is-invalid');
+            } else {
+                const timesIcon = iconContainer.querySelector('.fa-times');
+                if (timesIcon) timesIcon.style.display = 'inline-block';
+                input.classList.add('is-invalid');
+                input.classList.remove('is-valid');
+                iconContainer.classList.add('is-invalid');
+                iconContainer.classList.remove('is-valid');
+            }
+        }
         validationState.educationalInstitution = isValid;
     }
 
@@ -1131,6 +1193,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 validateEmail(this.value);
                 validateForm();
             }, 500);
+        });
+    }
+
+    // Обработчик для поля учреждения образования
+    const educationalInstitutionInput = document.getElementById('educational_institution_search');
+    if (educationalInstitutionInput) {
+        educationalInstitutionInput.addEventListener('input', function() {
+            validateEducationalInstitution();
+            validateForm();
         });
     }
 
@@ -1282,6 +1353,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+
 });
 </script>
 {% endblock %} 

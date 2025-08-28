@@ -1,5 +1,73 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<style>
+/* Стили для курсивных плейсхолдеров */
+.form-control::placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+/* Для разных браузеров */
+.form-control::-webkit-input-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.form-control::-moz-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.form-control:-ms-input-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+.form-control:-moz-placeholder {
+    font-style: italic;
+    color: #6c757d;
+    opacity: 0.8;
+}
+
+/* Стили для мерцания пустых полей */
+.form-control.empty-field {
+    border-color: #ffecb3;
+    border-width: 1px;
+    box-shadow: 0 0 0 0.1rem rgba(255, 236, 179, 0.1);
+    background-color: rgba(255, 236, 179, 0.02);
+    animation: emptyFieldBlink 3s infinite;
+}
+
+.input-group-text.empty-field {
+    border-color: #ffecb3;
+    border-width: 1px;
+    color: #a1887f;
+    background-color: rgba(255, 236, 179, 0.04);
+    font-weight: normal;
+}
+
+@keyframes emptyFieldBlink {
+    0% {
+        box-shadow: 0 0 0 0.1rem rgba(255, 236, 179, 0.1);
+        border-color: #ffecb3;
+    }
+    50% {
+        box-shadow: 0 0 0 0.15rem rgba(255, 236, 179, 0.15);
+        border-color: #ffcc80;
+    }
+    100% {
+        box-shadow: 0 0 0 0.1rem rgba(255, 236, 179, 0.1);
+        border-color: #ffecb3;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
     <div class="row justify-content-center">
@@ -134,7 +202,7 @@
                             <!-- Список результатов поиска -->
                             <div id="institution_results" class="list-group position-absolute w-100" style="z-index: 1000; display: none; max-height: 200px; overflow-y: auto;"></div>
                             
-                            <div class="form-text">Начните вводить название учреждения, выберите из списка или введите свое - оно будет сохранено</div>
+                            <div class="form-text">Введите название и выберите из списка, если не нашли - введите свою школу и добавьте её в наш список</div>
                         </div>
 
                         <div class="form-check mb-3">
@@ -417,7 +485,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для обновления стилей поля
     function updateFieldStyles(fieldId, isValid) {
         const input = document.getElementById(fieldId);
-        const iconContainer = document.querySelector(`#${fieldId}-icon`);
+        let iconContainer;
+        
+        // Особая обработка для поля учреждения образования
+        if (fieldId === 'educational_institution_search') {
+            iconContainer = document.querySelector('#educational_institution-icon');
+        } else {
+            iconContainer = document.querySelector(`#${fieldId}-icon`);
+        }
         
         if (!input || !iconContainer) return;
         
@@ -441,10 +516,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isValid) {
             input.classList.add('is-valid');
             iconContainer.classList.add('is-valid');
-        } else if (input.value.length > 0) {
+        } else if (isValid === false) {
+            // Показываем красную рамку для невалидного значения (включая пустое поле)
             input.classList.add('is-invalid');
             iconContainer.classList.add('is-invalid');
         }
+        // Если isValid === null, то не применяем никаких стилей (нейтральное состояние)
     }
 
     // Валидация логина
@@ -644,7 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
         check.style.display = 'none';
         times.style.display = 'none';
         
-        if (fullName.length >= 2 && /^[а-яёА-ЯЁ\s\-\.]+$/.test(fullName)) {
+        if (fullName.length >= 2 && fullName.length <= 100 && /^[а-яёА-ЯЁa-zA-Z\s\-\.]+$/.test(fullName)) {
             check.style.display = 'inline';
             fullNameField.isValid = true;
             updateFieldStyles('full_name', true);
@@ -867,12 +944,15 @@ document.addEventListener('DOMContentLoaded', function() {
             educationalInstitutionField.isValid = true;
             updateFieldStyles('educational_institution_search', true);
         } else if (searchValue.length > 0) {
+            // Есть текст, но он невалиден (менее 2 символов)
             times.style.display = 'inline';
             educationalInstitutionField.isValid = false;
             updateFieldStyles('educational_institution_search', false);
         } else {
+            // Поле пустое - показываем красную рамку и крестик
+            times.style.display = 'inline';
             educationalInstitutionField.isValid = false;
-            updateFieldStyles('educational_institution_search', null);
+            updateFieldStyles('educational_institution_search', false);
         }
         
         checkFormValidity();
@@ -1136,6 +1216,75 @@ document.addEventListener('DOMContentLoaded', function() {
     educationalInstitutionField.isValid = false;
     
     checkFormValidity();
+
+    // === ФУНКЦИЯ ДЛЯ ПОДСВЕТКИ ПУСТЫХ ПОЛЕЙ ===
+    function highlightEmptyFields() {
+        const requiredFields = [
+            'username', 'password', 'confirm_password', 'full_name', 
+            'phone', 'email', 'educational_institution_search'
+        ];
+        
+        requiredFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            let iconContainer;
+            
+            // Особая обработка для поля учреждения образования
+            if (fieldId === 'educational_institution_search') {
+                iconContainer = document.getElementById('educational_institution-icon');
+            } else {
+                iconContainer = document.getElementById(fieldId + '-icon');
+            }
+            
+            if (field) {
+                let isEmpty = field.value.trim() === '';
+                
+                // Особая обработка для поля учреждения образования
+                if (fieldId === 'educational_institution_search') {
+                    // Поле считается заполненным, если в нем есть хотя бы 2 символа
+                    isEmpty = field.value.trim().length < 2;
+                }
+                
+                // Проверяем, есть ли уже стили валидации (красная или зеленая рамка)
+                const hasValidationStyles = field.classList.contains('is-valid') || field.classList.contains('is-invalid');
+                
+                if (isEmpty && !hasValidationStyles) {
+                    // Показываем мерцание только если нет стилей валидации
+                    field.classList.add('empty-field');
+                    if (iconContainer) {
+                        iconContainer.classList.add('empty-field');
+                    }
+                } else {
+                    // Убираем мерцание
+                    field.classList.remove('empty-field');
+                    if (iconContainer) {
+                        iconContainer.classList.remove('empty-field');
+                    }
+                }
+            }
+        });
+        
+        // Проверяем чекбоксы
+        const agreeCheckbox = document.getElementById('agree');
+        const agreeTermsCheckbox = document.getElementById('agree_terms');
+        
+        if (agreeCheckbox && !agreeCheckbox.checked) {
+            agreeCheckbox.parentElement.classList.add('empty-field');
+        } else if (agreeCheckbox) {
+            agreeCheckbox.parentElement.classList.remove('empty-field');
+        }
+        
+        if (agreeTermsCheckbox && !agreeTermsCheckbox.checked) {
+            agreeTermsCheckbox.parentElement.classList.add('empty-field');
+        } else if (agreeTermsCheckbox) {
+            agreeTermsCheckbox.parentElement.classList.remove('empty-field');
+        }
+    }
+
+    // Запускаем подсветку пустых полей каждые 3 секунды
+    setInterval(highlightEmptyFields, 3000);
+    
+    // Также запускаем при загрузке страницы
+    setTimeout(highlightEmptyFields, 1000);
 });
 </script>
 {% endblock %} 

@@ -192,24 +192,7 @@
                         </div>
                     </div>
                     
-                    <!-- Дополнительная информация -->
-                    {% if current_user.is_authenticated and session.get('user_type') == 'teacher' %}
-                    <div class="row mt-4">
-                        <div class="col-12">
-                            <div class="alert alert-info" style="background-color: #f8f9fa; border-left: 4px solid #FF8C00;">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-lightbulb text-warning me-3" style="font-size: 1.5rem;"></i>
-                                    <div>
-                                        <h5 class="mb-2" style="color: #ffffff;">Как это работает?</h5>
-                                        <p class="mb-0" style="color: #ffffff;">
-                                            Вы приглашаете учащихся, учащиеся участвуют в турнирах. Чем больше учащихся, тем больше шанс получить поддержку.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
+
                 </div>
             </div>
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-python restore_database.py restore backup_school_tournaments_20250822_141110.zip
+python restore_database.py restore backup_school_tournaments_20250828_002103.zip
 Скрипт для восстановления базы данных из бекапа
 Использует SSH подключение к серверу для восстановления через psql
 """

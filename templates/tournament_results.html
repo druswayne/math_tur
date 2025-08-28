@@ -54,7 +54,7 @@
                             <div class="col-md-3">
                                 <div class="card bg-light">
                                     <div class="card-body text-center">
-                                        <h5 class="card-title">Заработано баллов</h5>
+                                        <h5 class="card-title">Баллов</h5>
                                         <h2 class="text-warning">{{ earned_points }}</h2>
                                     </div>
                                 </div>
@@ -84,7 +84,7 @@
                             <div class="card">
                                 <div class="card-body">
                                     <h6 class="card-title">Общий результат</h6>
-                                    <p class="mb-1"><strong>Заработано баллов:</strong> {{ earned_points }} из {{ total_points }} возможных</p>
+                                    <p class="mb-1"><strong>Баллов:</strong> {{ earned_points }} из {{ total_points }} возможных</p>
                                     <p class="mb-1"><strong>Время участия:</strong> 
                                         {% if participation %}
                                             {% set minutes = (time_spent // 60)|int %}
