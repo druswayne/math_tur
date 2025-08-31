@@ -8172,10 +8172,15 @@ class EducationalInstitution(db.Model):
     __tablename__ = "educational_institutions"
     
     id = db.Column(db.Integer, primary_key=True, index=True)
-    name = db.Column(db.String(500), nullable=False)  # Название учреждения образования
+    name = db.Column(db.String(500), nullable=False, index=True)  # Название учреждения образования с индексом
     address = db.Column(db.Text, nullable=False)  # Адрес учреждения
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Добавляем составной индекс для ускорения поиска
+    __table_args__ = (
+        db.Index('ix_name_address_search', 'name', 'address'),
+    )
 
 class ReferralLink(db.Model):
     __tablename__ = "referral_links"
@@ -9193,9 +9198,199 @@ def search_educational_institutions():
     # Валидация входных данных
     if not query:  # Ограничиваем длину запроса
         return jsonify({'institutions': []})
-    results = EducationalInstitution.query.filter(EducationalInstitution.name.ilike('%' + query + '%')).limit(50).all()
-    institutions = [{'id': inst.id, 'name': inst.name, 'address': inst.address} for inst in results]
-    return jsonify({'institutions': institutions})
+    
+    # Проверяем кэш для популярных запросов
+    cache_key = f"edu_search:{query.lower()}"
+    
+    # Пытаемся получить из кэша (если используется memcached)
+    try:
+        if hasattr(app, 'cache'):
+            cached_result = app.cache.get(cache_key)
+            if cached_result:
+                return jsonify(cached_result)
+    except Exception:
+        pass  # Игнорируем ошибки кэша
+    
+    # Очищаем и нормализуем запрос
+    normalized_query = query.strip().lower()
+    
+    # Создаем составной запрос для более точного поиска
+    from sqlalchemy import or_, func, case
+    
+    # Разбиваем запрос на слова для лучшего поиска
+    query_words = normalized_query.split()
+    
+    # Создаем различные условия поиска с весами релевантности
+    conditions = []
+    
+    # 1. Точное совпадение в начале названия (высший приоритет)
+    conditions.append((
+        EducationalInstitution.name.ilike(f'{query}%'),
+        5  # высокий вес
+    ))
+    
+    # 2. Точное совпадение где-то в названии
+    conditions.append((
+        EducationalInstitution.name.ilike(f'%{query}%'),
+        3  # средний вес
+    ))
+    
+    # 3. Поиск по адресу
+    conditions.append((
+        EducationalInstitution.address.ilike(f'%{query}%'),
+        2  # низкий вес
+    ))
+    
+    # 4. Поиск по отдельным словам в названии
+    if len(query_words) > 1:
+        word_conditions = []
+        for word in query_words:
+            if len(word) >= 2:  # игнорируем слишком короткие слова
+                word_conditions.append(EducationalInstitution.name.ilike(f'%{word}%'))
+        
+        if word_conditions:
+            conditions.append((
+                or_(*word_conditions),
+                1  # минимальный вес
+            ))
+    
+    # Строим запрос с вычислением релевантности
+    score_conditions = []
+    filter_conditions = []
+    
+    for condition, weight in conditions:
+        score_conditions.append(case([(condition, weight)], else_=0))
+        filter_conditions.append(condition)
+    
+    # Сумма весов для сортировки по релевантности
+    relevance_score = sum(score_conditions)
+    
+    # Выполняем запрос с сортировкой по релевантности
+    results = EducationalInstitution.query.filter(
+        or_(*filter_conditions)
+    ).order_by(
+        relevance_score.desc(),
+        EducationalInstitution.name.asc()
+    ).limit(50).all()
+    
+    # Дополнительная сортировка на Python для лучшего качества
+    def calculate_relevance(inst):
+        name = inst.name.lower()
+        address = inst.address.lower()
+        score = 0
+        
+        # Бонус за точное совпадение в начале
+        if name.startswith(normalized_query):
+            score += 10
+        
+        # Бонус за количество совпадающих слов
+        matching_words = sum(1 for word in query_words if word in name)
+        score += matching_words * 2
+        
+        # Штраф за длину названия (короткие названия предпочтительнее)
+        score -= len(name) / 100
+        
+        return score
+    
+    # Сортируем результаты по вычисленной релевантности
+    results = sorted(results, key=calculate_relevance, reverse=True)
+    
+    # Если основной поиск не дал результатов, попробуем нечеткий поиск
+    if not results and len(normalized_query) >= 3:
+        fuzzy_results = fuzzy_search_institutions(normalized_query)
+        if fuzzy_results:
+            results = fuzzy_results
+    
+    institutions = []
+    for inst in results:
+        # Подсвечиваем совпадения в названии
+        highlighted_name = highlight_matches(inst.name, query)
+        institutions.append({
+            'id': inst.id, 
+            'name': inst.name,
+            'highlighted_name': highlighted_name,
+            'address': inst.address
+        })
+    
+    # Создаем результат для возврата
+    result_data = {'institutions': institutions}
+    
+    # Сохраняем в кэш (если доступен) на 1 час
+    try:
+        if hasattr(app, 'cache') and len(institutions) > 0:
+            app.cache.set(cache_key, result_data, timeout=3600)
+    except Exception:
+        pass  # Игнорируем ошибки кэша
+    
+    return jsonify(result_data)
+
+def highlight_matches(text, query):
+    """Подсвечивает совпадения в тексте"""
+    import re
+    
+    if not query:
+        return text
+    
+    # Экранируем специальные символы в запросе
+    escaped_query = re.escape(query)
+    
+    # Подсвечиваем совпадения (регистронезависимо)
+    pattern = f'({escaped_query})'
+    highlighted = re.sub(pattern, r'<mark>\1</mark>', text, flags=re.IGNORECASE)
+    
+    return highlighted
+
+def levenshtein_distance(s1, s2):
+    """Вычисляет расстояние Левенштейна между двумя строками"""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+    
+    return previous_row[-1]
+
+def fuzzy_search_institutions(query, max_distance=2):
+    """Выполняет нечеткий поиск учебных заведений с учетом опечаток"""
+    query_lower = query.lower()
+    all_institutions = EducationalInstitution.query.all()
+    fuzzy_matches = []
+    
+    for inst in all_institutions:
+        name_lower = inst.name.lower()
+        
+        # Проверяем расстояние для полного названия
+        full_distance = levenshtein_distance(query_lower, name_lower)
+        if full_distance <= max_distance:
+            fuzzy_matches.append((inst, full_distance))
+            continue
+        
+        # Проверяем расстояние для каждого слова в названии
+        words = name_lower.split()
+        min_word_distance = float('inf')
+        
+        for word in words:
+            if len(word) >= 3:  # Игнорируем слишком короткие слова
+                word_distance = levenshtein_distance(query_lower, word)
+                min_word_distance = min(min_word_distance, word_distance)
+        
+        if min_word_distance <= max_distance:
+            fuzzy_matches.append((inst, min_word_distance))
+    
+    # Сортируем по расстоянию (меньше = лучше)
+    fuzzy_matches.sort(key=lambda x: x[1])
+    
+    return [inst for inst, _ in fuzzy_matches[:10]]  # Возвращаем топ-10 совпадений
 
 # Маршруты для клуба друзей
 @app.route('/referral')
