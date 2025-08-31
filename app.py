@@ -5802,8 +5802,14 @@ def tournament_task(tournament_id):
         return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
     if current_task_id:
-        # Проверяем, что задача все еще доступна и соответствует категории пользователя
-        if current_task_id not in solved_task_ids:
+        # Проверяем в БД реального времени, не решена ли уже эта задача
+        existing_solution = SolvedTask.query.filter_by(
+            user_id=current_user.id,
+            task_id=current_task_id
+        ).first()
+        
+        if not existing_solution:
+            # Задача еще не решена - можно показать
             task = get_task_by_id_cached(tournament_id, current_task_id)
             if task and task.tournament_id == tournament_id and task.category == current_user.category:
                 return render_template('tournament_task.html', 
@@ -5811,9 +5817,27 @@ def tournament_task(tournament_id):
                                      task=task,
                                      timedelta=timedelta,
                                      now=datetime.now())
+        else:
+            # Задача уже решена - очищаем сессию
+            session.pop(f'current_task_{tournament_id}', None)
     
     # Если нет сохраненной задачи или она уже решена, выбираем новую по простой схеме
     task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
+    
+    # Проверяем, не была ли эта задача уже заблокирована (защита от дублей)
+    existing_solution = SolvedTask.query.filter_by(
+        user_id=current_user.id,
+        task_id=task.id
+    ).first()
+    
+    if existing_solution:
+        # Задача уже решена - обновляем список и выбираем новую
+        solved_task_ids.append(task.id)
+        available_tasks = [t for t in all_tasks if t.id not in solved_task_ids]
+        if available_tasks:
+            task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
+        else:
+            return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
     # Сохраняем ID задачи в сессии
     session[f'current_task_{tournament_id}'] = task.id
