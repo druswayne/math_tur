@@ -9215,7 +9215,7 @@ def search_educational_institutions():
     normalized_query = query.strip().lower()
     
     # Создаем составной запрос для более точного поиска
-    from sqlalchemy import or_, func, case
+    from sqlalchemy import or_, and_, func, case
     
     # Разбиваем запрос на слова для лучшего поиска
     query_words = normalized_query.split()
@@ -9235,23 +9235,51 @@ def search_educational_institutions():
         3  # средний вес
     ))
     
-    # 3. Поиск по адресу
+    # 3. Поиск по адресу (улучшенный)
     conditions.append((
         EducationalInstitution.address.ilike(f'%{query}%'),
         2  # низкий вес
     ))
     
-    # 4. Поиск по отдельным словам в названии
+    # 3.1. Поиск слов из запроса в адресе
     if len(query_words) > 1:
-        word_conditions = []
+        address_word_conditions = []
+        for word in query_words:
+            if len(word) >= 3:  # для адреса берем слова длиннее 3 символов
+                address_word_conditions.append(EducationalInstitution.address.ilike(f'%{word}%'))
+        
+        if address_word_conditions:
+            # Если все слова найдены в адресе
+            conditions.append((
+                and_(*address_word_conditions),
+                3  # средний вес для полного совпадения в адресе
+            ))
+            
+            # Если некоторые слова найдены в адресе
+            conditions.append((
+                or_(*address_word_conditions),
+                1  # низкий вес для частичного совпадения в адресе
+            ))
+    
+    # 4. Поиск по отдельным словам в названии (улучшенный)
+    if len(query_words) > 1:
+        # Поиск когда ВСЕ слова есть в названии (независимо от порядка)
+        all_words_conditions = []
         for word in query_words:
             if len(word) >= 2:  # игнорируем слишком короткие слова
-                word_conditions.append(EducationalInstitution.name.ilike(f'%{word}%'))
+                all_words_conditions.append(EducationalInstitution.name.ilike(f'%{word}%'))
         
-        if word_conditions:
+        if all_words_conditions:
+            # Высокий вес если ВСЕ слова найдены
             conditions.append((
-                or_(*word_conditions),
-                1  # минимальный вес
+                and_(*all_words_conditions),
+                4  # высокий вес для полного соответствия слов
+            ))
+            
+            # Средний вес если найдены НЕКОТОРЫЕ слова
+            conditions.append((
+                or_(*all_words_conditions),
+                1  # минимальный вес для частичного соответствия
             ))
     
     # Строим запрос с вычислением релевантности
@@ -9266,12 +9294,15 @@ def search_educational_institutions():
     relevance_score = sum(score_conditions)
     
     # Выполняем запрос с сортировкой по релевантности
+    # ОПТИМИЗАЦИЯ: Ограничиваем результаты и добавляем early exit
+    max_results = 25  # Уменьшаем с 50 до 25 для лучшей производительности
+    
     results = EducationalInstitution.query.filter(
         or_(*filter_conditions)
     ).order_by(
         relevance_score.desc(),
         EducationalInstitution.name.asc()
-    ).limit(50).all()
+    ).limit(max_results).all()
     
     # Дополнительная сортировка на Python для лучшего качества
     def calculate_relevance(inst):
@@ -9283,9 +9314,30 @@ def search_educational_institutions():
         if name.startswith(normalized_query):
             score += 10
         
-        # Бонус за количество совпадающих слов
-        matching_words = sum(1 for word in query_words if word in name)
+        # Расширенный анализ совпадений слов
+        matching_words = 0
+        total_query_words = len([w for w in query_words if len(w) >= 2])
+        
+        for word in query_words:
+            if len(word) >= 2 and word in name:
+                matching_words += 1
+                
+                # Дополнительный бонус если слово найдено в начале названия
+                if name.startswith(word):
+                    score += 3
+                # Бонус если слово является отдельным словом (границы слов)
+                elif f' {word} ' in f' {name} ' or name.endswith(f' {word}'):
+                    score += 2
+        
+        # Супер бонус если найдены ВСЕ слова из запроса
+        if matching_words == total_query_words and total_query_words > 1:
+            score += 15
+        
+        # Обычный бонус за количество совпадающих слов
         score += matching_words * 2
+        
+        # Дополнительная проверка аббревиатур и сокращений
+        score += check_abbreviations_match(name, query_words)
         
         # Штраф за длину названия (короткие названия предпочтительнее)
         score -= len(name) / 100
@@ -9296,10 +9348,17 @@ def search_educational_institutions():
     results = sorted(results, key=calculate_relevance, reverse=True)
     
     # Если основной поиск не дал результатов, попробуем нечеткий поиск
-    if not results and len(normalized_query) >= 3:
-        fuzzy_results = fuzzy_search_institutions(normalized_query)
-        if fuzzy_results:
-            results = fuzzy_results
+    # ОПТИМИЗАЦИЯ: Нечеткий поиск только для коротких запросов и если нет результатов
+    if not results and len(normalized_query) >= 3 and len(normalized_query) <= 20:
+        # Дополнительная проверка: используем нечеткий поиск только если запрос не очень популярный
+        # (популярные запросы должны находиться обычным поиском)
+        try:
+            fuzzy_results = fuzzy_search_institutions(normalized_query)
+            if fuzzy_results:
+                results = fuzzy_results
+        except Exception:
+            # Если нечеткий поиск упал - продолжаем без него
+            pass
     
     institutions = []
     for inst in results:
@@ -9363,17 +9422,26 @@ def levenshtein_distance(s1, s2):
 def fuzzy_search_institutions(query, max_distance=2):
     """Выполняет нечеткий поиск учебных заведений с учетом опечаток"""
     query_lower = query.lower()
-    all_institutions = EducationalInstitution.query.all()
+    
+    # КРИТИЧЕСКАЯ ОПТИМИЗАЦИЯ: Ограничиваем количество записей для нечеткого поиска
+    # При большой БД (>10К записей) нечеткий поиск может сильно нагружать сервер
+    max_records_for_fuzzy = 1000
+    all_institutions = EducationalInstitution.query.limit(max_records_for_fuzzy).all()
     fuzzy_matches = []
     
     for inst in all_institutions:
         name_lower = inst.name.lower()
         
-        # Проверяем расстояние для полного названия
-        full_distance = levenshtein_distance(query_lower, name_lower)
-        if full_distance <= max_distance:
-            fuzzy_matches.append((inst, full_distance))
+        # БЫСТРАЯ ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА: если название слишком отличается по длине - пропускаем
+        if abs(len(name_lower) - len(query_lower)) > max_distance * 2:
             continue
+        
+        # Проверяем расстояние для полного названия (только если длины похожи)
+        if abs(len(name_lower) - len(query_lower)) <= max_distance * 2:
+            full_distance = levenshtein_distance(query_lower, name_lower)
+            if full_distance <= max_distance:
+                fuzzy_matches.append((inst, full_distance))
+                continue
         
         # Проверяем расстояние для каждого слова в названии
         words = name_lower.split()
@@ -9381,8 +9449,10 @@ def fuzzy_search_institutions(query, max_distance=2):
         
         for word in words:
             if len(word) >= 3:  # Игнорируем слишком короткие слова
-                word_distance = levenshtein_distance(query_lower, word)
-                min_word_distance = min(min_word_distance, word_distance)
+                # БЫСТРАЯ ПРОВЕРКА: если слово сильно отличается по длине - пропускаем
+                if abs(len(word) - len(query_lower)) <= max_distance * 2:
+                    word_distance = levenshtein_distance(query_lower, word)
+                    min_word_distance = min(min_word_distance, word_distance)
         
         if min_word_distance <= max_distance:
             fuzzy_matches.append((inst, min_word_distance))
@@ -9391,6 +9461,63 @@ def fuzzy_search_institutions(query, max_distance=2):
     fuzzy_matches.sort(key=lambda x: x[1])
     
     return [inst for inst, _ in fuzzy_matches[:10]]  # Возвращаем топ-10 совпадений
+
+def check_abbreviations_match(name, query_words):
+    """Проверяет совпадения с учетом аббревиатур и сокращений"""
+    score = 0
+    name_lower = name.lower()
+    
+    # Словарь распространенных сокращений
+    abbreviations = {
+        'гимназия': ['гимн', 'г'],
+        'школа': ['ш', 'сш', 'школ'],
+        'средняя': ['ср', 'сред'],
+        'государственная': ['гос', 'госуд', 'государств'],
+        'лицей': ['лиц'],
+        'колледж': ['колл', 'кол'],
+        'университет': ['ун-т', 'универ', 'унив'],
+        'институт': ['ин-т', 'инст'],
+        'имени': ['им', 'им.'],
+        'номер': ['№', 'n', 'no', 'num'],
+        'город': ['г', 'г.'],
+        'область': ['обл', 'обл.'],
+        'район': ['р-н', 'рн'],
+    }
+    
+    # Обратный словарь (сокращение -> полное слово)
+    reverse_abbreviations = {}
+    for full_word, abbrevs in abbreviations.items():
+        for abbrev in abbrevs:
+            reverse_abbreviations[abbrev] = full_word
+    
+    for query_word in query_words:
+        if len(query_word) < 2:
+            continue
+            
+        # Проверяем прямые совпадения с сокращениями
+        if query_word in abbreviations:
+            for abbrev in abbreviations[query_word]:
+                if abbrev in name_lower:
+                    score += 3
+                    
+        # Проверяем если запрос - сокращение, а в названии полное слово
+        elif query_word in reverse_abbreviations:
+            full_word = reverse_abbreviations[query_word]
+            if full_word in name_lower:
+                score += 3
+                
+        # Проверяем номера (особый случай)
+        if query_word.isdigit() or query_word.startswith('№'):
+            number = query_word.replace('№', '').strip()
+            if number.isdigit():
+                # Ищем номер в разных форматах
+                number_patterns = [f'№{number}', f'№ {number}', f'no{number}', f'n{number}', f' {number} ']
+                for pattern in number_patterns:
+                    if pattern in name_lower:
+                        score += 4
+                        break
+    
+    return score
 
 # Маршруты для клуба друзей
 @app.route('/referral')
