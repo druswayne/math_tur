@@ -120,6 +120,64 @@ class UserTutorial {
             display: none;
         `;
         document.body.appendChild(this.overlay);
+        
+        // Создаем блокирующий overlay для всех элементов
+        this.blockingOverlay = document.createElement('div');
+        this.blockingOverlay.className = 'tutorial-blocking-overlay';
+        this.blockingOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9996;
+            pointer-events: auto;
+            display: none;
+        `;
+        document.body.appendChild(this.blockingOverlay);
+    }
+    
+    allowTutorialInteraction() {
+        // Делаем недоступными все элементы, кроме туториала
+        const tutorialElements = [
+            '.tutorial-container',
+            '.tutorial-overlay',
+            '.tutorial-blocking-overlay',
+            '.tutorial-highlight'
+        ];
+        
+        // Добавляем стили для блокировки всех элементов
+        let blockingStyle = document.getElementById('tutorial-blocking-style');
+        if (!blockingStyle) {
+            blockingStyle = document.createElement('style');
+            blockingStyle.id = 'tutorial-blocking-style';
+            document.head.appendChild(blockingStyle);
+        }
+        
+        blockingStyle.textContent = `
+            body * {
+                pointer-events: none !important;
+            }
+            .tutorial-container,
+            .tutorial-container *,
+            .tutorial-overlay,
+            .tutorial-blocking-overlay,
+            .tutorial-highlight {
+                pointer-events: auto !important;
+            }
+        `;
+    }
+    
+    removeTutorialBlocking() {
+        // Убираем блокировку элементов
+        const blockingStyle = document.getElementById('tutorial-blocking-style');
+        if (blockingStyle) {
+            blockingStyle.remove();
+        }
+        
+        if (this.blockingOverlay) {
+            this.blockingOverlay.style.display = 'none';
+        }
     }
     
     createTutorialContainer() {
@@ -215,6 +273,12 @@ class UserTutorial {
                 this.positionContainerTop();
             }
         }
+        
+        // Показываем блокирующий overlay для всех шагов обучения
+        this.blockingOverlay.style.display = 'block';
+        
+        // Разрешаем взаимодействие только с элементами туториала
+        this.allowTutorialInteraction();
         
         // Если есть целевой элемент, подсвечиваем его
         if (step.target) {
@@ -614,8 +678,12 @@ class UserTutorial {
         
         // Убираем подсветку и контейнеры
         this.removeHighlight();
+        this.removeTutorialBlocking();
         this.overlay.remove();
         this.container.remove();
+        if (this.blockingOverlay) {
+            this.blockingOverlay.remove();
+        }
         
         // Показываем напутствие
         this.showCompletionMessage();
