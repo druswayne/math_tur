@@ -235,7 +235,11 @@
             <div class="col-md-4 mb-4">
                 <div class="card h-100 prize-card d-flex flex-column">
                     {% if prize.image %}
-                    <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/{{ prize.image }}" class="card-img-top" alt="{{ prize.name }}">
+                    <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/{{ prize.image }}" class="card-img-top" alt="{{ prize.name }}" style="height: 200px; object-fit: contain; background-color: #f8f9fa;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="fas fa-gift fa-3x text-muted"></i>
+                    </div>
                     {% endif %}
                     <div class="card-body d-flex flex-column">
                         <h5 class="card-title">{{ prize.name }}</h5>

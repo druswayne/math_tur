@@ -32,6 +32,10 @@
                     <div class="countdown-timer">
                         <div class="countdown-items">
                             <div class="countdown-item">
+                                <div class="countdown-number" id="days">00</div>
+                                <div class="countdown-label">дней</div>
+                            </div>
+                            <div class="countdown-item">
                                 <div class="countdown-number" id="hours">00</div>
                                 <div class="countdown-label">часов</div>
                             </div>
@@ -42,6 +46,27 @@
                             <div class="countdown-item">
                                 <div class="countdown-number" id="seconds">00</div>
                                 <div class="countdown-label">секунд</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Прогресс турнира -->
+            <div class="card mb-4">
+                <div class="card-body text-center py-3">
+                    <h6 class="card-title mb-2">Прогресс турнира:</h6>
+                    <div class="task-progress-compact">
+                        <div class="task-counter-compact">
+                            <div class="task-number-compact">{{ solved_tasks_count }}/{{ total_tasks }}</div>
+                            <div class="task-label-compact">решено</div>
+                        </div>
+                        <div class="progress mt-2">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {{ (solved_tasks_count / total_tasks * 100)|round(1) }}%" 
+                                 aria-valuenow="{{ solved_tasks_count }}" 
+                                 aria-valuemin="0" aria-valuemax="{{ total_tasks }}">
+                                {{ (solved_tasks_count / total_tasks * 100)|round(1) }}%
                             </div>
                         </div>
                     </div>
@@ -265,6 +290,85 @@
     font-weight: bold;
     color: #dc3545;
 }
+
+/* Стили для счетчика задач */
+.task-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.task-counter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.task-number {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #17a2b8;
+    margin-bottom: 0;
+    line-height: 1;
+}
+
+.task-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Компактные стили для прогресса */
+.task-progress-compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.task-counter-compact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.task-number-compact {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #17a2b8;
+    margin-bottom: 0;
+    line-height: 1;
+}
+
+.task-label-compact {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.progress {
+    width: 100%;
+    height: 8px;
+}
+
+/* Увеличенная высота для компактного прогресс-бара */
+.task-progress-compact .progress {
+    height: 18px;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .task-number {
+        font-size: 2rem;
+    }
+    
+    .task-number-compact {
+        font-size: 1.5rem;
+    }
+}
 </style>
 
 <script>
@@ -375,11 +479,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Вычисляем оставшееся время
-        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
         
         // Обновляем отображение
+        document.getElementById('days').textContent = days.toString().padStart(2, '0');
         document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
         document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
         document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');

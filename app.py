@@ -5812,11 +5812,17 @@ def tournament_task(tournament_id):
             # Задача еще не решена - можно показать
             task = get_task_by_id_cached(tournament_id, current_task_id)
             if task and task.tournament_id == tournament_id and task.category == current_user.category:
+                # Вычисляем количество решенных задач и общее количество
+                total_tasks = len(all_tasks)
+                solved_tasks_count = len(solved_task_ids)  # Без +1, показываем только решенные
+                
                 return render_template('tournament_task.html', 
                                      tournament=tournament, 
                                      task=task,
                                      timedelta=timedelta,
-                                     now=datetime.now())
+                                     now=datetime.now(),
+                                     solved_tasks_count=solved_tasks_count,
+                                     total_tasks=total_tasks)
         else:
             # Задача уже решена - очищаем сессию
             session.pop(f'current_task_{tournament_id}', None)
@@ -5842,11 +5848,17 @@ def tournament_task(tournament_id):
     # Сохраняем ID задачи в сессии
     session[f'current_task_{tournament_id}'] = task.id
     
+    # Вычисляем количество решенных задач и общее количество
+    total_tasks = len(all_tasks)
+    solved_tasks_count = len(solved_task_ids)  # Без +1, показываем только решенные
+    
     return render_template('tournament_task.html', 
                          tournament=tournament, 
                          task=task,
                          timedelta=timedelta,
-                         now=datetime.now())
+                         now=datetime.now(),
+                         solved_tasks_count=solved_tasks_count,
+                         total_tasks=total_tasks)
 
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
