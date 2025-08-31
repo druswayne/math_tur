@@ -1053,6 +1053,7 @@ class Tournament(db.Model):
                                  overlaps="tournament_participations")
     participations = db.relationship('TournamentParticipation',
                                    back_populates='tournament',
+                                   cascade='all, delete-orphan',
                                    overlaps="participants,tournaments")
 
 class Task(db.Model):
@@ -1070,7 +1071,7 @@ class Task(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
-    tournament = db.relationship('Tournament', backref=db.backref('tasks', lazy=True))
+    tournament = db.relationship('Tournament', backref=db.backref('tasks', lazy=True, cascade='all, delete-orphan'))
 
 class TicketPurchase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -2808,14 +2809,37 @@ def admin_delete_tournament(tournament_id):
     
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    # Удаляем изображение
-    if tournament.image:
-        delete_file_from_s3(tournament.image, 'tournaments')
+    try:
+        # Сначала удаляем все задачи турнира
+        tasks = Task.query.filter_by(tournament_id=tournament_id).all()
+        for task in tasks:
+            # Удаляем изображения задач, если они есть
+            if task.image:
+                delete_file_from_s3(task.image, 'tasks')
+            if task.solution_image:
+                delete_file_from_s3(task.solution_image, 'tasks')
+            db.session.delete(task)
+        
+        # Удаляем все участия в турнире
+        participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).all()
+        for participation in participations:
+            db.session.delete(participation)
+        
+        # Удаляем изображение турнира
+        if tournament.image:
+            delete_file_from_s3(tournament.image, 'tournaments')
+        
+        # Удаляем сам турнир
+        db.session.delete(tournament)
+        db.session.commit()
+        
+        flash('Турнир и все связанные данные успешно удалены', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при удалении турнира {tournament_id}: {e}")
+        flash('Ошибка при удалении турнира', 'danger')
     
-    db.session.delete(tournament)
-    db.session.commit()
-    
-    flash('Турнир успешно удален', 'success')
     return redirect(url_for('admin_tournaments'))
 
 @app.route('/admin/tournaments/<int:tournament_id>/stats')
@@ -4103,14 +4127,14 @@ def teacher_student_details(student_id):
         func.count(SolvedTask.id).label('solved_tasks'),
         func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points'),
         func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks'),
-        func.count(Task.id).label('total_tasks')
+        func.count(SolvedTask.id).label('attempted_tasks')  # Изменено: считаем только попытки решения
     ).join(
         TournamentParticipation,
         Tournament.id == TournamentParticipation.tournament_id
-    ).outerjoin(
+    ).join(  # Изменено: inner join вместо outerjoin для Task
         Task,
         Tournament.id == Task.tournament_id
-    ).outerjoin(
+    ).join(  # Изменено: inner join вместо outerjoin для SolvedTask
         SolvedTask,
         (Task.id == SolvedTask.task_id) & (SolvedTask.user_id == student.id)
     ).filter(
@@ -4127,8 +4151,8 @@ def teacher_student_details(student_id):
     
     # Преобразуем результаты в список словарей
     tournament_list = []
-    for tournament, score, place, solved_tasks, earned_points, correct_tasks, total_tasks in tournaments_paginated.items:
-        success_rate = round((correct_tasks or 0) / (total_tasks or 1) * 100, 1)
+    for tournament, score, place, solved_tasks, earned_points, correct_tasks, attempted_tasks in tournaments_paginated.items:
+        success_rate = round((correct_tasks or 0) / (attempted_tasks or 1) * 100, 1)
         
         tournament_list.append({
             'id': tournament.id,
@@ -4228,8 +4252,8 @@ def teacher_student_tournament_results(student_id, tournament_id):
     earned_points = sum(t['task'].points for t in tasks_data if t['is_correct'])
     total_points = sum(t['task'].points for t in tasks_data)
     
-    # Вычисляем процент правильных ответов
-    success_rate = round((correct_count / len(tasks_data)) * 100, 1) if tasks_data and len(tasks_data) > 0 else 0
+    # Вычисляем процент правильных ответов от решенных задач
+    success_rate = round((correct_count / solved_count) * 100, 1) if solved_count > 0 else 0
     
     # Вычисляем время участия
     if participation.end_time:
@@ -5956,8 +5980,8 @@ def tournament_results(tournament_id):
     earned_points = sum(t['task'].points for t in tasks_data if t['is_correct'])
     total_points = sum(t['task'].points for t in tasks_data)
     
-    # Вычисляем процент правильных ответов
-    success_rate = round((correct_count / len(tasks_data)) * 100, 1) if tasks_data and len(tasks_data) > 0 else 0
+    # Вычисляем процент правильных ответов от решенных задач
+    success_rate = round((correct_count / solved_count) * 100, 1) if solved_count > 0 else 0
     
     # Вычисляем время участия
     if participation.end_time:
@@ -6034,14 +6058,14 @@ def tournament_history():
         func.count(SolvedTask.id).label('solved_tasks'),
         func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points'),
         func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks'),
-        func.count(Task.id).label('total_tasks')
+        func.count(SolvedTask.id).label('attempted_tasks')  # Изменено: считаем только попытки решения
     ).join(
         TournamentParticipation,
         Tournament.id == TournamentParticipation.tournament_id
-    ).outerjoin(
+    ).join(  # Изменено: inner join вместо outerjoin для Task
         Task,
         Tournament.id == Task.tournament_id
-    ).outerjoin(
+    ).join(  # Изменено: inner join вместо outerjoin для SolvedTask
         SolvedTask,
         (Task.id == SolvedTask.task_id) & (SolvedTask.user_id == current_user.id)
     ).filter(
@@ -6059,9 +6083,9 @@ def tournament_history():
     
     # Преобразуем результаты в список словарей для удобного доступа в шаблоне
     tournament_list = []
-    for tournament, score, place, solved_tasks, earned_points, correct_tasks, total_tasks in tournaments.items:
-        # Рассчитываем процент правильно решенных задач
-        success_rate = round((correct_tasks or 0) / (total_tasks or 1) * 100, 1)
+    for tournament, score, place, solved_tasks, earned_points, correct_tasks, attempted_tasks in tournaments.items:
+        # Рассчитываем процент правильно решенных задач от попыток решения
+        success_rate = round((correct_tasks or 0) / (attempted_tasks or 1) * 100, 1)
         
         tournament_list.append({
             'id': tournament.id,
