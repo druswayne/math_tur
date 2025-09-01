@@ -386,13 +386,7 @@ def memory_cleanup():
 
             mem_after = process.memory_info().rss
 
-            # Логируем результаты очистки
-            with open('1.txt', 'a', encoding='utf-8') as file:
-                file.write(
-                    f"[MemoryCleaner] Cleared {keys_removed} keys, "
-                    f"memory {mem_before//1024//1024} MB -> {mem_after//1024//1024} MB, "
-                    f"RAM usage: {mem_percent}%\n"
-                )
+            # Логируем результаты очистки (только в консоль)
 
             # Выводим информацию в консоль для мониторинга
             if keys_removed > 0 or mem_percent > 70:
@@ -508,12 +502,7 @@ def is_session_active(user_id, session_token, user_type='user', teacher_id=None)
         ).first()
     return session is not None
 
-def update_session_activity(session_token):
-    """Обновляет время последней активности сессии"""
-    session = UserSession.query.filter_by(session_token=session_token).first()
-    if session:
-        session.update_last_active()
-        db.session.commit()
+
 
 # Инициализация планировщика
 scheduler = BackgroundScheduler(timezone='Europe/Moscow')
@@ -608,8 +597,6 @@ def before_request():
                 flash('Ваша сессия истекла или была завершена на другом устройстве. Пожалуйста, войдите снова.', 'error')
                 return redirect(url_for('login'))
         
-        # Обновляем время последней активности
-        update_session_activity(session_token)
         # Делаем сессию постоянной
         session.permanent = True
 
@@ -8104,15 +8091,12 @@ class UserSession(db.Model):
     is_active = db.Column(db.Boolean, default=False)
     session_token = db.Column(db.String(255), unique=True, index=True)
     device_info = db.Column(db.String(255), nullable=True)
-    last_active = db.Column(db.DateTime, default=datetime.now)
     created_at = db.Column(db.DateTime, default=datetime.now, index=True)
 
     user = db.relationship('User', backref=db.backref('sessions', lazy=True))
     teacher = db.relationship('Teacher', backref=db.backref('sessions', lazy=True))
 
-    def update_last_active(self):
-        self.last_active = datetime.now()
-        db.session.commit()
+
 
 class News(db.Model):
     __tablename__ = "news"
@@ -8381,16 +8365,10 @@ signal.signal(signal.SIGTERM, signal_handler)
 signal.signal(signal.SIGINT, signal_handler)
 
 def cleanup_old_sessions():
-    with open ('d.txt', 'a', encoding='utf-8') as file:
-        file.write('cleanup_old_sessions\n')
-    """Удаляет устаревшие сессии и пользователей с неподтвержденными email из базы данных"""
+    """Удаляет неактивные сессии и пользователей с неподтвержденными email из базы данных"""
     try:
-        # Удаляем сессии старше 1 недели (неактивные)
-        one_week_ago = datetime.now() - timedelta(days=7)
-        deleted_sessions = UserSession.query.filter(
-            UserSession.created_at < one_week_ago,
-            UserSession.is_active == False
-        ).delete()
+        # Удаляем ВСЕ неактивные сессии (без учета времени)
+        deleted_sessions = UserSession.query.filter_by(is_active=False).delete()
         
         # Удаляем пользователей с неподтвержденными email старше 3 дней
         three_days_ago = datetime.now() - timedelta(days=3)
@@ -8403,22 +8381,20 @@ def cleanup_old_sessions():
         
         db.session.commit()
         
-        # Более детальное логирование
+        # Детальное логирование
         if deleted_sessions > 0 or deleted_users > 0:
-            print(f"Очистка завершена: удалено {deleted_sessions} сессий и {deleted_users} пользователей с неподтвержденными email")
+            print(f"🧹 Очистка завершена: удалено {deleted_sessions} неактивных сессий и {deleted_users} пользователей с неподтвержденными email")
         else:
-            print("Очистка завершена: нечего удалять")
+            print("🧹 Очистка завершена: нечего удалять")
         
-        # НЕ удаляем запись о задаче из БД, так как это интервальная задача
-        # которая должна выполняться каждые 24 часа
+
         
     except Exception as e:
         db.session.rollback()
-        print(f"Ошибка при очистке устаревших сессий и пользователей: {e}")
+        print(f"❌ Ошибка при очистке неактивных сессий: {e}")
         # Логируем полную информацию об ошибке для отладки
         import traceback
         print(f"Полная информация об ошибке: {traceback.format_exc()}")
-cleanup_old_sessions()
 # Настраиваем периодическую очистку сессий
 #add_scheduler_job(
 #    cleanup_old_sessions,
@@ -8602,8 +8578,6 @@ def get_teacher_invite_link_by_code(code):
     return TeacherInviteLink.query.filter_by(invite_code=code, is_active=True).first()
 
 def check_and_pay_referral_bonuses():
-    with open ('d.txt', 'a', encoding='utf-8') as file:
-        file.write('check_and_pay_referral_bonuses\n')
     """Проверяет и выплачивает бонусы за друзей, которые участвовали в турнирах"""
     try:
         # Находим друзей, которые участвовали в турнирах, но бонус еще не выплачен
@@ -8670,8 +8644,6 @@ def pay_teacher_referral_bonus(teacher_referral_id):
     return False
 
 def check_and_pay_teacher_referral_bonuses():
-    with open('d.txt', 'a', encoding='utf-8') as file:
-        file.write('check_and_pay_teacher_referral_bonuses\n')
     """Проверяет и выплачивает бонусы учителям за учеников, которые участвовали в турнирах"""
     try:
         # Находим всех приглашенных учеников учителей
