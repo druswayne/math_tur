@@ -98,6 +98,31 @@
     animation: fadeOut 0.3s ease-out forwards;
 }
 
+/* Стили для иконок валидации */
+.validation-icon {
+    min-width: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.validation-icon .fa-check,
+.validation-icon .fa-times {
+    font-size: 14px;
+}
+
+.validation-icon.text-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.validation-icon.text-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
 /* Стили для мобильной версии корзины */
 .cart-summary {
     background-color: #f8f9fa;
@@ -263,14 +288,18 @@
                             <label for="phone" class="form-label">Номер телефона *</label>
                             <div class="input-group">
                                 <select class="form-select" id="phone_country" name="phone_country" style="max-width: 120px;">
-                                    <option value="+375">+375</option>
-                                    <option value="+7">+7</option>
+                                    <option value="+375">🇧🇾 +375</option>
+                                    <option value="+7">🇷🇺 +7</option>
                                 </select>
                                 <input type="tel" class="form-control" id="phone" name="phone" 
-                                       pattern="[0-9]{9}" maxlength="9" required
+                                       required
                                        placeholder="291234567">
+                                <span class="input-group-text validation-icon" id="phone-icon">
+                                    <i class="fas fa-check text-success" style="display: none;"></i>
+                                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                                </span>
                             </div>
-                            <div class="form-text">Формат: +375291234567 или +79123456789</div>
+                            <div class="form-text" id="phone-help">Формат: +375291234567</div>
                         </div>
                         <div class="mb-3">
                             <label for="address" class="form-label">Адрес доставки *</label>
@@ -453,14 +482,18 @@
                         <label for="mobilePhone" class="form-label">Номер телефона *</label>
                         <div class="input-group">
                             <select class="form-select" id="mobilePhone_country" name="phone_country" style="max-width: 120px;">
-                                <option value="+375">+375</option>
-                                <option value="+7">+7</option>
+                                <option value="+375">🇧🇾 +375</option>
+                                <option value="+7">🇷🇺 +7</option>
                             </select>
                             <input type="tel" class="form-control" id="mobilePhone" name="phone" 
-                                   pattern="[0-9]{9}" maxlength="9" required
+                                   required
                                    placeholder="291234567">
+                            <span class="input-group-text validation-icon" id="mobilePhone-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
                         </div>
-                        <div class="form-text">Формат: +375291234567 или +79123456789</div>
+                        <div class="form-text" id="mobilePhone-help">Формат: +375291234567</div>
                     </div>
                     <div class="mb-3">
                         <label for="mobileAddress" class="form-label">Адрес доставки *</label>
@@ -635,7 +668,7 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e) {
     
     const countryCode = document.getElementById('phone_country').value;
     if (!validatePhone(phone, countryCode)) {
-        const format = countryCode === '+375' ? '+37529XXXXXXX' : '+79123456789';
+        const format = countryCode === '+375' ? '+375123456789' : '+71234567890';
         showNotification('Ошибка', `Пожалуйста, введите корректный номер телефона в формате ${format}`, 'error');
         return;
     }
@@ -721,18 +754,55 @@ function showNotification(title, message, type = 'info') {
 // Функция для валидации номера телефона
 function validatePhone(phone, countryCode = '+375') {
     if (countryCode === '+375') {
-        const validPrefixes = ['29', '33', '44', '25'];
-        const prefix = phone.substring(0, 2);
-        if (!validPrefixes.includes(prefix)) {
-            return false;
-        }
-        const rest = phone.substring(2);
-        return /^\d{7}$/.test(rest);
+        // Для Беларуси: просто 9 цифр
+        if (phone.length !== 9) return false;
+        
+        // Проверяем, что все символы - цифры
+        return /^\d{9}$/.test(phone);
     } else if (countryCode === '+7') {
-        // Для России: 9XXXXXXXXX (10 цифр)
+        // Для России: просто 10 цифр
+        if (phone.length !== 10) return false;
+        
+        // Проверяем, что все символы - цифры
         return /^\d{10}$/.test(phone);
     }
     return false;
+}
+
+// Функция для обновления атрибутов поля ввода телефона
+function updatePhoneFieldAttributes(phoneInputId, countrySelectId) {
+    const countryCode = document.getElementById(countrySelectId).value;
+    const phoneInput = document.getElementById(phoneInputId);
+    const helpText = document.getElementById(phoneInputId + '-help');
+    
+    // Очищаем поле при смене кода страны
+    phoneInput.value = '';
+    
+    // Сбрасываем иконки валидации
+    const icon = document.getElementById(phoneInputId + '-icon');
+    if (icon) {
+        const successIcon = icon.querySelector('.fa-check');
+        const errorIcon = icon.querySelector('.fa-times');
+        if (successIcon) successIcon.style.display = 'none';
+        if (errorIcon) errorIcon.style.display = 'none';
+        icon.classList.remove('text-success', 'text-danger');
+    }
+    
+    if (countryCode === '+375') {
+        phoneInput.maxLength = 9;
+        phoneInput.pattern = '[0-9]{9}';
+        phoneInput.placeholder = '291234567';
+        if (helpText) {
+            helpText.textContent = 'Формат: +375291234567';
+        }
+    } else if (countryCode === '+7') {
+        phoneInput.maxLength = 10;
+        phoneInput.pattern = '[0-9]{10}';
+        phoneInput.placeholder = '9123456789';
+        if (helpText) {
+            helpText.textContent = 'Формат: +79123456789';
+        }
+    }
 }
 
 // Функция для валидации всей формы
@@ -740,7 +810,7 @@ function validateForm() {
     const phone = document.getElementById('phone').value;
     const countryCode = document.getElementById('phone_country').value;
     if (!validatePhone(phone, countryCode)) {
-        const format = countryCode === '+375' ? '+37529XXXXXXX' : '+79123456789';
+        const format = countryCode === '+375' ? '+375123456789' : '+71234567890';
         alert(`Пожалуйста, введите корректный номер телефона в формате ${format}`);
         return false;
     }
@@ -750,33 +820,26 @@ function validateForm() {
 // Функция для валидации мобильной формы
 function validateMobileForm() {
     const phone = document.getElementById('mobilePhone').value;
-    if (!validatePhone(phone)) {
-        showNotification('Ошибка', 'Пожалуйста, введите корректный номер телефона в формате +37529XXXXXXX', 'error');
+    const countryCode = document.getElementById('mobilePhone_country').value;
+    
+    if (!validatePhone(phone, countryCode)) {
+        const format = countryCode === '+375' ? '+375123456789' : '+71234567890';
+        showNotification('Ошибка', `Пожалуйста, введите корректный номер телефона в формате ${format}`, 'error');
         return false;
     }
     return true;
 }
 
-// Функция для обновления плейсхолдера номера телефона
-function updatePhonePlaceholder(phoneInputId, countrySelectId) {
-    const countryCode = document.getElementById(countrySelectId).value;
-    const phoneInput = document.getElementById(phoneInputId);
-    
-    if (countryCode === '+375') {
-        phoneInput.placeholder = '291234567';
-    } else if (countryCode === '+7') {
-        phoneInput.placeholder = '9123456789';
-    }
-}
+
 
 // Обработчик изменения кода страны для десктопной формы
 document.getElementById('phone_country').addEventListener('change', function() {
-    updatePhonePlaceholder('phone', 'phone_country');
+    updatePhoneFieldAttributes('phone', 'phone_country');
 });
 
 // Обработчик изменения кода страны для мобильной формы
 document.getElementById('mobilePhone_country').addEventListener('change', function() {
-    updatePhonePlaceholder('mobilePhone', 'mobilePhone_country');
+    updatePhoneFieldAttributes('mobilePhone', 'mobilePhone_country');
 });
 
 // Обработчик ввода номера телефона
@@ -791,6 +854,26 @@ document.getElementById('phone').addEventListener('input', function(e) {
     
     // Обновляем значение поля
     e.target.value = value;
+    
+    // Валидируем номер и показываем соответствующую иконку
+    const isValid = validatePhone(value, countryCode);
+    const icon = document.getElementById('phone-icon');
+    if (icon) {
+        const successIcon = icon.querySelector('.fa-check');
+        const errorIcon = icon.querySelector('.fa-times');
+        
+        if (isValid) {
+            successIcon.style.display = 'inline';
+            errorIcon.style.display = 'none';
+            icon.classList.remove('text-danger');
+            icon.classList.add('text-success');
+        } else {
+            successIcon.style.display = 'none';
+            errorIcon.style.display = 'inline';
+            icon.classList.remove('text-success');
+            icon.classList.add('text-danger');
+        }
+    }
 });
 
 // Обработчик ввода номера телефона для мобильной формы
@@ -805,12 +888,30 @@ document.getElementById('mobilePhone').addEventListener('input', function(e) {
     
     // Обновляем значение поля
     e.target.value = value;
+    
+    // Валидируем номер и показываем соответствующую иконку
+    const isValid = validatePhone(value, countryCode);
+    const icon = document.getElementById('mobilePhone-icon');
+    const successIcon = icon.querySelector('.fa-check');
+    const errorIcon = icon.querySelector('.fa-times');
+    
+    if (isValid) {
+        successIcon.style.display = 'inline';
+        errorIcon.style.display = 'none';
+        icon.classList.remove('text-danger');
+        icon.classList.add('text-success');
+    } else {
+        successIcon.style.display = 'none';
+        errorIcon.style.display = 'inline';
+        icon.classList.remove('text-success');
+        icon.classList.add('text-danger');
+    }
 });
 
-// Инициализация плейсхолдеров при загрузке страницы
+// Инициализация атрибутов полей при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
-    updatePhonePlaceholder('phone', 'phone_country');
-    updatePhonePlaceholder('mobilePhone', 'mobilePhone_country');
+    updatePhoneFieldAttributes('phone', 'phone_country');
+    updatePhoneFieldAttributes('mobilePhone', 'mobilePhone_country');
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -901,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const countryCode = document.getElementById('mobilePhone_country').value;
         if (!validatePhone(phone, countryCode)) {
-            const format = countryCode === '+375' ? '+37529XXXXXXX' : '+79123456789';
+            const format = countryCode === '+375' ? '+375123456789' : '+71234567890';
             showNotification('Ошибка', `Пожалуйста, введите корректный номер телефона в формате ${format}`, 'error');
             return;
         }
