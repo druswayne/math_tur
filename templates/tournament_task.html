@@ -567,11 +567,17 @@ document.addEventListener('DOMContentLoaded', function() {
             showViolationOverlay();
             const input = document.getElementById('answer');
             input.value = 'wrong_answer_due_to_tab_switch';
+            
+            // Используем sendBeacon для надежности
+            const formData = new FormData(answerForm);
+            navigator.sendBeacon(answerForm.action, formData);
+            
+            // Дополнительная отправка через обычный submit
             answerForm.submit();
         }
     }
 
-    // Обработчики событий видимости страницы
+    // Обработчики событий видимости страницы для предупреждения
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
             warningOverlay.style.display = 'flex';
@@ -594,36 +600,65 @@ document.addEventListener('DOMContentLoaded', function() {
         clearInterval(countdownInterval);
     });
 
-    // Обработчик выхода со страницы
-    window.addEventListener('beforeunload', function(e) {
-        if (!isSubmitting && !isLeaving) {
-            isLeaving = true;
-            // Отправляем неверный ответ перед уходом
-            const input = document.getElementById('answer');
+    // Функция для отправки неправильного ответа при выходе
+    function sendWrongAnswerOnExit() {
+        const input = document.getElementById('answer');
+        if (input && input.value.trim() === '') {
             input.value = 'wrong_answer_due_to_page_leave';
             
             // Используем sendBeacon для гарантированной отправки данных
             const formData = new FormData(answerForm);
             navigator.sendBeacon(answerForm.action, formData);
             
-            // Показываем стандартное предупреждение браузера
-            e.preventDefault();
-            e.returnValue = 'Отправить ответ на задачу?';
-            return 'Отправить ответ на задачу?';
+            // Дополнительная попытка через fetch с keepalive
+            fetch(answerForm.action, {
+                method: 'POST',
+                body: formData,
+                keepalive: true
+            }).catch(() => {
+                // Игнорируем ошибки, так как это fallback
+            });
+        }
+    }
+
+    // Основной обработчик выхода со страницы
+    window.addEventListener('beforeunload', function(e) {
+        sendWrongAnswerOnExit();
+        
+        // Показываем стандартное предупреждение браузера
+        e.preventDefault();
+        e.returnValue = 'Отправить ответ на задачу?';
+        return 'Отправить ответ на задачу?';
+    });
+
+    // Дополнительный обработчик для unload (срабатывает позже)
+    window.addEventListener('unload', function() {
+        sendWrongAnswerOnExit();
+    });
+
+    // Обработчик для pagehide (современный стандарт)
+    window.addEventListener('pagehide', function() {
+        sendWrongAnswerOnExit();
+    });
+
+    // Обработчик клавиш для перезагрузки (F5, Ctrl+R, Ctrl+Shift+R)
+    document.addEventListener('keydown', function(e) {
+        // F5 или Ctrl+R или Ctrl+Shift+R
+        if (e.key === 'F5' || 
+            (e.ctrlKey && e.key === 'r') || 
+            (e.ctrlKey && e.shiftKey && e.key === 'R')) {
+            sendWrongAnswerOnExit();
         }
     });
+
+
 
     // Обработчик клика по ссылкам
     document.addEventListener('click', function(e) {
         if (e.target.tagName === 'A' && !e.target.classList.contains('btn')) {
             if (!isSubmitting && !isLeaving) {
                 isLeaving = true;
-                const input = document.getElementById('answer');
-                input.value = 'wrong_answer_due_to_page_leave';
-                
-                // Используем sendBeacon для гарантированной отправки данных
-                const formData = new FormData(answerForm);
-                navigator.sendBeacon(answerForm.action, formData);
+                sendWrongAnswerOnExit();
             }
         }
     });
