@@ -5387,7 +5387,7 @@ def join_tournament(tournament_id):
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
 
-        flash('У вас недостаточно билетов для участия в турнире', 'warning')
+        flash('У вас недостаточно жетонов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
     # Проверяем, начался ли турнир
@@ -5439,7 +5439,7 @@ def tournament_menu(tournament_id):
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-        flash('У вас недостаточно билетов для участия в турнире', 'warning')
+        flash('У вас недостаточно жетонов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
     return render_template('tournament_menu.html', tournament=tournament)
@@ -5458,7 +5458,7 @@ def start_tournament(tournament_id):
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-        flash('У вас недостаточно билетов для участия в турнире', 'warning')
+        flash('У вас недостаточно жетонов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
     # Проверяем, не является ли пользователь администратором или учителем
@@ -5507,7 +5507,7 @@ def start_tournament(tournament_id):
         current_user.tournaments_count += 1  # Увеличиваем счетчик турниров
         db.session.add(participation)
         db.session.commit()
-        flash('Билет успешно списан. Удачи в турнире!', 'success')
+        flash('Жетон успешно списан. Удачи в турнире!', 'success')
     
     # Перенаправляем на страницу с задачами
     return redirect(url_for('tournament_task', tournament_id=tournament.id))
