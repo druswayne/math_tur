@@ -322,6 +322,7 @@
                             <th>Решено задач</th>
                             <th>% решения</th>
                             <th>Заработано очков</th>
+                            <th>Время участия</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -340,6 +341,17 @@
                             <td>{{ tournament.solved_tasks }}</td>
                             <td>{{ tournament.success_rate }}%</td>
                             <td>{{ tournament.earned_points }}</td>
+                            <td>
+                                {% if tournament.time_spent is not none %}
+                                    {% if tournament.time_spent.total_seconds > 0 %}
+                                        {{ "%02d:%02d:%02d"|format(tournament.time_spent.hours, tournament.time_spent.minutes, tournament.time_spent.seconds) }}
+                                    {% else %}
+                                        <span class="text-muted">Не завершено</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if tournament.status == 'finished' %}
                                     <a href="{{ url_for('teacher_student_tournament_results', student_id=student.id, tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
@@ -404,6 +416,20 @@
                         <div class="tournament-stat-item">
                             <div class="tournament-stat-label">Заработано очков</div>
                             <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
+                        </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">Время участия</div>
+                            <div class="tournament-stat-value">
+                                {% if tournament.time_spent is not none %}
+                                    {% if tournament.time_spent.total_seconds > 0 %}
+                                        {{ "%02d:%02d:%02d"|format(tournament.time_spent.hours, tournament.time_spent.minutes, tournament.time_spent.seconds) }}
+                                    {% else %}
+                                        <span class="text-muted">Не завершено</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     

@@ -89,12 +89,14 @@
                                     <h6 class="card-title">Общий результат</h6>
                                     <p class="mb-1"><strong>Баллов:</strong> {{ earned_points }} из {{ total_points }} возможных</p>
                                     <p class="mb-1"><strong>Время участия:</strong> 
-                                        {% if participation %}
-                                            {% set minutes = (time_spent // 60)|int %}
-                                            {% set seconds = (time_spent % 60)|int %}
-                                            {{ minutes }} мин {{ seconds }} сек
+                                        {% if participation and time_spent %}
+                                            {% if time_spent.total_seconds > 0 %}
+                                                {{ "%02d:%02d:%02d"|format(time_spent.hours, time_spent.minutes, time_spent.seconds) }}
+                                            {% else %}
+                                                <span class="text-muted">Не завершено</span>
+                                            {% endif %}
                                         {% else %}
-                                            Неизвестно
+                                            <span class="text-muted">Неизвестно</span>
                                         {% endif %}
                                     </p>
                                 </div>

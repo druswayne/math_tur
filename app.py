@@ -4111,6 +4111,8 @@ def teacher_student_details(student_id):
         Tournament,
         TournamentParticipation.score,
         TournamentParticipation.place,
+        TournamentParticipation.start_time,
+        TournamentParticipation.end_time,
         func.count(SolvedTask.id).label('solved_tasks'),
         func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points'),
         func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks'),
@@ -4129,7 +4131,9 @@ def teacher_student_details(student_id):
     ).group_by(
         Tournament.id,
         TournamentParticipation.score,
-        TournamentParticipation.place
+        TournamentParticipation.place,
+        TournamentParticipation.start_time,
+        TournamentParticipation.end_time
     ).order_by(
         Tournament.start_date.desc()
     )
@@ -4138,8 +4142,31 @@ def teacher_student_details(student_id):
     
     # Преобразуем результаты в список словарей
     tournament_list = []
-    for tournament, score, place, solved_tasks, earned_points, correct_tasks, attempted_tasks in tournaments_paginated.items:
+    for tournament, score, place, start_time, end_time, solved_tasks, earned_points, correct_tasks, attempted_tasks in tournaments_paginated.items:
         success_rate = round((correct_tasks or 0) / (attempted_tasks or 1) * 100, 1)
+        
+        # Рассчитываем время участия в турнире
+        time_spent = None
+        if start_time and end_time:
+            total_seconds = (end_time - start_time).total_seconds()
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+            seconds = int(total_seconds % 60)
+            time_spent = {
+                'hours': hours,
+                'minutes': minutes,
+                'seconds': seconds,
+                'total_seconds': total_seconds
+            }
+        elif start_time:
+            # Если нет времени окончания, но есть время начала, считаем от начала до текущего времени
+            # или до времени последней решенной задачи
+            time_spent = {
+                'hours': 0,
+                'minutes': 0,
+                'seconds': 0,
+                'total_seconds': 0
+            }
         
         tournament_list.append({
             'id': tournament.id,
@@ -4150,8 +4177,9 @@ def teacher_student_details(student_id):
             'earned_points': earned_points or 0,
             'score': score or 0,
             'place': place,
-            'success_rate': success_rate
-        })
+            'success_rate': success_rate,
+            'time_spent': time_spent
+            })
     
     # Подготавливаем данные для шаблона
     student_stats = {
@@ -4245,7 +4273,16 @@ def teacher_student_tournament_results(student_id, tournament_id):
     # Вычисляем время участия
     if participation.end_time:
         # Если есть время окончания (пользователь отправил хотя бы один ответ), используем его
-        time_spent = (participation.end_time - participation.start_time).total_seconds()
+        total_seconds = (participation.end_time - participation.start_time).total_seconds()
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = int(total_seconds % 60)
+        time_spent = {
+            'hours': hours,
+            'minutes': minutes,
+            'seconds': seconds,
+            'total_seconds': total_seconds
+        }
     else:
         # Если нет времени окончания (пользователь не отправил ни одного ответа), 
         # используем время последнего решенного задания или 0
@@ -4257,10 +4294,24 @@ def teacher_student_tournament_results(student_id, tournament_id):
         
         if last_solved_task:
             # Если есть решенные задачи, используем время последней
-            time_spent = (last_solved_task.solved_at - participation.start_time).total_seconds()
+            total_seconds = (last_solved_task.solved_at - participation.start_time).total_seconds()
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+            seconds = int(total_seconds % 60)
+            time_spent = {
+                'hours': hours,
+                'minutes': minutes,
+                'seconds': seconds,
+                'total_seconds': total_seconds
+            }
         else:
             # Если нет решенных задач, время участия = 0
-            time_spent = 0
+            time_spent = {
+                'hours': 0,
+                'minutes': 0,
+                'seconds': 0,
+                'total_seconds': 0
+            }
     
     # Собираем темы для повторения
     topics_to_review = set()  # Темы неправильно решенных задач
@@ -6009,7 +6060,16 @@ def tournament_results(tournament_id):
     # Вычисляем время участия
     if participation.end_time:
         # Если есть время окончания (пользователь отправил хотя бы один ответ), используем его
-        time_spent = (participation.end_time - participation.start_time).total_seconds()
+        total_seconds = (participation.end_time - participation.start_time).total_seconds()
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = int(total_seconds % 60)
+        time_spent = {
+            'hours': hours,
+            'minutes': minutes,
+            'seconds': seconds,
+            'total_seconds': total_seconds
+        }
     else:
         # Если нет времени окончания (пользователь не отправил ни одного ответа), 
         # используем время последнего решенного задания или 0
@@ -6021,10 +6081,24 @@ def tournament_results(tournament_id):
         
         if last_solved_task:
             # Если есть решенные задачи, используем время последней
-            time_spent = (last_solved_task.solved_at - participation.start_time).total_seconds()
+            total_seconds = (last_solved_task.solved_at - participation.start_time).total_seconds()
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+            seconds = int(total_seconds % 60)
+            time_spent = {
+                'hours': hours,
+                'minutes': minutes,
+                'seconds': seconds,
+                'total_seconds': total_seconds
+            }
         else:
             # Если нет решенных задач, время участия = 0
-            time_spent = 0
+            time_spent = {
+                'hours': 0,
+                'minutes': 0,
+                'seconds': 0,
+                'total_seconds': 0
+            }
     
     # Собираем темы для повторения
     topics_to_review = set()  # Темы неправильно решенных задач
@@ -6078,6 +6152,8 @@ def tournament_history():
         Tournament,
         TournamentParticipation.score,
         TournamentParticipation.place,
+        TournamentParticipation.start_time,
+        TournamentParticipation.end_time,
         func.count(SolvedTask.id).label('solved_tasks'),
         func.sum(case((SolvedTask.is_correct == True, Task.points), else_=0)).label('earned_points'),
         func.count(case((SolvedTask.is_correct == True, 1))).label('correct_tasks'),
@@ -6096,7 +6172,9 @@ def tournament_history():
     ).group_by(
         Tournament.id,
         TournamentParticipation.score,
-        TournamentParticipation.place
+        TournamentParticipation.place,
+        TournamentParticipation.start_time,
+        TournamentParticipation.end_time
     ).order_by(
         Tournament.start_date.desc()
     )
@@ -6106,9 +6184,32 @@ def tournament_history():
     
     # Преобразуем результаты в список словарей для удобного доступа в шаблоне
     tournament_list = []
-    for tournament, score, place, solved_tasks, earned_points, correct_tasks, attempted_tasks in tournaments.items:
+    for tournament, score, place, start_time, end_time, solved_tasks, earned_points, correct_tasks, attempted_tasks in tournaments.items:
         # Рассчитываем процент правильно решенных задач от попыток решения
         success_rate = round((correct_tasks or 0) / (attempted_tasks or 1) * 100, 1)
+        
+        # Рассчитываем время участия в турнире
+        time_spent = None
+        if start_time and end_time:
+            total_seconds = (end_time - start_time).total_seconds()
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+            seconds = int(total_seconds % 60)
+            time_spent = {
+                'hours': hours,
+                'minutes': minutes,
+                'seconds': seconds,
+                'total_seconds': total_seconds
+            }
+        elif start_time:
+            # Если нет времени окончания, но есть время начала, считаем от начала до текущего времени
+            # или до времени последней решенной задачи
+            time_spent = {
+                'hours': 0,
+                'minutes': 0,
+                'seconds': 0,
+                'total_seconds': 0
+            }
         
         tournament_list.append({
             'id': tournament.id,
@@ -6119,7 +6220,8 @@ def tournament_history():
             'earned_points': earned_points or 0,
             'score': score or 0,
             'place': place,
-            'success_rate': success_rate
+            'success_rate': success_rate,
+            'time_spent': time_spent
         })
     
     return render_template('tournament_history.html', 
