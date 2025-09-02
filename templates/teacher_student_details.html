@@ -318,11 +318,11 @@
                         <tr>
                             <th>Дата</th>
                             <th>Название турнира</th>
-                            <th>Место в турнире</th>
+                            <th>Заработано баллов</th>
+                            <th>Время участия</th>
                             <th>Решено задач</th>
                             <th>% решения</th>
-                            <th>Заработано очков</th>
-                            <th>Время участия</th>
+                            <th>Место в турнире</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -331,15 +331,6 @@
                         <tr>
                             <td>{{ tournament.start_date.strftime('%d.%m.%Y') }}</td>
                             <td>{{ tournament.name }}</td>
-                            <td>
-                                {% if tournament.place %}
-                                    {{ tournament.place }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </td>
-                            <td>{{ tournament.solved_tasks }}</td>
-                            <td>{{ tournament.success_rate }}%</td>
                             <td>{{ tournament.earned_points }}</td>
                             <td>
                                 {% if tournament.time_spent is not none %}
@@ -350,6 +341,15 @@
                                     {% endif %}
                                 {% else %}
                                     <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ tournament.solved_tasks }}</td>
+                            <td>{{ tournament.success_rate }}%</td>
+                            <td>
+                                {% if tournament.place %}
+                                    {{ tournament.place }}
+                                {% else %}
+                                    -
                                 {% endif %}
                             </td>
                             <td>
@@ -406,15 +406,7 @@
                     
                     <div class="tournament-stats-grid">
                         <div class="tournament-stat-item">
-                            <div class="tournament-stat-label">Решено задач</div>
-                            <div class="tournament-stat-value">{{ tournament.solved_tasks }}</div>
-                        </div>
-                        <div class="tournament-stat-item">
-                            <div class="tournament-stat-label">% решения</div>
-                            <div class="tournament-stat-value">{{ tournament.success_rate }}%</div>
-                        </div>
-                        <div class="tournament-stat-item">
-                            <div class="tournament-stat-label">Заработано очков</div>
+                            <div class="tournament-stat-label">Заработано баллов</div>
                             <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
                         </div>
                         <div class="tournament-stat-item">
@@ -430,6 +422,14 @@
                                     <span class="text-muted">-</span>
                                 {% endif %}
                             </div>
+                        </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">Решено задач</div>
+                            <div class="tournament-stat-value">{{ tournament.solved_tasks }}</div>
+                        </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">% решения</div>
+                            <div class="tournament-stat-value">{{ tournament.success_rate }}%</div>
                         </div>
                     </div>
                     

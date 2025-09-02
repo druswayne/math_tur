@@ -99,51 +99,51 @@
                 <tr>
                     <th>Дата</th>
                     <th>Название турнира</th>
-                    <th>Место в турнире</th>
+                    <th>Заработано баллов</th>
+                    <th>Время участия</th>
                     <th>Решено задач</th>
                     <th>% решения</th>
-                    <th>Заработано очков</th>
-                    <th>Время участия</th>
+                    <th>Место в турнире</th>
                     <th>Действия</th>
                 </tr>
             </thead>
             <tbody>
                 {% for tournament in tournaments %}
                 <tr>
-                    <td>{{ tournament.start_date.strftime('%d.%m.%Y') }}</td>
-                    <td>{{ tournament.name }}</td>
-                    <td>
-                        {% if tournament.place %}
-                            {{ tournament.place }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
-                    <td>{{ tournament.solved_tasks }}</td>
-                    <td>{{ tournament.success_rate }}%</td>
-                    <td>{{ tournament.earned_points }}</td>
-                    <td>
-                        {% if tournament.time_spent is not none %}
-                            {% if tournament.time_spent.total_seconds > 0 %}
-                                {{ "%02d:%02d:%02d"|format(tournament.time_spent.hours, tournament.time_spent.minutes, tournament.time_spent.seconds) }}
+                                            <td>{{ tournament.start_date.strftime('%d.%m.%Y') }}</td>
+                        <td>{{ tournament.name }}</td>
+                        <td>{{ tournament.earned_points }}</td>
+                        <td>
+                            {% if tournament.time_spent is not none %}
+                                {% if tournament.time_spent.total_seconds > 0 %}
+                                    {{ "%02d:%02d:%02d"|format(tournament.time_spent.hours, tournament.time_spent.minutes, tournament.time_spent.seconds) }}
+                                {% else %}
+                                    <span class="text-muted">Не завершено</span>
+                                {% endif %}
                             {% else %}
-                                <span class="text-muted">Не завершено</span>
+                                <span class="text-muted">-</span>
                             {% endif %}
-                        {% else %}
-                            <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if tournament.status == 'finished' %}
-                            <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-info-circle me-1"></i>Подробнее
-                            </a>
-                        {% else %}
-                            <span class="text-muted">
-                                <i class="fas fa-clock me-1"></i>Ожидание завершения
-                            </span>
-                        {% endif %}
-                    </td>
+                        </td>
+                        <td>{{ tournament.solved_tasks }}</td>
+                        <td>{{ tournament.success_rate }}%</td>
+                        <td>
+                            {% if tournament.place %}
+                                {{ tournament.place }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tournament.status == 'finished' %}
+                                <a href="{{ url_for('tournament_results', tournament_id=tournament.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-info-circle me-1"></i>Подробнее
+                                </a>
+                            {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>Ожидание завершения
+                                </span>
+                            {% endif %}
+                        </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -184,20 +184,12 @@
                 </div>
             </div>
             
-            <div class="tournament-stats-grid">
-                <div class="tournament-stat-item">
-                    <div class="tournament-stat-label">Решено задач</div>
-                    <div class="tournament-stat-value">{{ tournament.solved_tasks }}</div>
-                </div>
-                <div class="tournament-stat-item">
-                    <div class="tournament-stat-label">% решения</div>
-                    <div class="tournament-stat-value">{{ tournament.success_rate }}%</div>
-                </div>
-                <div class="tournament-stat-item">
-                    <div class="tournament-stat-label">Заработано очков</div>
-                    <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
-                </div>
-                                        <div class="tournament-stat-item">
+                                <div class="tournament-stats-grid">
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">Заработано баллов</div>
+                            <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
+                        </div>
+                        <div class="tournament-stat-item">
                             <div class="tournament-stat-label">Время участия</div>
                             <div class="tournament-stat-value">
                                 {% if tournament.time_spent is not none %}
@@ -211,7 +203,15 @@
                                 {% endif %}
                             </div>
                         </div>
-            </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">Решено задач</div>
+                            <div class="tournament-stat-value">{{ tournament.solved_tasks }}</div>
+                        </div>
+                        <div class="tournament-stat-item">
+                            <div class="tournament-stat-label">% решения</div>
+                            <div class="tournament-stat-value">{{ tournament.success_rate }}%</div>
+                        </div>
+                    </div>
             
             <div class="text-center">
                 {% if tournament.status == 'finished' %}
