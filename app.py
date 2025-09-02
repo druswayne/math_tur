@@ -1961,13 +1961,14 @@ def home():
                              total_tournaments=total_tournaments,
                              avg_tournament_score=round(avg_tournament_score, 1),
                              max_tournament_score=max_tournament_score,
-                             total_solved_tasks=total_solved_tasks)
+                             total_solved_tasks=total_solved_tasks,
+                             show_partners=True)
     else:
-        return render_template('index_close.html', message=settings.closed_season_message)
+        return render_template('index_close.html', message=settings.closed_season_message, show_partners=True)
 
 @app.route('/about')
 def about():
-    return render_template('about.html', title='О нас')
+    return render_template('about.html', title='О нас', show_partners=True)
 
 @app.route('/cooperation')
 def cooperation():
@@ -2000,7 +2001,7 @@ def news():
     
     news_list = pagination.items
     
-    return render_template('news.html', title='Новости', news_list=news_list, pagination=pagination, now=datetime.now())
+    return render_template('news.html', title='Новости', news_list=news_list, pagination=pagination, now=datetime.now(), show_partners=True)
 
 @app.route('/news/<int:news_id>')
 def news_detail(news_id):
@@ -2013,7 +2014,7 @@ def news_detail(news_id):
         News.id != news_id
     ).order_by(News.created_at.desc()).limit(5).all()
     
-    return render_template('news_detail.html', title=news_item.title, news=news_item, news_list=other_news)
+    return render_template('news_detail.html', title=news_item.title, news=news_item, news_list=other_news, show_partners=True)
 
 def parse_user_agent(user_agent_string):
     """Парсит User-Agent строку и возвращает информацию об устройстве в читаемом формате"""

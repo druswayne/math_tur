@@ -1168,6 +1168,7 @@
     </main>
 
     <!-- Блок партнеров проекта -->
+    {% if show_partners %}
     <section class="partners-section">
         <div class="container">
             <div class="row">
@@ -1219,10 +1220,9 @@
                     </div>
                 </div>
             </div>
-
-
         </div>
     </section>
+    {% endif %}
 
     <footer id="footer" style="background-color: #343a40; color: white;">
         <div class="container py-4">
