@@ -167,6 +167,177 @@
             justify-content: space-between;
         }
 
+        /* Стили для блока партнеров */
+        .partners-section {
+            background-color: #f8f9fa;
+            padding: 2rem 0;
+        }
+
+        .partner-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            color: white;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .partner-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        /* Отключаем hover эффекты на мобильных устройствах */
+        @media (hover: none) and (pointer: coarse) {
+            .partner-card:hover {
+                transform: none;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            }
+        }
+
+        .partner-card:nth-child(2) {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .partner-card:nth-child(3) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .partner-card:nth-child(4) {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .partner-logo-placeholder {
+            width: 53px;
+            height: 53px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            margin: 0 auto 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .partners-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(133px, 1fr));
+            gap: 1.3rem;
+            max-width: 667px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .partners-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 0.7rem;
+            }
+            
+            .partner-card {
+                padding: 0.7rem;
+            }
+            
+            .partner-logo-placeholder {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .partners-section {
+                padding: 1.5rem 0;
+            }
+            
+            .partners-title {
+                font-size: 1.5rem;
+                margin-bottom: 0.8rem;
+            }
+            
+            .partners-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.8rem;
+                max-width: 100%;
+                padding: 0 0.5rem;
+            }
+            
+            .partner-card {
+                padding: 0.8rem 0.5rem;
+            }
+            
+            .partner-logo-placeholder {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .partner-card h5 {
+                font-size: 0.8rem;
+                margin-bottom: 0.2rem;
+            }
+            
+            .partner-card p {
+                font-size: 0.65rem;
+            }
+        }
+
+        @media (max-width: 375px) {
+            .partners-grid {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+                max-width: 200px;
+            }
+            
+            .partner-card {
+                padding: 0.6rem;
+            }
+            
+            .partner-logo-placeholder {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+            
+            .partner-card h5 {
+                font-size: 0.85rem;
+            }
+            
+            .partner-card p {
+                font-size: 0.7rem;
+            }
+        }
+
+        .partners-title {
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 0.7rem;
+            font-size: 1.8rem;
+        }
+
+        .partners-title i {
+            color: #FF8C00;
+        }
+
+
+
+        .partner-card h5 {
+            margin-bottom: 0.3rem;
+            font-weight: 600;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .partner-card p {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            margin: 0;
+            color: white;
+        }
+
         .flash-message.alert-error {
             background-color: #dc3545;
             color: white;
@@ -995,6 +1166,63 @@
     <main>
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Блок партнеров проекта -->
+    <section class="partners-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center mb-4">
+                    <h3 class="partners-title">
+                        <i class="fas fa-handshake me-2"></i>Партнеры проекта
+                    </h3>
+                </div>
+            </div>
+            
+            <div class="row justify-content-center">
+                <div class="col-12">
+                    <div class="partners-grid">
+                        <!-- Образец партнера 1 -->
+                        <div class="partner-card">
+                            <div class="partner-logo-placeholder">
+                                <i class="fas fa-university"></i>
+                            </div>
+                            <h5>Образовательный центр</h5>
+                            <p>Стратегический партнер</p>
+                        </div>
+
+                        <!-- Образец партнера 2 -->
+                        <div class="partner-card">
+                            <div class="partner-logo-placeholder">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <h5>Университет</h5>
+                            <p>Академический партнер</p>
+                        </div>
+
+                        <!-- Образец партнера 3 -->
+                        <div class="partner-card">
+                            <div class="partner-logo-placeholder">
+                                <i class="fas fa-rocket"></i>
+                            </div>
+                            <h5>Технологическая компания</h5>
+                            <p>Инновационный партнер</p>
+                        </div>
+
+                        <!-- Образец партнера 4 -->
+                        <div class="partner-card">
+                            <div class="partner-logo-placeholder">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <h5>Инвестиционный фонд</h5>
+                            <p>Финансовый партнер</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </section>
 
     <footer id="footer" style="background-color: #343a40; color: white;">
         <div class="container py-4">
