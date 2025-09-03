@@ -107,10 +107,12 @@
                             <p class="card-text">
                                 <strong>Стоимость:</strong> {{ prize.points_cost }} баллов<br>
                                 <strong>Доступно:</strong> 
-                                {% if prize.quantity == 0 %}
+                                {% if prize.quantity == -1 %}
                                 Неограниченно
-                                {% else %}
+                                {% elif prize.quantity > 0 %}
                                 {{ prize.quantity }} шт.
+                                {% else %}
+                                Недоступно
                                 {% endif %}
                             </p>
                             <div class="mb-2">

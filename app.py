@@ -1136,7 +1136,7 @@ class Prize(db.Model):
     description = db.Column(db.Text, nullable=False)
     image = db.Column(db.String(200))  # Путь к изображению
     points_cost = db.Column(db.Integer, nullable=False)  # Стоимость в баллах
-    quantity = db.Column(db.Integer, default=0)  # 0 означает неограниченное количество
+    quantity = db.Column(db.Integer, default=-1)  # -1 означает неограниченное количество, >0 - конкретное количество
     is_active = db.Column(db.Boolean, default=True)
     is_unique = db.Column(db.Boolean, default=False)  # Флаг уникального приза
     is_for_teachers = db.Column(db.Boolean, default=False)  # Флаг приза для учителей
@@ -3069,7 +3069,7 @@ def admin_add_prize():
         flash('Все обязательные поля должны быть заполнены', 'danger')
         return redirect(url_for('admin_prizes'))
     
-    if points_cost < 1 or quantity < 0:
+    if points_cost < 1 or quantity < -1:
         flash('Некорректные значения', 'danger')
         return redirect(url_for('admin_prizes'))
     
@@ -3139,7 +3139,7 @@ def admin_edit_prize(prize_id):
             flash('Все обязательные поля должны быть заполнены', 'danger')
             return redirect(url_for('admin_edit_prize', prize_id=prize_id))
         
-        if points_cost < 1 or quantity < 0:
+        if points_cost < 1 or quantity < -1:
             flash('Некорректные значения', 'danger')
             return redirect(url_for('admin_edit_prize', prize_id=prize_id))
         
@@ -6437,6 +6437,31 @@ def cart():
     else:
         cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
     
+    # Очищаем корзину от недоступных призов
+    items_to_remove = []
+    for item in cart_items:
+        # Проверяем, доступен ли приз и есть ли нужное количество
+        if not item.prize.is_active:
+            items_to_remove.append(item)
+        elif item.prize.quantity > 0 and item.quantity > item.prize.quantity:
+            # Если количество в корзине больше доступного, уменьшаем до доступного
+            if item.prize.quantity == 0:
+                items_to_remove.append(item)
+            else:
+                item.quantity = item.prize.quantity
+    
+    # Удаляем недоступные призы
+    for item in items_to_remove:
+        if isinstance(current_user, Teacher):
+            TeacherCartItem.query.filter_by(id=item.id).delete()
+        else:
+            CartItem.query.filter_by(id=item.id).delete()
+        cart_items.remove(item)
+    
+    # Сохраняем изменения
+    if items_to_remove:
+        db.session.commit()
+    
     # Считаем общую стоимость
     total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
     
@@ -6463,7 +6488,8 @@ def add_to_cart():
     if not prize_id or not quantity:
         return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
     
-    prize = Prize.query.get(prize_id)
+    # Блокируем приз для предотвращения race conditions
+    prize = Prize.query.with_for_update().get(prize_id)
     if not prize or not prize.is_active:
         return jsonify({'success': False, 'message': 'Товар не найден'})
     
@@ -6495,6 +6521,11 @@ def add_to_cart():
         quantity = 1
     elif prize.quantity > 0 and quantity > prize.quantity:
         return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
+    elif prize.quantity == 0:
+        # Если количество стало 0, деактивируем приз
+        prize.is_active = False
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'Приз больше не доступен'})
     
     # Проверяем, есть ли уже такой товар в корзине
     if isinstance(current_user, Teacher):
@@ -6516,6 +6547,11 @@ def add_to_cart():
         new_quantity = cart_item.quantity + quantity
         if prize.quantity > 0 and new_quantity > prize.quantity:
             return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
+        elif prize.quantity == 0:
+            # Если количество стало 0, деактивируем приз
+            prize.is_active = False
+            db.session.commit()
+            return jsonify({'success': False, 'message': 'Приз больше не доступен'})
         cart_item.quantity = new_quantity
     else:
         # Если товара нет, создаем новую запись
@@ -6565,7 +6601,8 @@ def update_cart():
     if not prize_id or not quantity:
         return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
     
-    prize = Prize.query.get(prize_id)
+    # Блокируем приз для предотвращения race conditions
+    prize = Prize.query.with_for_update().get(prize_id)
     if not prize or not prize.is_active:
         return jsonify({'success': False, 'message': 'Товар не найден'})
     
@@ -6574,6 +6611,11 @@ def update_cart():
         quantity = 1
     elif prize.quantity > 0 and quantity > prize.quantity:
         return jsonify({'success': False, 'message': 'Запрошенное количество превышает доступное'})
+    elif prize.quantity == 0:
+        # Если количество стало 0, деактивируем приз
+        prize.is_active = False
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'Приз больше не доступен'})
     
     # Находим товар в корзине
     if isinstance(current_user, Teacher):
@@ -6592,11 +6634,21 @@ def update_cart():
     
     # Обновляем количество
     cart_item.quantity = quantity
+    
+    # Получаем обновленную общую стоимость корзины
+    if isinstance(current_user, Teacher):
+        cart_items = TeacherCartItem.query.filter_by(teacher_id=current_user.id).all()
+    else:
+        cart_items = CartItem.query.filter_by(user_id=current_user.id).all()
+    
+    total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
+    
     db.session.commit()
     
     return jsonify({
         'success': True,
-        'message': 'Количество товара обновлено'
+        'message': 'Количество товара обновлено',
+        'total_cost': total_cost
     })
 
 @app.route('/remove-from-cart', methods=['POST'])
@@ -6677,31 +6729,45 @@ def checkout():
     
     # Проверяем доступность всех товаров и уникальность
     for item in cart_items:
-        if item.prize.quantity > 0 and item.quantity > item.prize.quantity:
-            return jsonify({'success': False, 'message': f'Товар "{item.prize.name}" доступен только в количестве {item.prize.quantity} шт.'})
+        # Блокируем приз для предотвращения race conditions
+        prize = Prize.query.with_for_update().get(item.prize.id)
+        if not prize or not prize.is_active:
+            return jsonify({'success': False, 'message': f'Приз "{item.prize.name}" больше не доступен'})
+        
+        # Проверяем количество с актуальными данными
+        if prize.quantity > 0 and item.quantity > prize.quantity:
+            return jsonify({'success': False, 'message': f'Товар "{prize.name}" доступен только в количестве {prize.quantity} шт.'})
+        elif prize.quantity == 0:
+            # Если количество стало 0, деактивируем приз
+            prize.is_active = False
+            db.session.commit()
+            return jsonify({'success': False, 'message': f'Приз "{prize.name}" больше не доступен'})
         
         # Проверяем, не является ли приз уникальным и не покупал ли пользователь его уже
-        if item.prize.is_unique:
+        if prize.is_unique:
             # Получаем текущий номер сезона
             current_season = TournamentSettings.get_settings().current_season_number
             
             if isinstance(current_user, Teacher):
                 existing_purchase = TeacherPrizePurchase.query.filter(
                     TeacherPrizePurchase.teacher_id == current_user.id,
-                    TeacherPrizePurchase.prize_id == item.prize.id,
+                    TeacherPrizePurchase.prize_id == prize.id,
                     TeacherPrizePurchase.season_number == current_season,
                     TeacherPrizePurchase.status != 'cancelled'
                 ).first()
             else:
                 existing_purchase = PrizePurchase.query.filter(
                     PrizePurchase.user_id == current_user.id,
-                    PrizePurchase.prize_id == item.prize.id,
+                    PrizePurchase.prize_id == prize.id,
                     PrizePurchase.season_number == current_season,
                     PrizePurchase.status != 'cancelled'
                 ).first()
             
             if existing_purchase:
-                return jsonify({'success': False, 'message': f'Вы уже приобрели уникальный приз "{item.prize.name}" в текущем сезоне'})
+                return jsonify({'success': False, 'message': f'Вы уже приобрели уникальный приз "{prize.name}" в текущем сезоне'})
+        
+        # Обновляем ссылку на приз для использования в дальнейшем
+        item.prize = prize
     
     try:
         # Создаем записи о покупке для каждого товара
@@ -6738,6 +6804,10 @@ def checkout():
             # Уменьшаем количество доступных товаров
             if item.prize.quantity > 0:
                 item.prize.quantity -= item.quantity
+                # Если количество стало 0, деактивируем приз
+                if item.prize.quantity == 0:
+                    item.prize.is_active = False
+            # Для неограниченных призов (quantity == -1) ничего не делаем
         
         # Списываем баллы
         current_user.balance -= total_cost
@@ -6753,6 +6823,56 @@ def checkout():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при оформлении заказа'})
+
+@app.route('/check-prize-availability', methods=['POST'])
+@login_required
+def check_prize_availability():
+    """Проверяет доступность приза для изменения количества в корзине"""
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Администраторы не могут совершать покупки'})
+    
+    data = request.get_json()
+    prize_id = data.get('prize_id')
+    quantity = data.get('quantity', 1)
+    
+    if not prize_id or not quantity:
+        return jsonify({'success': False, 'message': 'Неверные параметры запроса'})
+    
+    # Получаем приз с блокировкой для предотвращения race conditions
+    prize = Prize.query.with_for_update().get(prize_id)
+    if not prize or not prize.is_active:
+        return jsonify({'success': False, 'message': 'Приз больше не доступен'})
+    
+    # Проверяем количество
+    if prize.quantity > 0 and quantity > prize.quantity:
+        return jsonify({
+            'success': False, 
+            'message': f'Запрошенное количество превышает доступное. Доступно: {prize.quantity} шт.',
+            'available_quantity': prize.quantity,
+            'can_correct': True  # Флаг для возможности автоматической корректировки
+        })
+    elif prize.quantity == 0:
+        # Если количество стало 0, деактивируем приз
+        prize.is_active = False
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'Приз больше не доступен'})
+    
+    # Проверяем, не является ли приз уникальным
+    if prize.is_unique and quantity > 1:
+        return jsonify({
+            'success': False, 
+            'message': 'Уникальный приз можно заказать только в количестве 1',
+            'available_quantity': 1,
+            'can_correct': True
+        })
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Приз доступен',
+        'available_quantity': prize.quantity if prize.quantity > 0 else -1
+    })
 
 @app.route('/admin/orders')
 @login_required
@@ -6990,8 +7110,14 @@ def cancel_purchase(purchase_id):
         # Обновляем статус покупки
         purchase.status = 'cancelled'
         
-        # Возвращаем товары на склад
-        purchase.prize.quantity += purchase.quantity
+        # Возвращаем товары на склад (только для ограниченных призов)
+        if purchase.prize.quantity > 0:
+            purchase.prize.quantity += purchase.quantity
+            
+            # Если приз был деактивирован и теперь количество > 0, активируем его
+            if not purchase.prize.is_active and purchase.prize.quantity > 0:
+                purchase.prize.is_active = True
+        # Для неограниченных призов (quantity == -1) ничего не делаем
         
         db.session.commit()
         return jsonify({

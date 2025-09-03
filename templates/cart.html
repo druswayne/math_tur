@@ -686,23 +686,8 @@ function updateCart(prizeId, action, value = null) {
     
     if (quantity < 1) return;
     
-    const maxQuantity = parseInt(input.getAttribute('max'));
-    
-    if (quantity > maxQuantity) {
-        // Показываем модальное окно с сообщением об ошибке
-        const content = `
-            <div class="alert alert-danger mb-0">
-                <i class="fas fa-exclamation-circle me-2"></i>
-                Превышено максимальное количество товара. Доступно: ${maxQuantity} шт.
-            </div>
-        `;
-        document.getElementById('cartMessageContent').innerHTML = content;
-        const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
-        modal.show();
-        return;
-    }
-    
-    fetch('/update-cart', {
+    // Сначала проверяем доступность на сервере
+    fetch('/check-prize-availability', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -713,36 +698,101 @@ function updateCart(prizeId, action, value = null) {
         })
     })
     .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Обновляем общую стоимость
-            document.getElementById('total-cost').textContent = data.total_cost;
-            // Показываем сообщение об успехе
-            const content = `
-                <div class="alert alert-success mb-0">
-                    <i class="fas fa-check-circle me-2"></i>
-                    Количество товара успешно обновлено
-                </div>
-            `;
-            document.getElementById('cartMessageContent').innerHTML = content;
-            const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
-            modal.show();
-            // Закрываем модальное окно через 1.5 секунды
-            setTimeout(() => {
-                modal.hide();
-            }, 1500);
-        } else {
+    .then(availabilityData => {
+        if (!availabilityData.success) {
+            // Если количество превышает доступное и можно скорректировать
+            if (availabilityData.can_correct && availabilityData.available_quantity !== undefined && availabilityData.available_quantity > 0) {
+                const correctedQuantity = Math.min(quantity, availabilityData.available_quantity);
+                input.value = correctedQuantity;
+                
+                // Показываем информативное сообщение о корректировке
+                const content = `
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Количество автоматически скорректировано до максимально доступного: ${correctedQuantity} шт.
+                    </div>
+                `;
+                document.getElementById('cartMessageContent').innerHTML = content;
+                const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+                modal.show();
+                
+                // Если количество было скорректировано, продолжаем с новым значением
+                if (correctedQuantity !== quantity) {
+                    quantity = correctedQuantity;
+                } else {
+                    return; // Если количество не изменилось, показываем ошибку
+                }
+            } else {
+                // Показываем сообщение об ошибке доступности
+                const content = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        ${availabilityData.message}
+                    </div>
+                `;
+                document.getElementById('cartMessageContent').innerHTML = content;
+                const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+                modal.show();
+                return;
+            }
+        }
+        
+        // Если приз доступен, обновляем корзину
+        fetch('/update-cart', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prize_id: prizeId,
+                quantity: quantity
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Обновляем общую стоимость
+                document.getElementById('total-cost').textContent = data.total_cost;
+                // Показываем сообщение об успехе
+                const content = `
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Количество товара успешно обновлено
+                    </div>
+                `;
+                document.getElementById('cartMessageContent').innerHTML = content;
+                const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+                modal.show();
+                // Закрываем модальное окно через 1.5 секунды
+                setTimeout(() => {
+                    modal.hide();
+                }, 1500);
+            } else {
+                // Показываем сообщение об ошибке
+                const content = `
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        ${data.message}
+                    </div>
+                `;
+                document.getElementById('cartMessageContent').innerHTML = content;
+                const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
             // Показываем сообщение об ошибке
             const content = `
                 <div class="alert alert-danger mb-0">
                     <i class="fas fa-exclamation-circle me-2"></i>
-                    ${data.message}
+                    Произошла ошибка при обновлении корзины
                 </div>
             `;
             document.getElementById('cartMessageContent').innerHTML = content;
             const modal = new bootstrap.Modal(document.getElementById('cartMessageModal'));
             modal.show();
-        }
+        });
     })
     .catch(error => {
         console.error('Error:', error);
@@ -750,7 +800,7 @@ function updateCart(prizeId, action, value = null) {
         const content = `
             <div class="alert alert-danger mb-0">
                 <i class="fas fa-exclamation-circle me-2"></i>
-                Произошла ошибка при обновлении корзины
+                Произошла ошибка при проверке доступности приза
             </div>
         `;
         document.getElementById('cartMessageContent').innerHTML = content;

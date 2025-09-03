@@ -55,7 +55,7 @@
                                         <span class="badge bg-warning text-dark">
                                             <i class="fas fa-coins me-1"></i>{{ prize.points_cost }} баллов
                                         </span>
-                                        {% if prize.quantity == 0 %}
+                                        {% if prize.quantity == -1 %}
                                             <span class="badge bg-success">Неограниченно</span>
                                         {% else %}
                                             <span class="badge bg-info">Осталось: {{ prize.quantity }}</span>

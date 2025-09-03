@@ -41,8 +41,8 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="quantity" class="form-label">Количество доступных призов</label>
-                        <input type="number" class="form-control" id="quantity" name="quantity" min="0" value="{{ prize.quantity }}">
-                        <small class="form-text text-muted">Оставьте 0 для неограниченного количества</small>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="-1" value="{{ prize.quantity }}">
+                        <small class="form-text text-muted">Укажите -1 для неограниченного количества, 0 или больше для конкретного количества</small>
                     </div>
                 </div>
                 <div class="row">

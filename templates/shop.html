@@ -254,7 +254,7 @@
                         <p class="card-text mb-2">
                             <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов<br>
                             {% if not prize.is_unique %}
-                            <strong>Доступно:</strong> {% if prize.quantity > 0 %}{{ prize.quantity }} шт.{% else %}Неограниченно{% endif %}
+                            <strong>Доступно:</strong> {% if prize.quantity > 0 %}{{ prize.quantity }} шт.{% elif prize.quantity == -1 %}Неограниченно{% else %}Недоступно{% endif %}
                             {% endif %}
                         </p>
                     {% if can_shop and settings.is_open %}
