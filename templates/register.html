@@ -351,39 +351,41 @@
     box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
 }
 
-/* Стили для чекбоксов согласия */
+/* Стили для пульсирующих чекбоксов */
 .form-check-input {
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-    border: 1px solid #dee2e6;
+    transition: all 0.3s ease;
+    border: 2px solid #dee2e6;
     cursor: pointer;
     animation: checkboxPulse 2s infinite;
 }
 
 .form-check-input:hover {
     border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+    transform: scale(1.1);
 }
 
 .form-check-input:checked {
     background-color: #28a745;
     border-color: #28a745;
-    animation: none; /* Убираем пульсацию для активированных чекбоксов */
+}
+
+@keyframes checkboxPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.8);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
 }
 
 .form-check-input:focus {
     border-color: #28a745;
     box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
-}
-
-@keyframes checkboxPulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.6);
-    }
-    70% {
-        box-shadow: 0 0 0 6px rgba(40, 167, 69, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
-    }
+    background-color: rgba(25, 135, 84, 0.05);
 }
 
 .input-group .input-group-text.is-valid {
@@ -1236,14 +1238,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (agreeCheckbox) {
         agreeCheckbox.addEventListener('change', function() {
-            validationState.agree = this.checked;
+            validateAgree();
             validateForm();
         });
     }
 
     if (agreeTermsCheckbox) {
         agreeTermsCheckbox.addEventListener('change', function() {
-            validationState.agree_terms = this.checked;
+            validateAgree();
             validateForm();
         });
     }

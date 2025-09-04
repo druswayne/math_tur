@@ -1105,6 +1105,9 @@ class SolvedTask(db.Model):
     is_correct = db.Column(db.Boolean, default=False)
     user_answer = db.Column(db.String(200), nullable=True)  # Ответ пользователя
     
+    # Уникальное ограничение для комбинации user_id и task_id
+    __table_args__ = (db.UniqueConstraint('user_id', 'task_id', name='unique_user_task'),)
+    
     user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
     task = db.relationship('Task', backref=db.backref('solutions', lazy=True, cascade='all, delete-orphan'))
 
@@ -5915,12 +5918,13 @@ def submit_task_answer(tournament_id, task_id):
         flash('Турнир не активен', 'warning')
         return redirect(url_for('home'))
     
-    # Проверяем, не решена ли уже эта задача
-    if SolvedTask.query.filter_by(
+    # Проверяем, есть ли уже запись о решении этой задачи
+    existing_solution = SolvedTask.query.filter_by(
         user_id=current_user.id,
-        task_id=task_id,
-        is_correct=True
-    ).first():
+        task_id=task_id
+    ).first()
+    
+    if existing_solution and existing_solution.is_correct:
         flash('Вы уже решили эту задачу', 'warning')
         return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
@@ -5940,22 +5944,31 @@ def submit_task_answer(tournament_id, task_id):
     # Проверяем ответ (приводим правильный ответ к нижнему регистру)
     is_correct = user_answer == task.correct_answer.lower()
     
-    # Сохраняем результат
-    solution = SolvedTask(
-        user_id=current_user.id,
-        task_id=task_id,
-        is_correct=is_correct,
-        user_answer=user_answer
-    )
-    db.session.add(solution)
+    # Сохраняем результат (обновляем существующую запись или создаем новую)
+    if existing_solution:
+        # Обновляем существующую запись
+        existing_solution.is_correct = is_correct
+        existing_solution.user_answer = user_answer
+        existing_solution.solved_at = datetime.now()
+        solution = existing_solution
+    else:
+        # Создаем новую запись
+        solution = SolvedTask(
+            user_id=current_user.id,
+            task_id=task_id,
+            is_correct=is_correct,
+            user_answer=user_answer
+        )
+        db.session.add(solution)
     
     # Обновляем время окончания участия в турнире
     if participation:
         participation.end_time = current_time
     
     if is_correct:
-        # Добавляем баллы к общему счету
-        current_user.balance += task.points
+        # Добавляем баллы к общему счету только если это новая запись или предыдущий ответ был неправильным
+        if not existing_solution or not existing_solution.is_correct:
+            current_user.balance += task.points
         
         # Проверяем на подозрительную активность
         # Получаем все задачи турнира для категории пользователя
@@ -5994,7 +6007,10 @@ def submit_task_answer(tournament_id, task_id):
             
             return redirect(url_for('login'))
         
-        flash(f'Правильный ответ! +{task.points} баллов', 'success')
+        if not existing_solution or not existing_solution.is_correct:
+            flash(f'Правильный ответ! +{task.points} баллов', 'success')
+        else:
+            flash('Правильный ответ! (баллы уже были начислены ранее)', 'success')
     else:
         flash('Неправильный ответ', 'danger')
     
