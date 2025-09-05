@@ -5942,10 +5942,12 @@ def submit_task_answer(tournament_id, task_id):
     is_correct = user_answer == task.correct_answer.lower()
     
     # Сохраняем результат только если записи еще нет
+    task_skipped = False
+    
     if existing_solution:
         # Запись уже существует - пропускаем
         flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
-        return redirect(url_for('tournament_task', tournament_id=tournament_id))
+        task_skipped = True
     else:
         # Дополнительная проверка перед созданием новой записи (защита от race condition)
         duplicate_check = SolvedTask.query.filter_by(
@@ -5956,7 +5958,7 @@ def submit_task_answer(tournament_id, task_id):
         if duplicate_check:
             # Запись появилась между проверками - пропускаем
             flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
-            return redirect(url_for('tournament_task', tournament_id=tournament_id))
+            task_skipped = True
         else:
             # Создаем новую запись
             solution = SolvedTask(
@@ -5966,6 +5968,10 @@ def submit_task_answer(tournament_id, task_id):
                 user_answer=user_answer
             )
             db.session.add(solution)
+    
+    # Если задача была пропущена, не показываем сообщения о правильности ответа
+    if task_skipped:
+        return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
     # Обновляем время окончания участия в турнире
     if participation:
