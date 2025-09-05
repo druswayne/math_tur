@@ -351,41 +351,39 @@
     box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
 }
 
-/* Стили для пульсирующих чекбоксов */
+/* Стили для чекбоксов согласия */
 .form-check-input {
-    transition: all 0.3s ease;
-    border: 2px solid #dee2e6;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    border: 1px solid #dee2e6;
     cursor: pointer;
     animation: checkboxPulse 2s infinite;
 }
 
 .form-check-input:hover {
     border-color: #28a745;
-    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
-    transform: scale(1.1);
 }
 
 .form-check-input:checked {
     background-color: #28a745;
     border-color: #28a745;
-}
-
-@keyframes checkboxPulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.8);
-    }
-    70% {
-        box-shadow: 0 0 0 8px rgba(40, 167, 69, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
-    }
+    animation: none; /* Убираем пульсацию для активированных чекбоксов */
 }
 
 .form-check-input:focus {
     border-color: #28a745;
     box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
-    background-color: rgba(25, 135, 84, 0.05);
+}
+
+@keyframes checkboxPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.6);
+    }
+    70% {
+        box-shadow: 0 0 0 6px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
 }
 
 .input-group .input-group-text.is-valid {
@@ -640,8 +638,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const agreeTermsCheckbox = document.getElementById('agree_terms');
 
     // Проверяем, что все элементы найдены
-    if (!usernameInput || !passwordInput || !confirmPasswordInput || 
-        !studentNameInput || !parentNameInput || !phoneInput || 
+    if (!usernameInput || !passwordInput || !confirmPasswordInput ||
+        !studentNameInput || !parentNameInput || !phoneInput ||
         !emailInput || !agreeCheckbox || !agreeTermsCheckbox) {
         console.error('Some form elements not found');
         return;
@@ -665,19 +663,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function showTooltip(fieldId, message, type = 'danger') {
         const input = document.getElementById(fieldId);
         if (!input) return;
-        
+
         // Удаляем существующую подсказку
         const existingTooltip = document.getElementById(fieldId + '-tooltip');
         if (existingTooltip) {
             existingTooltip.remove();
         }
-        
+
         // Создаем новую подсказку
         const tooltip = document.createElement('div');
         tooltip.id = fieldId + '-tooltip';
         tooltip.className = `tooltip-message text-${type}`;
         tooltip.innerHTML = `<i class="fas fa-info-circle"></i>${message}`;
-        
+
         // Вставляем подсказку после поля
         const fieldContainer = input.closest('.mb-3');
         if (fieldContainer) {
@@ -697,16 +695,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function showValidationIcon(fieldId, isValid, isLoading = false) {
         const iconContainer = document.getElementById(fieldId + '-icon');
         const input = document.getElementById(fieldId);
-        
+
         // Проверяем, что элементы существуют
         if (!iconContainer || !input) {
             console.warn(`Elements not found for field: ${fieldId}`);
             return;
         }
-        
+
         // Скрываем все иконки
         iconContainer.querySelectorAll('i').forEach(icon => icon.style.display = 'none');
-        
+
         if (isLoading) {
             const spinner = iconContainer.querySelector('.fa-spinner');
             if (spinner) spinner.style.display = 'inline-block';
@@ -732,19 +730,19 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки логина
     function validateUsername(username) {
         if (!usernameInput) return;
-        
+
         if (username.length < 3) {
             showValidationIcon('username', false);
             validationState.username = false;
             showTooltip('username', 'Логин должен содержать минимум 3 символа.');
             return;
         }
-        
+
         const usernameRegex = /^[a-zA-Z][a-zA-Z0-9_]*$/;
         if (!usernameRegex.test(username)) {
             showValidationIcon('username', false);
             validationState.username = false;
-            
+
             // Определяем тип ошибки для более точной подсказки
             if (!/^[a-zA-Z]/.test(username)) {
                 showTooltip('username', 'Логин должен начинаться с латинской буквы.');
@@ -758,7 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Проверяем доступность логина
         showValidationIcon('username', false, true);
-        
+
         fetch('/check-username', {
             method: 'POST',
             headers: {
@@ -788,20 +786,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки пароля
     function validatePassword(password) {
         if (!passwordInput) return;
-        
+
         const hasMinLength = password.length >= 8;
         const hasUpperCase = /[A-Z]/.test(password);
         const hasLowerCase = /[a-z]/.test(password);
         const hasNumber = /\d/.test(password);
         const hasSpecialChar = /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(password);
-        
+
         const isValid = hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
         showValidationIcon('password', isValid);
         validationState.password = isValid;
-        
+
         // Обновляем визуальные индикаторы требований
         updatePasswordRequirements(hasMinLength, hasUpperCase, hasLowerCase, hasNumber, hasSpecialChar);
-        
+
         // Проверяем совпадение паролей
         if (confirmPasswordInput && confirmPasswordInput.value) {
             validateConfirmPassword();
@@ -879,7 +877,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки подтверждения пароля
     function validateConfirmPassword() {
         if (!passwordInput || !confirmPasswordInput) return;
-        
+
         const isValid = passwordInput.value === confirmPasswordInput.value && passwordInput.value.length > 0;
         showValidationIcon('confirm_password', isValid);
         validationState.confirmPassword = isValid;
@@ -888,7 +886,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки имени учащегося
     function validateStudentName(name) {
         if (!studentNameInput) return;
-        
+
         const isValid = name.trim().length >= 2 && name.trim().length <= 100 && /^[а-яёА-ЯЁa-zA-Z\s\-\.]+$/.test(name);
         showValidationIcon('student_name', isValid);
         validationState.studentName = isValid;
@@ -897,7 +895,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки имени родителя
     function validateParentName(name) {
         if (!parentNameInput) return;
-        
+
         // Имя родителя может быть пустым, но если заполнено - должно быть валидным
         const isValid = name.trim() === '' || (name.trim().length >= 2 && name.trim().length <= 100 && /^[а-яёА-ЯЁa-zA-Z\s\-\.]+$/.test(name));
         showValidationIcon('parent_name', isValid);
@@ -907,10 +905,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки телефона
     function validatePhone(phone) {
         if (!phoneInput || !phoneCountrySelect) return;
-        
+
         const countryCode = phoneCountrySelect.value;
         let phoneRegex;
-        
+
         if (countryCode === '+375') {
             // Беларусь: +375 + 9 цифр
             phoneRegex = /^[0-9]{9}$/;
@@ -922,19 +920,19 @@ document.addEventListener('DOMContentLoaded', function() {
             validationState.phone = false;
             return;
         }
-        
+
         const isValid = phoneRegex.test(phone);
-        
+
         if (!isValid) {
             showValidationIcon('phone', false);
             validationState.phone = false;
             return;
         }
-        
+
         // Проверяем уникальность телефона
         const fullPhone = countryCode + phone;
         showValidationIcon('phone', false, true);
-        
+
         fetch('/check-phone', {
             method: 'POST',
             headers: {
@@ -977,7 +975,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Функция для проверки email
     function validateEmail(email) {
         if (!emailInput) return;
-        
+
         // Проверяем на русские символы
         const russianRegex = /[а-яёА-ЯЁ]/;
         if (russianRegex.test(email)) {
@@ -986,7 +984,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showTooltip('email', 'Email не должен содержать русские символы. Используйте латинские буквы.');
             return;
         }
-        
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
             showValidationIcon('email', false);
@@ -1040,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateAgree() {
         if (!agreeCheckbox) return;
         validationState.agree = agreeCheckbox.checked;
-        
+
         if (!agreeTermsCheckbox) return;
         validationState.agree_terms = agreeTermsCheckbox.checked;
     }
@@ -1050,30 +1048,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchField = document.getElementById('educational_institution_search');
         const institutionIdField = document.getElementById('educational_institution_id');
         const institutionNameField = document.getElementById('educational_institution_name');
-        
+
         if (!searchField) return;
-        
+
         const searchValue = searchField.value.trim();
         const hasId = institutionIdField.value.trim() !== '';
         const hasName = institutionNameField.value.trim() !== '';
-        
+
         // Если пользователь ввел текст, но не выбрал из списка и не нажал "Создать",
         // автоматически считаем это новым учреждением
         if (searchValue.length >= 2 && !hasId && !hasName) {
             institutionNameField.value = searchValue;
         }
-        
+
         // Поле валидно, если есть значение в поиске И (есть ID выбранного учреждения ИЛИ есть название нового учреждения)
         const isValid = searchValue.length >= 2 && (hasId || institutionNameField.value.trim() !== '');
-        
+
         // Специальная обработка для поля учреждения образования
         const iconContainer = document.getElementById('educational_institution-icon');
         const input = document.getElementById('educational_institution_search');
-        
+
         if (iconContainer && input) {
             // Скрываем все иконки
             iconContainer.querySelectorAll('i').forEach(icon => icon.style.display = 'none');
-            
+
             if (isValid) {
                 const checkIcon = iconContainer.querySelector('.fa-check-circle');
                 if (checkIcon) checkIcon.style.display = 'inline-block';
@@ -1138,7 +1136,7 @@ document.addEventListener('DOMContentLoaded', function() {
         togglePassword.addEventListener('click', function() {
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
-            
+
             // Меняем иконку
             const icon = this.querySelector('i');
             icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
@@ -1149,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleConfirmPassword.addEventListener('click', function() {
             const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             confirmPasswordInput.setAttribute('type', type);
-            
+
             // Меняем иконку
             const icon = this.querySelector('i');
             icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
@@ -1187,12 +1185,12 @@ document.addEventListener('DOMContentLoaded', function() {
             validateForm();
         });
     }
-    
+
     // Функция для обновления плейсхолдера номера телефона
     function updatePhonePlaceholder() {
         const countryCode = phoneCountrySelect.value;
         const phoneInput = document.getElementById('phone');
-        
+
         if (countryCode === '+375') {
             // Беларусь: 9 цифр после кода
             phoneInput.placeholder = '291234567';
@@ -1201,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', function() {
             phoneInput.placeholder = '9123456789';
         }
     }
-    
+
     // Инициализируем плейсхолдер при загрузке страницы
     updatePhonePlaceholder();
 
@@ -1238,14 +1236,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (agreeCheckbox) {
         agreeCheckbox.addEventListener('change', function() {
-            validateAgree();
+            validationState.agree = this.checked;
             validateForm();
         });
     }
 
     if (agreeTermsCheckbox) {
         agreeTermsCheckbox.addEventListener('change', function() {
-            validateAgree();
+            validationState.agree_terms = this.checked;
             validateForm();
         });
     }
