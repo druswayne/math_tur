@@ -27,6 +27,7 @@ import random
 from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
+from sqlalchemy.exc import IntegrityError
 from email_sender import add_to_queue, add_bulk_to_queue, start_email_worker
 import multiprocessing
 from concurrent.futures import ThreadPoolExecutor
@@ -5858,6 +5859,9 @@ def tournament_task(tournament_id):
                 total_tasks = len(all_tasks)
                 solved_tasks_count = len(solved_task_ids)  # Без +1, показываем только решенные
                 
+                # Очищаем сессию после показа задачи
+                session.pop(f'current_task_{tournament_id}', None)
+                
                 return render_template('tournament_task.html', 
                                      tournament=tournament, 
                                      task=task,
@@ -5924,10 +5928,6 @@ def submit_task_answer(tournament_id, task_id):
         task_id=task_id
     ).first()
     
-    if existing_solution and existing_solution.is_correct:
-        flash('Вы уже решили эту задачу', 'warning')
-        return redirect(url_for('tournament_task', tournament_id=tournament_id))
-    
     # Получаем участие пользователя в турнире
     participation = TournamentParticipation.query.filter_by(
         user_id=current_user.id,
@@ -5944,31 +5944,39 @@ def submit_task_answer(tournament_id, task_id):
     # Проверяем ответ (приводим правильный ответ к нижнему регистру)
     is_correct = user_answer == task.correct_answer.lower()
     
-    # Сохраняем результат (обновляем существующую запись или создаем новую)
+    # Сохраняем результат только если записи еще нет
     if existing_solution:
-        # Обновляем существующую запись
-        existing_solution.is_correct = is_correct
-        existing_solution.user_answer = user_answer
-        existing_solution.solved_at = datetime.now()
-        solution = existing_solution
+        # Запись уже существует - пропускаем
+        flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
+        return redirect(url_for('tournament_task', tournament_id=tournament_id))
     else:
-        # Создаем новую запись
-        solution = SolvedTask(
+        # Дополнительная проверка перед созданием новой записи (защита от race condition)
+        duplicate_check = SolvedTask.query.filter_by(
             user_id=current_user.id,
-            task_id=task_id,
-            is_correct=is_correct,
-            user_answer=user_answer
-        )
-        db.session.add(solution)
+            task_id=task_id
+        ).first()
+        
+        if duplicate_check:
+            # Запись появилась между проверками - пропускаем
+            flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
+            return redirect(url_for('tournament_task', tournament_id=tournament_id))
+        else:
+            # Создаем новую запись
+            solution = SolvedTask(
+                user_id=current_user.id,
+                task_id=task_id,
+                is_correct=is_correct,
+                user_answer=user_answer
+            )
+            db.session.add(solution)
     
     # Обновляем время окончания участия в турнире
     if participation:
         participation.end_time = current_time
     
     if is_correct:
-        # Добавляем баллы к общему счету только если это новая запись или предыдущий ответ был неправильным
-        if not existing_solution or not existing_solution.is_correct:
-            current_user.balance += task.points
+        # Добавляем баллы к общему счету (запись создается только если её еще нет)
+        current_user.balance += task.points
         
         # Проверяем на подозрительную активность
         # Получаем все задачи турнира для категории пользователя
@@ -6007,14 +6015,16 @@ def submit_task_answer(tournament_id, task_id):
             
             return redirect(url_for('login'))
         
-        if not existing_solution or not existing_solution.is_correct:
-            flash(f'Правильный ответ! +{task.points} баллов', 'success')
-        else:
-            flash('Правильный ответ! (баллы уже были начислены ранее)', 'success')
+        flash(f'Правильный ответ! +{task.points} баллов', 'success')
     else:
         flash('Неправильный ответ', 'danger')
     
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError as e:
+        db.session.rollback()
+        flash('Произошла ошибка при сохранении ответа. Попробуйте еще раз.', 'error')
+        return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
     # Удаляем текущую задачу из сессии
     session.pop(f'current_task_{tournament_id}', None)
