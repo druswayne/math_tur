@@ -5859,9 +5859,6 @@ def tournament_task(tournament_id):
                 total_tasks = len(all_tasks)
                 solved_tasks_count = len(solved_task_ids)  # Без +1, показываем только решенные
                 
-                # Очищаем сессию после показа задачи
-                session.pop(f'current_task_{tournament_id}', None)
-                
                 return render_template('tournament_task.html', 
                                      tournament=tournament, 
                                      task=task,
