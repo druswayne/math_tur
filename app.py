@@ -6020,7 +6020,6 @@ def submit_task_answer(tournament_id, task_id):
         db.session.commit()
     except IntegrityError as e:
         db.session.rollback()
-        flash('Произошла ошибка при сохранении ответа. Попробуйте еще раз.', 'error')
         return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
     # Удаляем текущую задачу из сессии
