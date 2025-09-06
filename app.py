@@ -718,6 +718,14 @@ def end_tournament_job(tournament_id):
                 print(f"🏁 [ПЛАНИРОВЩИК] Очищаем кэш задач турнира {tournament_id}")
                 tournament_task_cache.clear_tournament_cache(tournament_id)
                 
+                # Очищаем все активные задачи для этого турнира
+                active_tasks = ActiveTask.query.filter_by(tournament_id=tournament_id).all()
+                if active_tasks:
+                    for active_task in active_tasks:
+                        db.session.delete(active_task)
+                    db.session.commit()
+                    print(f"🧹 [ПЛАНИРОВЩИК] Очищено {len(active_tasks)} активных задач для турнира {tournament_id}")
+                
                 # Удаляем запись о задаче из БД после выполнения
                 job_id = f'end_tournament_{tournament_id}'
                 scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
