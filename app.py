@@ -2710,7 +2710,7 @@ def admin_add_tournament():
     
     title = sanitize_input(request.form.get('title'), 200)
     description = validate_text_content(request.form.get('description'), 2000)
-    rules = validate_text_content(request.form.get('rules'), 2000)
+    rules = validate_html_content(request.form.get('rules'), 2000)
     start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     duration = int(request.form.get('duration'))
     
@@ -2746,7 +2746,7 @@ def admin_edit_tournament(tournament_id):
     
     tournament.title = sanitize_input(request.form.get('title'), 200)
     tournament.description = validate_text_content(request.form.get('description'), 2000)
-    tournament.rules = validate_text_content(request.form.get('rules'), 2000)
+    tournament.rules = validate_html_content(request.form.get('rules'), 2000)
     tournament.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     tournament.duration = int(request.form.get('duration'))
     
@@ -3462,6 +3462,33 @@ def validate_text_content(text, max_length=1000):
     # Удаляем потенциально опасные HTML теги
     import re
     text = re.sub(r'<[^>]*>', '', text)
+    return text.strip()
+
+def validate_html_content(text, max_length=2000):
+    """Валидация HTML контента с разрешенными тегами (правила турнира)"""
+    if not text:
+        return False
+    if len(text) > max_length:
+        return False
+    
+    # Разрешенные HTML теги для правил турнира
+    allowed_tags = ['ul', 'li', 'p', 'strong', 'b', 'em', 'i']
+    
+    # Удаляем все теги, кроме разрешенных
+    import re
+    from html import escape
+    
+    # Сначала экранируем весь текст
+    text = escape(text)
+    
+    # Затем разрешаем только безопасные теги
+    for tag in allowed_tags:
+        # Разрешаем открывающие теги
+        text = re.sub(f'&lt;{tag}&gt;', f'<{tag}>', text)
+        text = re.sub(f'&lt;/{tag}&gt;', f'</{tag}>', text)
+        # Разрешаем теги с атрибутами (но удаляем атрибуты для безопасности)
+        text = re.sub(f'&lt;{tag}[^&]*&gt;', f'<{tag}>', text)
+    
     return text.strip()
 
 def validate_integer(value, min_val=None, max_val=None):

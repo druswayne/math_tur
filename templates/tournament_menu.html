@@ -45,6 +45,72 @@
 </div>
 {% endblock %}
 
+<style>
+/* Стили для правил турнира */
+.rules-content {
+    line-height: 1.6;
+    color: #333;
+}
+
+.rules-content ul {
+    margin: 0 0 1rem 0;
+    padding-left: 1.5rem;
+}
+
+.rules-content li {
+    margin-bottom: 0.5rem;
+    list-style-type: disc;
+}
+
+.rules-content li:last-child {
+    margin-bottom: 0;
+}
+
+.rules-content strong,
+.rules-content b {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.rules-content em,
+.rules-content i {
+    font-style: italic;
+    color: #7f8c8d;
+}
+
+.rules-content p {
+    margin-bottom: 1rem;
+}
+
+.rules-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Дополнительные стили для вложенных списков */
+.rules-content ul ul {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.rules-content ul ul li {
+    list-style-type: circle;
+}
+
+.rules-content ul ul ul li {
+    list-style-type: square;
+}
+
+/* Стили для комбинаций тегов */
+.rules-content strong em,
+.rules-content b i,
+.rules-content em strong,
+.rules-content i b {
+    font-weight: bold;
+    font-style: italic;
+    color: #34495e;
+}
+</style>
+
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
