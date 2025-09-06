@@ -329,8 +329,10 @@
                                         <i class="fas fa-school me-2"></i>Учреждение образования
                                     </h6>
                                     <div class="mb-3">
-                                        <strong>Название учреждения:</strong> 
-                                        <div class="mt-1">{{ current_user.educational_institution.name if current_user.educational_institution else 'Не указано' }}</div>
+                                        <label for="schoolName" class="form-label">Название учреждения образования *</label>
+                                        <input type="text" class="form-control" id="schoolName" name="school_name" 
+                                               placeholder="Введите название школы" 
+                                               value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}">
                                     </div>
 
                                     <div class="mb-3">
@@ -600,8 +602,10 @@
                                     <i class="fas fa-school me-2"></i>Учреждение образования
                                 </h6>
                                 <div class="mb-3">
-                                    <strong>Название учреждения:</strong> 
-                                    <div class="mt-1">{{ current_user.educational_institution.name if current_user.educational_institution else 'Не указано' }}</div>
+                                    <label for="mobileSchoolName" class="form-label">Название учреждения образования *</label>
+                                    <input type="text" class="form-control" id="mobileSchoolName" name="school_name" 
+                                           placeholder="Введите название школы" 
+                                           value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}">
                                 </div>
 
                                 <div class="mb-3">
@@ -1299,15 +1303,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 schoolInfo.style.display = 'block';
                 addressField.style.display = 'none';
                 addressInput.removeAttribute('required');
-                // Делаем поле адреса школы обязательным
+                // Делаем поля школы обязательными
+                const schoolNameInput = document.getElementById('schoolName');
                 const schoolAddressInput = document.getElementById('schoolAddress');
+                if (schoolNameInput) {
+                    schoolNameInput.setAttribute('required', 'required');
+                }
                 if (schoolAddressInput) {
                     schoolAddressInput.setAttribute('required', 'required');
                 }
                 // Автоматически заполняем поле адреса доставки
+                const schoolName = schoolNameInput ? schoolNameInput.value.trim() : '';
                 const schoolAddress = schoolAddressInput ? schoolAddressInput.value.trim() : '';
-                const schoolName = '{{ current_user.educational_institution.name if current_user.educational_institution else "Не указано" }}';
-                if (schoolAddress) {
+                if (schoolName && schoolAddress) {
                     addressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
                 }
             }
@@ -1318,8 +1326,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 schoolInfo.style.display = 'none';
                 addressField.style.display = 'block';
                 addressInput.setAttribute('required', 'required');
-                // Убираем обязательность поля адреса школы
+                // Убираем обязательность полей школы
+                const schoolNameInput = document.getElementById('schoolName');
                 const schoolAddressInput = document.getElementById('schoolAddress');
+                if (schoolNameInput) {
+                    schoolNameInput.removeAttribute('required');
+                }
                 if (schoolAddressInput) {
                     schoolAddressInput.removeAttribute('required');
                 }
@@ -1342,15 +1354,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 mobileSchoolInfo.style.display = 'block';
                 mobileAddressField.style.display = 'none';
                 mobileAddressInput.removeAttribute('required');
-                // Делаем поле адреса школы обязательным
+                // Делаем поля школы обязательными
+                const mobileSchoolNameInput = document.getElementById('mobileSchoolName');
                 const mobileSchoolAddressInput = document.getElementById('mobileSchoolAddress');
+                if (mobileSchoolNameInput) {
+                    mobileSchoolNameInput.setAttribute('required', 'required');
+                }
                 if (mobileSchoolAddressInput) {
                     mobileSchoolAddressInput.setAttribute('required', 'required');
                 }
                 // Автоматически заполняем поле адреса доставки
+                const schoolName = mobileSchoolNameInput ? mobileSchoolNameInput.value.trim() : '';
                 const schoolAddress = mobileSchoolAddressInput ? mobileSchoolAddressInput.value.trim() : '';
-                const schoolName = '{{ current_user.educational_institution.name if current_user.educational_institution else "Не указано" }}';
-                if (schoolAddress) {
+                if (schoolName && schoolAddress) {
                     mobileAddressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
                 }
             }
@@ -1361,8 +1377,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 mobileSchoolInfo.style.display = 'none';
                 mobileAddressField.style.display = 'block';
                 mobileAddressInput.setAttribute('required', 'required');
-                // Убираем обязательность поля адреса школы
+                // Убираем обязательность полей школы
+                const mobileSchoolNameInput = document.getElementById('mobileSchoolName');
                 const mobileSchoolAddressInput = document.getElementById('mobileSchoolAddress');
+                if (mobileSchoolNameInput) {
+                    mobileSchoolNameInput.removeAttribute('required');
+                }
                 if (mobileSchoolAddressInput) {
                     mobileSchoolAddressInput.removeAttribute('required');
                 }
@@ -1373,42 +1393,58 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     {% endif %}
     
-    // Обработчики для автоматического обновления адреса доставки при изменении адреса школы
+    // Обработчики для автоматического обновления адреса доставки при изменении полей школы
     {% if not isinstance(current_user, Teacher) %}
     // Десктопная версия
+    const schoolNameInput = document.getElementById('schoolName');
     const schoolAddressInput = document.getElementById('schoolAddress');
-    if (schoolAddressInput) {
-        schoolAddressInput.addEventListener('input', function() {
-            const deliveryType = document.querySelector('input[name="delivery_type"]:checked');
-            if (deliveryType && deliveryType.value === 'school') {
-                const addressInput = document.getElementById('address');
-                if (addressInput) {
-                    const schoolAddress = this.value.trim();
-                    const schoolName = '{{ current_user.educational_institution.name if current_user.educational_institution else "Не указано" }}';
-                    if (schoolAddress) {
-                        addressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
-                    }
+    
+    function updateDeliveryAddress() {
+        const deliveryType = document.querySelector('input[name="delivery_type"]:checked');
+        if (deliveryType && deliveryType.value === 'school') {
+            const addressInput = document.getElementById('address');
+            if (addressInput && schoolNameInput && schoolAddressInput) {
+                const schoolName = schoolNameInput.value.trim();
+                const schoolAddress = schoolAddressInput.value.trim();
+                if (schoolName && schoolAddress) {
+                    addressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
                 }
             }
-        });
+        }
+    }
+    
+    if (schoolNameInput) {
+        schoolNameInput.addEventListener('input', updateDeliveryAddress);
+    }
+    
+    if (schoolAddressInput) {
+        schoolAddressInput.addEventListener('input', updateDeliveryAddress);
     }
     
     // Мобильная версия
+    const mobileSchoolNameInput = document.getElementById('mobileSchoolName');
     const mobileSchoolAddressInput = document.getElementById('mobileSchoolAddress');
-    if (mobileSchoolAddressInput) {
-        mobileSchoolAddressInput.addEventListener('input', function() {
-            const deliveryType = document.querySelector('input[name="mobile_delivery_type"]:checked');
-            if (deliveryType && deliveryType.value === 'school') {
-                const mobileAddressInput = document.getElementById('mobileAddress');
-                if (mobileAddressInput) {
-                    const schoolAddress = this.value.trim();
-                    const schoolName = '{{ current_user.educational_institution.name if current_user.educational_institution else "Не указано" }}';
-                    if (mobileAddressInput) {
-                        mobileAddressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
-                    }
+    
+    function updateMobileDeliveryAddress() {
+        const deliveryType = document.querySelector('input[name="mobile_delivery_type"]:checked');
+        if (deliveryType && deliveryType.value === 'school') {
+            const mobileAddressInput = document.getElementById('mobileAddress');
+            if (mobileAddressInput && mobileSchoolNameInput && mobileSchoolAddressInput) {
+                const schoolName = mobileSchoolNameInput.value.trim();
+                const schoolAddress = mobileSchoolAddressInput.value.trim();
+                if (schoolName && schoolAddress) {
+                    mobileAddressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
                 }
             }
-        });
+        }
+    }
+    
+    if (mobileSchoolNameInput) {
+        mobileSchoolNameInput.addEventListener('input', updateMobileDeliveryAddress);
+    }
+    
+    if (mobileSchoolAddressInput) {
+        mobileSchoolAddressInput.addEventListener('input', updateMobileDeliveryAddress);
     }
     {% endif %}
     
@@ -1417,12 +1453,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Десктопная версия
         const deliveryType = document.querySelector('input[name="delivery_type"]:checked');
         if (deliveryType && deliveryType.value === 'school') {
+            const schoolNameInput = document.getElementById('schoolName');
             const schoolAddressInput = document.getElementById('schoolAddress');
             const addressInput = document.getElementById('address');
-            if (schoolAddressInput && addressInput) {
+            if (schoolNameInput && schoolAddressInput && addressInput) {
+                const schoolName = schoolNameInput.value.trim();
                 const schoolAddress = schoolAddressInput.value.trim();
-                const schoolName = '{{ current_user.educational_institution.name if current_user.educational_institution else "Не указано" }}';
-                if (schoolAddress) {
+                if (schoolName && schoolAddress) {
                     addressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
                 }
             }
@@ -1431,12 +1468,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Мобильная версия
         const mobileDeliveryType = document.querySelector('input[name="mobile_delivery_type"]:checked');
         if (mobileDeliveryType && mobileDeliveryType.value === 'school') {
+            const mobileSchoolNameInput = document.getElementById('mobileSchoolName');
             const mobileSchoolAddressInput = document.getElementById('mobileSchoolAddress');
             const mobileAddressInput = document.getElementById('mobileAddress');
-            if (mobileSchoolAddressInput && mobileAddressInput) {
+            if (mobileSchoolNameInput && mobileSchoolAddressInput && mobileAddressInput) {
+                const schoolName = mobileSchoolNameInput.value.trim();
                 const schoolAddress = mobileSchoolAddressInput.value.trim();
-                const schoolName = '{{ current_user.educational_institution.name if current_user.educational_institution else "Не указано" }}';
-                if (schoolAddress) {
+                if (schoolName && schoolAddress) {
                     mobileAddressInput.value = `Доставка в УО "${schoolName}" по адресу: ${schoolAddress}`;
                 }
             }

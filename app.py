@@ -4991,20 +4991,38 @@ def purchase_history():
 @app.route('/purchase/<int:purchase_id>/details')
 @login_required
 def purchase_details(purchase_id):
-    purchase = PrizePurchase.query.get_or_404(purchase_id)
-    
-    # Проверяем, принадлежит ли покупка текущему пользователю
-    if purchase.user_id != current_user.id:
-        return jsonify({'error': 'У вас нет доступа к этой информации'}), 403
-    
-    return jsonify({
-        'id': purchase.id,
-        'created_at': purchase.created_at.strftime('%d.%m.%Y %H:%M'),
-        'status': purchase.status,
-        'full_name': purchase.full_name,
-        'phone': purchase.phone,
-        'address': purchase.address
-    })
+    # Проверяем, является ли пользователь учителем
+    if isinstance(current_user, Teacher):
+        purchase = TeacherPrizePurchase.query.get_or_404(purchase_id)
+        
+        # Проверяем, принадлежит ли покупка текущему учителю
+        if purchase.teacher_id != current_user.id:
+            return jsonify({'error': 'У вас нет доступа к этой информации'}), 403
+        
+        return jsonify({
+            'id': purchase.id,
+            'created_at': purchase.created_at.strftime('%d.%m.%Y %H:%M'),
+            'status': purchase.status,
+            'full_name': purchase.full_name,
+            'phone': purchase.phone,
+            'address': purchase.address
+        })
+    else:
+        # Обычные пользователи
+        purchase = PrizePurchase.query.get_or_404(purchase_id)
+        
+        # Проверяем, принадлежит ли покупка текущему пользователю
+        if purchase.user_id != current_user.id:
+            return jsonify({'error': 'У вас нет доступа к этой информации'}), 403
+        
+        return jsonify({
+            'id': purchase.id,
+            'created_at': purchase.created_at.strftime('%d.%m.%Y %H:%M'),
+            'status': purchase.status,
+            'full_name': purchase.full_name,
+            'phone': purchase.phone,
+            'address': purchase.address
+        })
 
 @app.route('/download-receipt/<int:purchase_id>')
 @login_required
