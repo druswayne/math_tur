@@ -5391,9 +5391,8 @@ def join_tournament(tournament_id):
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-
-        flash('У вас недостаточно жетонов для участия в турнире', 'warning')
-        return redirect(url_for('profile'))
+        flash('Для доступа к турниру не хватает жетонов!', 'warning')
+        return redirect(url_for('buy_tickets'))
     
     # Проверяем, начался ли турнир
     if tournament.start_date <= current_time:
@@ -5463,8 +5462,8 @@ def start_tournament(tournament_id):
     
     # Проверяем, есть ли у пользователя билет
     if current_user.tickets < 1:
-        flash('У вас недостаточно жетонов для участия в турнире', 'warning')
-        return redirect(url_for('profile'))
+        flash('Для доступа к турниру не хватает жетонов!', 'warning')
+        return redirect(url_for('buy_tickets'))
     
     # Проверяем, не является ли пользователь администратором или учителем
     if hasattr(current_user, 'is_admin') and current_user.is_admin:
