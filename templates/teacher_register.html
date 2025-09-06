@@ -234,7 +234,7 @@
                                 }
                             </style>
                             
-                            <div class="form-text">Введите название и выберите из списка, если не нашли - введите свою школу и добавьте её в наш список</div>
+                            <div class="form-text">Введите название и выберите из списка, если не нашли - <span class="text-primary" style="cursor: pointer; text-decoration: underline;" onclick="showAddSchoolModal()">введите свою школу и добавьте её в наш список</span></div>
                         </div>
 
                         <div class="form-check mb-3">
@@ -275,6 +275,55 @@
         </div>
         <p class="mt-3">Создается аккаунт учителя...</p>
         <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
+    </div>
+</div>
+
+<!-- Модальное окно для добавления новой школы -->
+<div class="modal fade" id="addSchoolModal" tabindex="-1" aria-labelledby="addSchoolModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSchoolModalLabel">
+                    <i class="fas fa-school me-2"></i>
+                    Добавить новую школу
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addSchoolForm">
+                    <div class="mb-3">
+                        <label for="newSchoolName" class="form-label">
+                            <i class="fas fa-graduation-cap me-1"></i>
+                            Полное название школы
+                        </label>
+                        <input type="text" class="form-control" id="newSchoolName" 
+                               placeholder="Средняя школа №2 г. Минска" required>
+                        <div class="form-text">Минимум 5 символов</div>
+                        <div class="invalid-feedback" id="newSchoolNameError"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newSchoolAddress" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            Адрес школы
+                        </label>
+                        <textarea class="form-control" id="newSchoolAddress" rows="3" 
+                                  placeholder="Республика Беларусь, Минская область, г. Минск, ул Советская 25" required></textarea>
+                        <div class="form-text">Минимум 5 символов</div>
+                        <div class="invalid-feedback" id="newSchoolAddressError"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>
+                    Отмена
+                </button>
+                <button type="button" class="btn btn-primary" id="addSchoolBtn">
+                    <i class="fas fa-plus me-1"></i>
+                    Добавить
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1130,6 +1179,135 @@ document.addEventListener('DOMContentLoaded', function() {
     const institutionIdField = document.getElementById('educational_institution_id');
     const institutionNameField = document.getElementById('educational_institution_name');
     
+    // === МОДАЛЬНОЕ ОКНО ДЛЯ ДОБАВЛЕНИЯ ШКОЛЫ ===
+    const addSchoolModal = new bootstrap.Modal(document.getElementById('addSchoolModal'));
+    const newSchoolNameInput = document.getElementById('newSchoolName');
+    const newSchoolAddressInput = document.getElementById('newSchoolAddress');
+    const addSchoolBtn = document.getElementById('addSchoolBtn');
+    
+    // Функция для показа модального окна добавления школы
+    function showAddSchoolModal() {
+        // Очищаем поля
+        newSchoolNameInput.value = '';
+        newSchoolAddressInput.value = '';
+        
+        // Убираем классы валидации
+        newSchoolNameInput.classList.remove('is-valid', 'is-invalid');
+        newSchoolAddressInput.classList.remove('is-valid', 'is-invalid');
+        
+        // Скрываем сообщения об ошибках
+        document.getElementById('newSchoolNameError').textContent = '';
+        document.getElementById('newSchoolAddressError').textContent = '';
+        
+        // Показываем модальное окно
+        addSchoolModal.show();
+    }
+    
+    // Делаем функцию глобальной для использования в onclick
+    window.showAddSchoolModal = showAddSchoolModal;
+    
+    // Функция для валидации полей в модальном окне
+    function validateModalFields() {
+        const name = newSchoolNameInput.value.trim();
+        const address = newSchoolAddressInput.value.trim();
+        
+        let isValid = true;
+        
+        // Валидация названия
+        if (name.length < 5) {
+            newSchoolNameInput.classList.add('is-invalid');
+            newSchoolNameInput.classList.remove('is-valid');
+            document.getElementById('newSchoolNameError').textContent = 'Название должно содержать минимум 5 символов';
+            isValid = false;
+        } else {
+            newSchoolNameInput.classList.add('is-valid');
+            newSchoolNameInput.classList.remove('is-invalid');
+            document.getElementById('newSchoolNameError').textContent = '';
+        }
+        
+        // Валидация адреса
+        if (address.length < 5) {
+            newSchoolAddressInput.classList.add('is-invalid');
+            newSchoolAddressInput.classList.remove('is-valid');
+            document.getElementById('newSchoolAddressError').textContent = 'Адрес должен содержать минимум 5 символов';
+            isValid = false;
+        } else {
+            newSchoolAddressInput.classList.add('is-valid');
+            newSchoolAddressInput.classList.remove('is-invalid');
+            document.getElementById('newSchoolAddressError').textContent = '';
+        }
+        
+        return isValid;
+    }
+    
+    // Обработчики событий для полей модального окна
+    newSchoolNameInput.addEventListener('input', validateModalFields);
+    newSchoolAddressInput.addEventListener('input', validateModalFields);
+    
+    // Обработчик кнопки "Добавить"
+    addSchoolBtn.addEventListener('click', function() {
+        if (!validateModalFields()) {
+            return;
+        }
+        
+        const name = newSchoolNameInput.value.trim();
+        const address = newSchoolAddressInput.value.trim();
+        
+        // Показываем индикатор загрузки
+        addSchoolBtn.disabled = true;
+        addSchoolBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Добавление...';
+        
+        // Отправляем запрос на сервер
+        fetch('/api/add-educational-institution', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: name,
+                address: address
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Закрываем модальное окно
+                addSchoolModal.hide();
+                
+                // Заполняем поле поиска новой школой
+                searchField.value = name;
+                institutionIdField.value = data.institution_id;
+                institutionNameField.value = '';
+                
+                // Валидируем форму
+                validateEducationalInstitution();
+                
+                // Показываем уведомление об успехе
+                if (typeof showNotification === 'function') {
+                    showNotification('Успешно!', 'Школа добавлена в список', 'success');
+                }
+            } else {
+                // Показываем ошибку
+                if (data.error) {
+                    if (typeof showNotification === 'function') {
+                        showNotification('Ошибка', data.error, 'error');
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка при добавлении школы:', error);
+            if (typeof showNotification === 'function') {
+                showNotification('Ошибка', 'Произошла ошибка при добавлении школы', 'error');
+            }
+        })
+        .finally(() => {
+            // Восстанавливаем кнопку
+            addSchoolBtn.disabled = false;
+            addSchoolBtn.innerHTML = '<i class="fas fa-plus me-1"></i>Добавить';
+        });
+    });
+    
     let searchTimeout;
     
     searchField.addEventListener('input', function() {
@@ -1151,6 +1329,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultsContainer.innerHTML = '';
                     
                     if (data.institutions.length > 0) {
+                        // Добавляем кнопку "Добавить свою школу" в начало списка
+                        const addSchoolItem = document.createElement('button');
+                        addSchoolItem.type = 'button';
+                        addSchoolItem.className = 'list-group-item list-group-item-action text-primary border-bottom';
+                        addSchoolItem.innerHTML = `
+                            <div class="text-center">
+                                <i class="fas fa-plus me-2"></i>
+                                <strong>Добавить свою школу</strong>
+                            </div>
+                        `;
+                        
+                        addSchoolItem.addEventListener('click', function() {
+                            resultsContainer.style.display = 'none';
+                            showAddSchoolModal();
+                        });
+                        
+                        resultsContainer.appendChild(addSchoolItem);
+                        
                         data.institutions.forEach(institution => {
                             const item = document.createElement('button');
                             item.type = 'button';
@@ -1191,26 +1387,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         resultsContainer.style.display = 'block';
                     } else {
-                        // Предлагаем создать новое учреждение
-                        const item = document.createElement('button');
-                        item.type = 'button';
-                        item.className = 'list-group-item list-group-item-action text-muted';
-                        item.innerHTML = `
+                        // Показываем кнопку "Добавить свою школу" когда ничего не найдено
+                        const addSchoolItem = document.createElement('button');
+                        addSchoolItem.type = 'button';
+                        addSchoolItem.className = 'list-group-item list-group-item-action text-primary';
+                        addSchoolItem.innerHTML = `
                             <div class="text-center">
                                 <i class="fas fa-plus me-2"></i>
-                                Добавить в список: "${query}"
+                                <strong>Добавить свою школу</strong>
                             </div>
                         `;
                         
-                        item.addEventListener('click', function() {
-                            searchField.value = query;
-                            institutionIdField.value = '';
-                            institutionNameField.value = query;
+                        addSchoolItem.addEventListener('click', function() {
                             resultsContainer.style.display = 'none';
-                            validateEducationalInstitution();
+                            showAddSchoolModal();
                         });
                         
-                        resultsContainer.appendChild(item);
+                        resultsContainer.appendChild(addSchoolItem);
                         resultsContainer.style.display = 'block';
                     }
                 })

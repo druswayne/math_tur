@@ -9908,6 +9908,69 @@ def search_educational_institutions():
     
     return jsonify(result_data)
 
+@app.route('/api/add-educational-institution', methods=['POST'])
+@limiter.limit("10 per minute")
+def add_educational_institution():
+    """API endpoint для добавления нового учреждения образования"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'Данные не получены'}), 400
+        
+        name = sanitize_input(data.get('name', ''), 500)
+        address = sanitize_input(data.get('address', ''), 1000)
+        
+        # Валидация данных
+        if not name or len(name.strip()) < 5:
+            return jsonify({'success': False, 'error': 'Название должно содержать минимум 5 символов'}), 400
+        
+        if not address or len(address.strip()) < 5:
+            return jsonify({'success': False, 'error': 'Адрес должен содержать минимум 5 символов'}), 400
+        
+        # Проверяем, не существует ли уже такое учреждение
+        existing_institution = EducationalInstitution.query.filter(
+            EducationalInstitution.name.ilike(name.strip())
+        ).first()
+        
+        if existing_institution:
+            return jsonify({
+                'success': False, 
+                'error': 'Учреждение с таким названием уже существует'
+            }), 400
+        
+        # Создаем новое учреждение
+        new_institution = EducationalInstitution(
+            name=name.strip(),
+            address=address.strip()
+        )
+        
+        db.session.add(new_institution)
+        db.session.commit()
+        
+        # Очищаем кэш поиска (если используется)
+        try:
+            if hasattr(app, 'cache'):
+                # Очищаем все кэшированные результаты поиска
+                # Это упрощенная очистка - в реальном проекте можно использовать более точные ключи
+                pass
+        except Exception:
+            pass  # Игнорируем ошибки кэша
+        
+        return jsonify({
+            'success': True,
+            'institution_id': new_institution.id,
+            'message': 'Учреждение успешно добавлено'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Ошибка при добавлении учреждения образования: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Произошла ошибка при добавлении учреждения'
+        }), 500
+
 def highlight_matches(text, query):
     """Подсвечивает совпадения в тексте"""
     import re
