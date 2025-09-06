@@ -373,6 +373,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Инициализируем флаги состояния при загрузке страницы
+    isSubmitting = false;
+    isLeaving = false;
+    hasSentWrongAnswer = false;
+    
     // Скрываем оверлей после полной загрузки страницы
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) {
@@ -385,6 +390,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
     let isSubmitting = false;
     let isLeaving = false;
+    let hasSentWrongAnswer = false; // Флаг для предотвращения множественных отправок
 
     // Инициализация модального окна
     const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
@@ -562,8 +568,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function submitWrongAnswer() {
-        if (!isSubmitting && !isLeaving) {
+        if (!isSubmitting && !isLeaving && !hasSentWrongAnswer) {
             isSubmitting = true;
+            hasSentWrongAnswer = true;
             showViolationOverlay();
             const input = document.getElementById('answer');
             input.value = 'wrong_answer_due_to_tab_switch';
@@ -602,8 +609,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Функция для отправки неправильного ответа при выходе
     function sendWrongAnswerOnExit() {
+        // Предотвращаем множественные отправки
+        if (hasSentWrongAnswer || isSubmitting) {
+            return;
+        }
+        
         const input = document.getElementById('answer');
         if (input && input.value.trim() === '') {
+            hasSentWrongAnswer = true; // Устанавливаем флаг
             input.value = 'wrong_answer_due_to_page_leave';
 
             // Используем sendBeacon для гарантированной отправки данных
@@ -627,7 +640,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isSubmitting) {
             return;
         }
-        
+
         sendWrongAnswerOnExit();
 
         // Показываем стандартное предупреждение браузера

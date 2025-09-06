@@ -108,6 +108,9 @@
                                 <tr {% if user.is_current_user %}class="table-warning"{% endif %}>
                                     <td>{{ user.category_rank if user.category_rank is not none else 0 }}</td>
                                     <td>
+                                        {% if user.country_flag %}
+                                            <span class="flag flag-{{ user.country_flag }}"></span>
+                                        {% endif %}
                                         {% if user.is_current_user %}
                                             <strong>{{ user.student_name or user.username }}</strong> <span class="badge bg-warning">Вы</span>
                                         {% else %}
@@ -204,6 +207,29 @@
 </div>
 
 <style>
+/* Стили для флагов стран */
+.flag {
+    display: inline-block;
+    width: 20px;
+    height: 14px;
+    margin-right: 8px;
+    border: 1px solid #ccc;
+    vertical-align: middle;
+}
+
+.flag-russia {
+    background: linear-gradient(to bottom, 
+        #ffffff 0%, #ffffff 33.33%,
+        #0039a6 33.33%, #0039a6 66.66%,
+        #d52b1e 66.66%, #d52b1e 100%);
+}
+
+.flag-belarus {
+    background: linear-gradient(to bottom, 
+        #d52b1e 0%, #d52b1e 66.66%,
+        #00b04f 66.66%, #00b04f 100%);
+}
+
 .nav-pills {
     display: flex;
     flex-wrap: wrap;
@@ -513,10 +539,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 ? `<strong>${displayName}</strong> <span class="badge bg-warning">Вы</span>`
                 : displayName;
             
+            // Добавляем флаг страны
+            const flagHtml = user.country_flag 
+                ? `<span class="flag flag-${user.country_flag}"></span>`
+                : '';
+            
             html += `
                 <tr class="${isCurrentUser}">
                             <td>${user.category_rank}</td>
-                    <td>${usernameDisplay}</td>
+                    <td>${flagHtml}${usernameDisplay}</td>
                             <td>${user.balance}</td>
                             <td>${user.solved_tasks_count}</td>
                             <td>${user.success_rate}%</td>

@@ -6322,6 +6322,18 @@ def rating():
             user.solved_tasks_count = correct_tasks_count or 0
             user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
             user.is_current_user = False  # По умолчанию не текущий пользователь
+            
+            # Определяем страну по номеру телефона
+            if user.phone:
+                if user.phone.startswith('+7'):
+                    user.country_flag = 'russia'
+                elif user.phone.startswith('+375'):
+                    user.country_flag = 'belarus'
+                else:
+                    user.country_flag = None
+            else:
+                user.country_flag = None
+            
             users.append(user)
         
         # Проверяем, нужно ли добавить текущего пользователя (только для топ-10)
@@ -6348,6 +6360,18 @@ def rating():
                     user.solved_tasks_count = correct_tasks_count or 0
                     user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
                     user.is_current_user = True  # Флаг для выделения текущего пользователя
+                    
+                    # Определяем страну по номеру телефона
+                    if user.phone:
+                        if user.phone.startswith('+7'):
+                            user.country_flag = 'russia'
+                        elif user.phone.startswith('+375'):
+                            user.country_flag = 'belarus'
+                        else:
+                            user.country_flag = None
+                    else:
+                        user.country_flag = None
+                    
                     users.append(user)
             else:
                 # Если текущий пользователь в списке, помечаем его
@@ -9001,6 +9025,17 @@ def rating_search():
         user.tournaments_count = user.tournaments_count or 0
         user.total_tournament_time = user.total_tournament_time or 0
         
+        # Определяем страну по номеру телефона
+        if user.phone:
+            if user.phone.startswith('+7'):
+                country_flag = 'russia'
+            elif user.phone.startswith('+375'):
+                country_flag = 'belarus'
+            else:
+                country_flag = None
+        else:
+            country_flag = None
+        
         users.append({
             'id': user.id,
             'username': user.username,
@@ -9012,7 +9047,8 @@ def rating_search():
             'category_rank': user.category_rank,
             'tournaments_count': user.tournaments_count,
             'total_tournament_time': user.total_tournament_time,
-            'is_current_user': user.id == current_user.id if current_user.is_authenticated else False
+            'is_current_user': user.id == current_user.id if current_user.is_authenticated else False,
+            'country_flag': country_flag
         })
     
     return jsonify({'users': users})
