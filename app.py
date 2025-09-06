@@ -1112,6 +1112,30 @@ class SolvedTask(db.Model):
     user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
     task = db.relationship('Task', backref=db.backref('solutions', lazy=True, cascade='all, delete-orphan'))
 
+class ActiveTask(db.Model):
+    """Модель для хранения активных задач пользователей в турнирах"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id', ondelete='CASCADE'), nullable=False)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)  # Время истечения активной задачи
+    
+    # Уникальное ограничение - один пользователь может иметь только одну активную задачу в турнире
+    __table_args__ = (db.UniqueConstraint('user_id', 'tournament_id', name='unique_user_tournament_active_task'),)
+    
+    # Связи с другими моделями
+    user = db.relationship('User', backref=db.backref('active_tasks', lazy=True, cascade='all, delete-orphan'))
+    tournament = db.relationship('Tournament', backref=db.backref('active_tasks', lazy=True, cascade='all, delete-orphan'))
+    task = db.relationship('Task', backref=db.backref('active_assignments', lazy=True, cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<ActiveTask(user_id={self.user_id}, tournament_id={self.tournament_id}, task_id={self.task_id})>'
+    
+    def is_expired(self):
+        """Проверяет, истекла ли активная задача"""
+        return datetime.utcnow() > self.expires_at
+
 class TicketPackage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     price = db.Column(db.Float, nullable=False)  # Базовая цена за 1 билет
@@ -5819,6 +5843,180 @@ def get_simple_task_selection(available_tasks, solved_tasks, tournament_id):
     # Если есть обычные задачи, выдаем случайную из них
     return random.choice(regular_tasks)
 
+# Функции для работы с активными задачами
+def get_current_task_from_db(user_id, tournament_id):
+    """Получает активную задачу пользователя из базы данных"""
+    try:
+        active_task = ActiveTask.query.filter_by(
+            user_id=user_id,
+            tournament_id=tournament_id
+        ).first()
+        
+        if active_task and not active_task.is_expired():
+            return active_task.task_id
+        elif active_task and active_task.is_expired():
+            # Удаляем истекшую задачу
+            db.session.delete(active_task)
+            db.session.commit()
+        
+        return None
+    except Exception as e:
+        print(f"Ошибка при получении активной задачи: {e}")
+        return None
+
+def set_current_task_in_db(user_id, tournament_id, task_id, expires_hours=1):
+    """Сохраняет активную задачу пользователя в базу данных"""
+    try:
+        # Удаляем старую активную задачу, если она есть
+        ActiveTask.query.filter_by(
+            user_id=user_id,
+            tournament_id=tournament_id
+        ).delete()
+        
+        # Создаем новую активную задачу
+        active_task = ActiveTask(
+            user_id=user_id,
+            tournament_id=tournament_id,
+            task_id=task_id,
+            expires_at=datetime.utcnow() + timedelta(hours=expires_hours)
+        )
+        
+        db.session.add(active_task)
+        db.session.commit()
+        
+        return True
+    except Exception as e:
+        print(f"Ошибка при сохранении активной задачи: {e}")
+        db.session.rollback()
+        return False
+
+def clear_current_task_from_db(user_id, tournament_id):
+    """Очищает активную задачу пользователя из базы данных"""
+    try:
+        ActiveTask.query.filter_by(
+            user_id=user_id,
+            tournament_id=tournament_id
+        ).delete()
+        db.session.commit()
+        return True
+    except Exception as e:
+        print(f"Ошибка при очистке активной задачи: {e}")
+        db.session.rollback()
+        return False
+
+def cleanup_expired_active_tasks():
+    """Очищает все истекшие активные задачи"""
+    try:
+        expired_tasks = ActiveTask.query.filter(
+            ActiveTask.expires_at < datetime.utcnow()
+        ).all()
+        
+        count = len(expired_tasks)
+        if count > 0:
+            for task in expired_tasks:
+                db.session.delete(task)
+            db.session.commit()
+            print(f"🧹 Очищено {count} истекших активных задач")
+        
+        return count
+    except Exception as e:
+        print(f"Ошибка при очистке истекших активных задач: {e}")
+        db.session.rollback()
+        return 0
+
+def get_active_tasks_stats():
+    """Получает статистику активных задач"""
+    try:
+        total_active = ActiveTask.query.count()
+        expired_count = ActiveTask.query.filter(
+            ActiveTask.expires_at < datetime.utcnow()
+        ).count()
+        valid_count = total_active - expired_count
+        
+        return {
+            'total': total_active,
+            'valid': valid_count,
+            'expired': expired_count
+        }
+    except Exception as e:
+        print(f"Ошибка при получении статистики активных задач: {e}")
+        return {'total': 0, 'valid': 0, 'expired': 0}
+
+# Функции для отлова перезагрузки страницы и обработки брошенных задач
+def detect_page_reload(request):
+    """Определяет, является ли запрос перезагрузкой страницы"""
+    # Cache-Control: no-cache указывает на перезагрузку
+    cache_control = request.headers.get('Cache-Control', '')
+    if 'no-cache' in cache_control or 'max-age=0' in cache_control:
+        return True
+    
+    # Pragma: no-cache также указывает на перезагрузку
+    pragma = request.headers.get('Pragma', '')
+    if 'no-cache' in pragma:
+        return True
+    
+    # Sec-Fetch-Dest: document указывает на навигацию
+    sec_fetch_dest = request.headers.get('Sec-Fetch-Dest', '')
+    if sec_fetch_dest == 'document':
+        return True
+    
+    # Sec-Fetch-Mode: navigate указывает на навигацию
+    sec_fetch_mode = request.headers.get('Sec-Fetch-Mode', '')
+    if sec_fetch_mode == 'navigate':
+        return True
+    
+    # Referer отсутствует или указывает на другой домен (переход с другого сайта)
+    referer = request.headers.get('Referer', '')
+    if not referer or not referer.startswith(request.url_root):
+        return True
+    
+    return False
+
+def handle_abandoned_task(user_id, tournament_id, reason="page_reload"):
+    """Обрабатывает брошенную задачу - помечает как решенную неверно"""
+    try:
+        # Получаем активную задачу
+        active_task = ActiveTask.query.filter_by(
+            user_id=user_id,
+            tournament_id=tournament_id
+        ).first()
+        
+        if not active_task:
+            return False
+        
+        # Проверяем, не была ли задача уже решена
+        existing_solution = SolvedTask.query.filter_by(
+            user_id=user_id,
+            task_id=active_task.task_id
+        ).first()
+        
+        if existing_solution:
+            # Задача уже решена - просто удаляем активную задачу
+            db.session.delete(active_task)
+            db.session.commit()
+            return True
+        
+        # Создаем запись о неверном решении
+        abandoned_solution = SolvedTask(
+            user_id=user_id,
+            task_id=active_task.task_id,
+            is_correct=False,
+            user_answer=f"ABANDONED_{reason.upper()}"  # Специальная метка для брошенных задач
+        )
+        db.session.add(abandoned_solution)
+        
+        # Удаляем активную задачу
+        db.session.delete(active_task)
+        db.session.commit()
+        
+        print(f"🚫 Задача {active_task.task_id} помечена как брошенная (причина: {reason})")
+        return True
+        
+    except Exception as e:
+        print(f"Ошибка при обработке брошенной задачи: {e}")
+        db.session.rollback()
+        return False
+
 @app.route('/tournament/<int:tournament_id>/task')
 @login_required
 def tournament_task(tournament_id):
@@ -5850,8 +6048,15 @@ def tournament_task(tournament_id):
     ).join(Task).filter(Task.tournament_id == tournament_id).all()
     solved_task_ids = [task.task_id for task in solved_tasks]
     
-    # Получаем текущую задачу из сессии
-    current_task_id = session.get(f'current_task_{tournament_id}')
+    # Проверяем, является ли запрос перезагрузкой страницы
+    is_page_reload = detect_page_reload(request)
+    
+    # Если это перезагрузка страницы, обрабатываем брошенную задачу
+    if is_page_reload:
+        handle_abandoned_task(current_user.id, tournament_id, "page_reload")
+    
+    # Получаем текущую задачу из БД
+    current_task_id = get_current_task_from_db(current_user.id, tournament_id)
     
     # Получаем все задачи турнира для категории пользователя, исключая уже решенные
     all_tasks = get_tournament_tasks_cached(tournament_id, current_user.category)
@@ -5884,8 +6089,8 @@ def tournament_task(tournament_id):
                                      solved_tasks_count=solved_tasks_count,
                                      total_tasks=total_tasks)
         else:
-            # Задача уже решена - очищаем сессию
-            session.pop(f'current_task_{tournament_id}', None)
+            # Задача уже решена - очищаем из БД
+            clear_current_task_from_db(current_user.id, tournament_id)
     
     # Если нет сохраненной задачи или она уже решена, выбираем новую по простой схеме
     task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
@@ -5905,8 +6110,8 @@ def tournament_task(tournament_id):
         else:
             return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
-    # Сохраняем ID задачи в сессии
-    session[f'current_task_{tournament_id}'] = task.id
+    # Сохраняем ID задачи в БД
+    set_current_task_in_db(current_user.id, tournament_id, task.id)
     
     # Вычисляем количество решенных задач и общее количество
     total_tasks = len(all_tasks)
@@ -5952,10 +6157,19 @@ def submit_task_answer(tournament_id, task_id):
         flash('Вы не участвуете в этом турнире', 'warning')
         return redirect(url_for('home'))
     
-    # Получаем ответ пользователя и приводим к нижнему регистру
-    user_answer = request.form.get('answer', '').strip().lower()
+    # Получаем ответ пользователя
+    user_answer = request.form.get('answer', '').strip()
     
-    # Проверяем ответ (приводим правильный ответ к нижнему регистру)
+    # Проверяем, является ли ответ специальной меткой
+    is_special_answer = user_answer.startswith('wrong_answer_due_to_') or user_answer.startswith('ABANDONED_')
+    
+    if is_special_answer:
+        # Специальные метки всегда считаются неправильными
+        is_correct = False
+        # Сохраняем оригинальный ответ (не приводим к нижнему регистру)
+    else:
+        # Обычный ответ - приводим к нижнему регистру и проверяем
+        user_answer = user_answer.lower()
     is_correct = user_answer == task.correct_answer.lower()
     
     # Сохраняем результат только если записи еще нет
@@ -6037,7 +6251,9 @@ def submit_task_answer(tournament_id, task_id):
         
         flash(f'Правильный ответ! +{task.points} баллов', 'success')
     else:
-        flash('Неправильный ответ', 'danger')
+        # Показываем сообщение только для обычных неправильных ответов
+        if not is_special_answer:
+            flash('Неправильный ответ', 'danger')
     
     try:
         db.session.commit()
@@ -6045,8 +6261,8 @@ def submit_task_answer(tournament_id, task_id):
         db.session.rollback()
         return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
-    # Удаляем текущую задачу из сессии
-    session.pop(f'current_task_{tournament_id}', None)
+    # Удаляем текущую задачу из БД
+    clear_current_task_from_db(current_user.id, tournament_id)
     
     return redirect(url_for('tournament_task', tournament_id=tournament_id))
 

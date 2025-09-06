@@ -25,48 +25,34 @@
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <!-- Таймер турнира -->
+            <!-- Таймер и прогресс турнира -->
             <div class="card mb-4">
-                <div class="card-body text-center">
-                    <h4 class="card-title mb-3">До окончания турнира осталось:</h4>
-                    <div class="countdown-timer">
-                        <div class="countdown-items">
-                            <div class="countdown-item">
-                                <div class="countdown-number" id="days">00</div>
-                                <div class="countdown-label">дней</div>
-                            </div>
-                            <div class="countdown-item">
-                                <div class="countdown-number" id="hours">00</div>
-                                <div class="countdown-label">часов</div>
-                            </div>
-                            <div class="countdown-item">
-                                <div class="countdown-number" id="minutes">00</div>
-                                <div class="countdown-label">минут</div>
-                            </div>
-                            <div class="countdown-item">
-                                <div class="countdown-number" id="seconds">00</div>
-                                <div class="countdown-label">секунд</div>
+                <div class="card-body py-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <!-- Таймер (слева) -->
+                        <div class="d-flex align-items-center">
+                            <div class="timer-progress-item">
+                                <small class="text-muted d-block mb-1">До окончания:</small>
+                                <div class="countdown-timer-compact">
+                                    <span class="countdown-number" id="hours">00</span>:
+                                    <span class="countdown-number" id="minutes">00</span>:
+                                    <span class="countdown-number" id="seconds">00</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Прогресс турнира -->
-            <div class="card mb-4">
-                <div class="card-body text-center py-3">
-                    <h6 class="card-title mb-2">Прогресс турнира:</h6>
-                    <div class="task-progress-compact">
-                        <div class="task-counter-compact">
-                            <div class="task-number-compact">{{ solved_tasks_count }}/{{ total_tasks }}</div>
-                            <div class="task-label-compact">решено</div>
-                        </div>
-                        <div class="progress mt-2">
-                            <div class="progress-bar bg-info" role="progressbar"
-                                 style="width: {{ (solved_tasks_count / total_tasks * 100)|round(1) }}%"
-                                 aria-valuenow="{{ solved_tasks_count }}"
-                                 aria-valuemin="0" aria-valuemax="{{ total_tasks }}">
-                                {{ (solved_tasks_count / total_tasks * 100)|round(1) }}%
+                        
+                        <!-- Прогресс (справа) -->
+                        <div class="d-flex align-items-center">
+                            <div class="timer-progress-item text-end">
+                                <small class="text-muted d-block mb-1">Прогресс:</small>
+                                <div class="progress-compact">
+                                    <span class="progress-text">{{ solved_tasks_count }}/{{ total_tasks }}</span>
+                                    <div class="progress-bar-compact">
+                                        <div class="progress-fill" 
+                                             style="width: {{ (solved_tasks_count / total_tasks * 100)|round(1) }}%">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -76,11 +62,17 @@
             <!-- Задача -->
             <div class="card">
                 <div class="card-body">
+                    <div class="d-flex justify-content-end mb-3">
+                        <button type="button" class="btn btn-danger btn-sm" id="skipTaskBtn">
+                            <i class="fas fa-times me-1"></i>Пропустить
+                        </button>
+                    </div>
+                    
                     <h2 class="card-title text-center mb-4">{{ tournament.title }}</h2>
 
                     <div class="task-content">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4 class="mb-0 no-select">{{ task.title }}</h4>
+                            <h4 class="mb-0 no-select flex-grow-1">{{ task.title }}</h4>
                             <span class="badge bg-primary fs-5">{{ task.points }} баллов</span>
                         </div>
                         <p class="mb-4 no-select">{{ task.description }}</p>
@@ -169,7 +161,142 @@
     </div>
 </div>
 
+<!-- Модальное окно подтверждения пропуска задачи -->
+<div class="modal fade" id="skipTaskModal" tabindex="-1" aria-labelledby="skipTaskModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="skipTaskModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Пропустить задачу
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-3">
+                    <i class="fas fa-exclamation-circle text-danger" style="font-size: 3rem;"></i>
+                </div>
+                <h6 class="text-center mb-3">Вы уверены, что хотите пропустить эту задачу?</h6>
+                <div class="alert alert-warning">
+                    <strong>Внимание!</strong> Задача будет засчитана как решенная неверно, и вы не получите баллы за неё.
+                </div>
+                <p class="text-muted small text-center mb-0">
+                    После пропуска вам будет выдана новая задача.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" id="confirmSkipTask">
+                    <i class="fas fa-times me-1"></i>Да, пропустить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
+
+/* Стили для компактного таймера и прогресса */
+.timer-progress-item {
+    min-width: 120px;
+}
+
+.countdown-timer-compact {
+    font-family: 'Courier New', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #495057;
+    background: #f8f9fa;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid #dee2e6;
+    display: inline-block;
+    min-width: 100px;
+    text-align: center;
+}
+
+.countdown-timer-compact .countdown-number {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.progress-compact {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 100px;
+}
+
+.progress-text {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #495057;
+    background: #f8f9fa;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid #dee2e6;
+    display: inline-block;
+    min-width: 100px;
+    text-align: center;
+}
+
+.progress-bar-compact {
+    width: 100px;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+/* Мобильная адаптация */
+@media (max-width: 768px) {
+    .timer-progress-item {
+        min-width: 80px;
+    }
+    
+    .countdown-timer-compact {
+        font-size: 0.9rem;
+        padding: 4px 6px;
+        min-width: 70px;
+    }
+    
+    .progress-text {
+        font-size: 0.9rem;
+        padding: 4px 6px;
+        min-width: 70px;
+    }
+    
+    .progress-bar-compact {
+        width: 70px;
+        height: 6px;
+    }
+    
+    .d-flex.justify-content-between {
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 10px;
+    }
+    
+    .timer-progress-item.text-end {
+        text-align: right !important;
+    }
+    
+    .progress-compact {
+        align-items: flex-end;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+}
 
 /* Стили для защиты от копирования */
 .no-select {
@@ -254,6 +381,7 @@
     z-index: 1000;
 }
 
+
 /* Стили для предупреждения о потере фокуса */
 .warning-overlay {
     position: fixed;
@@ -289,6 +417,11 @@
     font-size: 1.2em;
     font-weight: bold;
     color: #dc3545;
+}
+
+.warning-content .small {
+    font-size: 0.9em;
+    color: #666;
 }
 
 /* Стили для счетчика задач */
@@ -373,11 +506,10 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Инициализируем флаги состояния при загрузке страницы
-    isSubmitting = false;
-    isLeaving = false;
-    hasSentWrongAnswer = false;
-    
+    // Объявляем переменные состояния
+    let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
+    let isSubmitting = false;
+
     // Скрываем оверлей после полной загрузки страницы
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) {
@@ -387,17 +519,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 300);
     }
 
-    let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
-    let isSubmitting = false;
-    let isLeaving = false;
-    let hasSentWrongAnswer = false; // Флаг для предотвращения множественных отправок
-
-    // Инициализация модального окна
+    // Инициализация модальных окон
     const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    const skipTaskModal = new bootstrap.Modal(document.getElementById('skipTaskModal'));
     const answerInput = document.getElementById('answer');
     const answerPreview = document.getElementById('answerPreview');
     const submitBtn = document.getElementById('submitBtn');
     const confirmSubmitBtn = document.getElementById('confirmSubmit');
+    const skipTaskBtn = document.getElementById('skipTaskBtn');
+    const confirmSkipTaskBtn = document.getElementById('confirmSkipTask');
     const answerForm = document.getElementById('answerForm');
 
     // Предотвращаем отправку формы по нажатию Enter
@@ -453,16 +583,39 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Создаем оверлей для предупреждения
-    const warningOverlay = document.createElement('div');
-    warningOverlay.className = 'warning-overlay';
-    warningOverlay.innerHTML = `
-        <div class="warning-content">
-            <h3>Внимание!</h3>
-            <p>Вы покинули страницу с задачей. Вернитесь на страницу в течение <span class="countdown">5</span> секунд, иначе задача будет засчитана как нерешенная.</p>
-        </div>
-    `;
-    document.body.appendChild(warningOverlay);
+    // Обработчик нажатия на кнопку "Пропустить задачу"
+    skipTaskBtn.addEventListener('click', function() {
+        skipTaskModal.show();
+    });
+
+    // Обработчик подтверждения пропуска задачи
+    confirmSkipTaskBtn.addEventListener('click', function() {
+        // Закрываем модальное окно
+        skipTaskModal.hide();
+        
+        // Записываем метку в поле ответа
+        answerInput.value = 'wrong_answer_due_to_skip';
+        
+        // Показываем оверлей загрузки
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        if (loadingOverlay) {
+            // Меняем текст в оверлее
+            const loadingText = loadingOverlay.querySelector('p');
+            if (loadingText) {
+                loadingText.textContent = 'Пропуск задачи...';
+            }
+
+            loadingOverlay.style.display = 'flex';
+            setTimeout(() => {
+                loadingOverlay.style.opacity = '1';
+                // Отправляем форму
+                answerForm.submit();
+            }, 200);
+        } else {
+            answerForm.submit();
+        }
+    });
+
 
     function getServerTime() {
         const clientNow = new Date();
@@ -490,8 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
-        // Обновляем отображение
-        document.getElementById('days').textContent = days.toString().padStart(2, '0');
+        // Обновляем отображение (компактный формат: часы:минуты:секунды)
         document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
         document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
         document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
@@ -539,25 +691,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Обработка потери фокуса
-    let warningTimeout;
-    let countdownInterval;
-    let countdown = 5;
-
-    function startCountdown() {
-        const countdownElement = warningOverlay.querySelector('.countdown');
-        countdown = 5;
-        countdownElement.textContent = countdown;
-
-        countdownInterval = setInterval(() => {
-            countdown--;
-            countdownElement.textContent = countdown;
-
-            if (countdown <= 0) {
-                clearInterval(countdownInterval);
-                submitWrongAnswer();
-            }
-        }, 1000);
-    }
 
     function showViolationOverlay() {
         const overlay = document.getElementById('violationOverlay');
@@ -567,57 +700,75 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function submitWrongAnswer() {
-        if (!isSubmitting && !isLeaving && !hasSentWrongAnswer) {
-            isSubmitting = true;
-            hasSentWrongAnswer = true;
+
+
+
+
+
+    // Обработка модального окна изображения
+    const imageModal = document.getElementById('imageModal');
+    if (imageModal) {
+        // Закрытие модального окна по клавише Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = bootstrap.Modal.getInstance(imageModal);
+                if (modal && imageModal.classList.contains('show')) {
+                    modal.hide();
+                }
+            }
+        });
+    }
+
+    // Создаем оверлей предупреждения о потере фокуса
+    const warningOverlay = document.createElement('div');
+    warningOverlay.className = 'warning-overlay';
+    warningOverlay.innerHTML = `
+        <div class="warning-content">
+            <h3>⚠️ Внимание!</h3>
+            <p>Вы покинули страницу с задачей!</p>
+            <p>Осталось времени: <span class="countdown">5</span> секунд</p>
+            <p class="small">Если не вернетесь, ответ будет засчитан как неправильный</p>
+        </div>
+    `;
+    document.body.appendChild(warningOverlay);
+
+    // Переменные для отслеживания фокуса
+    let focusTimeout;
+    let isPageFocused = true;
+    let warningShown = false;
+    let countdownInterval;
+
+    // Функция для отправки неправильного ответа при потере фокуса
+    function sendWrongAnswerOnFocusLoss() {
+        // Предотвращаем множественные отправки
+        if (isSubmitting) {
+            return;
+        }
+
+        const input = document.getElementById('answer');
+        if (input && input.value.trim() === '') {
+            // Записываем метку в поле ответа
+            input.value = 'wrong_answer_due_to_focus_loss';
+            
+            // Показываем оверлей нарушения
             showViolationOverlay();
-            const input = document.getElementById('answer');
-            input.value = 'wrong_answer_due_to_tab_switch';
-
-            // Используем sendBeacon для надежности
-            const formData = new FormData(answerForm);
-            navigator.sendBeacon(answerForm.action, formData);
-
-            // Дополнительная отправка через обычный submit
+            
+            // Автоматически отправляем форму (как будто пользователь нажал кнопку)
             answerForm.submit();
         }
     }
 
-    // Обработчики событий видимости страницы для предупреждения
-    document.addEventListener('visibilitychange', function() {
-        if (document.hidden) {
-            warningOverlay.style.display = 'flex';
-            startCountdown();
-        } else {
-            warningOverlay.style.display = 'none';
-            clearInterval(countdownInterval);
-        }
-    });
-
-    // Обработчик потери фокуса окна
-    window.addEventListener('blur', function() {
-        warningOverlay.style.display = 'flex';
-        startCountdown();
-    });
-
-    // Обработчик получения фокуса окна
-    window.addEventListener('focus', function() {
-        warningOverlay.style.display = 'none';
-        clearInterval(countdownInterval);
-    });
-
-    // Функция для отправки неправильного ответа при выходе
-    function sendWrongAnswerOnExit() {
+    // Функция для отправки неправильного ответа при переходе на другую страницу
+    function sendWrongAnswerOnNavigation() {
         // Предотвращаем множественные отправки
-        if (hasSentWrongAnswer || isSubmitting) {
+        if (isSubmitting) {
             return;
         }
-        
+
         const input = document.getElementById('answer');
         if (input && input.value.trim() === '') {
-            hasSentWrongAnswer = true; // Устанавливаем флаг
-            input.value = 'wrong_answer_due_to_page_leave';
+            isSubmitting = true;
+            input.value = 'wrong_answer_due_to_navigation';
 
             // Используем sendBeacon для гарантированной отправки данных
             const formData = new FormData(answerForm);
@@ -634,72 +785,96 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Основной обработчик выхода со страницы
+    // Функция для запуска обратного отсчета
+    function startFocusCountdown() {
+        if (warningShown) return;
+        
+        warningShown = true;
+        warningOverlay.style.display = 'flex';
+        
+        const countdownElement = warningOverlay.querySelector('.countdown');
+        let timeLeft = 5;
+        countdownElement.textContent = timeLeft;
+        
+        countdownInterval = setInterval(() => {
+            timeLeft--;
+            countdownElement.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+                sendWrongAnswerOnFocusLoss();
+            }
+        }, 1000);
+    }
+
+    // Функция для остановки обратного отсчета
+    function stopFocusCountdown() {
+        warningShown = false;
+        warningOverlay.style.display = 'none';
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        if (focusTimeout) {
+            clearTimeout(focusTimeout);
+            focusTimeout = null;
+        }
+    }
+
+    // Обработчики событий видимости страницы для предупреждения
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            // Страница стала невидимой - запускаем таймер
+            focusTimeout = setTimeout(() => {
+                startFocusCountdown();
+            }, 1000); // 1 секунда задержки
+        } else {
+            // Страница стала видимой - останавливаем таймер
+            stopFocusCountdown();
+        }
+    });
+
+    // Обработчик потери фокуса окна
+    window.addEventListener('blur', function() {
+        // Окно потеряло фокус - запускаем таймер
+        focusTimeout = setTimeout(() => {
+            startFocusCountdown();
+        }, 1000); // 1 секунда задержки
+    });
+
+    // Обработчик получения фокуса окна
+    window.addEventListener('focus', function() {
+        // Окно получило фокус - останавливаем таймер
+        stopFocusCountdown();
+    });
+
+    // Обработчик клика по ссылкам (переход на другие страницы)
+    document.addEventListener('click', function(e) {
+        if (e.target.tagName === 'A' && !e.target.classList.contains('btn')) {
+            // Проверяем, что это не кнопка отправки ответа
+            if (!e.target.closest('#answerForm')) {
+                sendWrongAnswerOnNavigation();
+            }
+        }
+    });
+
+    // Обработчик перехода на другую страницу
     window.addEventListener('beforeunload', function(e) {
-        // Не показываем предупреждение, если идет отправка ответа
+        // Не отправляем неправильный ответ, если идет отправка ответа
         if (isSubmitting) {
             return;
         }
 
-        sendWrongAnswerOnExit();
-
-        // Показываем стандартное предупреждение браузера
-        e.preventDefault();
-        e.returnValue = 'Отправить ответ на задачу?';
-        return 'Отправить ответ на задачу?';
-    });
-
-    // Дополнительный обработчик для unload (срабатывает позже)
-    window.addEventListener('unload', function() {
-        // Не отправляем неправильный ответ, если идет отправка правильного ответа
-        if (!isSubmitting) {
-            sendWrongAnswerOnExit();
-        }
+        sendWrongAnswerOnNavigation();
     });
 
     // Обработчик для pagehide (современный стандарт)
     window.addEventListener('pagehide', function() {
         // Не отправляем неправильный ответ, если идет отправка правильного ответа
         if (!isSubmitting) {
-            sendWrongAnswerOnExit();
+            sendWrongAnswerOnNavigation();
         }
     });
-
-    // Обработчик клавиш для перезагрузки (F5, Ctrl+R, Ctrl+Shift+R)
-    document.addEventListener('keydown', function(e) {
-        // F5 или Ctrl+R или Ctrl+Shift+R
-        if (e.key === 'F5' ||
-            (e.ctrlKey && e.key === 'r') ||
-            (e.ctrlKey && e.shiftKey && e.key === 'R')) {
-            sendWrongAnswerOnExit();
-        }
-    });
-
-
-
-    // Обработчик клика по ссылкам
-    document.addEventListener('click', function(e) {
-        if (e.target.tagName === 'A' && !e.target.classList.contains('btn')) {
-            if (!isSubmitting && !isLeaving) {
-                isLeaving = true;
-                sendWrongAnswerOnExit();
-            }
-        }
-    });
-
-    // Обработка модального окна изображения
-    const imageModal = document.getElementById('imageModal');
-    if (imageModal) {
-        // Закрытие модального окна по клавише Escape
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                const modal = bootstrap.Modal.getInstance(imageModal);
-                if (modal && imageModal.classList.contains('show')) {
-                    modal.hide();
-                }
-            }
-        });
-    }
 });
 </script>
 {% endblock %}

@@ -244,6 +244,12 @@
 
 {% block scripts %}
 <script>
+(function() {
+    // Проверяем, не объявлена ли уже переменная
+    if (typeof window.isLoadingTournaments !== 'undefined') {
+        return; // Выходим, если переменная уже существует
+    }
+    
     let isLoadingTournaments = false;
 
     async function loadMoreTournaments(page) {
@@ -297,6 +303,7 @@
             loadMoreTournaments(page);
         });
     }
+})();
 </script>
 {% endblock %}
 {% endblock %} 
