@@ -31,6 +31,18 @@
                         </div>
                     </div>
                     
+                    {% if tournament.pdf_file %}
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-start">
+                            <a href="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tournaments/{{ tournament.pdf_file }}" 
+                               target="_blank" 
+                               class="btn btn-outline-dark btn-sm">
+                                <i class="fas fa-file-pdf me-1"></i>Подробнее о правилах турнира
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
                     <div class="text-center">
                         <a href="{{ url_for('start_tournament', tournament_id=tournament.id) }}" 
                            class="btn btn-primary btn-lg"

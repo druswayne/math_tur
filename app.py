@@ -1034,6 +1034,7 @@ class Tournament(db.Model):
     description = db.Column(db.Text, nullable=False)
     rules = db.Column(db.Text, nullable=False)  # Добавляем поле для правил
     image = db.Column(db.String(200))
+    pdf_file = db.Column(db.String(200))  # Поле для хранения PDF файла
     start_date = db.Column(db.DateTime, nullable=False)
     duration = db.Column(db.Integer, nullable=False)  # в минутах
     is_active = db.Column(db.Boolean, default=False)
@@ -2728,11 +2729,23 @@ def admin_add_tournament():
     if image and image.filename:
         image_filename = upload_file_to_s3(image, 'tournaments')
     
+    # Обработка PDF файла
+    pdf_file = request.files.get('pdf_file')
+    pdf_filename = None
+    if pdf_file and pdf_file.filename:
+        # Проверяем, что файл действительно PDF
+        if pdf_file.filename.lower().endswith('.pdf'):
+            pdf_filename = upload_file_to_s3(pdf_file, 'tournaments')
+        else:
+            flash('Поддерживаются только PDF файлы', 'danger')
+            return redirect(url_for('admin_tournaments'))
+    
     tournament = Tournament(
         title=title,
         description=description,
         rules=rules,
         image=image_filename,
+        pdf_file=pdf_filename,
         start_date=start_date,
         duration=duration
     )
@@ -2768,6 +2781,22 @@ def admin_edit_tournament(tournament_id):
         # Загружаем новое изображение
         image_filename = upload_file_to_s3(image, 'tournaments')
         tournament.image = image_filename
+    
+    # Обработка PDF файла
+    pdf_file = request.files.get('pdf_file')
+    if pdf_file and pdf_file.filename:
+        # Проверяем, что файл действительно PDF
+        if pdf_file.filename.lower().endswith('.pdf'):
+            # Удаляем старый PDF файл
+            if tournament.pdf_file:
+                delete_file_from_s3(tournament.pdf_file, 'tournaments')
+            
+            # Загружаем новый PDF файл
+            pdf_filename = upload_file_to_s3(pdf_file, 'tournaments')
+            tournament.pdf_file = pdf_filename
+        else:
+            flash('Поддерживаются только PDF файлы', 'danger')
+            return redirect(url_for('admin_tournaments'))
     
     db.session.commit()
     

@@ -96,7 +96,8 @@
                                                 data-rules="{{ tournament.rules }}"
                                                 data-start-date="{{ tournament.start_date.strftime('%Y-%m-%dT%H:%M') }}"
                                                 data-duration="{{ tournament.duration }}" 
-                                                data-image="{{ tournament.image }}">
+                                                data-image="{{ tournament.image }}"
+                                                data-pdf-file="{{ tournament.pdf_file }}">
                                             <i class="bi bi-pencil"></i>
                                         </button>
                                         {% if tournament.is_active %}
@@ -159,6 +160,11 @@
                             <label for="image" class="form-label">Изображение</label>
                             <input type="file" class="form-control" id="image" name="image" accept="image/*">
                         </div>
+                        <div class="mb-3">
+                            <label for="pdf_file" class="form-label">PDF файл с дополнительными материалами</label>
+                            <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf">
+                            <div class="form-text">Загрузите PDF файл с дополнительными материалами для турнира (необязательно)</div>
+                        </div>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
@@ -210,6 +216,12 @@
                             <label for="edit_image" class="form-label">Изображение</label>
                             <input type="file" class="form-control" id="edit_image" name="image" accept="image/*">
                             <div id="current_image" class="mt-2"></div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_pdf_file" class="form-label">PDF файл с дополнительными материалами</label>
+                            <input type="file" class="form-control" id="edit_pdf_file" name="pdf_file" accept=".pdf">
+                            <div id="current_pdf" class="mt-2"></div>
+                            <div class="form-text">Загрузите PDF файл с дополнительными материалами для турнира (необязательно)</div>
                         </div>
                         <div class="row">
                             <div class="col-md-6">
@@ -384,6 +396,7 @@
                 const startDate = this.dataset.startDate;
                 const duration = this.dataset.duration;
                 const image = this.dataset.image;
+                const pdfFile = this.dataset.pdfFile;
                 
                 document.getElementById('edit_title').value = title;
                 document.getElementById('edit_description').value = description;
@@ -396,6 +409,21 @@
                     currentImage.innerHTML = `<img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tournaments/${image}" class="img-thumbnail" style="max-height: 100px;">`;
                 } else {
                     currentImage.innerHTML = '';
+                }
+                
+                const currentPdf = document.getElementById('current_pdf');
+                if (pdfFile) {
+                    currentPdf.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="bi bi-file-pdf"></i> Текущий PDF файл: 
+                            <a href="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tournaments/${pdfFile}" 
+                               target="_blank" class="text-decoration-none">
+                                ${pdfFile}
+                            </a>
+                        </div>
+                    `;
+                } else {
+                    currentPdf.innerHTML = '';
                 }
                 
                 document.getElementById('editTournamentForm').action = `/admin/tournaments/${id}/edit`;
