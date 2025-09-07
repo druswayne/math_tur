@@ -50,6 +50,16 @@ class News(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+class NewsFile(Base):
+    __tablename__ = "news_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    news_id = Column(Integer, nullable=False, index=True)  # Связь с новостью
+    filename = Column(String(500), nullable=False)  # Имя файла в S3
+    original_filename = Column(String(500), nullable=False)  # Оригинальное имя файла
+    file_size = Column(Integer, nullable=True)  # Размер файла в байтах
+    created_at = Column(DateTime, default=datetime.now)
+
 class CurrencyRate(Base):
     """Модель для хранения курсов валют"""
     __tablename__ = "currency_rates"

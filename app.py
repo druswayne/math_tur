@@ -1,5 +1,5 @@
 import psutil
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory, abort
 from functools import wraps
 import PyPDF2
 from reportlab.pdfgen import canvas
@@ -7591,6 +7591,36 @@ def admin_add_news():
                         news.image = image_filename
                         main_image_set = True
         
+        # Обработка прикрепленного файла
+        news_file = request.files.get('news_file')
+        if news_file and news_file.filename:
+            # Проверяем, что файл является PDF
+            if news_file.filename.lower().endswith('.pdf'):
+                # Загружаем файл в S3
+                file_filename = upload_file_to_s3(news_file, 'news_files')
+                if file_filename:
+                    # Получаем размер файла
+                    file_size = None
+                    try:
+                        news_file.seek(0, 2)  # Переходим в конец файла
+                        file_size = news_file.tell()
+                        news_file.seek(0)  # Возвращаемся в начало
+                    except:
+                        pass
+                    
+                    # Создаем запись о файле
+                    news_file_record = NewsFile(
+                        news_id=news.id,
+                        filename=file_filename,
+                        original_filename=news_file.filename,
+                        file_size=file_size
+                    )
+                    
+                    db.session.add(news_file_record)
+            else:
+                flash('Можно загружать только PDF файлы', 'error')
+                return render_template('admin/add_news.html')
+        
         db.session.commit()
         
         flash('Новость успешно добавлена', 'success')
@@ -7681,11 +7711,90 @@ def admin_edit_news(news_id):
             # Если нет новых изображений и нет существующих, сбрасываем главное изображение
             news.image = None
         
+        # Обработка удаления существующих файлов
+        existing_file_ids = request.form.getlist('existing_file_ids')
+        
+        for file in news.files:
+            if str(file.id) not in existing_file_ids:
+                # Удаляем файл из S3
+                delete_file_from_s3(file.filename, 'news_files')
+                # Удаляем запись из базы
+                db.session.delete(file)
+        
+        # Обработка нового файла
+        news_file = request.files.get('news_file')
+        if news_file and news_file.filename:
+            # Проверяем, что файл является PDF
+            if news_file.filename.lower().endswith('.pdf'):
+                # Загружаем файл в S3
+                file_filename = upload_file_to_s3(news_file, 'news_files')
+                if file_filename:
+                    # Получаем размер файла
+                    file_size = None
+                    try:
+                        news_file.seek(0, 2)  # Переходим в конец файла
+                        file_size = news_file.tell()
+                        news_file.seek(0)  # Возвращаемся в начало
+                    except:
+                        pass
+                    
+                    # Создаем запись о файле
+                    news_file_record = NewsFile(
+                        news_id=news.id,
+                        filename=file_filename,
+                        original_filename=news_file.filename,
+                        file_size=file_size
+                    )
+                    
+                    db.session.add(news_file_record)
+            else:
+                flash('Можно загружать только PDF файлы', 'error')
+                return render_template('admin/edit_news.html', news=news)
+        
         db.session.commit()
         flash('Новость успешно обновлена', 'success')
         return redirect(url_for('admin_news'))
     
     return render_template('admin/edit_news.html', news=news)
+
+@app.route('/news/file/<int:file_id>')
+def news_file_view(file_id):
+    """Просмотр PDF файла новости"""
+    try:
+        # Получаем файл из базы данных
+        news_file = NewsFile.query.get_or_404(file_id)
+        
+        # Проверяем, что новость опубликована
+        if not news_file.news.is_published:
+            abort(404)
+        
+        # Получаем файл напрямую из S3
+        from s3_utils import s3_client, S3_CONFIG
+        import io
+        
+        s3_key = f"news_files/{news_file.filename}"
+        
+        # Скачиваем файл из S3
+        response = s3_client.get_object(
+            Bucket=S3_CONFIG['bucket_name'],
+            Key=s3_key
+        )
+        
+        # Создаем ответ с правильными заголовками
+        file_data = response['Body'].read()
+        
+        flask_response = make_response(file_data)
+        flask_response.headers['Content-Type'] = 'application/pdf'
+        flask_response.headers['Content-Disposition'] = f'inline; filename="{news_file.original_filename}"'
+        flask_response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        flask_response.headers['Pragma'] = 'no-cache'
+        flask_response.headers['Expires'] = '0'
+        
+        return flask_response
+        
+    except Exception as e:
+        print(f"Ошибка при получении файла новости: {e}")
+        abort(404)
 
 @app.route('/admin/news/<int:news_id>/delete', methods=['POST'])
 @login_required
@@ -7699,6 +7808,10 @@ def admin_delete_news(news_id):
     # Удаляем все изображения из S3
     for image in news.images:
         delete_file_from_s3(image.image_filename, 'news')
+    
+    # Удаляем все файлы из S3
+    for file in news.files:
+        delete_file_from_s3(file.filename, 'news_files')
     
     # Удаляем главное изображение из S3 (для обратной совместимости)
     if news.image:
@@ -7920,6 +8033,12 @@ def try_acquire_scheduler():
                 except (IOError, OSError):
                     print("🔧 Планировщик уже занят другим воркером (файл Windows)")
                     return False
+                finally:
+                    # Закрываем файловый дескриптор
+                    try:
+                        os.close(fd)
+                    except:
+                        pass
             else:
                 # Unix/Linux версия
                 try:
@@ -8661,6 +8780,9 @@ class News(db.Model):
     
     # Связь с изображениями
     images = db.relationship('NewsImage', backref='news', lazy=True, cascade='all, delete-orphan', order_by='NewsImage.order_index')
+    
+    # Связь с файлами
+    files = db.relationship('NewsFile', backref='news', lazy=True, cascade='all, delete-orphan')
 
 class NewsImage(db.Model):
     __tablename__ = "news_images"
@@ -8671,6 +8793,16 @@ class NewsImage(db.Model):
     caption = db.Column(db.String(200), nullable=True)  # Подпись к изображению
     order_index = db.Column(db.Integer, default=0)  # Порядок отображения
     is_main = db.Column(db.Boolean, default=False)  # Главное изображение
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+class NewsFile(db.Model):
+    __tablename__ = "news_files"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    news_id = db.Column(db.Integer, db.ForeignKey('news.id', ondelete='CASCADE'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)  # Имя файла в S3
+    original_filename = db.Column(db.String(500), nullable=False)  # Оригинальное имя файла
+    file_size = db.Column(db.Integer, nullable=True)  # Размер файла в байтах
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 class SchedulerJob(db.Model):

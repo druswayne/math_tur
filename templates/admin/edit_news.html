@@ -110,6 +110,55 @@
                             <div class="form-text">Отметьте изображения, которые хотите сохранить, и выберите главное</div>
                         </div>
 
+                        <!-- Секция файлов -->
+                        <div class="mb-3">
+                            <label class="form-label">Прикрепленный файл (PDF)</label>
+                            
+                            <!-- Существующий файл -->
+                            {% if news.files %}
+                            <div class="existing-file mb-3">
+                                <h6>Текущий файл:</h6>
+                                {% for file in news.files %}
+                                <div class="existing-file-item mb-2 p-2 border rounded">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-file-earmark-pdf text-danger me-2" style="font-size: 1.5rem;"></i>
+                                                <div>
+                                                    <div class="fw-bold">{{ file.original_filename }}</div>
+                                                    <small class="text-muted">
+                                                        {% if file.file_size %}
+                                                            {{ "%.1f"|format(file.file_size / 1024 / 1024) }} МБ
+                                                        {% endif %}
+                                                        • {{ file.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="existing_file_ids" 
+                                                       value="{{ file.id }}" 
+                                                       id="keep_file_{{ file.id }}" checked>
+                                                <label class="form-check-label" for="keep_file_{{ file.id }}">
+                                                    Сохранить файл
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Новый файл -->
+                            <div class="mb-2">
+                                <input type="file" class="form-control" name="news_file" accept=".pdf">
+                            </div>
+                            <div class="form-text">Можно прикрепить PDF файл к новости. Файл будет отображаться как ссылка для скачивания в конце новости.</div>
+                        </div>
+
                         <div class="mb-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="is_published" name="is_published" {% if news.is_published %}checked{% endif %}>
@@ -213,6 +262,11 @@ code {
 }
 
 .existing-image-item {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+.existing-file-item {
     background-color: #f8f9fa;
     border-radius: 6px;
 }

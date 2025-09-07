@@ -46,12 +46,28 @@ def upload_file_to_s3(file, folder):
             unique_filename = generate_unique_filename(filename)
             s3_key = f"{folder}/{unique_filename}"
             
+            # Определяем Content-Type в зависимости от расширения файла
+            extra_args = {'ACL': 'public-read'}
+            
+            # Для PDF файлов устанавливаем правильный Content-Type
+            if filename.lower().endswith('.pdf'):
+                extra_args['ContentType'] = 'application/pdf'
+                extra_args['ContentDisposition'] = 'inline'  # Открывать в браузере, а не скачивать
+            elif filename.lower().endswith(('.jpg', '.jpeg')):
+                extra_args['ContentType'] = 'image/jpeg'
+            elif filename.lower().endswith('.png'):
+                extra_args['ContentType'] = 'image/png'
+            elif filename.lower().endswith('.gif'):
+                extra_args['ContentType'] = 'image/gif'
+            elif filename.lower().endswith('.webp'):
+                extra_args['ContentType'] = 'image/webp'
+            
             # Загружаем файл в S3
             s3_client.upload_fileobj(
                 file,
                 S3_CONFIG['bucket_name'],
                 s3_key,
-                ExtraArgs={'ACL': 'public-read'}
+                ExtraArgs=extra_args
             )
             
             return unique_filename
