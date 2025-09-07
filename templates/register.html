@@ -72,7 +72,7 @@
                             <input type="hidden" name="teacher_code" value="{{ teacher_code }}">
                         {% endif %}
                         <div class="mb-3">
-                            <label for="username" class="form-label">Логин</label>
+                            <label for="username" class="form-label">Логин <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="text" class="form-control" id="username" name="username" placeholder="например ivan2004" required>
                                 <span class="input-group-text validation-icon" id="username-icon">
@@ -84,7 +84,7 @@
                             <div class="form-text">Используйте только буквы латинского алфавита (a-z), цифры (0-9) и знак подчеркивания _.</div>
                         </div>
                         <div class="mb-3">
-                            <label for="password" class="form-label">Пароль</label>
+                            <label for="password" class="form-label">Пароль <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="password" class="form-control" id="password" name="password" required>
                                 <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Показать/скрыть пароль">
@@ -107,7 +107,7 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="confirm_password" class="form-label">Подтвердите пароль</label>
+                            <label for="confirm_password" class="form-label">Подтвердите пароль <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                                 <button type="button" class="btn btn-outline-secondary" id="toggleConfirmPassword" title="Показать/скрыть пароль">
@@ -121,7 +121,7 @@
                         </div>
                         <hr class="my-4" style="border: 2px solid grey; border-radius: 1px; opacity: 0.8; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         <div class="mb-3">
-                            <label for="student_name" class="form-label">Фамилия и имя учащегося</label>
+                            <label for="student_name" class="form-label">Фамилия и имя учащегося <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="text" class="form-control" id="student_name" name="student_name" placeholder="Иванов Иван" required>
                                 <span class="input-group-text validation-icon" id="student_name-icon">
@@ -132,7 +132,7 @@
                             <div class="form-text">Введите фамилию и имя учащегося на русском языке. Минимум 2 символа.</div>
                         </div>
                         <div class="mb-3">
-                            <label for="parent_name" class="form-label">ФИО законного представителя (родителя)</label>
+                            <label for="parent_name" class="form-label">ФИО законного представителя (родителя) <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="text" class="form-control" id="parent_name" name="parent_name" placeholder="Иванов Иван Иванович" required>
                                 <span class="input-group-text validation-icon" id="parent_name-icon">
@@ -144,7 +144,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="phone" class="form-label">Номер телефона</label>
+                            <label for="phone" class="form-label">Номер телефона <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select class="form-select" id="phone_country" style="max-width: 120px;">
                                     <option value="+375">🇧🇾 +375</option>
@@ -159,7 +159,7 @@
                             <div class="form-text">Введите номер телефона без кода страны (код выбран выше)</div>
                         </div>
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
+                            <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="email" class="form-control" id="email" name="email" placeholder="info@liga-znatokov.by" required>
                                 <span class="input-group-text validation-icon" id="email-icon">
@@ -172,7 +172,7 @@
                                <hr class="my-4" style="border: 2px solid grey; border-radius: 1px; opacity: 0.8; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                          <!-- Поле для выбора учреждения образования -->
                         <div class="mb-3">
-                            <label for="educational_institution" class="form-label">Учреждение образования</label>
+                            <label for="educational_institution" class="form-label">Учреждение образования <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="educational_institution_search" 
                                        placeholder="Средняя школа №2 г. Минск" autocomplete="off" required>
@@ -226,7 +226,7 @@
                             <div class="form-text">Введите название и выберите из списка, если не нашли - <span class="text-primary" style="cursor: pointer; text-decoration: underline;" onclick="showAddSchoolModal()">введите свою школу и добавьте её в наш список</span></div>
                         </div>
                         <div class="mb-3">
-                            <label for="category" class="form-label">Класс</label>
+                            <label for="category" class="form-label">Класс <span class="text-danger">*</span></label>
                             <select class="form-select" id="category" name="category" required>
                                 <option value="1-2">1-2 класс</option>
                                 <option value="3">3 класс</option>
@@ -306,7 +306,7 @@
                     <div class="mb-3">
                         <label for="newSchoolName" class="form-label">
                             <i class="fas fa-graduation-cap me-1"></i>
-                            Полное название школы
+                            Полное название школы <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control" id="newSchoolName" 
                                placeholder="Средняя школа №2 г. Минска" required>
@@ -316,7 +316,7 @@
                     <div class="mb-3">
                         <label for="newSchoolAddress" class="form-label">
                             <i class="fas fa-map-marker-alt me-1"></i>
-                            Адрес школы
+                            Адрес школы <span class="text-danger">*</span>
                         </label>
                         <textarea class="form-control" id="newSchoolAddress" rows="3" 
                                   placeholder="Республика Беларусь, Минская область, г. Минск, ул Советская 25" required></textarea>

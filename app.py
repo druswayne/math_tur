@@ -5518,8 +5518,14 @@ def tournament_menu(tournament_id):
         flash('Турнир уже закончился', 'warning')
         return redirect(url_for('home'))
     
-    # Проверяем, есть ли у пользователя билет
-    if current_user.tickets < 1:
+    # Проверяем, участвует ли уже пользователь в турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id
+    ).first()
+    
+    # Проверяем жетоны только если пользователь еще не участвует в турнире
+    if not participation and current_user.tickets < 1:
         flash('У вас недостаточно жетонов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
@@ -5537,11 +5543,6 @@ def start_tournament(tournament_id):
         flash('Турнир не активен', 'warning')
         return redirect(url_for('home'))
     
-    # Проверяем, есть ли у пользователя билет
-    if current_user.tickets < 1:
-        flash('Для доступа к турниру не хватает жетонов!', 'warning')
-        return redirect(url_for('buy_tickets'))
-    
     # Проверяем, не является ли пользователь администратором или учителем
     if hasattr(current_user, 'is_admin') and current_user.is_admin:
         flash('Администраторы не могут участвовать в турнирах', 'warning')
@@ -5557,6 +5558,11 @@ def start_tournament(tournament_id):
         user_id=current_user.id,
         tournament_id=tournament_id
     ).first()
+    
+    # Проверяем жетоны только если пользователь еще не участвует в турнире
+    if not participation and current_user.tickets < 1:
+        flash('Для доступа к турниру не хватает жетонов!', 'warning')
+        return redirect(url_for('buy_tickets'))
     
     if not participation:
         # Получаем список решенных задач пользователя

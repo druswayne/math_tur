@@ -87,7 +87,7 @@
                     
                     <form method="POST" action="{{ url_for('teacher_register') }}" id="teacherRegisterForm">
                         <div class="mb-3">
-                            <label for="username" class="form-label">Логин</label>
+                            <label for="username" class="form-label">Логин <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="text" class="form-control" id="username" name="username" placeholder="например ivan2004" required>
                                 <span class="input-group-text validation-icon" id="username-icon">
@@ -100,7 +100,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="password" class="form-label">Пароль</label>
+                            <label for="password" class="form-label">Пароль <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="password" class="form-control" id="password" name="password" required>
                                 <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Показать/скрыть пароль">
@@ -124,7 +124,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="confirm_password" class="form-label">Подтвердите пароль</label>
+                            <label for="confirm_password" class="form-label">Подтвердите пароль <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                                 <button type="button" class="btn btn-outline-secondary" id="toggleConfirmPassword" title="Показать/скрыть пароль">
@@ -140,7 +140,7 @@
                         <hr class="my-4" style="border: 2px solid grey; border-radius: 1px; opacity: 0.8; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                         
                         <div class="mb-3">
-                            <label for="full_name" class="form-label">Фамилия, имя, отчество</label>
+                            <label for="full_name" class="form-label">Фамилия, имя, отчество <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Иванов Иван Иванович" required>
                                 <span class="input-group-text validation-icon" id="full_name-icon">
@@ -152,7 +152,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="phone" class="form-label">Номер телефона</label>
+                            <label for="phone" class="form-label">Номер телефона <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <select class="form-select" id="phone_country" style="max-width: 120px;">
                                     <option value="+375">🇧🇾 +375</option>
@@ -169,7 +169,7 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="email" class="form-label">Email</label>
+                            <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
                             <div class="input-group">
                             <input type="email" class="form-control" id="email" name="email" placeholder="info@liga-znatokov.by" required>
                                 <span class="input-group-text validation-icon" id="email-icon">
@@ -183,7 +183,7 @@
 
                         <!-- Поле для выбора учреждения образования -->
                         <div class="mb-3">
-                            <label for="educational_institution" class="form-label">Учреждение образования</label>
+                            <label for="educational_institution" class="form-label">Учреждение образования <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <input type="text" class="form-control" id="educational_institution_search" 
                                        placeholder="Средняя школа №2 г. Минск" autocomplete="off" required>
@@ -294,7 +294,7 @@
                     <div class="mb-3">
                         <label for="newSchoolName" class="form-label">
                             <i class="fas fa-graduation-cap me-1"></i>
-                            Полное название школы
+                            Полное название школы <span class="text-danger">*</span>
                         </label>
                         <input type="text" class="form-control" id="newSchoolName" 
                                placeholder="Средняя школа №2 г. Минска" required>
@@ -304,7 +304,7 @@
                     <div class="mb-3">
                         <label for="newSchoolAddress" class="form-label">
                             <i class="fas fa-map-marker-alt me-1"></i>
-                            Адрес школы
+                            Адрес школы <span class="text-danger">*</span>
                         </label>
                         <textarea class="form-control" id="newSchoolAddress" rows="3" 
                                   placeholder="Республика Беларусь, Минская область, г. Минск, ул Советская 25" required></textarea>
