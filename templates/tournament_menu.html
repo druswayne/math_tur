@@ -43,9 +43,19 @@
                     </div>
                     {% endif %}
                     
+                    <!-- Чекбокс подтверждения ознакомления с условиями -->
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="termsCheckbox" style="border:3px solid black">
+                            <label class="form-check-label" for="termsCheckbox">
+                                С правилами турнира ознакомился(лась)
+                            </label>
+                        </div>
+                    </div>
+                    
                     <div class="text-center">
                         <a href="{{ url_for('start_tournament', tournament_id=tournament.id) }}" 
-                           class="btn btn-primary btn-lg"
+                           class="btn btn-secondary btn-lg disabled"
                            id="startTournamentBtn">
                             Начать турнир
                         </a>
@@ -121,15 +131,78 @@
     font-style: italic;
     color: #34495e;
 }
+
+/* Стили для чекбокса подтверждения условий */
+.form-check {
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+}
+
+.form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.125rem;
+}
+
+.form-check-label {
+    font-weight: 500;
+    color: #495057;
+    margin-left: 0.5rem;
+    cursor: pointer;
+}
+
+/* Стили для неактивной кнопки */
+.btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Анимация для чекбокса */
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.form-check-input:focus {
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
 </style>
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const startTournamentBtn = document.getElementById('startTournamentBtn');
+    const termsCheckbox = document.getElementById('termsCheckbox');
     const loadingOverlay = document.getElementById('loadingOverlay');
 
+    // Функция для обновления состояния кнопки
+    function updateButtonState() {
+        if (termsCheckbox.checked) {
+            startTournamentBtn.classList.remove('btn-secondary', 'disabled');
+            startTournamentBtn.classList.add('btn-primary');
+        } else {
+            startTournamentBtn.classList.remove('btn-primary');
+            startTournamentBtn.classList.add('btn-secondary', 'disabled');
+        }
+    }
+
+    // Обработчик изменения состояния чекбокса
+    termsCheckbox.addEventListener('change', updateButtonState);
+
+    // Обработчик клика по кнопке
     startTournamentBtn.addEventListener('click', function(e) {
+        // Если кнопка неактивна, предотвращаем переход
+        if (this.classList.contains('disabled')) {
+            e.preventDefault();
+            return;
+        }
+        
         e.preventDefault();
         
         // Показываем оверлей
