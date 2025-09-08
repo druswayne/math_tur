@@ -1,6 +1,7 @@
 class TeacherTutorial {
     constructor() {
         this.currentStep = 0;
+        this.isCompleted = false; // Флаг для отслеживания завершения обучения
         this.steps = [
             {
                 title: "Добро пожаловать в Лигу Знатоков!",
@@ -251,9 +252,21 @@ class TeacherTutorial {
         
         document.body.appendChild(this.container);
         
-        // Добавляем обработчики событий
-        this.container.querySelector('.tutorial-skip').addEventListener('click', () => this.skipTutorial());
-        this.container.querySelector('.tutorial-next').addEventListener('click', () => this.nextStep());
+        // Добавляем обработчики событий с защитой от повторных нажатий
+        this.container.querySelector('.tutorial-skip').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!this.isCompleted) {
+                this.skipTutorial();
+            }
+        });
+        this.container.querySelector('.tutorial-next').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!this.isCompleted) {
+                this.nextStep();
+            }
+        });
         
         // Обработчик изменения размера окна
         window.addEventListener('resize', () => {
@@ -261,11 +274,25 @@ class TeacherTutorial {
             clearTimeout(this.resizeTimeout);
             this.resizeTimeout = setTimeout(() => {
                 this.handleWindowResize();
-            }, 250);
+            }, 500); // Увеличиваем время debounce для мобильных устройств
         });
+        
+        // Дополнительная защита для мобильных устройств
+        this.container.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
+        
+        this.container.addEventListener('touchend', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
     }
     
     showStep(stepIndex) {
+        // Проверяем, что обучение не завершено
+        if (this.isCompleted) {
+            return;
+        }
+        
         const step = this.steps[stepIndex];
         
         // Обновляем содержимое
@@ -399,9 +426,16 @@ class TeacherTutorial {
     }
     
     completeTutorial() {
+        // Устанавливаем флаг завершения
+        this.isCompleted = true;
+        
         // Скрываем overlay и контейнер
-        this.overlay.style.display = 'none';
-        this.container.style.display = 'none';
+        if (this.overlay) {
+            this.overlay.style.display = 'none';
+        }
+        if (this.container) {
+            this.container.style.display = 'none';
+        }
         
         // Убираем блокировку элементов
         this.removeTutorialBlocking();
@@ -419,14 +453,20 @@ class TeacherTutorial {
             this.setCookie(cookieName, 'true', 365);
         }
         
-                 // Показываем уведомление
-         if (typeof showNotification === 'function') {
-             showNotification('Обучение завершено!', 'Теперь вы знаете все возможности личного кабинета учителя. Вы всегда можете повторить обучение, нажав кнопку "Обучение" в правом верхнем углу.', 'success');
-         }
+        // Показываем уведомление
+        if (typeof showNotification === 'function') {
+            showNotification('Обучение завершено!', 'Теперь вы знаете все возможности личного кабинета учителя. Вы всегда можете повторить обучение, нажав кнопку "Обучение" в правом верхнем углу.', 'success');
+        }
     }
     
     handleWindowResize() {
-        if (this.currentStep < this.steps.length) {
+        // Не перерисовываем обучение, если оно завершено или не активно
+        if (this.isCompleted || this.currentStep >= this.steps.length) {
+            return;
+        }
+        
+        // Проверяем, что обучение действительно активно (контейнер виден)
+        if (this.container && this.container.style.display === 'block') {
             this.showStep(this.currentStep);
         }
     }
@@ -566,5 +606,8 @@ document.head.appendChild(style);
 
 // Запускаем обучение при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
-    new TeacherTutorial();
+    // Проверяем, что обучение еще не запущено
+    if (!window.teacherTutorialInstance) {
+        window.teacherTutorialInstance = new TeacherTutorial();
+    }
 });

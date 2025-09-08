@@ -955,6 +955,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function resetTeacherTutorial() {
+    // Сбрасываем глобальный экземпляр обучения
+    if (window.teacherTutorialInstance) {
+        window.teacherTutorialInstance.isCompleted = true;
+        window.teacherTutorialInstance = null;
+    }
+    
     fetch('/reset-teacher-tutorial', {
         method: 'POST',
         headers: {
