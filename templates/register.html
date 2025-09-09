@@ -673,6 +673,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     const registerOverlay = document.getElementById('registerOverlay');
     const registerButton = document.getElementById('registerButton');
+    
+    // Автозаполнение школы учителя, если есть информация о школе
+    {% if teacher_school_name %}
+    const schoolInput = document.getElementById('educational_institution_search');
+    const schoolIdField = document.getElementById('educational_institution_id');
+    const schoolNameField = document.getElementById('educational_institution_name');
+    
+    if (schoolInput && schoolIdField && schoolNameField) {
+        // Заполняем поле поиска
+        schoolInput.value = '{{ teacher_school_name }}';
+        
+        // Устанавливаем название школы в скрытое поле
+        schoolNameField.value = '{{ teacher_school_name }}';
+        
+        // Показываем сообщение о автозаполнении
+        const schoolLabel = schoolInput.closest('.mb-3').querySelector('.form-label');
+        if (schoolLabel) {
+            const autoFillMessage = document.createElement('small');
+            autoFillMessage.className = 'text-muted d-block mt-1';
+            autoFillMessage.innerHTML = '<i class="fas fa-magic me-1"></i>Школа автоматически заполнена по приглашению учителя';
+            schoolLabel.parentNode.insertBefore(autoFillMessage, schoolLabel.nextSibling);
+        }
+        
+        // Валидируем поле
+        validateEducationalInstitution();
+        validateForm();
+    }
+    {% endif %}
 
     // Элементы для валидации
     const usernameInput = document.getElementById('username');

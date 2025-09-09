@@ -3741,6 +3741,10 @@ def register():
         # Привязываем к учителю, если есть код приглашения
         if teacher_invite_link:
             user.teacher_id = teacher_invite_link.teacher_id
+            
+            # Автоматически заполняем школу учителя, если у ученика не указана школа
+            if not edu_id and not edu_name and teacher_invite_link.teacher.educational_institution:
+                user.educational_institution_id = teacher_invite_link.teacher.educational_institution_id
         
         # Обрабатываем учреждение образования
         if edu_id:
@@ -3778,7 +3782,13 @@ def register():
                 user.teacher_id = teacher_invite_link.teacher_id
                 # Создаем запись о приглашении учителем
                 create_teacher_referral(teacher_invite_link.teacher_id, user.id, teacher_invite_link.id)
-                flash('Вы успешно прикреплены к учителю!', 'info')
+                
+                # Формируем сообщение с информацией о школе
+                message = 'Вы успешно прикреплены к учителю!'
+                if not edu_id and not edu_name and teacher_invite_link.teacher.educational_institution:
+                    message += f' Школа автоматически установлена: {teacher_invite_link.teacher.educational_institution.name}'
+                
+                flash(message, 'info')
             except Exception as e:
                 print(f"Ошибка при прикреплении к учителю: {e}")
 
@@ -3788,10 +3798,16 @@ def register():
         flash('Письмо с подтверждением отправлено на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
         return redirect(url_for('login'))
 
+    # Получаем информацию о школе учителя для автозаполнения
+    teacher_school_name = None
+    if teacher_invite_link and teacher_invite_link.teacher.educational_institution:
+        teacher_school_name = teacher_invite_link.teacher.educational_institution.name
+    
     return render_template('register.html', 
                           referral_code=referral_code, 
                           teacher_code=teacher_code,
-                          teacher_invite_link=teacher_invite_link)
+                          teacher_invite_link=teacher_invite_link,
+                          teacher_school_name=teacher_school_name)
 
 # Маршруты для учителей
 @app.route('/teacher-register', methods=['GET', 'POST'])
