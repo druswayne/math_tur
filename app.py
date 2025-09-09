@@ -8682,6 +8682,14 @@ def admin_clear_user_data():
             user.tournaments_count = 0  # Очищаем количество турниров
             user.category_rank = None  # Обнуляем ранг в категории
         
+        # Обнуляем счетчики бонусов учителей для корректной работы реферальной системы
+        teacher_referrals = TeacherReferral.query.all()
+        for referral in teacher_referrals:
+            referral.bonuses_paid_count = 0
+            referral.bonus_paid = False
+            referral.bonus_paid_at = None
+            referral.last_bonus_paid_at = None
+        
         # Очищаем историю решенных задач
         SolvedTask.query.delete()
         
@@ -8705,7 +8713,7 @@ def admin_clear_user_data():
         
         return jsonify({
             'success': True,
-            'message': 'Данные пользователей, турниров и задач успешно очищены'
+            'message': 'Данные пользователей, турниров, задач и счетчики бонусов учителей успешно очищены'
         })
     except Exception as e:
         db.session.rollback()
