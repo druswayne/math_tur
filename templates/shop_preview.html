@@ -35,9 +35,9 @@
                         <div class="col-md-4 mb-4">
                             <div class="card h-100 shadow-sm">
                                 {% if prize.image %}
-                                    <img src="{{ get_s3_url(prize.image, 'prizes') }}" class="card-img-top" alt="{{ prize.name }}" style="height: 200px; object-fit: cover;">
+                                    <img src="{{ get_s3_url(prize.image, 'prizes') }}" class="card-img-top" alt="{{ prize.name }}" style="height: 200px; object-fit: cover; margin-top: 30px;">
                                 {% else %}
-                                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px; margin-top: 30px;">
                                         <i class="fas fa-gift fa-3x text-muted"></i>
                                     </div>
                                 {% endif %}
@@ -51,16 +51,7 @@
                                     <p class="card-text flex-grow-1">{{ prize.description }}</p>
                                 </div>
                                 <div class="card-footer bg-transparent">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="badge bg-warning text-dark">
-                                            <i class="fas fa-coins me-1"></i>{{ prize.points_cost }} баллов
-                                        </span>
-                                        {% if prize.quantity == -1 %}
-                                            <span class="badge bg-success">Неограниченно</span>
-                                        {% else %}
-                                            <span class="badge bg-info">Осталось: {{ prize.quantity }}</span>
-                                        {% endif %}
-                                    </div>
+                                    <!-- Информация о стоимости и количестве удалена -->
                                 </div>
                             </div>
                         </div>
