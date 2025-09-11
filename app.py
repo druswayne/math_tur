@@ -2433,19 +2433,35 @@ def admin_delete_user(user_id):
     
     try:
         # Удаляем связанные записи в правильном порядке
-        # 1. Удаляем реферальные ссылки пользователя
+        # 1. Удаляем товары из корзины пользователя
+        CartItem.query.filter_by(user_id=user.id).delete()
+        
+        # 2. Удаляем покупки билетов пользователя
+        TicketPurchase.query.filter_by(user_id=user.id).delete()
+        
+        # 3. Удаляем покупки призов пользователя
+        PrizePurchase.query.filter_by(user_id=user.id).delete()
+        
+        # 4. Удаляем реферальные ссылки пользователя
         ReferralLink.query.filter_by(user_id=user.id).delete()
         
-        # 2. Удаляем рефералы, где пользователь является приглашенным
+        # 5. Удаляем рефералы, где пользователь является приглашенным
         Referral.query.filter_by(referred_id=user.id).delete()
         
-        # 3. Удаляем рефералы, где пользователь является пригласившим
+        # 6. Удаляем рефералы, где пользователь является пригласившим
         Referral.query.filter_by(referrer_id=user.id).delete()
         
-        # 4. Удаляем сессии пользователя
+        # 7. Удаляем переводы студентов, где пользователь является студентом
+        TeacherStudentTransfer.query.filter_by(student_id=user.id).delete()
+        
+        # 8. Удаляем рефералы учителей, где пользователь является студентом
+        TeacherReferral.query.filter_by(student_id=user.id).delete()
+        
+        # 9. Удаляем сессии пользователя
         UserSession.query.filter_by(user_id=user.id, user_type='user').delete()
         
-        # 5. Удаляем самого пользователя
+        # 10. Удаляем самого пользователя
+        # (TournamentParticipation, SolvedTask, ActiveTask удалятся автоматически из-за CASCADE)
         db.session.delete(user)
         db.session.commit()
         
