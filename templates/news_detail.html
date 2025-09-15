@@ -303,6 +303,8 @@
     font-size: 0.9rem;
     transition: all 0.2s ease;
     white-space: nowrap;
+    max-width: 100%;
+    word-break: break-word;
 }
 
 .news-file-link:hover {
@@ -326,6 +328,35 @@
 
 .news-file-link i {
     font-size: 1rem;
+}
+
+/* Адаптивные стили для файлов новостей */
+@media (max-width: 768px) {
+    .news-files-list {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .news-file-link {
+        white-space: normal;
+        flex-wrap: wrap;
+        min-height: auto;
+        padding: 0.75rem;
+    }
+    
+    .news-file-link .file-name {
+        word-break: break-word;
+        hyphens: auto;
+        -webkit-hyphens: auto;
+        -ms-hyphens: auto;
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .news-file-link .file-size {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
 }
 
 .news-footer {
