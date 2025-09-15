@@ -7851,7 +7851,12 @@ def news_file_view(file_id):
         
         flask_response = make_response(file_data)
         flask_response.headers['Content-Type'] = 'application/pdf'
-        flask_response.headers['Content-Disposition'] = f'inline; filename="{news_file.original_filename}"'
+        
+        # Правильно кодируем имя файла для HTTP заголовка
+        import urllib.parse
+        encoded_filename = urllib.parse.quote(news_file.original_filename.encode('utf-8'))
+        flask_response.headers['Content-Disposition'] = f'inline; filename*=UTF-8\'\'{encoded_filename}'
+        
         flask_response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         flask_response.headers['Pragma'] = 'no-cache'
         flask_response.headers['Expires'] = '0'
