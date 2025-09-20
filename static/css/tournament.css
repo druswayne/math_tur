@@ -1,0 +1,88 @@
+/* Стили для чекбокса согласия с правилами турнира */
+#rulesAgreement.form-check-input {
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, transform 0.15s ease-in-out !important;
+    border: 1px solid #dee2e6 !important;
+    cursor: pointer !important;
+    animation: checkboxPulse 2s infinite !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+#rulesAgreement.form-check-input:hover {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 4px rgba(40, 167, 69, 0.3) !important;
+    transform: scale(1.1) !important;
+}
+
+#rulesAgreement.form-check-input:checked {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    animation: none !important; /* Убираем пульсацию для активированных чекбоксов */
+    transform: scale(1) !important;
+}
+
+#rulesAgreement.form-check-input:focus {
+    border-color: #28a745 !important;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+    outline: none !important;
+}
+
+/* Стили для лейбла чекбокса */
+.form-check-label[for="rulesAgreement"] {
+    font-weight: 600 !important;
+    color: #2c3e50 !important;
+    cursor: pointer !important;
+    transition: color 0.3s ease !important;
+    font-size: 1.1rem !important;
+}
+
+.form-check-label[for="rulesAgreement"]:hover {
+    color: #28a745 !important;
+}
+
+/* Анимация пульсации */
+@keyframes checkboxPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.8) !important;
+        transform: scale(1) !important;
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(40, 167, 69, 0.2) !important;
+        transform: scale(1.08) !important;
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0) !important;
+        transform: scale(1) !important;
+    }
+}
+
+/* Дополнительный контейнер для чекбокса */
+.form-check:has(#rulesAgreement) {
+    position: relative !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+    background-color: rgba(40, 167, 69, 0.05) !important;
+    border: 2px dashed rgba(40, 167, 69, 0.3) !important;
+    margin: 15px 0 !important;
+}
+
+/* Анимация для контейнера */
+.form-check:has(#rulesAgreement) {
+    animation: containerPulse 3s infinite !important;
+}
+
+@keyframes containerPulse {
+    0% {
+        background-color: rgba(40, 167, 69, 0.05) !important;
+        border-color: rgba(40, 167, 69, 0.3) !important;
+    }
+    50% {
+        background-color: rgba(40, 167, 69, 0.1) !important;
+        border-color: rgba(40, 167, 69, 0.5) !important;
+    }
+    100% {
+        background-color: rgba(40, 167, 69, 0.05) !important;
+        border-color: rgba(40, 167, 69, 0.3) !important;
+    }
+}
+

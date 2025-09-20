@@ -144,7 +144,8 @@
                 </p>
                 <div class="countdown-timer mb-4" 
                      data-start="{{ next_tournament.start_date.isoformat() }}"
-                     data-duration="{{ next_tournament.duration }}">
+                     data-duration="{{ next_tournament.duration }}"
+                     style="position: relative;">
                     <div class="countdown-items">
                         <div class="countdown-item">
                             <div class="countdown-number" id="days">00</div>
@@ -161,6 +162,12 @@
                         <div class="countdown-item">
                             <div class="countdown-number" id="seconds">00</div>
                             <div class="countdown-label">секунд</div>
+                        </div>
+                    </div>
+                    <!-- Контейнер для гифки в красной рамке -->
+                    <div class="gif-overlay-container">
+                        <div class="gif-red-frame">
+                            <img src="{{ url_for('static', filename='1.gif') }}" alt="Анимация" class="overlay-gif">
                         </div>
                     </div>
                 </div>
