@@ -73,6 +73,20 @@ class CurrencyRate(Base):
     def __repr__(self):
         return f"<CurrencyRate(currency_pair='{self.currency_pair}', rate={self.rate}, source='{self.source}')>"
 
+class TrackingLink(Base):
+    """Модель для отслеживания уникальных ссылок"""
+    __tablename__ = "tracking_links"
+
+    id = Column(Integer, primary_key=True, index=True)
+    resource_name = Column(String(200), nullable=False)  # Название ресурса
+    unique_code = Column(String(50), unique=True, nullable=False, index=True)  # Уникальный код ссылки
+    click_count = Column(Integer, default=0)  # Количество переходов
+    created_at = Column(DateTime, default=datetime.now)
+    created_by = Column(Integer, nullable=True)  # ID администратора, создавшего ссылку
+    
+    def __repr__(self):
+        return f"<TrackingLink(resource_name='{self.resource_name}', unique_code='{self.unique_code}', clicks={self.click_count})>"
+
 # Создаем таблицы в базе данных (только если запускаем models.py напрямую)
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)

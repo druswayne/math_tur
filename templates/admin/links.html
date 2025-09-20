@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('admin_dashboard') }}">Панель администратора</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('home') }}">На сайт</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Выйти</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container mt-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Панель администратора</a></li>
+                    <li class="breadcrumb-item active">Ссылки</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Управление ссылками</h2>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLinkModal">
+                    <i class="bi bi-plus-circle me-2"></i>Создать ссылку
+                </button>
+            </div>
+
+            {% if links %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Название ресурса</th>
+                                    <th>Ссылка</th>
+                                    <th>Переходы</th>
+                                    <th>Дата создания</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for link in links %}
+                                <tr>
+                                    <td>{{ link.id }}</td>
+                                    <td>{{ link.resource_name }}</td>
+                                    <td>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control form-control-sm" 
+                                                   value="{{ request.url_root.rstrip('/') }}/?ref={{ link.unique_code }}" 
+                                                   readonly id="link-{{ link.id }}">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" 
+                                                    onclick="copyToClipboard('link-{{ link.id }}')">
+                                                <i class="bi bi-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ link.click_count }}</span>
+                                    </td>
+                                    <td>{{ link.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                    <td>
+                                        <button class="btn btn-danger btn-sm" 
+                                                onclick="deleteLink({{ link.id }}, '{{ link.resource_name }}')">
+                                            <i class="bi bi-trash"></i> Удалить
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Пагинация -->
+                    {% if pagination.pages > 1 %}
+                    <nav aria-label="Пагинация ссылок">
+                        <ul class="pagination justify-content-center">
+                            {% if pagination.has_prev %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin_links', page=pagination.prev_num) }}">Предыдущая</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in pagination.iter_pages() %}
+                                {% if page_num %}
+                                    {% if page_num != pagination.page %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('admin_links', page=page_num) }}">{{ page_num }}</a>
+                                        </li>
+                                    {% else %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ page_num }}</span>
+                                        </li>
+                                    {% endif %}
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">…</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if pagination.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="{{ url_for('admin_links', page=pagination.next_num) }}">Следующая</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="bi bi-link-45deg fs-1 text-muted mb-3"></i>
+                    <h5 class="card-title">Ссылки не созданы</h5>
+                    <p class="card-text">Создайте первую ссылку для отслеживания переходов пользователей.</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLinkModal">
+                        <i class="bi bi-plus-circle me-2"></i>Создать ссылку
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Модальное окно создания ссылки -->
+    <div class="modal fade" id="createLinkModal" tabindex="-1" aria-labelledby="createLinkModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createLinkModalLabel">Создать новую ссылку</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="createLinkForm">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="resourceName" class="form-label">Название ресурса *</label>
+                            <input type="text" class="form-control" id="resourceName" name="resource_name" 
+                                   placeholder="Например: ВКонтакте, Instagram, Яндекс.Директ" required maxlength="200">
+                            <div class="form-text">Укажите название источника, откуда будут переходить пользователи</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">
+                            <span class="spinner-border spinner-border-sm me-2 d-none" id="createSpinner"></span>
+                            Создать ссылку
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container py-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Управление ссылками</h5>
+                    <p>Отслеживание переходов пользователей с различных источников</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h5>Статистика</h5>
+                    <p>Всего ссылок: {{ links|length if links else 0 }}</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Функция копирования ссылки в буфер обмена
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            element.select();
+            element.setSelectionRange(0, 99999); // Для мобильных устройств
+            
+            try {
+                document.execCommand('copy');
+                // Показываем уведомление
+                const button = element.nextElementSibling;
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="bi bi-check"></i>';
+                button.classList.add('btn-success');
+                button.classList.remove('btn-outline-secondary');
+                
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    button.classList.remove('btn-success');
+                    button.classList.add('btn-outline-secondary');
+                }, 2000);
+            } catch (err) {
+                console.error('Ошибка при копировании: ', err);
+                alert('Не удалось скопировать ссылку');
+            }
+        }
+
+        // Функция удаления ссылки
+        function deleteLink(linkId, resourceName) {
+            if (confirm(`Вы уверены, что хотите удалить ссылку для ресурса "${resourceName}"?`)) {
+                fetch(`/admin/links/${linkId}/delete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `_method=DELETE`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Ошибка: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                    alert('Произошла ошибка при удалении ссылки');
+                });
+            }
+        }
+
+        // Обработка формы создания ссылки
+        document.getElementById('createLinkForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const spinner = document.getElementById('createSpinner');
+            const submitBtn = this.querySelector('button[type="submit"]');
+            
+            // Показываем спиннер
+            spinner.classList.remove('d-none');
+            submitBtn.disabled = true;
+            
+            fetch('/admin/links/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Закрываем модальное окно
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createLinkModal'));
+                    modal.hide();
+                    
+                    // Очищаем форму
+                    this.reset();
+                    
+                    // Перезагружаем страницу для отображения новой ссылки
+                    location.reload();
+                } else {
+                    alert('Ошибка: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при создании ссылки');
+            })
+            .finally(() => {
+                // Скрываем спиннер
+                spinner.classList.add('d-none');
+                submitBtn.disabled = false;
+            });
+        });
+
+        // Автоматическое скрытие уведомлений через 5 секунд
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

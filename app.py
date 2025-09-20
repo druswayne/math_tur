@@ -1938,6 +1938,19 @@ def reset_teacher_password(token):
 
 @app.route('/')
 def home():
+    # Проверяем наличие параметра ref для отслеживания
+    ref_code = request.args.get('ref')
+    if ref_code:
+        try:
+            # Находим ссылку по коду и увеличиваем счетчик переходов
+            link = TrackingLink.query.filter_by(unique_code=ref_code).first()
+            if link:
+                link.click_count += 1
+                db.session.commit()
+        except Exception as e:
+            # Логируем ошибку, но не прерываем работу сайта
+            print(f"Ошибка при отслеживании перехода: {e}")
+    
     settings = TournamentSettings.get_settings()
     if settings.is_season_active:
         # Получаем текущее время
@@ -8758,6 +8771,106 @@ def admin_clear_user_data():
             'message': f'Произошла ошибка при очистке данных: {str(e)}'
         }), 500
 
+@app.route('/admin/links')
+@login_required
+def admin_links():
+    """Страница управления отслеживающими ссылками"""
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    # Получаем параметры пагинации
+    page = request.args.get('page', 1, type=int)
+    per_page = 20  # Количество ссылок на странице
+    
+    if page < 1:
+        page = 1
+    
+    # Получаем ссылки с пагинацией, отсортированные по дате создания (новые сверху)
+    links = TrackingLink.query.order_by(TrackingLink.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template('admin/links.html', 
+                         title='Управление ссылками',
+                         links=links.items,
+                         pagination=links)
+
+@app.route('/admin/links/create', methods=['POST'])
+@login_required
+def admin_create_link():
+    """Создание новой отслеживающей ссылки"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+    
+    try:
+        resource_name = request.form.get('resource_name', '').strip()
+        
+        if not resource_name:
+            return jsonify({'success': False, 'message': 'Название ресурса не может быть пустым'})
+        
+        if len(resource_name) > 200:
+            return jsonify({'success': False, 'message': 'Название ресурса слишком длинное (максимум 200 символов)'})
+        
+        # Генерируем уникальный код ссылки
+        import secrets
+        unique_code = secrets.token_urlsafe(32)
+        
+        # Проверяем, что код уникален (очень маловероятно, но на всякий случай)
+        while TrackingLink.query.filter_by(unique_code=unique_code).first():
+            unique_code = secrets.token_urlsafe(32)
+        
+        # Создаем новую ссылку
+        new_link = TrackingLink(
+            resource_name=resource_name,
+            unique_code=unique_code,
+            created_by=current_user.id
+        )
+        
+        db.session.add(new_link)
+        db.session.commit()
+        
+        # Формируем полную ссылку
+        base_url = request.url_root.rstrip('/')
+        full_url = f"{base_url}/?ref={unique_code}"
+        
+        return jsonify({
+            'success': True, 
+            'message': 'Ссылка успешно создана',
+            'link': {
+                'id': new_link.id,
+                'resource_name': new_link.resource_name,
+                'unique_code': new_link.unique_code,
+                'full_url': full_url,
+                'click_count': 0,
+                'created_at': new_link.created_at.strftime('%d.%m.%Y %H:%M')
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Ошибка при создании ссылки: {str(e)}'}), 500
+
+@app.route('/admin/links/<int:link_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_link(link_id):
+    """Удаление отслеживающей ссылки"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+    
+    try:
+        link = TrackingLink.query.get_or_404(link_id)
+        
+        db.session.delete(link)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Ссылка успешно удалена'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Ошибка при удалении ссылки: {str(e)}'}), 500
+
+
 @app.route('/reset-session', methods=['POST'])
 def reset_session():
     """Сброс сессии пользователя без авторизации (для входа с другого устройства)"""
@@ -9010,6 +9123,20 @@ class Teacher(UserMixin, db.Model):
     def get_id(self):
         """Возвращает ID для Flask-Login с префиксом 't' для учителей"""
         return f't{self.id}'
+
+class TrackingLink(db.Model):
+    """Модель для отслеживания уникальных ссылок"""
+    __tablename__ = "tracking_links"
+
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    resource_name = db.Column(db.String(200), nullable=False)  # Название ресурса
+    unique_code = db.Column(db.String(50), unique=True, nullable=False, index=True)  # Уникальный код ссылки
+    click_count = db.Column(db.Integer, default=0)  # Количество переходов
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_by = db.Column(db.Integer, nullable=True)  # ID администратора, создавшего ссылку
+    
+    def __repr__(self):
+        return f"<TrackingLink(resource_name='{self.resource_name}', unique_code='{self.unique_code}', clicks={self.click_count})>"
 
 class TeacherInviteLink(db.Model):
     __tablename__ = "teacher_invite_links"
