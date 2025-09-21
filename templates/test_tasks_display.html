@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}Тестовое отображение всех задач{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 test-tasks-page">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок страницы -->
+            <div class="card mb-4">
+                <div class="card-body text-center">
+                    <h1 class="card-title mb-3">
+                        <i class="fas fa-tasks me-2 icon-gradient"></i>
+                        Тестовое отображение всех задач
+                    </h1>
+                    <p class="card-text text-muted">
+                        Всего задач в базе данных: <strong>{{ total_tasks }}</strong>
+                    </p>
+                    <div class="divider"></div>
+                </div>
+            </div>
+
+            <!-- Фильтры и поиск -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="searchInput" class="form-label">
+                                <i class="fas fa-search me-1"></i>Поиск по тексту задачи
+                            </label>
+                            <input type="text" class="form-control" id="searchInput" 
+                                   placeholder="Введите текст для поиска...">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="categoryFilter" class="form-label">
+                                <i class="fas fa-filter me-1"></i>Категория
+                            </label>
+                            <select class="form-select" id="categoryFilter">
+                                <option value="">Все категории</option>
+                                {% for category in categories %}
+                                <option value="{{ category }}">{{ category }} класс</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="tournamentFilter" class="form-label">
+                                <i class="fas fa-trophy me-1"></i>Турнир
+                            </label>
+                            <select class="form-select" id="tournamentFilter">
+                                <option value="">Все турниры</option>
+                                {% for tournament_title in tasks_by_tournament.keys() %}
+                                <option value="{{ tournament_title }}">{{ tournament_title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Отображение задач по турнирам -->
+            {% for tournament_title, tasks in tasks_by_tournament.items() %}
+            <div class="tournament-section mb-5" data-tournament="{{ tournament_title }}">
+                <div class="card tournament-card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <i class="fas fa-trophy me-2"></i>
+                            {{ tournament_title }}
+                            <span class="badge badge-primary ms-2">{{ tasks|length }} задач</span>
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% for task in tasks %}
+                            <div class="col-12 col-lg-6 mb-4">
+                                <div class="card task-card h-100" 
+                                     data-category="{{ task.category }}" 
+                                     data-tournament="{{ tournament_title }}">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-puzzle-piece me-2"></i>
+                                            {{ task.title }}
+                                        </h5>
+                                        <div class="task-badges">
+                                            {% set badge_color = 'primary' %}
+                                            {% if task.category in ['1-2', '3', '4'] %}
+                                                {% set badge_color = 'success' %}
+                                            {% elif task.category in ['5', '6', '7'] %}
+                                                {% set badge_color = 'warning' %}
+                                            {% elif task.category in ['8', '9'] %}
+                                                {% set badge_color = 'danger' %}
+                                            {% elif task.category in ['10', '11'] %}
+                                                {% set badge_color = 'dark' %}
+                                            {% endif %}
+                                            <span class="badge badge-{{ badge_color }}">
+                                                {{ task.category }} класс
+                                            </span>
+                                            <span class="badge badge-info ms-1">
+                                                {{ task.points }} баллов
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <!-- Описание задачи -->
+                                        <div class="task-description mb-3">
+                                            <h6 class="text-muted mb-2">
+                                                <i class="fas fa-align-left me-1"></i>Описание:
+                                            </h6>
+                                             <div class="description-text">
+                                                 {{ task.description|nl2br }}
+                                             </div>
+                                        </div>
+
+                                        <!-- Изображение задачи -->
+                                        {% if task.image %}
+                                        <div class="task-image-container mb-3">
+                                            <h6 class="text-muted mb-2">
+                                                <i class="fas fa-image me-1"></i>Изображение:
+                                            </h6>
+                                            <div class="text-center">
+                                                <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}" 
+                                                     alt="Изображение к задаче: {{ task.title }}" 
+                                                     class="img-fluid task-image-preview"
+                                                     style="max-height: 300px; object-fit: contain; cursor: pointer; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#imageModal"
+                                                     data-image-src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
+                                                     data-image-alt="Изображение к задаче: {{ task.title }}">
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-search-plus me-1"></i>Нажмите для увеличения
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+
+                                        <!-- Дополнительная информация -->
+                                        <div class="task-details">
+                                            {% if task.topic %}
+                                            <div class="mb-2">
+                                                <strong class="text-muted">
+                                                    <i class="fas fa-tag me-1"></i>Тема:
+                                                </strong>
+                                                <span class="ms-1">{{ task.topic }}</span>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            <div class="mb-2">
+                                                <strong class="text-muted">
+                                                    <i class="fas fa-check-circle me-1"></i>Правильный ответ:
+                                                </strong>
+                                                <span class="ms-1 text-success fw-bold">{{ task.correct_answer }}</span>
+                                            </div>
+                                            
+                                            <div class="mb-2">
+                                                <strong class="text-muted">
+                                                    <i class="fas fa-calendar me-1"></i>Создана:
+                                                </strong>
+                                                <span class="ms-1">{{ task.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Решение (если есть) -->
+                                        {% if task.solution_text or task.solution_image %}
+                                        <div class="task-solution mt-3 pt-3 border-top">
+                                            <h6 class="text-muted mb-2">
+                                                <i class="fas fa-lightbulb me-1"></i>Решение:
+                                            </h6>
+                                            
+                                             {% if task.solution_text %}
+                                             <div class="solution-text mb-2">
+                                                 {{ task.solution_text|nl2br }}
+                                             </div>
+                                             {% endif %}
+                                            
+                                            {% if task.solution_image %}
+                                            <div class="solution-image text-center">
+                                                <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.solution_image }}" 
+                                                     alt="Решение задачи: {{ task.title }}" 
+                                                     class="img-fluid solution-image-preview"
+                                                     style="max-height: 200px; object-fit: contain; cursor: pointer; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);"
+                                                     data-bs-toggle="modal" 
+                                                     data-bs-target="#imageModal"
+                                                     data-image-src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.solution_image }}"
+                                                     data-image-alt="Решение задачи: {{ task.title }}">
+                                                <div class="mt-1">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-search-plus me-1"></i>Изображение решения
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-footer text-muted">
+                                        <small>
+                                            <i class="fas fa-hashtag me-1"></i>ID: {{ task.id }} | 
+                                            <i class="fas fa-trophy me-1"></i>Турнир ID: {{ task.tournament_id }}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Сообщение, если нет задач -->
+            {% if not tasks_by_tournament %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h4 class="text-muted">Задачи не найдены</h4>
+                    <p class="text-muted">В базе данных пока нет задач для отображения.</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно для просмотра изображений -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">Просмотр изображения</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="" class="img-fluid" style="max-height: 70vh; object-fit: contain;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Дополнительные стили для тестовой страницы -->
+<style>
+.task-card {
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.task-description {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.description-text {
+    font-size: 14px;
+    line-height: 1.6;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.task-image-container {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-color);
+}
+
+.task-solution {
+    background: #f0f8ff;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid var(--success-color);
+}
+
+.task-badges .badge {
+    font-size: 0.75rem;
+}
+
+.tournament-section {
+    scroll-margin-top: 80px;
+}
+
+/* Адаптивные стили для мобильных устройств */
+@media (max-width: 768px) {
+    .task-card .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .task-badges {
+        margin-top: 10px;
+        width: 100%;
+    }
+    
+    .task-badges .badge {
+        font-size: 0.7rem;
+        margin-bottom: 5px;
+    }
+    
+    .description-text {
+        max-height: 120px;
+        font-size: 13px;
+    }
+    
+    .task-image-preview,
+    .solution-image-preview {
+        max-height: 200px !important;
+    }
+    
+    .task-details {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .task-card {
+        margin-bottom: 1rem;
+    }
+    
+    .task-description,
+    .task-image-container,
+    .task-solution {
+        padding: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .description-text {
+        max-height: 100px;
+        font-size: 12px;
+    }
+    
+    .task-image-preview,
+    .solution-image-preview {
+        max-height: 150px !important;
+    }
+    
+    .card-header h5 {
+        font-size: 1rem;
+    }
+    
+    .task-details {
+        font-size: 0.85rem;
+    }
+    
+    .task-badges .badge {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.4rem;
+    }
+}
+
+/* Стили для скрытия элементов при фильтрации */
+.task-card.hidden {
+    display: none !important;
+}
+
+.tournament-section.hidden {
+    display: none !important;
+}
+
+/* Выделение найденного текста */
+.highlight {
+    background-color: yellow;
+    font-weight: bold;
+}
+
+/* Дополнительные стили для бейджей категорий */
+.badge-success {
+    background-color: #28a745 !important; /* Младшие классы (1-4) - зеленый */
+}
+
+.badge-warning {
+    background-color: #ffc107 !important; /* Средние классы (5-7) - желтый */
+    color: #000 !important;
+}
+
+.badge-danger {
+    background-color: #dc3545 !important; /* Старшие классы (8-9) - красный */
+}
+
+.badge-dark {
+    background-color: #6c757d !important; /* Выпускные классы (10-11) - темно-серый */
+}
+
+.badge-primary {
+    background-color: #007bff !important; /* Остальные категории - синий */
+}
+</style>
+
+<!-- JavaScript для фильтрации и поиска -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const tournamentFilter = document.getElementById('tournamentFilter');
+    
+    // Обработчик модального окна для изображений
+    const imageModal = document.getElementById('imageModal');
+    imageModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const imageSrc = button.getAttribute('data-image-src');
+        const imageAlt = button.getAttribute('data-image-alt');
+        
+        const modalImage = imageModal.querySelector('#modalImage');
+        const modalTitle = imageModal.querySelector('#imageModalLabel');
+        
+        modalImage.src = imageSrc;
+        modalImage.alt = imageAlt;
+        modalTitle.textContent = imageAlt || 'Просмотр изображения';
+    });
+    
+    // Функция фильтрации
+    function filterTasks() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedCategory = categoryFilter.value;
+        const selectedTournament = tournamentFilter.value;
+        
+        const taskCards = document.querySelectorAll('.task-card');
+        const tournamentSections = document.querySelectorAll('.tournament-section');
+        
+        // Фильтруем задачи
+        taskCards.forEach(card => {
+            const category = card.getAttribute('data-category');
+            const tournament = card.getAttribute('data-tournament');
+            const taskText = card.textContent.toLowerCase();
+            
+            const matchesSearch = !searchTerm || taskText.includes(searchTerm);
+            const matchesCategory = !selectedCategory || category === selectedCategory;
+            const matchesTournament = !selectedTournament || tournament === selectedTournament;
+            
+            if (matchesSearch && matchesCategory && matchesTournament) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+        
+        // Скрываем турниры без видимых задач
+        tournamentSections.forEach(section => {
+            const visibleTasks = section.querySelectorAll('.task-card:not(.hidden)');
+            if (visibleTasks.length === 0) {
+                section.classList.add('hidden');
+            } else {
+                section.classList.remove('hidden');
+            }
+        });
+    }
+    
+    // Добавляем обработчики событий
+    searchInput.addEventListener('input', filterTasks);
+    categoryFilter.addEventListener('change', filterTasks);
+    tournamentFilter.addEventListener('change', filterTasks);
+    
+    // Функция для выделения найденного текста
+    function highlightSearchTerm() {
+        const searchTerm = searchInput.value.toLowerCase();
+        if (!searchTerm) return;
+        
+        const taskCards = document.querySelectorAll('.task-card:not(.hidden)');
+        taskCards.forEach(card => {
+            const textElements = card.querySelectorAll('.description-text, .task-details');
+            textElements.forEach(element => {
+                let html = element.innerHTML;
+                // Удаляем предыдущие выделения
+                html = html.replace(/<span class="highlight">(.*?)<\/span>/gi, '$1');
+                // Добавляем новые выделения
+                if (searchTerm.length > 2) {
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    html = html.replace(regex, '<span class="highlight">$1</span>');
+                }
+                element.innerHTML = html;
+            });
+        });
+    }
+    
+    // Обновляем выделение при поиске
+    searchInput.addEventListener('input', function() {
+        setTimeout(highlightSearchTerm, 100);
+    });
+});
+</script>
+{% endblock %}

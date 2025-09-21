@@ -2510,7 +2510,8 @@ main {
 }
 
 .gif-red-frame {
-    /* Убираем рамку, фон и анимацию */
+    /* Убираем рамку, фон и анимацию - правило оставлено для совместимости */
+    display: block;
 }
 
 .overlay-gif {
@@ -2543,5 +2544,65 @@ main {
     .overlay-gif {
         max-width: 72px;
         max-height: 72px;
+    }
+}
+
+/* Дополнительные стили для тестовой страницы задач */
+.test-tasks-page .task-image-preview {
+    aspect-ratio: 4/3;
+    object-fit: contain;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+}
+
+.test-tasks-page .task-image-preview:hover {
+    transform: scale(1.02);
+    box-shadow: var(--box-shadow-hover);
+}
+
+.test-tasks-page .solution-image-preview {
+    aspect-ratio: 3/2;
+    object-fit: contain;
+    border-radius: calc(var(--border-radius) * 0.75);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transition: var(--transition);
+}
+
+.test-tasks-page .solution-image-preview:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Оптимизация для мобильных устройств в тестовой странице */
+@media (max-width: 768px) {
+    .test-tasks-page .task-image-preview {
+        max-height: 200px;
+        width: 100%;
+    }
+    
+    .test-tasks-page .solution-image-preview {
+        max-height: 150px;
+        width: 100%;
+    }
+    
+    .test-tasks-page .description-text {
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+}
+
+@media (max-width: 576px) {
+    .test-tasks-page .task-image-preview {
+        max-height: 150px;
+    }
+    
+    .test-tasks-page .solution-image-preview {
+        max-height: 120px;
+    }
+    
+    .test-tasks-page .description-text {
+        font-size: 0.85rem;
+        line-height: 1.4;
     }
 }

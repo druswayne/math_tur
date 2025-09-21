@@ -1,5 +1,6 @@
 import psutil
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory, abort
+from markupsafe import Markup
 from functools import wraps
 import PyPDF2
 from reportlab.pdfgen import canvas
@@ -296,6 +297,18 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:1234@localhost:5432/school_tournaments'
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('SQLALCHEMY_DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Функция для преобразования переносов строк в HTML
+def nl2br(text):
+    """Преобразует переносы строк в HTML <br> теги"""
+    if not text:
+        return ''
+    # Заменяем переносы строк на <br> теги
+    return Markup(text.replace('\n', '<br>').replace('\r\n', '<br>').replace('\r', '<br>'))
+
+# Регистрируем фильтр для использования в шаблонах
+app.jinja_env.filters['nl2br'] = nl2br
+
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 300,  # Увеличиваем базовый размер пула для 2000+ пользователей
     'max_overflow': 200,  # Увеличиваем дополнительные соединения при пиковой нагрузке
@@ -10519,7 +10532,44 @@ def copy_referral_link():
         'message': 'Ссылка скопирована в буфер обмена'
     })
 
-
+# Тестовый маршрут для отображения всех задач
+@app.route('/test/tasks')
+@login_required
+def test_tasks_display():
+    """Тестовый маршрут для отображения всех задач из базы данных"""
+    if not current_user.is_admin:
+        flash('Доступ запрещен', 'danger')
+        return redirect(url_for('home'))
+    
+    try:
+        # Получаем все задачи с информацией о турнирах
+        tasks = db.session.query(Task).join(Tournament).order_by(
+            Tournament.title, Task.created_at
+        ).all()
+        
+        # Получаем уникальные категории из базы данных
+        categories = db.session.query(Task.category).distinct().order_by(Task.category).all()
+        unique_categories = [cat[0] for cat in categories if cat[0]]  # Исключаем None значения
+        
+        # Группируем задачи по турнирам для лучшего отображения
+        tasks_by_tournament = {}
+        for task in tasks:
+            tournament_title = task.tournament.title
+            if tournament_title not in tasks_by_tournament:
+                tasks_by_tournament[tournament_title] = []
+            tasks_by_tournament[tournament_title].append(task)
+        
+        return render_template('test_tasks_display.html', 
+                             tasks_by_tournament=tasks_by_tournament,
+                             total_tasks=len(tasks),
+                             categories=unique_categories)
+    
+    except Exception as e:
+        flash(f'Ошибка при загрузке задач: {str(e)}', 'danger')
+        return render_template('test_tasks_display.html', 
+                             tasks_by_tournament={},
+                             total_tasks=0,
+                             categories=[])
 
 if __name__ == '__main__':
     #logging.basicConfig(filename='err.log', level=logging.DEBUG)

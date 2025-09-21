@@ -454,10 +454,12 @@ document.addEventListener('DOMContentLoaded', function() {
             let solutionContent = '';
             
             if (solutionText) {
+                // Преобразуем переносы строк в HTML
+                const formattedSolutionText = solutionText.replace(/\n/g, '<br>').replace(/\r\n/g, '<br>').replace(/\r/g, '<br>');
                 solutionContent += `<div class="mb-3">
                     <h6><i class="fas fa-file-text me-2"></i>Текст решения:</h6>
-                    <div class="solution-text" style="white-space: pre-line; background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
-                        ${solutionText}
+                    <div class="solution-text" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border-left: 4px solid #007bff;">
+                        ${formattedSolutionText}
                     </div>
                 </div>`;
             }

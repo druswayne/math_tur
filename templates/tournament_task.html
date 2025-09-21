@@ -73,7 +73,7 @@
                             <h4 class="mb-0 no-select flex-grow-1">{{ task.title }}</h4>
                             <span class="badge bg-primary fs-5">{{ task.points }} баллов</span>
                         </div>
-                        <p class="mb-4 no-select">{{ task.description }}</p>
+                        <div class="mb-4 no-select">{{ task.description|nl2br }}</div>
 
                         {% if task.image %}
                         <div class="text-center mb-4">
