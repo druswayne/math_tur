@@ -696,11 +696,23 @@ document.addEventListener('DOMContentLoaded', function() {
             schoolLabel.parentNode.insertBefore(autoFillMessage, schoolLabel.nextSibling);
         }
         
-        // Валидируем поле
-        validateEducationalInstitution();
-        validateForm();
+        // Валидируем поле - функции будут вызваны после их объявления
     }
     {% endif %}
+
+    // Состояние валидации - объявляем в начале
+    let validationState = {
+        username: false,
+        password: false,
+        confirmPassword: false,
+        studentName: false,
+        parentName: false,
+        phone: false,
+        email: false,
+        educationalInstitution: false,
+        agree: false,
+        agree_terms: false
+    };
 
     // Элементы для валидации
     const usernameInput = document.getElementById('username');
@@ -721,20 +733,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('Some form elements not found');
         return;
     }
-
-    // Состояние валидации
-    let validationState = {
-        username: false,
-        password: false,
-        confirmPassword: false,
-        studentName: false,
-        parentName: false,
-        phone: false,
-        email: false,
-        educationalInstitution: false,
-        agree: false,
-        agree_terms: false
-    };
 
     // Функция для показа подсказки
     function showTooltip(fieldId, message, type = 'danger') {
@@ -1176,6 +1174,14 @@ document.addEventListener('DOMContentLoaded', function() {
         registerButton.disabled = !allValid;
         return allValid;
     }
+
+    // Валидируем автозаполненное поле школы после объявления функций
+    {% if teacher_school_name %}
+    if (schoolInput && schoolInput.value.trim() !== '') {
+        validateEducationalInstitution();
+        validateForm();
+    }
+    {% endif %}
 
     // Обработчики событий
     let usernameTimeout;
