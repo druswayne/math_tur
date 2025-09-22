@@ -2554,6 +2554,37 @@ def admin_reset_all_balances():
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при обнулении счетов'})
 
+@app.route('/admin/users/<int:user_id>/confirm', methods=['POST'])
+@login_required
+def admin_confirm_user(user_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    user = User.query.get_or_404(user_id)
+    if user.is_active:
+        flash('Аккаунт уже подтвержден', 'info')
+        return redirect(url_for('admin_users'))
+    try:
+        user.is_active = True
+        user.email_confirmation_token = None
+        db.session.commit()
+        # Отправляем письмо с учетными данными, если есть временный пароль
+        password = user.temp_password
+        if password:
+            send_credentials_email(user, password)
+            user.temp_password = None
+            db.session.commit()
+        # Генерируем PDF согласия, как при обычном подтверждении
+        try:
+            create_consent_pdf(user)
+        except Exception:
+            pass
+        flash(f'Аккаунт пользователя {user.username} подтвержден администратором', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Ошибка при подтверждении аккаунта', 'danger')
+    return redirect(url_for('admin_users'))
+
 @app.route('/admin/users/mass-email', methods=['POST'])
 @login_required
 def admin_mass_email():

@@ -77,6 +77,13 @@
                                     <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}">
                                         <i class="bi bi-trash"></i>
                                     </button>
+                                    {% if not user.is_active %}
+                                    <form action="{{ url_for('admin_confirm_user', user_id=user.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Подтвердить аккаунт пользователя {{ user.username }}?')">
+                                            <i class="bi bi-check2-circle"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                     <button type="button" class="btn btn-sm {% if user.is_blocked %}btn-success{% else %}btn-warning{% endif %}" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#blockUserModal{{ user.id }}">
@@ -502,6 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     data-bs-target="#editUserModal${user.id}">
                                 <i class="bi bi-pencil"></i>
                             </button>
+                            ${!user.is_active ? "<form action=\"/admin/users/"+user.id+"/confirm\" method=\"POST\" class=\"d-inline\"><button type=\"submit\" class=\"btn btn-success btn-sm\" onclick=\"return confirm('Подтвердить аккаунт пользователя ' + user.username + '?')\"><i class=\"bi bi-check2-circle\"></i></button></form>" : ''}
                             <form action="/admin/users/${user.id}/toggle-block" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-danger btn-sm" 
                                         ${user.id === currentUserId ? 'disabled' : ''}
