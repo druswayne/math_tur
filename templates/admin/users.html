@@ -37,26 +37,26 @@
             </div>
 
             <!-- Таблица пользователей -->
-            <div class="table-responsive">
-                <table class="table table-hover">
+            <div class="table-responsive" style="overflow-x: auto; white-space: nowrap;">
+                <table class="table table-hover" style="min-width: 900px;">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Логин</th>
-                            <th>Email</th>
-                            <th>Дата регистрации</th>
-                            <th>Статус</th>
-                            <th>Действия</th>
+                            <th style="width: 60px;">ID</th>
+                            <th style="width: 150px;">Логин</th>
+                            <th style="width: 250px;">Email</th>
+                            <th style="width: 150px;">Дата регистрации</th>
+                            <th style="width: 150px;">Статус</th>
+                            <th style="width: 200px;">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for user in users %}
                         <tr>
-                            <td>{{ user.id }}</td>
-                            <td>{{ user.username }}</td>
-                            <td>{{ user.email }}</td>
-                            <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-                            <td>
+                            <td style="white-space: nowrap;">{{ user.id }}</td>
+                            <td style="white-space: nowrap;">{{ user.username }}</td>
+                            <td style="white-space: nowrap;">{{ user.email }}</td>
+                            <td style="white-space: nowrap;">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td style="white-space: nowrap;">
                                 {% if user.is_active %}
                                     <span class="badge bg-success">Активен</span>
                                 {% else %}
@@ -66,7 +66,7 @@
                                     <span class="badge bg-danger">Заблокирован</span>
                                 {% endif %}
                             </td>
-                            <td>
+                            <td style="white-space: nowrap;">
                                 <div class="btn-group">
                                     <a href="{{ url_for('admin_user_details', user_id=user.id) }}" class="btn btn-sm btn-info">
                                         <i class="bi bi-eye"></i>
@@ -489,15 +489,15 @@ document.addEventListener('DOMContentLoaded', function() {
             data.users.forEach(user => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${user.id}</td>
-                    <td>${user.username}</td>
-                    <td>${user.email}</td>
-                    <td>${user.created_at}</td>
-                    <td>
+                    <td style="white-space: nowrap;">${user.id}</td>
+                    <td style="white-space: nowrap;">${user.username}</td>
+                    <td style="white-space: nowrap;">${user.email}</td>
+                    <td style="white-space: nowrap;">${user.created_at}</td>
+                    <td style="white-space: nowrap;">
                         ${user.is_active ? '<span class="badge bg-success">Активен</span>' : '<span class="badge bg-warning">Ожидает подтверждения</span>'}
                         ${user.is_blocked ? '<span class="badge bg-danger">Заблокирован</span>' : ''}
                     </td>
-                    <td>
+                    <td style="white-space: nowrap;">
                         <div class="btn-group">
                             <button type="button" class="btn btn-info btn-sm" 
                                     data-bs-toggle="modal" 

@@ -39,6 +39,10 @@ Disallow: /*.docx$
 Disallow: /*.xls$
 Disallow: /*.xlsx$
 
+# Запрещаем индексацию конкретных PDF документов
+Disallow: /static/Условия публичной оферты.pdf
+Disallow: /static/политика обработки персональных данных.pdf
+
 # Указываем расположение sitemap
 Sitemap: https://liga-znatokov.by/sitemap.xml
 
