@@ -8026,6 +8026,38 @@ def admin_toggle_teacher_block(teacher_id):
     db.session.commit()
     return redirect(url_for('admin_teachers'))
 
+@app.route('/admin/teachers/<int:teacher_id>/confirm', methods=['POST'])
+@login_required
+def admin_confirm_teacher(teacher_id):
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    teacher = Teacher.query.get_or_404(teacher_id)
+    
+    if teacher.is_active:
+        flash('Аккаунт учителя уже подтвержден', 'info')
+        return redirect(url_for('admin_teachers'))
+    
+    try:
+        teacher.is_active = True
+        teacher.email_confirmation_token = None
+        db.session.commit()
+        
+        # Отправляем письмо с учетными данными, если есть временный пароль
+        password = teacher.temp_password
+        if password:
+            send_teacher_credentials_email(teacher, password)
+            teacher.temp_password = None
+            db.session.commit()
+        
+        flash(f'Аккаунт учителя {teacher.full_name} подтвержден администратором', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Ошибка при подтверждении аккаунта учителя', 'danger')
+    
+    return redirect(url_for('admin_teachers'))
+
 @app.route('/admin/teachers/<int:teacher_id>/details')
 @login_required
 def admin_teacher_details(teacher_id):
