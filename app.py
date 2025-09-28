@@ -359,8 +359,76 @@ app.config['PREFERRED_URL_SCHEME'] = 'https'
 mail = Mail(app)
 # Rate limiting - используем in-memory storage для стабильности
 print("🔧 Используется in-memory storage для rate limiting")
+
+def get_real_ip():
+    """
+    Получает реальный IP-адрес клиента, учитывая заголовки балансировщика нагрузки.
+    Проверяет заголовки в следующем порядке:
+    1. X-Forwarded-For (может содержать несколько IP через запятую)
+    2. X-Real-IP
+    3. X-Forwarded
+    4. CF-Connecting-IP (Cloudflare)
+    5. True-Client-IP (некоторые CDN)
+    6. X-Client-IP
+    7. X-Cluster-Client-IP
+    8. Fallback на get_remote_address()
+    """
+    # Получаем заголовки
+    headers = request.headers
+    
+    # X-Forwarded-For может содержать цепочку IP: "client, proxy1, proxy2"
+    forwarded_for = headers.get('X-Forwarded-For')
+    if forwarded_for:
+        # Берем первый IP из цепочки (оригинальный клиент)
+        client_ip = forwarded_for.split(',')[0].strip()
+        if client_ip and client_ip != 'unknown':
+            return client_ip
+    
+    # Другие заголовки балансировщиков/CDN
+    real_ip_headers = [
+        'X-Real-IP',
+        'X-Forwarded',
+        'CF-Connecting-IP',  # Cloudflare
+        'True-Client-IP',    # Некоторые CDN
+        'X-Client-IP',
+        'X-Cluster-Client-IP'
+    ]
+    
+    for header in real_ip_headers:
+        ip = headers.get(header)
+        if ip and ip != 'unknown':
+            return ip.strip()
+    
+    # Fallback на стандартную функцию
+    return get_remote_address()
+
+def debug_ip_headers():
+    """
+    Функция для отладки - показывает все заголовки, связанные с IP-адресами.
+    Можно вызвать в эндпоинте для диагностики.
+    """
+    headers = request.headers
+    ip_headers = {
+        'X-Forwarded-For': headers.get('X-Forwarded-For'),
+        'X-Real-IP': headers.get('X-Real-IP'),
+        'X-Forwarded': headers.get('X-Forwarded'),
+        'CF-Connecting-IP': headers.get('CF-Connecting-IP'),
+        'True-Client-IP': headers.get('True-Client-IP'),
+        'X-Client-IP': headers.get('X-Client-IP'),
+        'X-Cluster-Client-IP': headers.get('X-Cluster-Client-IP'),
+        'Remote-Addr': headers.get('Remote-Addr'),
+        'X-Forwarded-Proto': headers.get('X-Forwarded-Proto'),
+        'X-Forwarded-Host': headers.get('X-Forwarded-Host')
+    }
+    
+    return {
+        'detected_ip': get_real_ip(),
+        'fallback_ip': get_remote_address(),
+        'headers': ip_headers
+    }
+
 limiter = Limiter(
-    get_remote_address,
+    get_real_ip,
     app=app,
     default_limits=["400 per hour"],
     strategy="fixed-window",
@@ -5884,6 +5952,7 @@ def restore_scheduler_jobs():
                 db.session.commit()
         
         print(f"Восстановлено {restored_count} задач планировщика для сервера {SERVER_ID}")
+        logging.debug(f"Восстановлено {restored_count} задач планировщика для сервера")
         
     except Exception as e:
         print(f"Ошибка при восстановлении задач планировщика: {e}")
@@ -8149,7 +8218,9 @@ def try_acquire_scheduler():
 
                 # Проверяем состояние планировщика
                 print(f"Состояние планировщика после инициализации: {scheduler.running}")
-                print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+                job_count = len(scheduler.get_jobs())
+                print(f"Количество задач в планировщике: {job_count}")
+                logging.debug(f"Количество задач в планировщике: {job_count}")
                 for job in scheduler.get_jobs():
                     print(f"  - {job.id}: {job.trigger}")
                 
@@ -8184,7 +8255,9 @@ def try_acquire_scheduler():
 
                     # Проверяем состояние планировщика
                     print(f"Состояние планировщика после инициализации: {scheduler.running}")
-                    print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+                    job_count = len(scheduler.get_jobs())
+                    print(f"Количество задач в планировщике: {job_count}")
+                    logging.debug(f"Количество задач в планировщике: {job_count}")
                     for job in scheduler.get_jobs():
                         print(f"  - {job.id}: {job.trigger}")
                     
@@ -8221,7 +8294,9 @@ def try_acquire_scheduler():
 
                     # Проверяем состояние планировщика
                     print(f"Состояние планировщика после инициализации: {scheduler.running}")
-                    print(f"Количество задач в планировщике: {len(scheduler.get_jobs())}")
+                    job_count = len(scheduler.get_jobs())
+                    print(f"Количество задач в планировщике: {job_count}")
+                    logging.debug(f"Количество задач в планировщике: {job_count}")
                     for job in scheduler.get_jobs():
                         print(f"  - {job.id}: {job.trigger}")
                     
@@ -10633,6 +10708,24 @@ def test_tasks_display():
                              tasks_by_tournament={},
                              total_tasks=0,
                              categories=[])
+
+@app.route('/debug/ip')
+def debug_ip():
+    """
+    Отладочный эндпоинт для проверки определения IP-адресов.
+    Показывает все заголовки и определенный IP-адрес.
+    """
+    debug_info = debug_ip_headers()
+    
+    # Добавляем дополнительную информацию
+    debug_info.update({
+        'user_agent': request.headers.get('User-Agent'),
+        'request_method': request.method,
+        'request_url': request.url,
+        'timestamp': datetime.now().isoformat()
+    })
+    
+    return jsonify(debug_info)
 
 if __name__ == '__main__':
     #logging.basicConfig(filename='err.log', level=logging.DEBUG)
