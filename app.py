@@ -5952,6 +5952,9 @@ def restore_scheduler_jobs():
                 db.session.commit()
         
         print(f"Восстановлено {restored_count} задач планировщика для сервера {SERVER_ID}")
+        with open('jo1b.txt', 'w', encoding='utf-8') as file:
+
+            file.write(f"Восстановлено {restored_count} задач планировщика для сервера {SERVER_ID}")
         logging.debug(f"Восстановлено {restored_count} задач планировщика для сервера")
         
     except Exception as e:
@@ -8220,6 +8223,10 @@ def try_acquire_scheduler():
                 print(f"Состояние планировщика после инициализации: {scheduler.running}")
                 job_count = len(scheduler.get_jobs())
                 print(f"Количество задач в планировщике: {job_count}")
+                with open('job.txt', 'w', encoding='utf-8') as file:
+
+                    file.write(f"Количество задач в планировщике: {job_count}")
+
                 logging.debug(f"Количество задач в планировщике: {job_count}")
                 for job in scheduler.get_jobs():
                     print(f"  - {job.id}: {job.trigger}")
