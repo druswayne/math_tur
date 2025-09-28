@@ -54,6 +54,13 @@
                             </select>
                         </div>
                     </div>
+                    <div class="row">
+                        <div class="col-12 text-center">
+                            <button type="button" class="btn btn-outline-secondary" id="resetFilters">
+                                <i class="fas fa-undo me-1"></i>Сбросить фильтры
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -365,6 +372,20 @@
     display: none !important;
 }
 
+/* Дополнительные стили для правильного отображения при фильтрации */
+.tournament-section .row {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.tournament-section .col-12.col-lg-6 {
+    display: flex;
+}
+
+.tournament-section .col-12.col-lg-6.hidden {
+    display: none !important;
+}
+
 /* Выделение найденного текста */
 .highlight {
     background-color: yellow;
@@ -437,8 +458,18 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (matchesSearch && matchesCategory && matchesTournament) {
                 card.classList.remove('hidden');
+                // Показываем родительскую колонку
+                const parentCol = card.closest('.col-12.col-lg-6');
+                if (parentCol) {
+                    parentCol.classList.remove('hidden');
+                }
             } else {
                 card.classList.add('hidden');
+                // Скрываем родительскую колонку
+                const parentCol = card.closest('.col-12.col-lg-6');
+                if (parentCol) {
+                    parentCol.classList.add('hidden');
+                }
             }
         });
         
@@ -457,6 +488,15 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', filterTasks);
     categoryFilter.addEventListener('change', filterTasks);
     tournamentFilter.addEventListener('change', filterTasks);
+    
+    // Обработчик для кнопки сброса фильтров
+    const resetFiltersBtn = document.getElementById('resetFilters');
+    resetFiltersBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        categoryFilter.value = '';
+        tournamentFilter.value = '';
+        filterTasks();
+    });
     
     // Функция для выделения найденного текста
     function highlightSearchTerm() {
