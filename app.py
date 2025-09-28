@@ -362,7 +362,7 @@ print("🔧 Используется in-memory storage для rate limiting")
 limiter = Limiter(
     get_remote_address,
     app=app,
-    default_limits=["200 per hour"],
+    default_limits=["400 per hour"],
     strategy="fixed-window",
     key_prefix="rate_limit"
 )
