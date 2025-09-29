@@ -899,6 +899,8 @@ class TournamentTaskCache:
     def __init__(self):
         self._cache = {}  # {tournament_id: {category: [tasks]}}
         self._cache_timestamps = {}  # {tournament_id: timestamp}
+        self._last_sync = None  # Время последней синхронизации
+        self._sync_interval = 300  # Интервал синхронизации в секундах (5 минут)
     
     def cache_tournament_tasks(self, tournament_id):
         """Кэширует все задачи турнира по категориям"""
@@ -1019,8 +1021,90 @@ class TournamentTaskCache:
             'total_tournaments': len(self._cache),
             'total_tasks': total_tasks,
             'total_categories': total_categories,
-            'timestamps': self._cache_timestamps.copy()
+            'timestamps': self._cache_timestamps.copy(),
+            'last_sync': self._last_sync.isoformat() if self._last_sync else None,
+            'sync_interval': self._sync_interval
         }
+    
+    def get_active_tournaments(self):
+        """Получает список активных турниров из БД"""
+        try:
+            current_time = datetime.now()
+            active_tournaments = Tournament.query.filter(
+                Tournament.start_date <= current_time,
+                Tournament.is_active == True,
+                Tournament.status == 'started'
+            ).all()
+            
+            # Фильтруем турниры, которые еще не закончились
+            running_tournaments = []
+            for tournament in active_tournaments:
+                end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+                if current_time <= end_time:
+                    running_tournaments.append(tournament)
+            
+            return running_tournaments
+        except Exception as e:
+            print(f"❌ Ошибка при получении активных турниров: {e}")
+            return []
+    
+    def sync_active_tournaments(self, force=False):
+        """Синхронизирует кеш с активными турнирами"""
+        try:
+            current_time = datetime.now()
+            
+            # Проверяем, нужно ли синхронизировать
+            if not force and self._last_sync:
+                time_since_sync = (current_time - self._last_sync).total_seconds()
+                if time_since_sync < self._sync_interval:
+                    return  # Слишком рано для синхронизации
+            
+            print("🔄 [СИНХРОНИЗАЦИЯ] Начинаем синхронизацию кеша активных турниров...")
+            
+            # Получаем активные турниры
+            active_tournaments = self.get_active_tournaments()
+            active_tournament_ids = {t.id for t in active_tournaments}
+            
+            # Кешируем задачи для активных турниров
+            for tournament in active_tournaments:
+                if tournament.id not in self._cache:
+                    print(f"📥 [СИНХРОНИЗАЦИЯ] Кешируем задачи турнира {tournament.id}")
+                    self.cache_tournament_tasks(tournament.id)
+            
+            # Очищаем кеш завершенных турниров
+            cached_tournament_ids = set(self._cache.keys())
+            finished_tournaments = cached_tournament_ids - active_tournament_ids
+            
+            for tournament_id in finished_tournaments:
+                print(f"🗑️ [СИНХРОНИЗАЦИЯ] Очищаем кеш завершенного турнира {tournament_id}")
+                self.clear_tournament_cache(tournament_id)
+            
+            self._last_sync = current_time
+            
+            print(f"✅ [СИНХРОНИЗАЦИЯ] Синхронизация завершена. Активных турниров: {len(active_tournaments)}")
+            
+        except Exception as e:
+            print(f"❌ [СИНХРОНИЗАЦИЯ] Ошибка при синхронизации: {e}")
+    
+    def initialize_cache_for_active_tournaments(self):
+        """Инициализирует кеш для всех активных турниров при запуске сервера"""
+        try:
+            print("🚀 [ИНИЦИАЛИЗАЦИЯ] Инициализация кеша для активных турниров...")
+            
+            active_tournaments = self.get_active_tournaments()
+            
+            if not active_tournaments:
+                print("ℹ️ [ИНИЦИАЛИЗАЦИЯ] Активных турниров не найдено")
+                return
+            
+            for tournament in active_tournaments:
+                print(f"📥 [ИНИЦИАЛИЗАЦИЯ] Кешируем задачи турнира {tournament.id}")
+                self.cache_tournament_tasks(tournament.id)
+            
+            print(f"✅ [ИНИЦИАЛИЗАЦИЯ] Кеш инициализирован для {len(active_tournaments)} активных турниров")
+            
+        except Exception as e:
+            print(f"❌ [ИНИЦИАЛИЗАЦИЯ] Ошибка при инициализации кеша: {e}")
 
 class CachedTask:
     """Класс-обертка для кэшированных задач"""
@@ -3137,6 +3221,22 @@ def admin_clear_cache():
     else:
         tournament_task_cache.clear_all_cache()
         flash('Весь кэш очищен', 'success')
+    
+    return redirect(url_for('admin_cache_info'))
+
+@app.route('/admin/cache/sync', methods=['POST'])
+@login_required
+def admin_sync_cache():
+    """Принудительная синхронизация кэша"""
+    if not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    
+    try:
+        tournament_task_cache.sync_active_tournaments(force=True)
+        flash('Кэш успешно синхронизирован', 'success')
+    except Exception as e:
+        flash(f'Ошибка при синхронизации кэша: {e}', 'error')
     
     return redirect(url_for('admin_cache_info'))
 
@@ -8357,6 +8457,9 @@ def clear_sessions():
         # Запускаем поток восстановления планировщика
         start_scheduler_recovery_thread()
         
+        # Инициализируем кеш для активных турниров
+        tournament_task_cache.initialize_cache_for_active_tournaments()
+        
         # Настройка логирования с автоматической очисткой файла при достижении 1MB
         from logging.handlers import RotatingFileHandler
         handler = RotatingFileHandler(
@@ -9432,6 +9535,16 @@ def cleanup_old_sessions():
         else:
             print("🧹 Очистка завершена: нечего удалять")
         
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Ошибка при очистке сессий: {e}")
+
+def sync_tournament_cache():
+    """Синхронизирует кеш турниров с активными турнирами"""
+    try:
+        tournament_task_cache.sync_active_tournaments()
+    except Exception as e:
+        print(f"❌ Ошибка при синхронизации кеша турниров: {e}")
 
         
     except Exception as e:
@@ -10188,6 +10301,26 @@ def initialize_scheduler_jobs():
             print(f"Создана задача создания бекапов БД. Первый запуск: {first_run}")
         else:
             print("Задача создания бекапов БД уже существует")
+
+        # Настраиваем периодическую синхронизацию кеша турниров
+        # Эта задача не записывается в БД, а создается при каждом перезапуске
+        try:
+            # Проверяем, не существует ли уже такая задача в планировщике
+            existing_jobs = [job.id for job in scheduler.get_jobs()]
+            if 'sync_tournament_cache' not in existing_jobs:
+                scheduler.add_job(
+                    sync_tournament_cache,
+                    'interval',
+                    minutes=5,  # Повторять каждые 5 минут
+                    id='sync_tournament_cache',
+                    replace_existing=True
+                )
+                print("Создана задача синхронизации кеша турниров (каждые 5 минут)")
+            else:
+                print("Задача синхронизации кеша турниров уже существует в планировщике")
+        except Exception as e:
+            print(f"Ошибка при создании задачи синхронизации кеша: {e}")
+            
     except Exception as e:
         print(f"Ошибка при инициализации задач планировщика: {e}")
 
