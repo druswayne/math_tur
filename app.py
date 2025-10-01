@@ -5982,9 +5982,56 @@ def restore_scheduler_jobs():
                 # Проверяем, не истекло ли время выполнения
                 if job.run_date <= datetime.now():
                     if interval_hours is None:
-                        # Обычная задача - время истекло, удаляем
-                        db.session.delete(job)
-                        db.session.commit()
+                        # Обычная задача - время истекло
+                        if job.job_type == 'end' and job.tournament_id:
+                            # Специальная обработка для задач окончания турнира
+                            print(f"⚠️ Задача окончания турнира {job.tournament_id} истекла, проверяем статус турнира...")
+                            
+                            # Проверяем статус турнира
+                            tournament = Tournament.query.get(job.tournament_id)
+                            if tournament and tournament.status == 'started':
+                                print(f"🚨 Турнир {job.tournament_id} все еще активен, выполняем задачу окончания...")
+                                try:
+                                    # Выполняем функцию окончания турнира
+                                    end_tournament_job(job.tournament_id)
+                                    print(f"✅ Турнир {job.tournament_id} успешно завершен")
+                                except Exception as e:
+                                    print(f"❌ Ошибка при завершении турнира {job.tournament_id}: {e}")
+                            elif tournament and tournament.status == 'finished':
+                                print(f"ℹ️ Турнир {job.tournament_id} уже завершен, задача не нужна")
+                            else:
+                                print(f"⚠️ Турнир {job.tournament_id} не найден или имеет неожиданный статус: {tournament.status if tournament else 'не найден'}")
+                            
+                            # Удаляем задачу после обработки
+                            db.session.delete(job)
+                            db.session.commit()
+                        elif job.job_type == 'start' and job.tournament_id:
+                            # Специальная обработка для задач старта турнира
+                            print(f"⚠️ Задача старта турнира {job.tournament_id} истекла, проверяем статус турнира...")
+                            
+                            # Проверяем статус турнира
+                            tournament = Tournament.query.get(job.tournament_id)
+                            if tournament and tournament.status == 'pending':
+                                print(f"🚨 Турнир {job.tournament_id} все еще не начат, выполняем задачу старта...")
+                                try:
+                                    # Выполняем функцию старта турнира
+                                    start_tournament_job(job.tournament_id)
+                                    print(f"✅ Турнир {job.tournament_id} успешно запущен")
+                                except Exception as e:
+                                    print(f"❌ Ошибка при запуске турнира {job.tournament_id}: {e}")
+                            elif tournament and tournament.status in ['started', 'finished']:
+                                print(f"ℹ️ Турнир {job.tournament_id} уже запущен или завершен, задача не нужна")
+                            else:
+                                print(f"⚠️ Турнир {job.tournament_id} не найден или имеет неожиданный статус: {tournament.status if tournament else 'не найден'}")
+                            
+                            # Удаляем задачу после обработки
+                            db.session.delete(job)
+                            db.session.commit()
+                        else:
+                            # Для других типов задач просто удаляем
+                            print(f"🗑️ Удаляем истекшую задачу {job.job_id}")
+                            db.session.delete(job)
+                            db.session.commit()
                         continue
                     else:
                         # Интервальная задача - обновляем run_date как при создании новой задачи
