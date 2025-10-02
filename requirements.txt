@@ -31,3 +31,5 @@ requests
 psutil
 # pymemcache==4.0.0  # Опционально - только для Linux с Memcached
 paramiko==3.4.0  # Для SSH подключений в сервисе бекапов
+PyPDF2
+reportlab
