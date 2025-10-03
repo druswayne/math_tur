@@ -77,17 +77,36 @@
 
                         {% if task.image %}
                         <div class="text-center mb-4">
-                                    <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
-             class="img-fluid task-image"
-             alt="Изображение к задаче"
-             data-bs-toggle="modal"
-             data-bs-target="#imageModal"
-             style="cursor: pointer; max-height: 400px; object-fit: contain;">
-        <div class="mt-2">
-            <small class="text-muted">
-                <i class="fas fa-search-plus me-1"></i>Нажмите на изображение для просмотра
-            </small>
-        </div>
+                            <div class="image-container-wrapper" id="taskImageContainer">
+                                <div class="image-loading" id="imageLoading">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Загрузка изображения...</span>
+                                    </div>
+                                    <p class="mt-2 text-muted">Загрузка изображения...</p>
+                                </div>
+                                <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
+                                     class="img-fluid task-image"
+                                     alt="Изображение к задаче"
+                                     data-bs-toggle="modal"
+                                     data-bs-target="#imageModal"
+                                     id="taskImage"
+                                     style="cursor: pointer; max-height: 400px; object-fit: contain; display: none;">
+                                <div class="image-error" id="imageError" style="display: none;">
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        <strong>Ошибка загрузки изображения</strong>
+                                        <p class="mb-2">Изображение не удалось загрузить</p>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" id="retryImageBtn">
+                                            <i class="fas fa-redo me-1"></i>Повторить попытку
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2" id="imageInstructions">
+                                <small class="text-muted">
+                                    <i class="fas fa-search-plus me-1"></i>Нажмите на изображение для просмотра
+                                </small>
+                            </div>
                         </div>
                         {% endif %}
 
@@ -146,10 +165,27 @@
             </div>
             <div class="modal-body text-center p-0">
                 <div class="image-container" id="imageContainer">
+                    <div class="modal-image-loading" id="modalImageLoading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Загрузка изображения...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Загрузка изображения...</p>
+                    </div>
                     <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
                          class="fullscreen-image"
                          alt="Изображение к задаче"
-                         id="modalImage">
+                         id="modalImage"
+                         style="display: none;">
+                    <div class="modal-image-error" id="modalImageError" style="display: none;">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Ошибка загрузки изображения</strong>
+                            <p class="mb-2">Изображение не удалось загрузить</p>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="retryModalImageBtn">
+                                <i class="fas fa-redo me-1"></i>Повторить попытку
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -316,6 +352,66 @@
     transform: scale(1.02);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border-color: #007bff;
+}
+
+/* Стили для контейнера изображения */
+.image-container-wrapper {
+    position: relative;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Стили для индикатора загрузки изображения */
+.image-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+}
+
+.image-loading .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Стили для ошибки загрузки изображения */
+.image-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 400px;
+    z-index: 10;
+}
+
+/* Стили для модального окна изображения */
+.modal-image-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+}
+
+.modal-image-loading .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.modal-image-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 400px;
+    z-index: 10;
 }
 
 /* Стили для модального окна изображения */
@@ -703,9 +799,130 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+    // Обработка загрузки изображений
+    function handleImageLoad(imageElement, loadingElement, errorElement, instructionsElement = null) {
+        const maxRetries = 3;
+        let retryCount = 0;
+        let isPreloaded = false;
+        
+        function attemptLoad() {
+            loadingElement.style.display = 'block';
+            errorElement.style.display = 'none';
+            imageElement.style.display = 'none';
+            if (instructionsElement) {
+                instructionsElement.style.display = 'none';
+            }
+            
+            // Создаем новый объект Image для проверки загрузки
+            const testImage = new Image();
+            
+            testImage.onload = function() {
+                // Изображение загрузилось успешно
+                loadingElement.style.display = 'none';
+                errorElement.style.display = 'none';
+                imageElement.style.display = 'block';
+                if (instructionsElement) {
+                    instructionsElement.style.display = 'block';
+                }
+                isPreloaded = true;
+            };
+            
+            testImage.onerror = function() {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                    // Повторная попытка через 1-2 секунды
+                    const delay = Math.random() * 1000 + 1000;
+                    setTimeout(attemptLoad, delay);
+                } else {
+                    // Все попытки исчерпаны - показываем ошибку
+                    loadingElement.style.display = 'none';
+                    errorElement.style.display = 'block';
+                    imageElement.style.display = 'none';
+                    if (instructionsElement) {
+                        instructionsElement.style.display = 'none';
+                    }
+                }
+            };
+            
+            // Добавляем timestamp для обхода кеша
+            const timestamp = new Date().getTime();
+            const separator = testImage.src.includes('?') ? '&' : '?';
+            testImage.src = imageElement.src + separator + 't=' + timestamp;
+        }
+        
+        // Запускаем первую попытку
+        attemptLoad();
+        
+        // Возвращаем функцию для ручного повтора
+        return function() {
+            retryCount = 0;
+            isPreloaded = false;
+            attemptLoad();
+        };
+    }
+    
+    // Функция предзагрузки изображения
+    function preloadImage(imageUrl) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => reject(new Error(`Failed to load image: ${imageUrl}`));
+            img.src = imageUrl;
+        });
+    }
+    
+    // Обработка основного изображения задачи
+    const taskImage = document.getElementById('taskImage');
+    
+    // Предзагрузка изображения задачи при загрузке страницы
+    if (taskImage && taskImage.src) {
+        preloadImage(taskImage.src)
+            .then(() => {
+                console.log('Изображение задачи предзагружено успешно');
+            })
+            .catch((error) => {
+                console.warn('Ошибка предзагрузки изображения задачи:', error.message);
+            });
+    }
+    
+    const imageLoading = document.getElementById('imageLoading');
+    const imageError = document.getElementById('imageError');
+    const imageInstructions = document.getElementById('imageInstructions');
+    const retryImageBtn = document.getElementById('retryImageBtn');
+    
+    if (taskImage && imageLoading && imageError) {
+        const retryImageLoad = handleImageLoad(taskImage, imageLoading, imageError, imageInstructions);
+        
+        // Обработчик кнопки повтора
+        if (retryImageBtn) {
+            retryImageBtn.addEventListener('click', retryImageLoad);
+        }
+    }
+    
     // Обработка модального окна изображения
     const imageModal = document.getElementById('imageModal');
-    if (imageModal) {
+    const modalImage = document.getElementById('modalImage');
+    const modalImageLoading = document.getElementById('modalImageLoading');
+    const modalImageError = document.getElementById('modalImageError');
+    const retryModalImageBtn = document.getElementById('retryModalImageBtn');
+    
+    if (imageModal && modalImage && modalImageLoading && modalImageError) {
+        let retryModalImageLoad = null;
+        
+        // Обработчик открытия модального окна
+        imageModal.addEventListener('show.bs.modal', function() {
+            retryModalImageLoad = handleImageLoad(modalImage, modalImageLoading, modalImageError);
+        });
+        
+        // Обработчик кнопки повтора в модальном окне
+        if (retryModalImageBtn) {
+            retryModalImageBtn.addEventListener('click', function() {
+                if (retryModalImageLoad) {
+                    retryModalImageLoad();
+                }
+            });
+        }
+        
         // Закрытие модального окна по клавише Escape
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
