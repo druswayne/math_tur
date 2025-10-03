@@ -5774,8 +5774,14 @@ def join_tournament(tournament_id):
         flash('Учителя не могут участвовать в турнирах', 'warning')
         return redirect(url_for('teacher_profile'))
     
-    # Проверяем, есть ли у пользователя билет
-    if current_user.tickets < 1:
+    # Проверяем, участвует ли уже пользователь в турнире
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id
+    ).first()
+    
+    # Проверяем жетоны только если пользователь еще не участвует в турнире
+    if not participation and current_user.tickets < 1:
         flash('Для доступа к турниру не хватает жетонов!', 'warning')
         return redirect(url_for('buy_tickets'))
     
