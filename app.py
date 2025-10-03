@@ -2467,7 +2467,14 @@ def admin_users():
                 'email': user.email,
                 'created_at': user.created_at.strftime('%d.%m.%Y %H:%M'),
                 'is_active': user.is_active,
-                'is_blocked': user.is_blocked
+                'is_blocked': user.is_blocked,
+                'balance': user.balance or 0,
+                'tickets': user.tickets or 0,
+                'student_name': user.student_name or '',
+                'parent_name': user.parent_name or '',
+                'phone': user.phone or '',
+                'category': user.category or '',
+                'is_admin': user.is_admin
             } for user in users.items],
             'has_next': users.has_next
         })
@@ -2557,6 +2564,7 @@ def admin_edit_user(user_id):
     password = request.form.get('password')
     is_admin = 'is_admin' in request.form
     tickets = request.form.get('tickets')
+    balance_increase = request.form.get('balance_increase')
     
     if username != user.username and User.query.filter(User.username.ilike(username)).first():
         flash('Пользователь с таким логином уже существует', 'danger')
@@ -2577,6 +2585,21 @@ def admin_edit_user(user_id):
     except ValueError:
         flash('Количество билетов должно быть неотрицательным числом', 'danger')
         return redirect(url_for('admin_users'))
+    
+    # Обработка увеличения счёта
+    if balance_increase:
+        try:
+            balance_increase = int(balance_increase)
+            if balance_increase < 0:
+                flash('Количество баллов для добавления должно быть неотрицательным числом', 'danger')
+                return redirect(url_for('admin_users'))
+            
+            # Увеличиваем счёт пользователя
+            user.balance = (user.balance or 0) + balance_increase
+            flash(f'К счёту пользователя {user.username} добавлено {balance_increase} баллов. Новый счёт: {user.balance}', 'success')
+        except ValueError:
+            flash('Количество баллов для добавления должно быть числом', 'danger')
+            return redirect(url_for('admin_users'))
     
     user.username = username
     user.email = email

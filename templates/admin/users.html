@@ -250,6 +250,16 @@
                         <input type="number" class="form-control" id="tickets{{ user.id }}" name="tickets" value="{{ user.tickets }}" min="0" required>
                     </div>
                     <div class="mb-3">
+                        <label for="balance{{ user.id }}" class="form-label">Общий счёт</label>
+                        <input type="number" class="form-control" id="balance{{ user.id }}" name="balance" value="{{ user.balance or 0 }}" min="0" readonly>
+                        <small class="form-text text-muted">Текущий общий счёт пользователя</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="balance_increase{{ user.id }}" class="form-label">Увеличить счёт на</label>
+                        <input type="number" class="form-control" id="balance_increase{{ user.id }}" name="balance_increase" min="0" placeholder="Введите количество баллов для добавления">
+                        <small class="form-text text-muted">Укажите количество баллов, которое нужно добавить к текущему счёту</small>
+                    </div>
+                    <div class="mb-3">
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_admin{{ user.id }}" name="is_admin" {% if user.is_admin %}checked{% endif %}>
                             <label class="form-check-label" for="is_admin{{ user.id }}">Администратор</label>
@@ -636,6 +646,16 @@ document.addEventListener('DOMContentLoaded', function() {
                                         <label for="tickets${user.id}" class="form-label">Количество жетонов</label>
                                         <input type="number" class="form-control" id="tickets${user.id}" name="tickets" value="${user.tickets || 0}" min="0">
                                         <small class="form-text text-muted">Укажите новое количество жетонов для пользователя</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="balance${user.id}" class="form-label">Общий счёт</label>
+                                        <input type="number" class="form-control" id="balance${user.id}" name="balance" value="${user.balance || 0}" min="0" readonly>
+                                        <small class="form-text text-muted">Текущий общий счёт пользователя</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="balance_increase${user.id}" class="form-label">Увеличить счёт на</label>
+                                        <input type="number" class="form-control" id="balance_increase${user.id}" name="balance_increase" min="0" placeholder="Введите количество баллов для добавления">
+                                        <small class="form-text text-muted">Укажите количество баллов, которое нужно добавить к текущему счёту</small>
                                     </div>
                                     <div class="mb-3">
                                         <div class="form-check">
