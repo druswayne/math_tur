@@ -6937,6 +6937,7 @@ def rating():
             )
             .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
             .filter(User.is_admin == False, User.category == category)
+            .filter(db.or_(User.balance > 0, User.total_tournament_time > 0))
             .group_by(User.id)
             .order_by(User.category_rank.asc())
         )
@@ -8912,7 +8913,9 @@ def update_category_ranks():
     
     for category in categories:
         # Получаем всех пользователей данной категории, отсортированных по балансу и времени
+        # Исключаем пользователей с нулевыми показателями
         users = User.query.filter_by(category=category)\
+            .filter(db.or_(User.balance > 0, User.total_tournament_time > 0))\
             .order_by(User.balance.desc(), User.total_tournament_time.asc())\
             .all()
         
@@ -8932,6 +8935,14 @@ def update_category_ranks():
             
             user.category_rank = current_rank
             same_rank_count += 1
+        
+        # Обнуляем рейтинг для пользователей с нулевыми показателями
+        inactive_users = User.query.filter_by(category=category)\
+            .filter(db.and_(User.balance == 0, User.total_tournament_time == 0))\
+            .all()
+        
+        for user in inactive_users:
+            user.category_rank = None
         
         db.session.commit()
 
@@ -9954,6 +9965,7 @@ def rating_search():
         )
         .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
         .filter(User.is_admin == False)
+        .filter(db.or_(User.balance > 0, User.total_tournament_time > 0))
         .filter(
             db.or_(
                 User.username.ilike('%' + query + '%'),
