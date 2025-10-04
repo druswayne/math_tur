@@ -785,6 +785,9 @@ def end_tournament_job(tournament_id):
                             # Вычисляем время участия в турнире и добавляем к общему времени пользователя
                             if participation.start_time and participation.end_time:
                                 time_spent = (participation.end_time - participation.start_time).total_seconds()
+                                # Проверяем, что total_tournament_time не None, иначе устанавливаем 0
+                                if participation.user.total_tournament_time is None:
+                                    participation.user.total_tournament_time = 0
                                 participation.user.total_tournament_time += int(time_spent)
                         else:
                             # Если нет решенных задач, время участия = 0
@@ -6935,7 +6938,7 @@ def rating():
             .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
             .filter(User.is_admin == False, User.category == category)
             .group_by(User.id)
-            .order_by(User.balance.desc())
+            .order_by(User.category_rank.asc())
         )
         
         if show_full_rating:
@@ -8936,7 +8939,7 @@ def update_category_ranks():
 @app.after_request
 def after_request(response):
     #if response.status_code == 200 and request.endpoint in ['submit_answer', 'buy_tickets', 'use_tickets']:
-    if response.status_code == 200 and request.endpoint in []:
+    if response.status_code == 200 and request.endpoint in ['submit_task_answer', 'buy_tickets', 'use_tickets']:
         update_category_ranks()
     return response
 
@@ -9964,7 +9967,7 @@ def rating_search():
         search_query = search_query.filter(User.category == category)
     
     # Группируем и сортируем
-    search_query = search_query.group_by(User.id).order_by(User.balance.desc())
+    search_query = search_query.group_by(User.id).order_by(User.category_rank.asc())
     
     # Применяем лимит в зависимости от прав пользователя
     if show_full_rating:
