@@ -6962,6 +6962,10 @@ def rating():
             user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
             user.is_current_user = False  # По умолчанию не текущий пользователь
             
+            # Защита от None для полей статистики турниров
+            user.tournaments_count = user.tournaments_count or 0
+            user.total_tournament_time = user.total_tournament_time or 0
+            
             # Определяем страну по номеру телефона
             if user.phone:
                 if user.phone.startswith('+7'):
@@ -6999,6 +7003,10 @@ def rating():
                     user.solved_tasks_count = correct_tasks_count or 0
                     user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
                     user.is_current_user = True  # Флаг для выделения текущего пользователя
+                    
+                    # Защита от None для полей статистики турниров
+                    user.tournaments_count = user.tournaments_count or 0
+                    user.total_tournament_time = user.total_tournament_time or 0
                     
                     # Определяем страну по номеру телефона
                     if user.phone:
@@ -7040,7 +7048,7 @@ def rating():
                 'username': user.username,
                 'student_name': user.student_name,
                 'balance': user.balance,
-                'total_tournament_time': user.total_tournament_time,
+                'total_tournament_time': user.total_tournament_time or 0,
                 'solved_tasks_count': user.solved_tasks_count,
                 'tournaments_count': user.tournaments_count,
                 'success_rate': user.success_rate,
