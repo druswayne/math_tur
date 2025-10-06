@@ -189,6 +189,16 @@
                                         <td>
                                             <div class="task-description">
                                                 {{ task_data.task.description[:100] }}{% if task_data.task.description|length > 100 %}...{% endif %}
+                                                {% if task_data.task.description|length > 100 %}
+                                                <br><button type="button" 
+                                                    class="btn btn-link btn-sm p-0 text-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#descriptionModal"
+                                                    data-task-title="{{ task_data.task.title }}"
+                                                    data-description="{{ task_data.task.description }}">
+                                                    <i class="fas fa-eye me-1"></i>Показать полностью
+                                                </button>
+                                                {% endif %}
                                             </div>
                                         </td>
                                         <td class="text-center">
@@ -281,7 +291,19 @@
                                     </p>
                                     {% endif %}
                                     
-                                    <p class="card-text">{{ task_data.task.description[:150] }}{% if task_data.task.description|length > 150 %}...{% endif %}</p>
+                                    <p class="card-text">
+                                        {{ task_data.task.description[:150] }}{% if task_data.task.description|length > 150 %}...{% endif %}
+                                        {% if task_data.task.description|length > 150 %}
+                                        <br><button type="button" 
+                                            class="btn btn-link btn-sm p-0 text-primary" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#descriptionModal"
+                                            data-task-title="{{ task_data.task.title }}"
+                                            data-description="{{ task_data.task.description }}">
+                                            <i class="fas fa-eye me-1"></i>Показать полностью
+                                        </button>
+                                        {% endif %}
+                                    </p>
                                     
                                     {% if task_data.task.image %}
                                     <div class="text-center mb-3">
@@ -407,6 +429,26 @@
     </div>
 </div>
 
+<!-- Модальное окно для просмотра описания задачи -->
+<div class="modal fade" id="descriptionModal" tabindex="-1" aria-labelledby="descriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="descriptionModalLabel">Описание задачи</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="descriptionContent">
+                    <!-- Здесь будет содержимое описания -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -488,6 +530,28 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             document.getElementById('solutionContent').innerHTML = solutionContent;
+        });
+    });
+    
+    // Обработка кликов по кнопке "Показать полностью" для описания
+    const descriptionButtons = document.querySelectorAll('[data-bs-target="#descriptionModal"]');
+    descriptionButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const taskTitle = this.getAttribute('data-task-title');
+            const description = this.getAttribute('data-description');
+            
+            // Обновляем заголовок модального окна
+            document.getElementById('descriptionModalLabel').textContent = `Описание задачи: ${taskTitle}`;
+            
+            // Преобразуем переносы строк в HTML
+            const formattedDescription = description.replace(/\n/g, '<br>').replace(/\r\n/g, '<br>').replace(/\r/g, '<br>');
+            
+            // Формируем содержимое описания
+            const descriptionContent = `<div class="description-text" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; line-height: 1.6; font-size: 1.05em;">
+                ${formattedDescription}
+            </div>`;
+            
+            document.getElementById('descriptionContent').innerHTML = descriptionContent;
         });
     });
 });
