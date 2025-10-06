@@ -1540,7 +1540,7 @@ class ShopSettings(db.Model):
             return {
                 'can_shop': False,
                 'reason': 'not_top_percentage',
-                'message': f'К сожалению, вам немного не хватило баллов, чтобы войти в топ {category_percentage}% лучших участников в своей параллели. Ваше место: {user_rank} из {category_users_with_tournaments}. Продолжайте участвовать в турнирах!',
+                'message': f'К сожалению, вам не хватило баллов, чтобы войти в топ {category_percentage}% лучших участников в своей параллели. Ваше место: {user_rank} из {category_users_with_tournaments}. Следующий турнир точно станет твоим звёздным часом!',
                 'user_rank': user_rank,
                 'allowed_count': allowed_users_count,
                 'total_users': category_users_with_tournaments,
