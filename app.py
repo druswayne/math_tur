@@ -1463,6 +1463,90 @@ class ShopSettings(db.Model):
             
         return user_rank <= allowed_users_count
 
+    def get_user_shop_status(self, user):
+        """Возвращает детальную информацию о статусе доступа пользователя к лавке"""
+        if not self.is_open:
+            return {
+                'can_shop': False,
+                'reason': 'shop_closed',
+                'message': 'Лавка призов скоро откроется'
+            }
+        
+        # Для учителей всегда разрешаем доступ к магазину
+        if isinstance(user, Teacher):
+            return {
+                'can_shop': True,
+                'reason': 'teacher',
+                'message': 'Спасибо за вашу работу! Вы можете выбирать призы из специальной коллекции для учителей'
+            }
+        
+        # Для обычных пользователей проверяем категорию
+        if not hasattr(user, 'category'):
+            return {
+                'can_shop': False,
+                'reason': 'no_category',
+                'message': 'У вас не указана возрастная категория'
+            }
+            
+        # Получаем процент для категории пользователя
+        category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
+        
+        if category_percentage >= 100:
+            return {
+                'can_shop': True,
+                'reason': 'all_users',
+                'message': f'В вашей параллели ({user.category} класс) доступ к лавке открыт для всех пользователей'
+            }
+            
+        # Получаем количество пользователей в категории, которые участвовали в турнирах
+        from sqlalchemy import exists
+        category_users_with_tournaments = User.query.filter(
+            User.category == user.category,
+            User.is_admin == False,
+            exists().where(TournamentParticipation.user_id == User.id)
+        ).count()
+        
+        if category_users_with_tournaments == 0:
+            return {
+                'can_shop': False,
+                'reason': 'no_participants',
+                'message': f'В вашей параллели ({user.category} класс) пока нет участников турниров'
+            }
+            
+        # Вычисляем количество пользователей в категории, которым разрешено делать покупки
+        allowed_users_count = max(1, int(category_users_with_tournaments * category_percentage / 100))
+        
+        # Получаем ранг пользователя в его категории
+        user_rank = user.category_rank
+        if not user_rank:
+            return {
+                'can_shop': False,
+                'reason': 'no_rank',
+                'message': f'В вашей параллели ({user.category} класс) покупки доступны только для {category_percentage}% лучших пользователей. Участвуйте в турнирах, чтобы получить рейтинг!'
+            }
+            
+        can_shop = user_rank <= allowed_users_count
+        
+        if can_shop:
+            return {
+                'can_shop': True,
+                'reason': 'top_percentage',
+                'message': f'Отлично! Вы входите в {category_percentage}% лучших участников в своей параллели и можете обменять баллы на призы',
+                'user_rank': user_rank,
+                'allowed_count': allowed_users_count,
+                'percentage': category_percentage
+            }
+        else:
+            return {
+                'can_shop': False,
+                'reason': 'not_top_percentage',
+                'message': f'К сожалению, вам немного не хватило баллов, чтобы войти в топ {category_percentage}% лучших участников в своей параллели. Ваше место: {user_rank} из {category_users_with_tournaments}. Продолжайте участвовать в турнирах!',
+                'user_rank': user_rank,
+                'allowed_count': allowed_users_count,
+                'total_users': category_users_with_tournaments,
+                'percentage': category_percentage
+            }
+
 class TournamentSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_season_active = db.Column(db.Boolean, default=True)
@@ -7119,12 +7203,14 @@ def shop():
     prizes = pagination.items
     settings = ShopSettings.get_settings()
     can_shop = settings.can_user_shop(current_user)
+    shop_status = settings.get_user_shop_status(current_user)
     
     return render_template('shop.html', 
                          prizes=prizes,
                          pagination=pagination,
                          settings=settings,
                          can_shop=can_shop,
+                         shop_status=shop_status,
                          cart_items_count=len(current_user.cart_items),
                          current_sort=sort)
 
@@ -10969,8 +11055,8 @@ def debug_ip():
 if __name__ == '__main__':
     #logging.basicConfig(filename='err.log', level=logging.DEBUG)
     #logging.basicConfig(level=logging.DEBUG)
-    
+
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-
+    #update_category_ranks()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)

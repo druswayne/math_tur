@@ -214,20 +214,59 @@
         </div>
     </div>
 
-    {% if not settings.is_open %}
-    <div class="alert alert-warning">
-        <i class="fas fa-exclamation-triangle me-2"></i>
-        Лавка призов закрыта до конца сезона турниров. Покупки недоступны, но вы можете просматривать доступные призы.
-    </div>
-    {% endif %}
-
-    {% if not can_shop and settings.is_open and not current_user.is_teacher %}
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            В вашей категории ({{ current_user.category }}) покупки доступны только для {{ settings['top_users_percentage_' + current_user.category.replace('-', '_')] }}% лучших пользователей.
-            Продолжайте участвовать в турнирах, чтобы повысить свой рейтинг в категории!
-        </div>
+    <!-- Статус доступа к лавке призов -->
+    {% if shop_status %}
+        {% if shop_status.can_shop %}
+            {% if shop_status.reason == 'teacher' %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% elif shop_status.reason == 'all_users' %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% elif shop_status.reason == 'top_percentage' %}
+            <div class="alert alert-success">
+                <i class="fas fa-trophy me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% endif %}
+        {% else %}
+            {% if shop_status.reason == 'shop_closed' %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {{ shop_status.message }}. Покупки недоступны, но вы можете просматривать доступные призы.
+            </div>
+            {% elif shop_status.reason == 'not_top_percentage' %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% elif shop_status.reason == 'no_rank' %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% elif shop_status.reason == 'no_category' %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% elif shop_status.reason == 'no_participants' %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ shop_status.message }}
+            </div>
+            {% endif %}
         {% endif %}
+    {% endif %}
 
         <!-- Сетка товаров -->
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
