@@ -1143,7 +1143,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     hashed_password = db.Column(db.String(128), nullable=False, index=True)
-    phone = db.Column(db.String(20), unique=True, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
     student_name = db.Column(db.String(100), nullable=True)  # Фамилия и имя учащегося
     parent_name = db.Column(db.String(100), nullable=True)
     is_admin = db.Column(db.Boolean, default=False)
@@ -2603,11 +2603,6 @@ def admin_add_user():
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    # Проверяем уникальность телефона в обеих таблицах
-    if User.query.filter_by(phone=phone).first() or Teacher.query.filter_by(phone=phone).first():
-        flash('Пользователь с таким номером телефона уже существует', 'danger')
-        return redirect(url_for('admin_users'))
-    
     if not re.match(r'^\+375[0-9]{9}$', phone):
         flash('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger')
         return redirect(url_for('admin_users'))
@@ -2659,10 +2654,6 @@ def admin_edit_user(user_id):
     
     if email != user.email and User.query.filter_by(email=email).first():
         flash('Пользователь с таким email уже существует', 'danger')
-        return redirect(url_for('admin_users'))
-    
-    if phone != user.phone and User.query.filter_by(phone=phone).first():
-        flash('Пользователь с таким номером телефона уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
     try:
@@ -3949,14 +3940,8 @@ def check_phone():
     if not phone:
         return jsonify({'available': False})
     
-    # Проверяем уникальность телефона в обеих таблицах
-    existing_user = User.query.filter_by(phone=phone).first()
-    existing_teacher = Teacher.query.filter_by(phone=phone).first()
-    
-    # Телефон недоступен, если он уже используется в любой из таблиц
-    is_available = existing_user is None and existing_teacher is None
-    
-    return jsonify({'available': is_available})
+    # Телефон может быть не уникальным, поэтому всегда возвращаем доступность
+    return jsonify({'available': True})
 
 @app.route('/register', methods=['GET', 'POST'])
 @limiter.limit("10 per minute")
@@ -4070,11 +4055,6 @@ def register():
         # Проверяем уникальность email в обеих таблицах
         if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
             flash('Пользователь с таким email уже существует', 'danger')
-            return redirect(url_for('register'))
-
-        # Проверяем уникальность телефона в обеих таблицах
-        if User.query.filter_by(phone=full_phone).first() or Teacher.query.filter_by(phone=full_phone).first():
-            flash('Пользователь с таким номером телефона уже существует', 'danger')
             return redirect(url_for('register'))
 
         user = User(
@@ -4233,11 +4213,6 @@ def teacher_register():
         # Проверяем уникальность email в обеих таблицах
         if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
             flash('Пользователь с таким email уже существует', 'danger')
-            return redirect(url_for('teacher_register'))
-
-        # Проверяем уникальность телефона в обеих таблицах
-        if User.query.filter_by(phone=full_phone).first() or Teacher.query.filter_by(phone=full_phone).first():
-            flash('Пользователь с таким номером телефона уже существует', 'danger')
             return redirect(url_for('teacher_register'))
 
         teacher = Teacher(
@@ -4475,12 +4450,6 @@ def update_teacher_profile():
 
         if not full_name:
             return jsonify({'success': False, 'message': 'Некорректные данные профиля'}), 400
-
-        # Проверка уникальности телефона при изменении
-        if phone:
-            existing_teacher_phone = Teacher.query.filter(Teacher.phone == phone, Teacher.id != current_user.id).first()
-            if existing_teacher_phone:
-                return jsonify({'success': False, 'message': 'Телефон уже используется'}), 400
 
         current_user.full_name = full_name
         current_user.phone = phone or None
@@ -9094,11 +9063,6 @@ def update_profile():
     else:
         return jsonify({'success': False, 'message': 'Неверный формат номера телефона'})
     
-    # Проверяем, не занят ли телефон другим пользователем
-    existing_user = User.query.filter_by(phone=phone).first()
-    if existing_user and existing_user.id != current_user.id:
-        return jsonify({'success': False, 'message': 'Этот номер телефона уже используется другим пользователем'})
-    
     # Проверяем категорию
     valid_categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     if category not in valid_categories:
@@ -9519,7 +9483,7 @@ class Teacher(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     hashed_password = db.Column(db.String(128), nullable=False, index=True)
-    phone = db.Column(db.String(20), unique=True, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
     full_name = db.Column(db.String(100), nullable=False)  # ФИО учителя
     is_active = db.Column(db.Boolean, default=False, index=True)
     is_blocked = db.Column(db.Boolean, default=False, index=True)
@@ -11058,5 +11022,5 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    #update_category_ranks()
+    update_category_ranks()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
