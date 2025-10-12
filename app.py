@@ -9001,13 +9001,8 @@ def update_category_ranks():
         
         db.session.commit()
 
-# Добавляем вызов функции обновления рейтинга после изменения баланса пользователя
-@app.after_request
-def after_request(response):
-    #if response.status_code == 200 and request.endpoint in ['submit_answer', 'buy_tickets', 'use_tickets']:
-    if response.status_code == 200 and request.endpoint in ['submit_task_answer', 'buy_tickets', 'use_tickets']:
-        update_category_ranks()
-    return response
+# Рейтинг обновляется только после завершения турниров
+# При покупке призов рейтинг остается зафиксированным, чтобы не менять топ % во время работы лавки
 
 @app.route('/update-profile', methods=['POST'])
 @login_required
@@ -11022,5 +11017,5 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    update_category_ranks()
+    #update_category_ranks()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
