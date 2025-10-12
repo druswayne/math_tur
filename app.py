@@ -2089,8 +2089,8 @@ def send_teacher_reset_password_email(teacher):
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
-        user = User.query.filter_by(email=email).first()
-        teacher = Teacher.query.filter_by(email=email).first()
+        user = User.query.filter(User.email.ilike(email)).first()
+        teacher = Teacher.query.filter(Teacher.email.ilike(email)).first()
         
         if user:
             send_reset_password_email(user)
@@ -2599,7 +2599,7 @@ def admin_add_user():
         return redirect(url_for('admin_users'))
     
     # Проверяем уникальность email в обеих таблицах
-    if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
+    if User.query.filter(User.email.ilike(email)).first() or Teacher.query.filter(Teacher.email.ilike(email)).first():
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -2652,7 +2652,7 @@ def admin_edit_user(user_id):
         flash('Пользователь с таким логином уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
-    if email != user.email and User.query.filter_by(email=email).first():
+    if email.lower() != user.email.lower() and User.query.filter(User.email.ilike(email)).first():
         flash('Пользователь с таким email уже существует', 'danger')
         return redirect(url_for('admin_users'))
     
@@ -3921,9 +3921,9 @@ def check_email():
     if not email:
         return jsonify({'available': False})
     
-    # Проверяем уникальность email в обеих таблицах
-    existing_user = User.query.filter_by(email=email).first()
-    existing_teacher = Teacher.query.filter_by(email=email).first()
+    # Проверяем уникальность email в обеих таблицах (без учета регистра)
+    existing_user = User.query.filter(User.email.ilike(email)).first()
+    existing_teacher = Teacher.query.filter(Teacher.email.ilike(email)).first()
     
     # Email недоступен, если он уже используется в любой из таблиц
     is_available = existing_user is None and existing_teacher is None
@@ -4052,8 +4052,8 @@ def register():
             flash('Пользователь с таким логином уже существует', 'danger')
             return redirect(url_for('register'))
 
-        # Проверяем уникальность email в обеих таблицах
-        if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
+        # Проверяем уникальность email в обеих таблицах (без учета регистра)
+        if User.query.filter(User.email.ilike(email)).first() or Teacher.query.filter(Teacher.email.ilike(email)).first():
             flash('Пользователь с таким email уже существует', 'danger')
             return redirect(url_for('register'))
 
@@ -4210,8 +4210,8 @@ def teacher_register():
             flash('Пользователь с таким логином уже существует', 'danger')
             return redirect(url_for('teacher_register'))
 
-        # Проверяем уникальность email в обеих таблицах
-        if User.query.filter_by(email=email).first() or Teacher.query.filter_by(email=email).first():
+        # Проверяем уникальность email в обеих таблицах (без учета регистра)
+        if User.query.filter(User.email.ilike(email)).first() or Teacher.query.filter(Teacher.email.ilike(email)).first():
             flash('Пользователь с таким email уже существует', 'danger')
             return redirect(url_for('teacher_register'))
 
