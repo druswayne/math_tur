@@ -2405,8 +2405,8 @@ def login():
                 return increment_login_attempts()
             
             if not user.is_active:
-                flash('Пожалуйста, подтвердите ваш email перед входом.', 'error')
-                return increment_login_attempts()
+                # Перенаправляем на страницу подтверждения email
+                return redirect(url_for('verify_email', email=user.email, type=user_type))
             
             # Проверяем, есть ли активная сессия
             if user_type == 'teacher':
@@ -4125,8 +4125,8 @@ def register():
         # Отправляем письмо с подтверждением асинхронно
         send_confirmation_email(user)
         
-        flash('Письмо с подтверждением отправлено на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
-        return redirect(url_for('login'))
+        # Перенаправляем на страницу подтверждения email
+        return redirect(url_for('verify_email', email=user.email, type='user'))
 
     # Получаем информацию о школе учителя для автозаполнения
     teacher_school_name = None
@@ -4252,8 +4252,8 @@ def teacher_register():
         # Отправляем письмо с подтверждением
         send_teacher_confirmation_email(teacher)
         
-        flash('Письмо с подтверждением отправлено на ваш email. Проверьте также папку "Спам", если письмо не пришло в течение нескольких минут.', 'success')
-        return redirect(url_for('login'))
+        # Перенаправляем на страницу подтверждения email
+        return redirect(url_for('verify_email', email=teacher.email, type='teacher'))
 
     return render_template('teacher_register.html')
 
@@ -4305,6 +4305,72 @@ def confirm_teacher_email(token):
     else:
         flash('Недействительная или устаревшая ссылка подтверждения.', 'danger')
     return redirect(url_for('login'))
+
+@app.route('/verify-email')
+def verify_email():
+    """Страница с инструкцией по подтверждению email"""
+    email = request.args.get('email', '')
+    user_type = request.args.get('type', 'user')
+    
+    if not email:
+        flash('Неверный запрос.', 'error')
+        return redirect(url_for('login'))
+    
+    return render_template('verify_email.html', email=email, user_type=user_type)
+
+@app.route('/resend-confirmation', methods=['POST'])
+@limiter.limit("5 per hour")
+def resend_confirmation():
+    """Повторная отправка письма с подтверждением"""
+    email = request.form.get('email', '').strip().lower()
+    
+    if not email:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Email не указан'}), 400
+        flash('Email не указан.', 'error')
+        return redirect(url_for('login'))
+    
+    # Проверяем, существует ли пользователь с таким email
+    user = User.query.filter(User.email.ilike(email)).first()
+    teacher = None
+    
+    if not user:
+        # Проверяем в таблице учителей
+        teacher = Teacher.query.filter(Teacher.email.ilike(email)).first()
+    
+    target = user or teacher
+    
+    if not target:
+        # Не раскрываем, существует ли пользователь
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Если аккаунт с таким email существует, письмо было отправлено.'})
+        flash('Если аккаунт с таким email существует, письмо было отправлено.', 'success')
+        return redirect(url_for('verify_email', email=email))
+    
+    # Проверяем, уже подтвержден ли email
+    if target.is_active:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Ваш email уже подтвержден. Вы можете войти в систему.'})
+        flash('Ваш email уже подтвержден. Вы можете войти в систему.', 'info')
+        return redirect(url_for('login'))
+    
+    try:
+        # Отправляем письмо с подтверждением
+        if teacher:
+            send_teacher_confirmation_email(teacher)
+        else:
+            send_confirmation_email(target)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': True, 'message': 'Письмо с подтверждением успешно отправлено! Проверьте вашу почту.'})
+        flash('Письмо с подтверждением успешно отправлено! Проверьте вашу почту.', 'success')
+    except Exception as e:
+        print(f"Ошибка при отправке письма: {e}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': 'Произошла ошибка при отправке письма. Попробуйте позже.'})
+        flash('Произошла ошибка при отправке письма. Попробуйте позже.', 'error')
+    
+    return redirect(url_for('verify_email', email=email))
 
 def get_user_rank(user_id):
     """Получает ранг пользователя в его возрастной категории"""

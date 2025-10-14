@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-4">
+                            <i class="fas fa-envelope-open-text fa-5x text-primary"></i>
+                        </div>
+                        
+                        <h2 class="mb-3">Подтвердите ваш email</h2>
+                        
+                        <p class="text-muted mb-4">
+                            Мы отправили письмо с подтверждением на адрес:<br>
+                            <strong>{{ email }}</strong>
+                        </p>
+                        
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Что делать дальше?</strong>
+                            <ol class="text-start mt-3 mb-0">
+                                <li>Проверьте вашу электронную почту</li>
+                                <li>Откройте письмо от нас (проверьте папку "Спам", если не видите письмо)</li>
+                                <li>Нажмите на ссылку подтверждения в письме</li>
+                                <li>После подтверждения вы сможете войти в систему</li>
+                            </ol>
+                        </div>
+                        
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    <div class="alert alert-{% if category == 'error' %}danger{% else %}{{ category }}{% endif %} alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                        
+                        <div class="mb-4">
+                            <p class="mb-2">Не получили письмо?</p>
+                            <form method="POST" action="{{ url_for('resend_confirmation') }}" id="resendForm">
+                                <input type="hidden" name="email" value="{{ email }}">
+                                <button type="submit" class="btn btn-outline-primary" id="resendBtn">
+                                    <i class="fas fa-redo me-2"></i>Отправить письмо повторно
+                                </button>
+                            </form>
+                            <small class="text-muted d-block mt-2" id="cooldownMessage" style="display: none;">
+                                Подождите <span id="countdown">60</span> секунд перед повторной отправкой
+                            </small>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="mt-4">
+                            <a href="{{ url_for('login') }}" class="btn btn-link">
+                                <i class="fas fa-arrow-left me-2"></i>Вернуться на страницу входа
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-section {
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: center;
+    padding: 40px 0;
+}
+
+.card {
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+.fa-envelope-open-text {
+    color: #0d6efd;
+    opacity: 0.8;
+}
+
+.alert ol {
+    padding-left: 1.5rem;
+    margin-bottom: 0;
+}
+
+.alert ol li {
+    margin-bottom: 0.5rem;
+}
+
+.alert ol li:last-child {
+    margin-bottom: 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const resendForm = document.getElementById('resendForm');
+    const resendBtn = document.getElementById('resendBtn');
+    const cooldownMessage = document.getElementById('cooldownMessage');
+    const countdownSpan = document.getElementById('countdown');
+    
+    // Проверяем, есть ли сохраненное время последней отправки
+    const lastResendTime = localStorage.getItem('lastResendTime_{{ email }}');
+    if (lastResendTime) {
+        const timePassed = Math.floor((Date.now() - parseInt(lastResendTime)) / 1000);
+        if (timePassed < 60) {
+            startCooldown(60 - timePassed);
+        }
+    }
+    
+    resendForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (resendBtn.disabled) {
+            return;
+        }
+        
+        // Отключаем кнопку
+        resendBtn.disabled = true;
+        resendBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Отправка...';
+        
+        // Отправляем форму
+        fetch(resendForm.action, {
+            method: 'POST',
+            body: new FormData(resendForm),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Сохраняем время отправки
+                localStorage.setItem('lastResendTime_{{ email }}', Date.now().toString());
+                
+                // Показываем сообщение об успехе
+                showAlert('success', data.message || 'Письмо успешно отправлено! Проверьте вашу почту.');
+                
+                // Запускаем таймер
+                startCooldown(60);
+            } else {
+                // Показываем сообщение об ошибке
+                showAlert('danger', data.message || 'Произошла ошибка. Попробуйте позже.');
+                resendBtn.disabled = false;
+                resendBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Отправить письмо повторно';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'Произошла ошибка при отправке письма.');
+            resendBtn.disabled = false;
+            resendBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Отправить письмо повторно';
+        });
+    });
+    
+    function startCooldown(seconds) {
+        let remaining = seconds;
+        resendBtn.disabled = true;
+        // Обновляем текст кнопки
+        resendBtn.innerHTML = '<i class="fas fa-clock me-2"></i>Подождите...';
+        cooldownMessage.style.display = 'block';
+        countdownSpan.textContent = remaining;
+        
+        const interval = setInterval(function() {
+            remaining--;
+            
+            if (remaining <= 0) {
+                clearInterval(interval);
+                resendBtn.disabled = false;
+                resendBtn.innerHTML = '<i class="fas fa-redo me-2"></i>Отправить письмо повторно';
+                cooldownMessage.style.display = 'none';
+                // Сбрасываем счетчик для следующего раза
+                countdownSpan.textContent = '60';
+            } else {
+                // Обновляем счетчик только если remaining > 0
+                countdownSpan.textContent = remaining;
+            }
+        }, 1000);
+    }
+    
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        
+        // Находим контейнер для алертов или создаем его
+        let alertContainer = document.querySelector('.alert-container');
+        if (!alertContainer) {
+            alertContainer = document.createElement('div');
+            alertContainer.className = 'alert-container';
+            resendForm.parentElement.insertBefore(alertContainer, resendForm);
+        }
+        
+        alertContainer.innerHTML = alertHtml;
+        
+        // Автоматически скрываем алерт через 5 секунд
+        setTimeout(function() {
+            const alert = alertContainer.querySelector('.alert');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}
+
