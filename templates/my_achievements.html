@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* Стили для страницы достижений */
+.achievement-card {
+    background-color: #fff;
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.achievement-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.achievement-type-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.achievement-type-badge.certificate {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+}
+
+.achievement-type-badge.diploma {
+    background: linear-gradient(135deg, #27ae60, #229954);
+    color: white;
+}
+
+.achievement-place-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.achievement-place-badge.gold {
+    background-color: #ffd700;
+    color: #212529;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+.achievement-place-badge.silver {
+    background-color: #c0c0c0;
+    color: #212529;
+    box-shadow: 0 2px 4px rgba(192, 192, 192, 0.3);
+}
+
+.achievement-place-badge.bronze {
+    background-color: #cd7f32;
+    color: white;
+    box-shadow: 0 2px 4px rgba(205, 127, 50, 0.3);
+}
+
+.achievement-place-badge.other {
+    background-color: #6c757d;
+    color: white;
+}
+
+.achievement-image-preview {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.achievement-image-preview:hover {
+    transform: scale(1.05);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 20px;
+}
+
+.stats-card-compact {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 15px;
+}
+
+.stats-item-compact {
+    text-align: center;
+    padding: 8px 5px;
+}
+
+.stats-number-compact {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 2px;
+    line-height: 1;
+}
+
+.stats-label-compact {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    line-height: 1.2;
+}
+
+/* Стили для кнопки просмотра */
+.btn-view {
+    color: #000 !important;
+    border-color: #dee2e6;
+}
+
+.btn-view:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    color: #000 !important;
+}
+
+/* Модальное окно для просмотра изображения */
+.modal-image {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+}
+
+/* Адаптивные стили */
+@media (max-width: 767.98px) {
+    .stats-card-compact {
+        padding: 10px 12px;
+    }
+    
+    .stats-number-compact {
+        font-size: 1.5rem;
+    }
+    
+    .stats-label-compact {
+        font-size: 0.7rem;
+    }
+    
+    .achievement-image-preview {
+        height: 150px;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-card-compact {
+        padding: 8px 10px;
+    }
+    
+    .stats-item-compact {
+        padding: 5px 3px;
+    }
+    
+    .stats-number-compact {
+        font-size: 1.3rem;
+    }
+    
+    .stats-label-compact {
+        font-size: 0.65rem;
+    }
+}
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-trophy me-2"></i>Мои достижения</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('tournament_history') }}" class="btn btn-secondary d-none d-md-inline-flex">
+                <i class="fas fa-arrow-left me-2"></i>История турниров
+            </a>
+            <a href="{{ url_for('tournament_history') }}" class="btn btn-secondary btn-sm d-md-none">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+        </div>
+    </div>
+    
+    {% if total_achievements > 0 %}
+    <!-- Статистика -->
+    <div class="stats-card-compact mb-3">
+        <div class="row g-2">
+            <div class="col-4">
+                <div class="stats-item-compact">
+                    <div class="stats-number-compact">{{ total_achievements }}</div>
+                    <div class="stats-label-compact">Всего наград</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="stats-item-compact">
+                    <div class="stats-number-compact">{{ total_diplomas }}</div>
+                    <div class="stats-label-compact">Дипломов</div>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="stats-item-compact">
+                    <div class="stats-number-compact">{{ total_certificates }}</div>
+                    <div class="stats-label-compact">Сертификатов</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Десктопная версия - таблица -->
+    <div class="d-none d-md-block">
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 150px;">Тип</th>
+                                <th>Турнир</th>
+                                <th style="width: 200px;">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for achievement in achievements %}
+                            <tr>
+                                <td>
+                                    <span class="achievement-type-badge {{ achievement.type }}">
+                                        <i class="fas {{ achievement.icon }} me-1"></i>{{ achievement.type_name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong>{{ achievement.tournament_name }}</strong>
+                                </td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-sm btn-view" 
+                                                onclick="showImageModal('{{ url_for('view_achievement', filepath=achievement.file_path) }}', '{{ achievement.tournament_name }} - {{ achievement.type_name }}', '{{ achievement.file_path }}')">
+                                            <i class="fas fa-eye me-1"></i>Просмотр
+                                        </button>
+                                        <a href="{{ url_for('download_achievement', filepath=achievement.file_path) }}" 
+                                           class="btn btn-sm btn-primary">
+                                            <i class="fas fa-download me-1"></i>Скачать
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Мобильная версия - карточки -->
+    <div class="d-md-none">
+        {% for achievement in achievements %}
+        <div class="achievement-card mb-3 p-3">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <span class="achievement-type-badge {{ achievement.type }}">
+                    <i class="fas {{ achievement.icon }} me-1"></i>{{ achievement.type_name }}
+                </span>
+            </div>
+            <h6 class="mb-3">{{ achievement.tournament_name }}</h6>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-view flex-fill" 
+                        onclick="showImageModal('{{ url_for('view_achievement', filepath=achievement.file_path) }}', '{{ achievement.tournament_name }} - {{ achievement.type_name }}', '{{ achievement.file_path }}')">
+                    <i class="fas fa-eye me-1"></i>Просмотр
+                </button>
+                <a href="{{ url_for('download_achievement', filepath=achievement.file_path) }}" 
+                   class="btn btn-sm btn-primary flex-fill">
+                    <i class="fas fa-download me-1"></i>Скачать
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Пагинация -->
+    {% if pagination and pagination.pages > 1 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <nav aria-label="Навигация по страницам">
+                <ul class="pagination justify-content-center">
+                    <!-- Кнопка "Предыдущая" -->
+                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                        {% if pagination.has_prev %}
+                            <a class="page-link" href="{{ url_for('my_achievements', page=pagination.prev_num) }}">
+                                <i class="fas fa-chevron-left"></i> Предыдущая
+                            </a>
+                        {% else %}
+                            <span class="page-link">
+                                <i class="fas fa-chevron-left"></i> Предыдущая
+                            </span>
+                        {% endif %}
+                    </li>
+                    
+                    <!-- Номера страниц -->
+                    {% set start_page = [pagination.page - 2, 1]|max %}
+                    {% set end_page = [pagination.page + 2, pagination.pages]|min %}
+                    
+                    {% if start_page > 1 %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('my_achievements', page=1) }}">1</a>
+                        </li>
+                        {% if start_page > 2 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% for p in range(start_page, end_page + 1) %}
+                        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('my_achievements', page=p) }}">{{ p }}</a>
+                        </li>
+                    {% endfor %}
+                    
+                    {% if end_page < pagination.pages %}
+                        {% if end_page < pagination.pages - 1 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('my_achievements', page=pagination.pages) }}">{{ pagination.pages }}</a>
+                        </li>
+                    {% endif %}
+                    
+                    <!-- Кнопка "Следующая" -->
+                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                        {% if pagination.has_next %}
+                            <a class="page-link" href="{{ url_for('my_achievements', page=pagination.next_num) }}">
+                                Следующая <i class="fas fa-chevron-right"></i>
+                            </a>
+                        {% else %}
+                            <span class="page-link">
+                                Следующая <i class="fas fa-chevron-right"></i>
+                            </span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </nav>
+            
+            <!-- Информация о пагинации -->
+            <div class="text-center text-muted small mb-3">
+                Показано {{ (pagination.page - 1) * pagination.per_page + 1 }}–{{ [pagination.page * pagination.per_page, total_achievements]|min }} из {{ total_achievements }} наград
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <!-- Пустое состояние -->
+    <div class="card">
+        <div class="card-body">
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-award"></i>
+                </div>
+                <h4 class="mb-3">У вас пока нет наград</h4>
+                <p class="text-muted mb-4">
+                    Участвуйте в турнирах и занимайте призовые места,<br>
+                    чтобы получить сертификаты и дипломы!
+                </p>
+                <a href="{{ url_for('profile') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-left me-2"></i>Вернуться в личный кабинет
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Модальное окно для просмотра изображения -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title w-100 text-center" id="imageModalLabel">Просмотр награды</h5>
+                <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" src="" alt="Награда" class="modal-image">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showImageModal(imageSrc, title, filepath) {
+    const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+    document.getElementById('modalImage').src = imageSrc;
+    document.getElementById('imageModalLabel').textContent = title;
+    modal.show();
+}
+</script>
+
+{% endblock %}
+

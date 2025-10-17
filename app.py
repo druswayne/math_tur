@@ -603,6 +603,120 @@ def get_db():
         thread_local.db = db.create_scoped_session()
     return thread_local.db
 
+# ===== Кеш для дипломов и сертификатов =====
+ACHIEVEMENTS_CACHE = {
+    'data': {},  # {user_id: [{tournament_name, type, file_path}, ...]}
+    'last_updated': None,
+    'lock': threading.Lock()
+}
+
+def build_achievements_cache():
+    """
+    Сканирует папку doc/tournament и строит кеш всех доступных наград
+    Структура кеша: {user_id: [achievement_dict, ...]}
+    """
+    cache = {}
+    base_path = os.path.join('doc', 'tournament')
+    
+    # Проверяем существование базовой папки
+    if not os.path.exists(base_path):
+        logging.warning(f"Папка {base_path} не существует")
+        return cache
+    
+    start_time = datetime.now()
+    total_files = 0
+    
+    try:
+        # Сканируем папки турниров
+        for tournament_folder in os.listdir(base_path):
+            tournament_path = os.path.join(base_path, tournament_folder)
+            
+            # Пропускаем, если это не папка
+            if not os.path.isdir(tournament_path):
+                continue
+            
+            tournament_title = tournament_folder
+            
+            # Проверяем сертификаты
+            certificate_path = os.path.join(tournament_path, 'certificate')
+            if os.path.exists(certificate_path) and os.path.isdir(certificate_path):
+                for filename in os.listdir(certificate_path):
+                    if filename.endswith('.jpg'):
+                        # Извлекаем user_id из имени файла
+                        try:
+                            user_id = int(filename.replace('.jpg', ''))
+                            file_path = os.path.join(certificate_path, filename)
+                            
+                            if user_id not in cache:
+                                cache[user_id] = []
+                            
+                            cache[user_id].append({
+                                'type': 'certificate',
+                                'type_name': 'Сертификат',
+                                'tournament_id': tournament_folder,
+                                'tournament_name': tournament_title,
+                                'file_path': file_path,
+                                'icon': 'fa-certificate',
+                                'color': 'info'
+                            })
+                            total_files += 1
+                        except ValueError:
+                            logging.warning(f"Некорректное имя файла: {filename} в {certificate_path}")
+            
+            # Проверяем дипломы
+            diploma_path = os.path.join(tournament_path, 'diploma')
+            if os.path.exists(diploma_path) and os.path.isdir(diploma_path):
+                for filename in os.listdir(diploma_path):
+                    if filename.endswith('.jpg'):
+                        # Извлекаем user_id из имени файла
+                        try:
+                            user_id = int(filename.replace('.jpg', ''))
+                            file_path = os.path.join(diploma_path, filename)
+                            
+                            if user_id not in cache:
+                                cache[user_id] = []
+                            
+                            cache[user_id].append({
+                                'type': 'diploma',
+                                'type_name': 'Диплом',
+                                'tournament_id': tournament_folder,
+                                'tournament_name': tournament_title,
+                                'file_path': file_path,
+                                'icon': 'fa-award',
+                                'color': 'success'
+                            })
+                            total_files += 1
+                        except ValueError:
+                            logging.warning(f"Некорректное имя файла: {filename} в {diploma_path}")
+        
+        # Сортируем награды для каждого пользователя
+        for user_id in cache:
+            cache[user_id].sort(key=lambda x: x['tournament_name'], reverse=True)
+        
+        elapsed = (datetime.now() - start_time).total_seconds()
+        logging.info(f"Кеш наград построен: {len(cache)} пользователей, {total_files} файлов за {elapsed:.2f} сек")
+        
+    except Exception as e:
+        logging.error(f"Ошибка при построении кеша наград: {str(e)}")
+    
+    return cache
+
+def update_achievements_cache():
+    """Обновляет кеш наград (потокобезопасно)"""
+    with ACHIEVEMENTS_CACHE['lock']:
+        ACHIEVEMENTS_CACHE['data'] = build_achievements_cache()
+        ACHIEVEMENTS_CACHE['last_updated'] = datetime.now()
+        logging.info(f"Кеш наград обновлен в {ACHIEVEMENTS_CACHE['last_updated']}")
+
+def get_user_achievements_from_cache(user_id):
+    """Получает награды пользователя из кеша"""
+    with ACHIEVEMENTS_CACHE['lock']:
+        return ACHIEVEMENTS_CACHE['data'].get(user_id, []).copy()
+
+# Строим кеш при старте приложения
+logging.info("Инициализация кеша наград...")
+update_achievements_cache()
+
 def update_tournament_status():
     now = datetime.now()  # Московское время
     tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
@@ -7017,6 +7131,191 @@ def tournament_history():
     return render_template('tournament_history.html', 
                          tournaments=tournament_list,
                          pagination=tournaments)
+
+@app.route('/my-achievements')
+@login_required
+def my_achievements():
+    """Страница с доступными сертификатами и дипломами пользователя"""
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
+        flash('Администраторы не имеют достижений', 'warning')
+        return redirect(url_for('home'))
+    
+    # Проверяем, является ли пользователь учителем
+    if not hasattr(current_user, 'tournaments_count'):
+        flash('Эта страница доступна только учащимся', 'warning')
+        return redirect(url_for('teacher_profile'))
+    
+    # Получаем список всех доступных наград
+    all_achievements = get_user_achievements(current_user.id)
+    
+    # Пагинация
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Количество наград на странице
+    
+    # Вычисляем индексы для текущей страницы
+    total_achievements = len(all_achievements)
+    total_pages = (total_achievements + per_page - 1) // per_page  # Округление вверх
+    
+    # Проверяем валидность номера страницы
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    
+    # Получаем награды для текущей страницы
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    achievements = all_achievements[start_idx:end_idx]
+    
+    # Подсчитываем общую статистику
+    total_diplomas = sum(1 for a in all_achievements if a['type'] == 'diploma')
+    total_certificates = sum(1 for a in all_achievements if a['type'] == 'certificate')
+    
+    # Создаем объект пагинации
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_achievements,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1 if page > 1 else None,
+        'next_num': page + 1 if page < total_pages else None
+    }
+    
+    return render_template('my_achievements.html',
+                         title='Мои достижения',
+                         achievements=achievements,
+                         pagination=pagination,
+                         total_achievements=total_achievements,
+                         total_diplomas=total_diplomas,
+                         total_certificates=total_certificates)
+
+def get_user_achievements(user_id):
+    """
+    Получает доступные сертификаты и дипломы для пользователя из кеша
+    Возвращает список словарей с информацией о наградах
+    """
+    return get_user_achievements_from_cache(user_id)
+
+@app.route('/admin/refresh-achievements-cache', methods=['POST'])
+@login_required
+def refresh_achievements_cache():
+    """Ручное обновление кеша наград (только для администратора)"""
+    if not hasattr(current_user, 'is_admin') or not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+    
+    try:
+        update_achievements_cache()
+        with ACHIEVEMENTS_CACHE['lock']:
+            total_users = len(ACHIEVEMENTS_CACHE['data'])
+            total_achievements = sum(len(achievements) for achievements in ACHIEVEMENTS_CACHE['data'].values())
+            last_updated = ACHIEVEMENTS_CACHE['last_updated'].strftime('%d.%m.%Y %H:%M:%S')
+        
+        return jsonify({
+            'success': True,
+            'message': 'Кеш успешно обновлен',
+            'stats': {
+                'total_users': total_users,
+                'total_achievements': total_achievements,
+                'last_updated': last_updated
+            }
+        })
+    except Exception as e:
+        logging.error(f"Ошибка при обновлении кеша наград: {str(e)}")
+        return jsonify({'success': False, 'message': f'Ошибка: {str(e)}'}), 500
+
+@app.route('/view-achievement/<path:filepath>')
+@login_required
+def view_achievement(filepath):
+    """Просмотр сертификата или диплома"""
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
+        abort(403)
+    
+    # Проверяем, является ли пользователь учителем
+    if not hasattr(current_user, 'tournaments_count'):
+        abort(403)
+    
+    # Проверяем, что путь содержит ID текущего пользователя
+    filename = os.path.basename(filepath)
+    expected_filename = f'{current_user.id}.jpg'
+    
+    if filename != expected_filename:
+        abort(403)  # Пользователь пытается просмотреть чужой файл
+    
+    # Проверяем, что файл существует и находится в разрешенной директории
+    full_path = filepath
+    if not os.path.exists(full_path):
+        abort(404)
+    
+    # Проверяем, что файл находится в папке doc/tournament
+    normalized_path = os.path.normpath(full_path)
+    base_path = os.path.normpath(os.path.join('doc', 'tournament'))
+    
+    if not normalized_path.startswith(base_path):
+        abort(403)  # Попытка доступа к файлу вне разрешенной директории
+    
+    try:
+        return send_file(
+            full_path,
+            mimetype='image/jpeg'
+        )
+    except Exception as e:
+        logging.error(f"Ошибка при просмотре файла {full_path}: {str(e)}")
+        abort(500)
+
+@app.route('/download-achievement/<path:filepath>')
+@login_required
+def download_achievement(filepath):
+    """Скачивание сертификата или диплома"""
+    if hasattr(current_user, 'is_admin') and current_user.is_admin:
+        abort(403)
+    
+    # Проверяем, является ли пользователь учителем
+    if not hasattr(current_user, 'tournaments_count'):
+        abort(403)
+    
+    # Проверяем, что путь содержит ID текущего пользователя
+    filename = os.path.basename(filepath)
+    expected_filename = f'{current_user.id}.jpg'
+    
+    if filename != expected_filename:
+        abort(403)  # Пользователь пытается скачать чужой файл
+    
+    # Проверяем, что файл существует и находится в разрешенной директории
+    full_path = filepath
+    if not os.path.exists(full_path):
+        abort(404)
+    
+    # Проверяем, что файл находится в папке doc/tournament
+    normalized_path = os.path.normpath(full_path)
+    base_path = os.path.normpath(os.path.join('doc', 'tournament'))
+    
+    if not normalized_path.startswith(base_path):
+        abort(403)  # Попытка доступа к файлу вне разрешенной директории
+    
+    # Определяем тип награды для имени файла
+    if 'certificate' in normalized_path:
+        award_type = 'Сертификат'
+    elif 'diploma' in normalized_path:
+        award_type = 'Диплом'
+    else:
+        award_type = 'Награда'
+    
+    # Формируем красивое имя файла для скачивания
+    directory = os.path.dirname(full_path)
+    download_name = f'{award_type}_{current_user.username}.jpg'
+    
+    try:
+        return send_file(
+            full_path,
+            as_attachment=True,
+            download_name=download_name,
+            mimetype='image/jpeg'
+        )
+    except Exception as e:
+        logging.error(f"Ошибка при скачивании файла {full_path}: {str(e)}")
+        abort(500)
 
 @app.route('/rating')
 @limiter.limit("15 per minute; 10 per 10 seconds")
