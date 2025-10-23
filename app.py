@@ -6684,18 +6684,19 @@ def tournament_task(tournament_id):
         flash('Вы не участвуете в этом турнире', 'warning')
         return redirect(url_for('home'))
     
-    # Получаем список всех задач, которые пользователь уже решал (и правильно, и неправильно)
-    solved_tasks = SolvedTask.query.filter_by(
-        user_id=current_user.id
-    ).join(Task).filter(Task.tournament_id == tournament_id).all()
-    solved_task_ids = [task.task_id for task in solved_tasks]
-    
     # Проверяем, является ли запрос перезагрузкой страницы
     is_page_reload = detect_page_reload(request)
     
     # Если это перезагрузка страницы, обрабатываем брошенную задачу
     if is_page_reload:
         handle_abandoned_task(current_user.id, tournament_id, "page_reload")
+    
+    # Получаем список всех задач, которые пользователь уже решал (и правильно, и неправильно)
+    # ВАЖНО: После обработки нарушения, чтобы включить ABANDONED_ задачи
+    solved_tasks = SolvedTask.query.filter_by(
+        user_id=current_user.id
+    ).join(Task).filter(Task.tournament_id == tournament_id).all()
+    solved_task_ids = [task.task_id for task in solved_tasks]
     
     # Получаем текущую задачу из БД
     current_task_id = get_current_task_from_db(current_user.id, tournament_id)

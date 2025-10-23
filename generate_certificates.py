@@ -59,11 +59,21 @@ class CertificateGenerator:
         self.certificate_template = 'doc/sertificat.jpg'
         self.diploma_template = 'doc/diplom.jpg'
         
-        # Координаты для сертификата (ФИО)
+        # Координаты для сертификата
         self.cert_name_coords = {
-            'start': (311, 1520),
-            'end': (2167, 1520),
-            'max_height': 75
+            'start': (115, 550),
+            'end': (790, 550),
+            'max_height': 50
+        }
+        
+        self.cert_score_coords = {
+            'start': (312, 853),
+            'end': (367, 853)
+        }
+        
+        self.cert_place_coords = {
+            'start': (679, 853),
+            'end': (721, 853)
         }
         
         # Координаты для диплома
@@ -290,7 +300,7 @@ class CertificateGenerator:
         
         return lines
 
-    def generate_certificate(self, user_id, student_name, output_path):
+    def generate_certificate(self, user_id, student_name, score, place, output_path):
         """Генерация сертификата для участника"""
         try:
             # Проверяем, существует ли уже файл
@@ -304,6 +314,18 @@ class CertificateGenerator:
             # Открываем шаблон
             image = Image.open(self.certificate_template)
             draw = ImageDraw.Draw(image)
+            
+            # Получаем шрифт размером 20 для баллов и места
+            small_font = None
+            for font_name in ['arial.ttf', 'calibri.ttf', 'times.ttf', 'DejaVuSans.ttf']:
+                try:
+                    small_font = ImageFont.truetype(font_name, 20)
+                    break
+                except:
+                    continue
+            
+            if not small_font:
+                small_font = ImageFont.load_default()
             
             # Получаем координаты для ФИО
             start_x, start_y = self.cert_name_coords['start']
@@ -323,8 +345,36 @@ class CertificateGenerator:
             text_x = start_x + (available_width - text_width) // 2
             text_y = start_y - text_height - 10  # поднимаем на высоту текста + отступ
             
-            # Рисуем текст
+            # Рисуем ФИО
             draw.text((text_x, text_y), student_name, fill='black', font=font)
+            
+            # Рисуем баллы
+            score_text = str(score) if score else "0"
+            score_start = self.cert_score_coords['start']
+            score_end = self.cert_score_coords['end']
+            score_width = score_end[0] - score_start[0]
+            
+            bbox = small_font.getbbox(score_text)
+            score_text_width = bbox[2] - bbox[0]
+            score_text_height = bbox[3] - bbox[1]
+            
+            score_x = score_start[0] + (score_width - score_text_width) // 2
+            score_y = score_start[1] - score_text_height - 5  # поднимаем над линией
+            draw.text((score_x, score_y), score_text, fill='black', font=small_font)
+            
+            # Рисуем место
+            place_text = str(place) if place else "-"
+            place_start = self.cert_place_coords['start']
+            place_end = self.cert_place_coords['end']
+            place_width = place_end[0] - place_start[0]
+            
+            bbox = small_font.getbbox(place_text)
+            place_text_width = bbox[2] - bbox[0]
+            place_text_height = bbox[3] - bbox[1]
+            
+            place_x = place_start[0] + (place_width - place_text_width) // 2
+            place_y = place_start[1] - place_text_height - 5  # поднимаем над линией
+            draw.text((place_x, place_y), place_text, fill='black', font=small_font)
             
             # Дополнительное сжатие для сертификатов - уменьшаем размер изображения
             original_size = image.size
@@ -491,7 +541,7 @@ class CertificateGenerator:
             else:
                 # Сертификат для остальных участников
                 output_path = f"{certificate_path}/{user_id}.jpg"
-                self.generate_certificate(user_id, student_name, output_path)
+                self.generate_certificate(user_id, student_name, score, place, output_path)
         
         print(f"Генерация завершена!")
         print(f"Сертификаты сохранены в: {certificate_path}")
