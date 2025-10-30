@@ -1319,6 +1319,7 @@ class Tournament(db.Model):
     pdf_file = db.Column(db.String(200))  # Поле для хранения PDF файла
     start_date = db.Column(db.DateTime, nullable=False)
     duration = db.Column(db.Integer, nullable=False)  # в минутах
+    solving_time_minutes = db.Column(db.Integer, nullable=True)  # время на решение задач в минутах
     is_active = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(20), default='pending')  # pending, started, finished
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -1381,6 +1382,7 @@ class TournamentParticipation(db.Model):
     participation_date = db.Column(db.DateTime, default=datetime.now)
     start_time = db.Column(db.DateTime, default=datetime.now)  # Время начала участия в турнире
     end_time = db.Column(db.DateTime, nullable=True)  # Время окончания участия в турнире
+    solving_start_time = db.Column(db.DateTime, nullable=True)  # Время начала решения задач участником
     
     user = db.relationship('User', 
                          back_populates='tournament_participations',
@@ -3161,6 +3163,7 @@ def admin_add_tournament():
     rules = validate_html_content(request.form.get('rules'), 2000)
     start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     duration = int(request.form.get('duration'))
+    solving_time_minutes = int(request.form.get('solving_time_minutes'))
     
     # Обработка изображения
     image = request.files.get('image')
@@ -3186,7 +3189,8 @@ def admin_add_tournament():
         image=image_filename,
         pdf_file=pdf_filename,
         start_date=start_date,
-        duration=duration
+        duration=duration,
+        solving_time_minutes=solving_time_minutes
     )
     
     db.session.add(tournament)
@@ -3209,6 +3213,7 @@ def admin_edit_tournament(tournament_id):
     tournament.rules = validate_html_content(request.form.get('rules'), 2000)
     tournament.start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%dT%H:%M')
     tournament.duration = int(request.form.get('duration'))
+    tournament.solving_time_minutes = int(request.form.get('solving_time_minutes'))
     
     # Обработка изображения
     image = request.files.get('image')
@@ -5364,6 +5369,105 @@ def teacher_transfer_history():
                          title='История передач жетонов',
                          transfers=transfers)
 
+@app.route('/teacher/create-student', methods=['POST'])
+@login_required
+def teacher_create_student():
+    """Создание аккаунта ученика учителем"""
+    # Проверяем, что пользователь является учителем
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'})
+    
+    try:
+        data = request.get_json()
+        
+        # Получаем данные из запроса
+        username = sanitize_input(data.get('username', ''), 80)
+        email = sanitize_input(data.get('email', ''), 120)
+        password = data.get('password', '')
+        confirm_password = data.get('confirm_password', '')
+        student_name = sanitize_input(data.get('student_name', ''), 100)
+        phone = sanitize_input(data.get('phone', ''), 20) if data.get('phone') else None
+        category = data.get('category', '')
+        educational_institution_name = sanitize_input(data.get('educational_institution_name', ''), 500) if data.get('educational_institution_name') else None
+        
+        # Валидация обязательных полей
+        if not username or not email or not password or not confirm_password or not student_name or not category:
+            return jsonify({'success': False, 'message': 'Заполните все обязательные поля'})
+        
+        # Валидация логина
+        if not is_valid_username(username):
+            return jsonify({'success': False, 'message': 'Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.'})
+        
+        # Валидация email
+        if not validate_email(email):
+            russian_pattern = r'[а-яёА-ЯЁ]'
+            if re.search(russian_pattern, email):
+                return jsonify({'success': False, 'message': 'Email не должен содержать русские символы. Используйте латинские буквы.'})
+            else:
+                return jsonify({'success': False, 'message': 'Некорректный email адрес'})
+        
+        # Валидация ФИО
+        if not validate_name(student_name):
+            return jsonify({'success': False, 'message': 'ФИО может содержать только буквы, пробелы, дефисы и точки'})
+        
+        # Валидация пароля
+        if password != confirm_password:
+            return jsonify({'success': False, 'message': 'Пароли не совпадают'})
+        
+        if len(password) < 8:
+            return jsonify({'success': False, 'message': 'Пароль должен содержать минимум 8 символов'})
+        
+        # Валидация телефона (если указан)
+        if phone and not validate_phone(phone):
+            return jsonify({'success': False, 'message': 'Номер телефона должен быть в формате +375XXXXXXXXX'})
+        
+        # Валидация категории
+        if category not in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
+            return jsonify({'success': False, 'message': 'Неверная категория'})
+        
+        # Проверяем уникальность логина в обеих таблицах
+        if User.query.filter(User.username.ilike(username)).first() or Teacher.query.filter(Teacher.username.ilike(username)).first():
+            return jsonify({'success': False, 'message': 'Пользователь с таким логином уже существует'})
+        
+        # Проверяем уникальность email в обеих таблицах (без учета регистра)
+        if User.query.filter(User.email.ilike(email)).first() or Teacher.query.filter(Teacher.email.ilike(email)).first():
+            return jsonify({'success': False, 'message': 'Пользователь с таким email уже существует'})
+        
+        # Создаем пользователя
+        user = User(
+            username=username,
+            email=email,
+            phone=phone,
+            student_name=student_name,
+            parent_name=None,  # Поле остается пустым как указано в требованиях
+            category=category,
+            is_active=True,  # Автоматически активируем
+            teacher_id=current_user.id  # Привязываем к учителю
+        )
+        user.set_password(password)
+        
+        # Устанавливаем учреждение образования (такое же как у учителя)
+        if current_user.educational_institution:
+            user.educational_institution_id = current_user.educational_institution_id
+        elif educational_institution_name:
+            # Если у учителя нет учреждения, но указано в форме, создаем новое
+            edu_institution = EducationalInstitution.query.filter_by(name=educational_institution_name).first()
+            if not edu_institution:
+                edu_institution = EducationalInstitution(name=educational_institution_name)
+                db.session.add(edu_institution)
+                db.session.flush()  # Получаем ID
+            user.educational_institution_id = edu_institution.id
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Аккаунт ученика успешно создан'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при создании аккаунта ученика: {e}")
+        return jsonify({'success': False, 'message': 'Произошла ошибка при создании аккаунта'})
+
 @app.route('/buy-tickets')
 @login_required
 def buy_tickets():
@@ -6109,6 +6213,20 @@ def start_tournament(tournament_id):
         tournament_id=tournament_id
     ).first()
     
+    # Если пользователь уже участвует в турнире, проверяем его личное время
+    if participation:
+        # Проверяем личное время на решение задач
+        if tournament.solving_time_minutes and participation.solving_start_time:
+            solving_end_time = participation.solving_start_time + timedelta(minutes=tournament.solving_time_minutes)
+            tournament_end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+            
+            # Используем меньшее из двух времен (личное время или время окончания турнира)
+            actual_end_time = min(solving_end_time, tournament_end_time)
+            
+            if current_time > actual_end_time:
+                flash('Время на решение задач истекло', 'warning')
+                return redirect(url_for('tournament_history'))
+    
     # Проверяем жетоны только если пользователь еще не участвует в турнире
     if not participation and current_user.tickets < 1:
         flash('Для доступа к турниру не хватает жетонов!', 'warning')
@@ -6684,6 +6802,11 @@ def tournament_task(tournament_id):
         flash('Вы не участвуете в этом турнире', 'warning')
         return redirect(url_for('home'))
     
+    # Устанавливаем время начала решения задач, если оно еще не установлено
+    if not participation.solving_start_time and tournament.solving_time_minutes:
+        participation.solving_start_time = datetime.now()
+        db.session.commit()
+    
     # Проверяем, является ли запрос перезагрузкой страницы
     is_page_reload = detect_page_reload(request)
     
@@ -6730,7 +6853,8 @@ def tournament_task(tournament_id):
                                      timedelta=timedelta,
                                      now=datetime.now(),
                                      solved_tasks_count=solved_tasks_count,
-                                     total_tasks=total_tasks)
+                                     total_tasks=total_tasks,
+                                     participation=participation)
         else:
             # Задача уже решена - очищаем из БД
             clear_current_task_from_db(current_user.id, tournament_id)
@@ -6766,7 +6890,8 @@ def tournament_task(tournament_id):
                          timedelta=timedelta,
                          now=datetime.now(),
                          solved_tasks_count=solved_tasks_count,
-                         total_tasks=total_tasks)
+                         total_tasks=total_tasks,
+                         participation=participation)
 
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
@@ -6799,6 +6924,18 @@ def submit_task_answer(tournament_id, task_id):
     if not participation:
         flash('Вы не участвуете в этом турнире', 'warning')
         return redirect(url_for('home'))
+    
+    # Проверяем личное время на решение задач
+    if tournament.solving_time_minutes and participation.solving_start_time:
+        solving_end_time = participation.solving_start_time + timedelta(minutes=tournament.solving_time_minutes)
+        tournament_end_time = tournament.start_date + timedelta(minutes=tournament.duration)
+        
+        # Используем меньшее из двух времен (личное время или время окончания турнира)
+        actual_end_time = min(solving_end_time, tournament_end_time)
+        
+        if current_time > actual_end_time:
+            flash('Время на решение задач истекло', 'warning')
+            return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
     # Получаем ответ пользователя
     user_answer = request.form.get('answer', '').strip()

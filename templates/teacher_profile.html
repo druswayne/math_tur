@@ -173,7 +173,12 @@
                     <h5 class="mb-0">
                         <i class="fas fa-table me-2"></i>Мои учащиеся
                     </h5>
-                    <span class="badge bg-primary">{{ total_students }} учащихся</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createStudentModal">
+                            <i class="fas fa-user-plus me-1"></i>Создать аккаунт
+                        </button>
+                        <span class="badge bg-primary">{{ total_students }} учащихся</span>
+                    </div>
                 </div>
                 <div class="card-body">
                     {% if students_info %}
@@ -593,6 +598,78 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 }
 
+/* Стили для валидации в модальном окне создания ученика */
+.validation-icon {
+    min-width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+.validation-icon i {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Стили для правильного заполнения */
+.input-group .form-control.is-valid {
+    border-color: #198754;
+    border-width: 2px;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: none;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.input-group .input-group-text.is-valid {
+    border-color: #198754;
+    border-width: 2px;
+    color: #198754;
+    background-color: rgba(25, 135, 84, 0.1);
+    font-weight: bold;
+}
+
+/* Стили для неправильного заполнения */
+.input-group .form-control.is-invalid {
+    border-color: #dc3545;
+    border-width: 2px;
+    padding-right: calc(1.5em + 0.75rem);
+    background-image: none;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.input-group .input-group-text.is-invalid {
+    border-color: #dc3545;
+    border-width: 2px;
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+    font-weight: bold;
+}
+
+/* Анимация при изменении состояния */
+.input-group .form-control,
+.input-group .input-group-text {
+    transition: all 0.3s ease;
+}
+
+/* Стили для селектора */
+.input-group .form-control.is-valid {
+    border-color: #198754;
+    border-width: 2px;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+    background-color: rgba(25, 135, 84, 0.05);
+}
+
+.input-group .form-control.is-invalid {
+    border-color: #dc3545;
+    border-width: 2px;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
 @media (max-width: 768px) {
     .table-responsive {
         font-size: 0.875rem;
@@ -845,6 +922,409 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 });
 
+// Обработчик для создания аккаунта ученика
+document.addEventListener('DOMContentLoaded', function() {
+  // Валидация пароля для создания ученика
+  const studentPassword = document.getElementById('studentPassword');
+  const studentConfirmPassword = document.getElementById('studentConfirmPassword');
+  const studentReqBox = document.getElementById('student-password-requirements');
+
+  // Функция для показа иконки валидации
+  function showValidationIcon(fieldId, isValid) {
+    const iconContainer = document.getElementById(fieldId + '-icon');
+    const input = document.getElementById(fieldId);
+
+    if (!iconContainer || !input) return;
+
+    // Скрываем все иконки
+    iconContainer.querySelectorAll('i').forEach(icon => icon.style.display = 'none');
+
+    if (isValid === true) {
+      const checkIcon = iconContainer.querySelector('.fa-check-circle');
+      if (checkIcon) checkIcon.style.display = 'inline-block';
+      input.classList.add('is-valid');
+      input.classList.remove('is-invalid');
+      iconContainer.classList.add('is-valid');
+      iconContainer.classList.remove('is-invalid');
+    } else if (isValid === false) {
+      const timesIcon = iconContainer.querySelector('.fa-times');
+      if (timesIcon) timesIcon.style.display = 'inline-block';
+      input.classList.add('is-invalid');
+      input.classList.remove('is-valid');
+      iconContainer.classList.add('is-invalid');
+      iconContainer.classList.remove('is-valid');
+    } else if (isValid === 'loading') {
+      // Состояние загрузки - показываем спиннер
+      const spinnerIcon = iconContainer.querySelector('.fa-spinner');
+      if (spinnerIcon) {
+        spinnerIcon.style.display = 'inline-block';
+        spinnerIcon.classList.add('fa-spin');
+      }
+      input.classList.remove('is-valid', 'is-invalid');
+      iconContainer.classList.remove('is-valid', 'is-invalid');
+    } else {
+      // Нейтральное состояние - убираем все стили
+      input.classList.remove('is-valid', 'is-invalid');
+      iconContainer.classList.remove('is-valid', 'is-invalid');
+    }
+  }
+
+  // Валидация логина с проверкой уникальности
+  function validateStudentUsername(username) {
+    if (!username) {
+      showValidationIcon('studentUsername', null);
+      return null;
+    }
+    
+    // Сначала проверяем формат
+    const formatValid = /^[a-zA-Z][a-zA-Z0-9_]{2,}$/.test(username);
+    if (!formatValid) {
+      showValidationIcon('studentUsername', false);
+      return false;
+    }
+    
+    // Показываем состояние загрузки
+    showValidationIcon('studentUsername', 'loading');
+    
+    // Проверяем уникальность через AJAX
+    fetch('/check-username', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, type: 'user' })
+    })
+    .then(response => response.json())
+    .then(data => {
+      const isValid = data.available;
+      showValidationIcon('studentUsername', isValid);
+      return isValid;
+    })
+    .catch(error => {
+      console.error('Ошибка проверки логина:', error);
+      showValidationIcon('studentUsername', null);
+      return null;
+    });
+    
+    return null; // Возвращаем null, так как результат будет асинхронным
+  }
+
+  // Валидация email с проверкой уникальности
+  function validateStudentEmail(email) {
+    if (!email) {
+      showValidationIcon('studentEmail', null);
+      return null;
+    }
+    
+    // Сначала проверяем формат
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const hasRussianChars = /[а-яёА-ЯЁ]/.test(email);
+    const formatValid = emailRegex.test(email) && !hasRussianChars;
+    
+    if (!formatValid) {
+      showValidationIcon('studentEmail', false);
+      return false;
+    }
+    
+    // Показываем состояние загрузки
+    showValidationIcon('studentEmail', 'loading');
+    
+    // Проверяем уникальность через AJAX
+    fetch('/check-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, type: 'user' })
+    })
+    .then(response => response.json())
+    .then(data => {
+      const isValid = data.available;
+      showValidationIcon('studentEmail', isValid);
+      return isValid;
+    })
+    .catch(error => {
+      console.error('Ошибка проверки email:', error);
+      showValidationIcon('studentEmail', null);
+      return null;
+    });
+    
+    return null; // Возвращаем null, так как результат будет асинхронным
+  }
+
+  // Валидация ФИО
+  function validateStudentName(name) {
+    if (!name) return null;
+    const isValid = /^[а-яёА-ЯЁa-zA-Z\s\-\.]+$/.test(name) && name.trim().length >= 2;
+    showValidationIcon('studentName', isValid);
+    return isValid;
+  }
+
+  // Валидация телефона
+  function validateStudentPhone(phone) {
+    if (!phone) return null; // Телефон необязательный
+    const isValid = /^\+375[0-9]{9}$/.test(phone);
+    showValidationIcon('studentPhone', isValid);
+    return isValid;
+  }
+
+  // Валидация категории
+  function validateStudentCategory(category) {
+    if (!category) return null;
+    const validCategories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11'];
+    const isValid = validCategories.includes(category);
+    showValidationIcon('studentCategory', isValid);
+    return isValid;
+  }
+
+  function studentUpdateRequirements(hasLen, hasU, hasL, hasD, hasS) {
+    const map = [
+      ['student-req-length', hasLen],
+      ['student-req-uppercase', hasU],
+      ['student-req-lowercase', hasL],
+      ['student-req-number', hasD],
+      ['student-req-special', hasS],
+    ];
+    map.forEach(([id, ok]) => {
+      const li = document.getElementById(id);
+      if (!li) return;
+      const icon = li.querySelector('i');
+      if (ok) {
+        icon.className = 'fas fa-check text-success';
+        li.classList.remove('text-muted');
+        li.classList.add('text-success');
+      } else {
+        icon.className = 'fas fa-circle text-muted';
+        li.classList.remove('text-success');
+        li.classList.add('text-muted');
+      }
+    });
+  }
+
+  function studentValidatePassword(pw) {
+    if (!studentReqBox) return true;
+    if (!pw) {
+      studentReqBox.style.display = 'none';
+      showValidationIcon('studentPassword', null);
+      return true;
+    }
+    studentReqBox.style.display = 'block';
+    const hasLen = pw.length >= 8;
+    const hasU = /[A-Z]/.test(pw);
+    const hasL = /[a-z]/.test(pw);
+    const hasD = /\d/.test(pw);
+    const hasS = /[!@#$%^&*()_+\-=[\]{}|;:,.<>?]/.test(pw);
+    studentUpdateRequirements(hasLen, hasU, hasL, hasD, hasS);
+    const ok = hasLen && hasU && hasL && hasD && hasS;
+    showValidationIcon('studentPassword', ok);
+    return ok;
+  }
+
+  function studentValidateConfirm() {
+    if (!studentPassword || !studentConfirmPassword) return true;
+    if (!studentPassword.value && !studentConfirmPassword.value) {
+      showValidationIcon('studentConfirmPassword', null);
+      return true;
+    }
+    const ok = studentPassword.value === studentConfirmPassword.value;
+    showValidationIcon('studentConfirmPassword', ok);
+    return ok;
+  }
+
+  if (studentPassword) {
+    studentPassword.addEventListener('input', function(){
+      studentValidatePassword(this.value);
+      studentValidateConfirm();
+    });
+  }
+  if (studentConfirmPassword) {
+    studentConfirmPassword.addEventListener('input', function(){ studentValidateConfirm(); });
+  }
+
+  // Добавляем обработчики для всех полей
+  const studentUsername = document.getElementById('studentUsername');
+  const studentEmail = document.getElementById('studentEmail');
+  const studentName = document.getElementById('studentName');
+  const studentPhone = document.getElementById('studentPhone');
+  const studentCategory = document.getElementById('studentCategory');
+
+  // Debounce функции для предотвращения слишком частых запросов
+  let usernameTimeout;
+  let emailTimeout;
+
+  if (studentUsername) {
+    studentUsername.addEventListener('input', function() {
+      clearTimeout(usernameTimeout);
+      usernameTimeout = setTimeout(() => {
+        validateStudentUsername(this.value);
+      }, 500); // Задержка 500мс
+    });
+  }
+
+  if (studentEmail) {
+    studentEmail.addEventListener('input', function() {
+      clearTimeout(emailTimeout);
+      emailTimeout = setTimeout(() => {
+        validateStudentEmail(this.value);
+      }, 500); // Задержка 500мс
+    });
+  }
+
+  if (studentName) {
+    studentName.addEventListener('input', function() {
+      validateStudentName(this.value);
+    });
+  }
+
+  if (studentPhone) {
+    studentPhone.addEventListener('input', function() {
+      validateStudentPhone(this.value);
+    });
+  }
+
+  if (studentCategory) {
+    studentCategory.addEventListener('change', function() {
+      validateStudentCategory(this.value);
+    });
+  }
+
+  // Переключение видимости паролей
+  const toggleStudentPassword = document.getElementById('toggleStudentPassword');
+  const toggleStudentConfirmPassword = document.getElementById('toggleStudentConfirmPassword');
+  
+  if (toggleStudentPassword && studentPassword) {
+    toggleStudentPassword.addEventListener('click', function(){
+      const type = studentPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+      studentPassword.setAttribute('type', type);
+      const icon = this.querySelector('i');
+      if (icon) icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    });
+  }
+  if (toggleStudentConfirmPassword && studentConfirmPassword) {
+    toggleStudentConfirmPassword.addEventListener('click', function(){
+      const type = studentConfirmPassword.getAttribute('type') === 'password' ? 'text' : 'password';
+      studentConfirmPassword.setAttribute('type', type);
+      const icon = this.querySelector('i');
+      if (icon) icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    });
+  }
+
+  // Обработчик отправки формы создания ученика
+  document.getElementById('createStudentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('studentUsername').value.trim();
+    const email = document.getElementById('studentEmail').value.trim();
+    const password = document.getElementById('studentPassword').value;
+    const confirmPassword = document.getElementById('studentConfirmPassword').value;
+    const studentName = document.getElementById('studentName').value.trim();
+    const phone = document.getElementById('studentPhone').value.trim();
+    const category = document.getElementById('studentCategory').value;
+    const educationalInstitutionName = document.getElementById('studentInstitution').value.trim();
+    
+    // Проверяем обязательные поля
+    if (!username || !email || !password || !confirmPassword || !studentName || !category) {
+      showNotification('Пожалуйста, заполните все обязательные поля', 'danger');
+      return;
+    }
+    
+    // Проверяем формат полей (синхронная валидация)
+    const usernameFormatValid = /^[a-zA-Z][a-zA-Z0-9_]{2,}$/.test(username);
+    const emailFormatValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && !/[а-яёА-ЯЁ]/.test(email);
+    const passwordValid = studentValidatePassword(password);
+    const confirmValid = studentValidateConfirm();
+    const nameValid = validateStudentName(studentName);
+    const phoneValid = validateStudentPhone(phone);
+    const categoryValid = validateStudentCategory(category);
+    
+    // Проверяем валидность полей
+    if (!usernameFormatValid) {
+      showNotification('Логин может содержать только буквы латинского алфавита, цифры и знак подчеркивания. Минимальная длина - 3 символа, должен содержать хотя бы одну букву.', 'danger');
+      return;
+    }
+    
+    if (!emailFormatValid) {
+      showNotification('Введите корректный email адрес без русских символов', 'danger');
+      return;
+    }
+    
+    if (!passwordValid) {
+      showNotification('Пароль не соответствует требованиям', 'danger');
+      return;
+    }
+    
+    if (!confirmValid) {
+      showNotification('Пароли не совпадают', 'danger');
+      return;
+    }
+    
+    if (!nameValid) {
+      showNotification('ФИО может содержать только буквы, пробелы, дефисы и точки', 'danger');
+      return;
+    }
+    
+    if (phoneValid === false) {
+      showNotification('Номер телефона должен быть в формате +375XXXXXXXXX', 'danger');
+      return;
+    }
+    
+    if (!categoryValid) {
+      showNotification('Выберите корректную группу', 'danger');
+      return;
+    }
+    
+    // Проверяем уникальность логина и email перед отправкой
+    const usernameIcon = document.getElementById('studentUsername-icon');
+    const emailIcon = document.getElementById('studentEmail-icon');
+    
+    if (usernameIcon && usernameIcon.classList.contains('is-invalid')) {
+      showNotification('Логин уже используется. Выберите другой логин.', 'danger');
+      return;
+    }
+    
+    if (emailIcon && emailIcon.classList.contains('is-invalid')) {
+      showNotification('Email уже используется. Выберите другой email.', 'danger');
+      return;
+    }
+    
+    const submitBtn = document.getElementById('createStudentSubmit');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Создание...';
+    
+    try {
+      const response = await fetch('/teacher/create-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          email,
+          password,
+          confirm_password: confirmPassword,
+          student_name: studentName,
+          phone: phone || null,
+          category,
+          educational_institution_name: educationalInstitutionName || null
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showNotification('Аккаунт ученика успешно создан!', 'success');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('createStudentModal'));
+        if (modal) modal.hide();
+        // Очищаем форму
+        document.getElementById('createStudentForm').reset();
+        // Перезагружаем страницу через 1 секунду
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showNotification(data.message || 'Ошибка при создании аккаунта', 'danger');
+      }
+    } catch (error) {
+      showNotification('Произошла ошибка при создании аккаунта', 'danger');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-user-plus me-1"></i>Создать аккаунт';
+    }
+  });
+});
+
 // Обработчик для передачи жетонов
 document.addEventListener('DOMContentLoaded', function() {
   // Обработчик кнопок передачи жетонов
@@ -988,6 +1468,177 @@ function resetTeacherTutorial() {
 
 <!-- Загружаем скрипт обучения для учителей -->
 <script src="{{ url_for('static', filename='js/teacher_tutorial.js') }}"></script>
+
+<!-- Модальное окно для создания аккаунта ученика -->
+<div class="modal fade" id="createStudentModal" tabindex="-1" aria-labelledby="createStudentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createStudentModalLabel">
+          <i class="fas fa-user-plus me-2"></i>Создание аккаунта ученика
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="createStudentForm">
+        <div class="modal-body">
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Важно:</strong> Созданный аккаунт будет автоматически активирован и привязан к вашему аккаунту учителя.
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentUsername" class="form-label">Логин <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="studentUsername" name="username" required 
+                         placeholder="Введите логин ученика">
+                  <span class="input-group-text validation-icon" id="studentUsername-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                    <i class="fas fa-spinner text-primary" style="display: none;"></i>
+                  </span>
+                </div>
+                <div class="form-text">Логин должен быть уникальным</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="email" class="form-control" id="studentEmail" name="email" required 
+                         placeholder="Введите email ученика">
+                  <span class="input-group-text validation-icon" id="studentEmail-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                    <i class="fas fa-spinner text-primary" style="display: none;"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentPassword" class="form-label">Пароль <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="studentPassword" name="password" required 
+                         placeholder="Введите пароль">
+                  <button type="button" class="btn btn-outline-secondary" id="toggleStudentPassword" title="Показать/скрыть пароль">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <span class="input-group-text validation-icon" id="studentPassword-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                  </span>
+                </div>
+                <div class="password-requirements mt-2" id="student-password-requirements" style="display:none;">
+                  <small class="text-muted">Требования к паролю:</small>
+                  <ul class="list-unstyled mt-1 mb-0">
+                    <li id="student-req-length"><i class="fas fa-circle text-muted"></i> Минимум 8 символов</li>
+                    <li id="student-req-uppercase"><i class="fas fa-circle text-muted"></i> Заглавная буква</li>
+                    <li id="student-req-lowercase"><i class="fas fa-circle text-muted"></i> Строчная буква</li>
+                    <li id="student-req-number"><i class="fas fa-circle text-muted"></i> Цифра</li>
+                    <li id="student-req-special"><i class="fas fa-circle text-muted"></i> Спецсимвол (!@#$%^&*...)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentConfirmPassword" class="form-label">Подтверждение пароля <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="studentConfirmPassword" name="confirm_password" required 
+                         placeholder="Повторите пароль">
+                  <button type="button" class="btn btn-outline-secondary" id="toggleStudentConfirmPassword" title="Показать/скрыть пароль">
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <span class="input-group-text validation-icon" id="studentConfirmPassword-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentName" class="form-label">ФИО учащегося <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="studentName" name="student_name" required 
+                         placeholder="Введите ФИО учащегося">
+                  <span class="input-group-text validation-icon" id="studentName-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentPhone" class="form-label">Номер телефона</label>
+                <div class="input-group">
+                  <input type="tel" class="form-control" id="studentPhone" name="phone" 
+                         placeholder="+375XXXXXXXXX" value="{{ current_user.phone or '' }}">
+                  <span class="input-group-text validation-icon" id="studentPhone-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                  </span>
+                </div>
+                <div class="form-text">По умолчанию указан ваш номер телефона</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentCategory" class="form-label">Группа <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <select class="form-control" id="studentCategory" name="category" required>
+                    <option value="">Выберите группу</option>
+                    <option value="1-2">1-2 класс</option>
+                    <option value="3">3 класс</option>
+                    <option value="4">4 класс</option>
+                    <option value="5">5 класс</option>
+                    <option value="6">6 класс</option>
+                    <option value="7">7 класс</option>
+                    <option value="8">8 класс</option>
+                    <option value="9">9 класс</option>
+                    <option value="10">10 класс</option>
+                    <option value="11">11 класс</option>
+                  </select>
+                  <span class="input-group-text validation-icon" id="studentCategory-icon">
+                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                    <i class="fas fa-times text-danger" style="display: none;"></i>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="studentInstitution" class="form-label">Учреждение образования</label>
+                <input type="text" class="form-control" id="studentInstitution" name="educational_institution_name" 
+                       value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}" 
+                       placeholder="Название учреждения">
+                <div class="form-text">По умолчанию указано ваше учреждение образования</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-success" id="createStudentSubmit">
+            <i class="fas fa-user-plus me-1"></i>Создать аккаунт
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Модальное окно для передачи жетонов -->
 <div class="modal fade" id="transferTokensModal" tabindex="-1" aria-labelledby="transferTokensModalLabel" aria-hidden="true">

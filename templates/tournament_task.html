@@ -816,19 +816,41 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
 
+    // Данные для таймера
+    const tournamentStartDate = "{{ tournament.start_date.isoformat() }}";
+    const tournamentDuration = {{ tournament.duration }};
+    const solvingTimeMinutes = {{ tournament.solving_time_minutes or 0 }};
+    {% if participation and participation.solving_start_time and tournament.solving_time_minutes %}
+    const solvingStartTime = "{{ participation.solving_start_time.isoformat() }}";
+    const hasPersonalTime = true;
+    {% else %}
+    const hasPersonalTime = false;
+    {% endif %}
+
     function getServerTime() {
         const clientNow = new Date();
         return new Date(clientNow.getTime() + serverTimeOffset);
     }
 
     function updateTimer() {
-        const startDate = new Date("{{ tournament.start_date.isoformat() }}");
-        const tournamentDuration = {{ tournament.duration }}; // длительность в минутах
+        const startDate = new Date(tournamentStartDate);
         const serverNow = getServerTime();
 
         // Вычисляем время окончания турнира
-        const endTime = new Date(startDate.getTime() + tournamentDuration * 60000);
-        const timeLeft = endTime - serverNow;
+        const tournamentEndTime = new Date(startDate.getTime() + tournamentDuration * 60000);
+        
+        let actualEndTime = tournamentEndTime;
+        
+        // Если есть личное время на решение и время начала решения установлено
+        if (hasPersonalTime) {
+            const solvingStart = new Date(solvingStartTime);
+            const solvingEndTime = new Date(solvingStart.getTime() + solvingTimeMinutes * 60000);
+            
+            // Используем меньшее из двух времен (личное время или время окончания турнира)
+            actualEndTime = new Date(Math.min(solvingEndTime.getTime(), tournamentEndTime.getTime()));
+        }
+        
+        const timeLeft = actualEndTime - serverNow;
 
         if (timeLeft <= 0) {
             // Если время вышло, перенаправляем на страницу результатов
@@ -849,9 +871,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Инициализация смещения времени при загрузке страницы
-    const serverNow = new Date("{{ now.isoformat() }}");
+    const serverTimeNow = new Date("{{ now.isoformat() }}");
     const clientNow = new Date();
-    serverTimeOffset = serverNow.getTime() - clientNow.getTime();
+    serverTimeOffset = serverTimeNow.getTime() - clientNow.getTime();
 
     // Обновляем таймер каждую секунду
     updateTimer();

@@ -96,6 +96,7 @@
                                                 data-rules="{{ tournament.rules }}"
                                                 data-start-date="{{ tournament.start_date.strftime('%Y-%m-%dT%H:%M') }}"
                                                 data-duration="{{ tournament.duration }}" 
+                                                data-solving-time-minutes="{{ tournament.solving_time_minutes or '' }}"
                                                 data-image="{{ tournament.image }}"
                                                 data-pdf-file="{{ tournament.pdf_file }}">
                                             <i class="bi bi-pencil"></i>
@@ -179,6 +180,11 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="mb-3">
+                            <label for="solving_time_minutes" class="form-label">Время на решение задач (минуты)</label>
+                            <input type="number" class="form-control" id="solving_time_minutes" name="solving_time_minutes" min="1" required>
+                            <div class="form-text">Время, в течение которого участник может решать задачи с момента начала решения первой задачи</div>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
@@ -236,6 +242,11 @@
                                     <input type="number" class="form-control" id="edit_duration" name="duration" min="1" required>
                                 </div>
                             </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_solving_time_minutes" class="form-label">Время на решение задач (минуты)</label>
+                            <input type="number" class="form-control" id="edit_solving_time_minutes" name="solving_time_minutes" min="1" required>
+                            <div class="form-text">Время, в течение которого участник может решать задачи с момента начала решения первой задачи</div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -395,6 +406,7 @@
                 const rules = this.dataset.rules;
                 const startDate = this.dataset.startDate;
                 const duration = this.dataset.duration;
+                const solvingTimeMinutes = this.dataset.solvingTimeMinutes;
                 const image = this.dataset.image;
                 const pdfFile = this.dataset.pdfFile;
                 
@@ -403,6 +415,7 @@
                 document.getElementById('edit_rules').value = rules;
                 document.getElementById('edit_start_date').value = startDate;
                 document.getElementById('edit_duration').value = duration;
+                document.getElementById('edit_solving_time_minutes').value = solvingTimeMinutes;
                 
                 const currentImage = document.getElementById('current_image');
                 if (image) {
