@@ -5222,6 +5222,8 @@ def teacher_check_payment_status(payment_id):
         
         # Если платеж успешен, начисляем жетоны
         if new_status == 'succeeded' and old_status != 'succeeded':
+            if current_user.tickets is None:
+                current_user.tickets = 0
             current_user.tickets += purchase.quantity
             purchase.payment_confirmed_at = datetime.now()
             db.session.commit()
@@ -5252,7 +5254,7 @@ def teacher_transfer_tokens():
     
     try:
         # Проверяем, что у учителя достаточно жетонов
-        if current_user.tickets < tokens_amount:
+        if current_user.tickets is None or current_user.tickets < tokens_amount:
             return jsonify({'success': False, 'message': 'Недостаточно жетонов для передачи'})
         
         # Находим ученика и проверяем, что он является учеником этого учителя
@@ -5260,13 +5262,23 @@ def teacher_transfer_tokens():
         if not student:
             return jsonify({'success': False, 'message': 'Ученик не найден'})
         
-        # Проверяем связь учитель-ученик через TeacherReferral
-        teacher_referral = TeacherReferral.query.filter_by(
-            teacher_id=current_user.id,
-            student_id=student_id
-        ).first()
+        # Проверяем связь учитель-ученик: либо через teacher_id, либо через TeacherReferral
+        is_student = False
         
-        if not teacher_referral:
+        # Проверка через прямое поле teacher_id (для учеников, созданных учителем)
+        if student.teacher_id == current_user.id:
+            is_student = True
+        
+        # Проверка через TeacherReferral (для учеников, зарегистрировавшихся по ссылке)
+        if not is_student:
+            teacher_referral = TeacherReferral.query.filter_by(
+                teacher_id=current_user.id,
+                student_id=student_id
+            ).first()
+            if teacher_referral:
+                is_student = True
+        
+        if not is_student:
             return jsonify({'success': False, 'message': 'Этот ученик не является вашим учеником'})
         
         # Создаем запись о передаче
@@ -5277,6 +5289,10 @@ def teacher_transfer_tokens():
         )
         
         # Обновляем балансы
+        if current_user.tickets is None:
+            current_user.tickets = 0
+        if student.tickets is None:
+            student.tickets = 0
         current_user.tickets -= tokens_amount
         student.tickets += tokens_amount
         
@@ -5325,7 +5341,7 @@ def teacher_cancel_transfer(transfer_id):
             return jsonify({'success': False, 'message': 'Ученик не найден'})
         
         # Проверяем, что у ученика достаточно жетонов для возврата
-        if student.tickets < transfer.tokens_amount:
+        if student.tickets is None or student.tickets < transfer.tokens_amount:
             return jsonify({'success': False, 'message': 'Ученик уже потратил часть жетонов, отмена невозможна'})
         
         # Отменяем передачу
@@ -5334,6 +5350,10 @@ def teacher_cancel_transfer(transfer_id):
         transfer.cancellation_reason = 'Отменено учителем'
         
         # Возвращаем жетоны
+        if current_user.tickets is None:
+            current_user.tickets = 0
+        if student.tickets is None:
+            student.tickets = 0
         current_user.tickets += transfer.tokens_amount
         student.tickets -= transfer.tokens_amount
         
@@ -5787,6 +5807,8 @@ def check_payment_status(payment_id):
         
         # Если платеж успешен, начисляем жетоны
         if new_status == 'succeeded' and old_status != 'succeeded':
+            if current_user.tickets is None:
+                current_user.tickets = 0
             current_user.tickets += purchase.quantity
             purchase.payment_confirmed_at = datetime.now()
             print(f"Проверка статуса: начислено {purchase.quantity} жетонов пользователю {current_user.id}")
@@ -6069,12 +6091,16 @@ def handle_status_change_notification(data):
             if purchase_type == 'user':
                 user = User.query.get(purchase.user_id)
                 if user:
+                    if user.tickets is None:
+                        user.tickets = 0
                     user.tickets += purchase.quantity
                     purchase.payment_confirmed_at = datetime.now()
                     print(f"Webhook: начислено {purchase.quantity} жетонов пользователю {user.id}")
             elif purchase_type == 'teacher':
                 teacher = Teacher.query.get(purchase.teacher_id)
                 if teacher:
+                    if teacher.tickets is None:
+                        teacher.tickets = 0
                     teacher.tickets += purchase.quantity
                     purchase.payment_confirmed_at = datetime.now()
                     print(f"Webhook: начислено {purchase.quantity} жетонов учителю {teacher.id}")
@@ -6121,7 +6147,7 @@ def join_tournament(tournament_id):
     ).first()
     
     # Проверяем жетоны только если пользователь еще не участвует в турнире
-    if not participation and current_user.tickets < 1:
+    if not participation and (current_user.tickets is None or current_user.tickets < 1):
         flash('Для доступа к турниру не хватает жетонов!', 'warning')
         return redirect(url_for('buy_tickets'))
     
@@ -6179,7 +6205,7 @@ def tournament_menu(tournament_id):
     ).first()
     
     # Проверяем жетоны только если пользователь еще не участвует в турнире
-    if not participation and current_user.tickets < 1:
+    if not participation and (current_user.tickets is None or current_user.tickets < 1):
         flash('У вас недостаточно жетонов для участия в турнире', 'warning')
         return redirect(url_for('profile'))
     
@@ -6228,7 +6254,7 @@ def start_tournament(tournament_id):
                 return redirect(url_for('tournament_history'))
     
     # Проверяем жетоны только если пользователь еще не участвует в турнире
-    if not participation and current_user.tickets < 1:
+    if not participation and (current_user.tickets is None or current_user.tickets < 1):
         flash('Для доступа к турниру не хватает жетонов!', 'warning')
         return redirect(url_for('buy_tickets'))
     
@@ -6258,6 +6284,10 @@ def start_tournament(tournament_id):
             score=0,
             start_time=current_time  # Используем локальное время
         )
+        if current_user.tickets is None:
+            current_user.tickets = 0
+        if current_user.tournaments_count is None:
+            current_user.tournaments_count = 0
         current_user.tickets -= 1
         current_user.tournaments_count += 1  # Увеличиваем счетчик турниров
         db.session.add(participation)
@@ -6990,6 +7020,8 @@ def submit_task_answer(tournament_id, task_id):
     
     if is_correct:
         # Добавляем баллы к общему счету (запись создается только если её еще нет)
+        if current_user.balance is None:
+            current_user.balance = 0
         current_user.balance += task.points
         
         # Проверяем на подозрительную активность
@@ -7985,7 +8017,7 @@ def checkout():
     
     # Проверяем баланс и доступность товаров
     total_cost = sum(item.prize.points_cost * item.quantity for item in cart_items)
-    if current_user.balance < total_cost:
+    if current_user.balance is None or current_user.balance < total_cost:
         return jsonify({'success': False, 'message': 'Недостаточно баллов для оформления заказа'})
     
     # Проверяем доступность всех товаров и уникальность
@@ -8071,6 +8103,8 @@ def checkout():
             # Для неограниченных призов (quantity == -1) ничего не делаем
         
         # Списываем баллы
+        if current_user.balance is None:
+            current_user.balance = 0
         current_user.balance -= total_cost
         
         # Очищаем корзину
@@ -8366,6 +8400,8 @@ def cancel_purchase(purchase_id):
     
     try:
         # Возвращаем баллы пользователю
+        if current_user.balance is None:
+            current_user.balance = 0
         current_user.balance += purchase.points_cost
         
         # Обновляем статус покупки
@@ -10336,6 +10372,10 @@ def pay_referral_bonus(referral_id):
         # Начисляем бонусы рефереру
         referrer = User.query.get(referral.referrer_id)
         if referrer:
+            if referrer.balance is None:
+                referrer.balance = 0
+            if referrer.tickets is None:
+                referrer.tickets = 0
             referrer.balance += REFERRAL_BONUS_POINTS
             referrer.tickets += REFERRAL_BONUS_TICKETS
             
@@ -10428,6 +10468,8 @@ def pay_teacher_referral_bonus(teacher_referral_id):
         # Начисляем бонусы учителю
         teacher = Teacher.query.get(teacher_referral.teacher_id)
         if teacher:
+            if teacher.balance is None:
+                teacher.balance = 0
             teacher.balance += TEACHER_REFERRAL_BONUS_POINTS
             
             # Увеличиваем счетчик выплаченных бонусов
@@ -10724,6 +10766,8 @@ def check_express_pay_expired_payments():
                 if status == 'succeeded' and old_status != 'succeeded':
                     user = User.query.get(purchase.user_id)
                     if user:
+                        if user.tickets is None:
+                            user.tickets = 0
                         user.tickets += purchase.quantity
                         purchase.payment_confirmed_at = datetime.now()
                         print(f"Автоматическая проверка: начислено {purchase.quantity} жетонов пользователю {user.id}")
@@ -10815,6 +10859,8 @@ def check_teacher_express_pay_expired_payments():
                 if status == 'succeeded' and old_status != 'succeeded':
                     teacher = Teacher.query.get(purchase.teacher_id)
                     if teacher:
+                        if teacher.tickets is None:
+                            teacher.tickets = 0
                         teacher.tickets += purchase.quantity
                         purchase.payment_confirmed_at = datetime.now()
                         print(f"Автоматическая проверка: начислено {purchase.quantity} жетонов учителю {teacher.id}")
