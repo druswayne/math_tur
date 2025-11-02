@@ -546,15 +546,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             html += `
                 <tr class="${isCurrentUser}">
-                            <td>${user.category_rank}</td>
+                    <td>${user.category_rank}</td>
                     <td>${flagHtml}${usernameDisplay}</td>
-                            <td>${user.balance}</td>
-                            <td>${user.solved_tasks_count}</td>
-                            <td>${user.success_rate}%</td>
-                            <td>${user.tournaments_count}</td>
+                    <td>${user.balance}</td>
                     <td>${timeStr}</td>
+                    <td>${user.solved_tasks_count}</td>
+                    <td>${user.tournaments_count}</td>
+                    <td>${user.success_rate}%</td>
                 </tr>
-                        `;
+            `;
         });
         
         tbody.innerHTML = html;

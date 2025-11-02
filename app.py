@@ -1053,10 +1053,10 @@ class TournamentTaskCache:
             self._cache[tournament_id] = tasks_by_category
             self._cache_timestamps[tournament_id] = datetime.now()
             
-            print(f"✅ Кэшированы задачи турнира {tournament_id}: {len(tasks)} задач для {len(tasks_by_category)} категорий")
+            print(f"Кэшированы задачи турнира {tournament_id}: {len(tasks)} задач для {len(tasks_by_category)} категорий")
             
         except Exception as e:
-            print(f"❌ Ошибка при кэшировании задач турнира {tournament_id}: {e}")
+            print(f"Ошибка при кэшировании задач турнира {tournament_id}: {e}")
     
     def get_tournament_tasks(self, tournament_id, category=None, verbose=None):
         """Получает задачи турнира из кэша"""
@@ -1066,16 +1066,16 @@ class TournamentTaskCache:
             
         if tournament_id not in self._cache:
             if verbose:
-                print(f"❌ [КЭШ] Турнир {tournament_id} не найден в кэше")
+                print(f"[КЭШ] Турнир {tournament_id} не найден в кэше")
             return None
         
         if verbose:
-            print(f"✅ [КЭШ] Турнир {tournament_id} найден в кэше")
+            print(f"[КЭШ] Турнир {tournament_id} найден в кэше")
         if category:
             task_data_list = self._cache[tournament_id].get(category, [])
             tasks = [CachedTask(task_data) for task_data in task_data_list]
             if verbose:
-                print(f"📋 [КЭШ] Возвращено {len(tasks)} задач категории {category} из кэша")
+                print(f"[КЭШ] Возвращено {len(tasks)} задач категории {category} из кэша")
             return tasks
         else:
             # Возвращаем все задачи всех категорий
@@ -1083,7 +1083,7 @@ class TournamentTaskCache:
             for category_tasks in self._cache[tournament_id].values():
                 all_tasks.extend([CachedTask(task_data) for task_data in category_tasks])
             if verbose:
-                print(f"📋 [КЭШ] Возвращено {len(all_tasks)} задач всех категорий из кэша")
+                print(f"[КЭШ] Возвращено {len(all_tasks)} задач всех категорий из кэша")
             return all_tasks
     
     def get_task_by_id(self, tournament_id, task_id, verbose=None):
@@ -1094,18 +1094,18 @@ class TournamentTaskCache:
             
         if tournament_id not in self._cache:
             if verbose:
-                print(f"❌ [КЭШ] Турнир {tournament_id} не найден в кэше для задачи {task_id}")
+                print(f"[КЭШ] Турнир {tournament_id} не найден в кэше для задачи {task_id}")
             return None
         
         for category_tasks in self._cache[tournament_id].values():
             for task_data in category_tasks:
                 if task_data['id'] == task_id:
                     if verbose:
-                        print(f"✅ [КЭШ] Задача {task_id} найдена в кэше турнира {tournament_id}")
+                        print(f"[КЭШ] Задача {task_id} найдена в кэше турнира {tournament_id}")
                     return CachedTask(task_data)
         
         if verbose:
-            print(f"❌ [КЭШ] Задача {task_id} не найдена в кэше турнира {tournament_id}")
+            print(f"[КЭШ] Задача {task_id} не найдена в кэше турнира {tournament_id}")
         return None
     
     def clear_tournament_cache(self, tournament_id):
@@ -1114,13 +1114,13 @@ class TournamentTaskCache:
             del self._cache[tournament_id]
         if tournament_id in self._cache_timestamps:
             del self._cache_timestamps[tournament_id]
-        print(f"🗑️ Очищен кэш турнира {tournament_id}")
+        print(f"Очищен кэш турнира {tournament_id}")
     
     def clear_all_cache(self):
         """Очищает весь кэш"""
         self._cache.clear()
         self._cache_timestamps.clear()
-        print("🗑️ Очищен весь кэш задач турниров")
+        print("Очищен весь кэш задач турниров")
     
     def get_cache_info(self):
         """Возвращает информацию о кэше"""
@@ -1162,7 +1162,7 @@ class TournamentTaskCache:
             
             return running_tournaments
         except Exception as e:
-            print(f"❌ Ошибка при получении активных турниров: {e}")
+            print(f"Ошибка при получении активных турниров: {e}")
             return []
     
     def sync_active_tournaments(self, force=False):
@@ -1176,7 +1176,7 @@ class TournamentTaskCache:
                 if time_since_sync < self._sync_interval:
                     return  # Слишком рано для синхронизации
             
-            print("🔄 [СИНХРОНИЗАЦИЯ] Начинаем синхронизацию кеша активных турниров...")
+            print("[СИНХРОНИЗАЦИЯ] Начинаем синхронизацию кеша активных турниров...")
             
             # Получаем активные турниры
             active_tournaments = self.get_active_tournaments()
@@ -1185,7 +1185,7 @@ class TournamentTaskCache:
             # Кешируем задачи для активных турниров
             for tournament in active_tournaments:
                 if tournament.id not in self._cache:
-                    print(f"📥 [СИНХРОНИЗАЦИЯ] Кешируем задачи турнира {tournament.id}")
+                    print(f"[СИНХРОНИЗАЦИЯ] Кешируем задачи турнира {tournament.id}")
                     self.cache_tournament_tasks(tournament.id)
             
             # Очищаем кеш завершенных турниров
@@ -1193,35 +1193,35 @@ class TournamentTaskCache:
             finished_tournaments = cached_tournament_ids - active_tournament_ids
             
             for tournament_id in finished_tournaments:
-                print(f"🗑️ [СИНХРОНИЗАЦИЯ] Очищаем кеш завершенного турнира {tournament_id}")
+                print(f"[СИНХРОНИЗАЦИЯ] Очищаем кеш завершенного турнира {tournament_id}")
                 self.clear_tournament_cache(tournament_id)
             
             self._last_sync = current_time
             
-            print(f"✅ [СИНХРОНИЗАЦИЯ] Синхронизация завершена. Активных турниров: {len(active_tournaments)}")
+            print(f"[СИНХРОНИЗАЦИЯ] Синхронизация завершена. Активных турниров: {len(active_tournaments)}")
             
         except Exception as e:
-            print(f"❌ [СИНХРОНИЗАЦИЯ] Ошибка при синхронизации: {e}")
+            print(f"[СИНХРОНИЗАЦИЯ] Ошибка при синхронизации: {e}")
     
     def initialize_cache_for_active_tournaments(self):
         """Инициализирует кеш для всех активных турниров при запуске сервера"""
         try:
-            print("🚀 [ИНИЦИАЛИЗАЦИЯ] Инициализация кеша для активных турниров...")
+            print("[ИНИЦИАЛИЗАЦИЯ] Инициализация кеша для активных турниров...")
             
             active_tournaments = self.get_active_tournaments()
             
             if not active_tournaments:
-                print("ℹ️ [ИНИЦИАЛИЗАЦИЯ] Активных турниров не найдено")
+                print("ℹ[ИНИЦИАЛИЗАЦИЯ] Активных турниров не найдено")
                 return
             
             for tournament in active_tournaments:
-                print(f"📥 [ИНИЦИАЛИЗАЦИЯ] Кешируем задачи турнира {tournament.id}")
+                print(f"[ИНИЦИАЛИЗАЦИЯ] Кешируем задачи турнира {tournament.id}")
                 self.cache_tournament_tasks(tournament.id)
             
-            print(f"✅ [ИНИЦИАЛИЗАЦИЯ] Кеш инициализирован для {len(active_tournaments)} активных турниров")
+            print(f"[ИНИЦИАЛИЗАЦИЯ] Кеш инициализирован для {len(active_tournaments)} активных турниров")
             
         except Exception as e:
-            print(f"❌ [ИНИЦИАЛИЗАЦИЯ] Ошибка при инициализации кеша: {e}")
+            print(f"ИНИЦИАЛИЗАЦИЯ] Ошибка при инициализации кеша: {e}")
 
 class CachedTask:
     """Класс-обертка для кэшированных задач"""
@@ -6398,51 +6398,51 @@ def restore_scheduler_jobs():
                         # Обычная задача - время истекло
                         if job.job_type == 'end' and job.tournament_id:
                             # Специальная обработка для задач окончания турнира
-                            print(f"⚠️ Задача окончания турнира {job.tournament_id} истекла, проверяем статус турнира...")
+                            print(f"Задача окончания турнира {job.tournament_id} истекла, проверяем статус турнира...")
                             
                             # Проверяем статус турнира
                             tournament = Tournament.query.get(job.tournament_id)
                             if tournament and tournament.status == 'started':
-                                print(f"🚨 Турнир {job.tournament_id} все еще активен, выполняем задачу окончания...")
+                                print(f"Турнир {job.tournament_id} все еще активен, выполняем задачу окончания...")
                                 try:
                                     # Выполняем функцию окончания турнира
                                     end_tournament_job(job.tournament_id)
-                                    print(f"✅ Турнир {job.tournament_id} успешно завершен")
+                                    print(f"Турнир {job.tournament_id} успешно завершен")
                                 except Exception as e:
-                                    print(f"❌ Ошибка при завершении турнира {job.tournament_id}: {e}")
+                                    print(f"Ошибка при завершении турнира {job.tournament_id}: {e}")
                             elif tournament and tournament.status == 'finished':
                                 print(f"ℹ️ Турнир {job.tournament_id} уже завершен, задача не нужна")
                             else:
-                                print(f"⚠️ Турнир {job.tournament_id} не найден или имеет неожиданный статус: {tournament.status if tournament else 'не найден'}")
+                                print(f"Турнир {job.tournament_id} не найден или имеет неожиданный статус: {tournament.status if tournament else 'не найден'}")
                             
                             # Удаляем задачу после обработки
                             db.session.delete(job)
                             db.session.commit()
                         elif job.job_type == 'start' and job.tournament_id:
                             # Специальная обработка для задач старта турнира
-                            print(f"⚠️ Задача старта турнира {job.tournament_id} истекла, проверяем статус турнира...")
+                            print(f"Задача старта турнира {job.tournament_id} истекла, проверяем статус турнира...")
                             
                             # Проверяем статус турнира
                             tournament = Tournament.query.get(job.tournament_id)
                             if tournament and tournament.status == 'pending':
-                                print(f"🚨 Турнир {job.tournament_id} все еще не начат, выполняем задачу старта...")
+                                print(f"Турнир {job.tournament_id} все еще не начат, выполняем задачу старта...")
                                 try:
                                     # Выполняем функцию старта турнира
                                     start_tournament_job(job.tournament_id)
-                                    print(f"✅ Турнир {job.tournament_id} успешно запущен")
+                                    print(f"Турнир {job.tournament_id} успешно запущен")
                                 except Exception as e:
-                                    print(f"❌ Ошибка при запуске турнира {job.tournament_id}: {e}")
+                                    print(f"Ошибка при запуске турнира {job.tournament_id}: {e}")
                             elif tournament and tournament.status in ['started', 'finished']:
-                                print(f"ℹ️ Турнир {job.tournament_id} уже запущен или завершен, задача не нужна")
+                                print(f"Турнир {job.tournament_id} уже запущен или завершен, задача не нужна")
                             else:
-                                print(f"⚠️ Турнир {job.tournament_id} не найден или имеет неожиданный статус: {tournament.status if tournament else 'не найден'}")
+                                print(f"Турнир {job.tournament_id} не найден или имеет неожиданный статус: {tournament.status if tournament else 'не найден'}")
                             
                             # Удаляем задачу после обработки
                             db.session.delete(job)
                             db.session.commit()
                         else:
                             # Для других типов задач просто удаляем
-                            print(f"🗑️ Удаляем истекшую задачу {job.job_id}")
+                            print(f"Удаляем истекшую задачу {job.job_id}")
                             db.session.delete(job)
                             db.session.commit()
                         continue
@@ -6559,7 +6559,7 @@ def get_tournament_tasks_cached(tournament_id, category=None, verbose=None):
     
     # В кэше нет - берем из БД и кэшируем
     if verbose:
-        print(f"🔄 [КЭШ] Задачи турнира {tournament_id} не найдены в кэше - берем из БД и кэшируем")
+        print(f"[КЭШ] Задачи турнира {tournament_id} не найдены в кэше - берем из БД и кэшируем")
     if category:
         tasks = Task.query.filter(
             Task.tournament_id == tournament_id,
@@ -6598,7 +6598,7 @@ def get_task_by_id_cached(tournament_id, task_id, verbose=None):
     
     # В кэше нет - берем из БД
     if verbose:
-        print(f"🔄 [КЭШ] Задача {task_id} турнира {tournament_id} не найдена в кэше - берем из БД")
+        print(f"[КЭШ] Задача {task_id} турнира {tournament_id} не найдена в кэше - берем из БД")
     return Task.query.get(task_id)
 
 def get_simple_task_selection(available_tasks, solved_tasks, tournament_id):
@@ -9112,7 +9112,7 @@ def start_scheduler_recovery_thread():
     
     recovery_thread = threading.Thread(target=recovery_worker, daemon=True, name="SchedulerRecovery")
     recovery_thread.start()
-    print("🔄 Поток восстановления планировщика запущен")
+    print("Поток восстановления планировщика запущен")
 
 @app.before_first_request
 def clear_sessions():
@@ -10676,7 +10676,7 @@ def create_database_backup():
     try:
         from remote_backup_service import RemoteBackupService
         
-        print("🔄 Запуск запланированного создания бекапа БД...")
+        print("Запуск запланированного создания бекапа БД...")
         
         # Создаем экземпляр сервиса бекапов
         backup_service = RemoteBackupService()
