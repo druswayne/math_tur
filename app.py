@@ -4815,6 +4815,68 @@ def teacher_student_details(student_id):
                          tournaments=tournament_list,
                          pagination=tournaments_paginated)
 
+@app.route('/teacher/student/<int:student_id>/achievements')
+@login_required
+def teacher_view_student_achievements(student_id):
+    """Просмотр достижений учащегося учителем"""
+    # Проверяем, что текущий пользователь - учитель
+    if not hasattr(current_user, 'full_name') or not current_user.full_name:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    # Получаем учащегося и проверяем, что он принадлежит текущему учителю
+    student = User.query.filter_by(id=student_id, teacher_id=current_user.id).first()
+    if not student:
+        flash('Учащийся не найден или не принадлежит вам', 'danger')
+        return redirect(url_for('teacher_profile'))
+    
+    # Получаем список всех доступных наград
+    all_achievements = get_user_achievements(student_id)
+    
+    # Пагинация
+    page = request.args.get('page', 1, type=int)
+    per_page = 10  # Количество наград на странице
+    
+    # Вычисляем индексы для текущей страницы
+    total_achievements = len(all_achievements)
+    total_pages = (total_achievements + per_page - 1) // per_page  # Округление вверх
+    
+    # Проверяем валидность номера страницы
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    
+    # Получаем награды для текущей страницы
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    achievements = all_achievements[start_idx:end_idx]
+    
+    # Подсчитываем общую статистику
+    total_diplomas = sum(1 for a in all_achievements if a['type'] == 'diploma')
+    total_certificates = sum(1 for a in all_achievements if a['type'] == 'certificate')
+    
+    # Создаем объект пагинации
+    pagination = {
+        'page': page,
+        'per_page': per_page,
+        'total': total_achievements,
+        'pages': total_pages,
+        'has_prev': page > 1,
+        'has_next': page < total_pages,
+        'prev_num': page - 1 if page > 1 else None,
+        'next_num': page + 1 if page < total_pages else None
+    }
+    
+    return render_template('teacher_student_achievements.html',
+                         title='Достижения учащегося',
+                         student=student,
+                         achievements=achievements,
+                         pagination=pagination,
+                         total_achievements=total_achievements,
+                         total_diplomas=total_diplomas,
+                         total_certificates=total_certificates)
+
 @app.route('/teacher/student/<int:student_id>/tournament/<int:tournament_id>/results')
 @login_required
 def teacher_student_tournament_results(student_id, tournament_id):
@@ -7403,15 +7465,28 @@ def view_achievement(filepath):
         abort(403)
     
     # Проверяем, является ли пользователь учителем
-    if not hasattr(current_user, 'tournaments_count'):
+    is_teacher = isinstance(current_user, Teacher)
+    if not is_teacher and not hasattr(current_user, 'tournaments_count'):
         abort(403)
     
-    # Проверяем, что путь содержит ID текущего пользователя
+    # Проверяем доступ к файлу
     filename = os.path.basename(filepath)
-    expected_filename = f'{current_user.id}.jpg'
+    file_user_id_str = filename.replace('.jpg', '')
     
-    if filename != expected_filename:
-        abort(403)  # Пользователь пытается просмотреть чужой файл
+    try:
+        file_user_id = int(file_user_id_str)
+    except ValueError:
+        abort(403)
+    
+    # Если это учитель, проверяем, что ученик принадлежит ему
+    if is_teacher:
+        student = User.query.filter_by(id=file_user_id, teacher_id=current_user.id).first()
+        if not student:
+            abort(403)  # Учитель пытается посмотреть чужого ученика
+    else:
+        # Если это обычный пользователь, проверяем что это его файл
+        if file_user_id != current_user.id:
+            abort(403)
     
     # Проверяем, что файл существует и находится в разрешенной директории
     full_path = filepath
@@ -7442,15 +7517,30 @@ def download_achievement(filepath):
         abort(403)
     
     # Проверяем, является ли пользователь учителем
-    if not hasattr(current_user, 'tournaments_count'):
+    is_teacher = isinstance(current_user, Teacher)
+    if not is_teacher and not hasattr(current_user, 'tournaments_count'):
         abort(403)
     
-    # Проверяем, что путь содержит ID текущего пользователя
+    # Проверяем доступ к файлу
     filename = os.path.basename(filepath)
-    expected_filename = f'{current_user.id}.jpg'
+    file_user_id_str = filename.replace('.jpg', '')
     
-    if filename != expected_filename:
-        abort(403)  # Пользователь пытается скачать чужой файл
+    try:
+        file_user_id = int(file_user_id_str)
+    except ValueError:
+        abort(403)
+    
+    # Если это учитель, проверяем, что ученик принадлежит ему
+    if is_teacher:
+        student = User.query.filter_by(id=file_user_id, teacher_id=current_user.id).first()
+        if not student:
+            abort(403)  # Учитель пытается скачать чужого ученика
+        username_for_download = student.username
+    else:
+        # Если это обычный пользователь, проверяем что это его файл
+        if file_user_id != current_user.id:
+            abort(403)
+        username_for_download = current_user.username
     
     # Проверяем, что файл существует и находится в разрешенной директории
     full_path = filepath
@@ -7474,7 +7564,7 @@ def download_achievement(filepath):
     
     # Формируем красивое имя файла для скачивания
     directory = os.path.dirname(full_path)
-    download_name = f'{award_type}_{current_user.username}.jpg'
+    download_name = f'{award_type}_{username_for_download}.jpg'
     
     try:
         return send_file(

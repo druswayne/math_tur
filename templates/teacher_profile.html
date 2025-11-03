@@ -187,6 +187,7 @@
                             <table class="table table-striped table-hover">
                                 <thead>
                                     <tr>
+                                        <th>Логин</th>
                                         <th>ФИО</th>
                                         <th>Класс</th>
                                         <th>Баллы</th>
@@ -194,13 +195,15 @@
                                         <th>Передача жетонов</th>
                                         <th>Турниры</th>
                                         <th>Дата регистрации</th>
-                                        <th>Статус</th>
                                         <th>Подробнее</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for student in students_info %}
                                     <tr>
+                                        <td>
+                                            <span class="text-muted">{{ student.username }}</span>
+                                        </td>
                                         <td>{{ student.student_name }}</td>
                                         <td>
                                             <span class="badge bg-info">{{ student.category }}</span>
@@ -235,15 +238,6 @@
                                         </td>
                                         <td>{{ student.created_at }}</td>
                                         <td>
-                                            {% if student.is_blocked %}
-                                                <span class="badge bg-danger">Заблокирован</span>
-                                            {% elif student.is_active %}
-                                                <span class="badge bg-success">Активен</span>
-                                            {% else %}
-                                                <span class="badge bg-warning">Не подтвержден</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
                                             <a href="{{ url_for('teacher_student_details', student_id=student.id) }}" class="btn btn-outline-info">
                                                 <i class="fas fa-info-circle me-1"></i>Подробнее
                                             </a>
@@ -274,36 +268,28 @@
                                     
                                     <div class="row g-2 mb-2">
                                         <div class="col-6">
+                                            <small class="text-muted">Логин:</small>
+                                            <div>
+                                                <span class="text-muted">{{ student.username }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
                                             <small class="text-muted">Класс:</small>
                                             <div><span class="badge bg-info">{{ student.category }}</span></div>
                                         </div>
+                                    </div>
+                                    
+                                    <div class="row g-2 mb-2">
                                         <div class="col-6">
                                             <small class="text-muted">Баллы:</small>
                                             <div class="text-success">
                                                 <i class="fas fa-coins me-1"></i>{{ student.balance }}
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div class="row g-2 mb-2">
                                         <div class="col-6">
                                             <small class="text-muted">Жетоны:</small>
                                             <div class="text-warning">
                                                 <i class="fas fa-ticket-alt me-1"></i>{{ student.tickets }}
-                                            </div>
-                                        </div>
-                                        <div class="col-6">
-                                            <small class="text-muted">Передача:</small>
-                                            <div>
-                                                <button class="btn btn-sm btn-outline-primary transfer-tokens-btn" 
-                                                        data-student-id="{{ student.id }}" 
-                                                        data-student-name="{{ student.student_name }}"
-                                                        data-teacher-tokens="{{ current_user.tickets }}"
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#transferTokensModal"
-                                                        style="color: #000;">
-                                                    <i class="fas fa-gift me-1"></i>Выдать Жетон
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -320,15 +306,17 @@
                                             </div>
                                         </div>
                                         <div class="col-6">
-                                            <small class="text-muted">Статус:</small>
+                                            <small class="text-muted">Передача:</small>
                                             <div>
-                                                {% if student.is_blocked %}
-                                                    <span class="badge bg-danger">Заблокирован</span>
-                                                {% elif student.is_active %}
-                                                    <span class="badge bg-success">Активен</span>
-                                                {% else %}
-                                                    <span class="badge bg-warning">Не подтвержден</span>
-                                                {% endif %}
+                                                <button class="btn btn-sm btn-outline-primary transfer-tokens-btn" 
+                                                        data-student-id="{{ student.id }}" 
+                                                        data-student-name="{{ student.student_name }}"
+                                                        data-teacher-tokens="{{ current_user.tickets }}"
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#transferTokensModal"
+                                                        style="color: #000;">
+                                                    <i class="fas fa-gift me-1"></i>Выдать Жетон
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -929,6 +917,66 @@ document.addEventListener('DOMContentLoaded', function() {
   const studentConfirmPassword = document.getElementById('studentConfirmPassword');
   const studentReqBox = document.getElementById('student-password-requirements');
 
+  // Функция генерации уникального логина
+  async function generateUniqueUsername() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    let attempts = 0;
+    const maxAttempts = 50;
+
+    while (attempts < maxAttempts) {
+      // Генерируем логин: 3 буквы + 3 цифры
+      let username = '';
+      for (let i = 0; i < 3; i++) {
+        username += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      for (let i = 0; i < 3; i++) {
+        username += numbers.charAt(Math.floor(Math.random() * numbers.length));
+      }
+
+      // Проверяем уникальность
+      const response = await fetch('/check-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username, type: 'user' })
+      });
+      
+      const data = await response.json();
+      if (data.available) {
+        return username;
+      }
+      attempts++;
+    }
+    
+    // Если не удалось сгенерировать за 50 попыток, добавляем более сложный суффикс
+    const baseUsername = 'student_' + Math.floor(Math.random() * 10000);
+    return baseUsername;
+  }
+
+  // Функция генерации пароля
+  function generatePassword() {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    const special = '!@#$%^&*';
+    
+    let password = '';
+    // Добавляем минимум по одному символу каждого типа
+    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    password += special.charAt(Math.floor(Math.random() * special.length));
+    
+    // Добавляем еще 4 случайных символа
+    const allChars = uppercase + lowercase + numbers + special;
+    for (let i = 0; i < 4; i++) {
+      password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+    }
+    
+    // Перемешиваем символы
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  }
+
   // Функция для показа иконки валидации
   function showValidationIcon(fieldId, isValid) {
     const iconContainer = document.getElementById(fieldId + '-icon');
@@ -1323,6 +1371,33 @@ document.addEventListener('DOMContentLoaded', function() {
       submitBtn.innerHTML = '<i class="fas fa-user-plus me-1"></i>Создать аккаунт';
     }
   });
+
+  // Обработчик открытия модального окна создания ученика
+  const createStudentModal = document.getElementById('createStudentModal');
+  if (createStudentModal) {
+    createStudentModal.addEventListener('shown.bs.modal', async function() {
+      // Генерируем и устанавливаем уникальный логин
+      const usernameField = document.getElementById('studentUsername');
+      if (usernameField && !usernameField.value) {
+        usernameField.value = await generateUniqueUsername();
+        // Вызываем валидацию логина
+        validateStudentUsername(usernameField.value);
+      }
+
+      // Генерируем и устанавливаем пароль
+      const passwordField = document.getElementById('studentPassword');
+      const confirmPasswordField = document.getElementById('studentConfirmPassword');
+      if (passwordField && confirmPasswordField && !passwordField.value) {
+        const generatedPassword = generatePassword();
+        passwordField.value = generatedPassword;
+        confirmPasswordField.value = generatedPassword;
+        
+        // Вызываем валидацию пароля
+        studentValidatePassword(passwordField.value);
+        studentValidateConfirm();
+      }
+    });
+  }
 });
 
 // Обработчик для передачи жетонов
@@ -1523,10 +1598,10 @@ function resetTeacherTutorial() {
               <div class="mb-3">
                 <label for="studentPassword" class="form-label">Пароль <span class="text-danger">*</span></label>
                 <div class="input-group">
-                  <input type="password" class="form-control" id="studentPassword" name="password" required 
+                  <input type="text" class="form-control" id="studentPassword" name="password" required 
                          placeholder="Введите пароль">
                   <button type="button" class="btn btn-outline-secondary" id="toggleStudentPassword" title="Показать/скрыть пароль">
-                    <i class="fas fa-eye"></i>
+                    <i class="fas fa-eye-slash"></i>
                   </button>
                   <span class="input-group-text validation-icon" id="studentPassword-icon">
                     <i class="fas fa-check-circle text-success" style="display: none;"></i>
@@ -1549,10 +1624,10 @@ function resetTeacherTutorial() {
               <div class="mb-3">
                 <label for="studentConfirmPassword" class="form-label">Подтверждение пароля <span class="text-danger">*</span></label>
                 <div class="input-group">
-                  <input type="password" class="form-control" id="studentConfirmPassword" name="confirm_password" required 
+                  <input type="text" class="form-control" id="studentConfirmPassword" name="confirm_password" required 
                          placeholder="Повторите пароль">
                   <button type="button" class="btn btn-outline-secondary" id="toggleStudentConfirmPassword" title="Показать/скрыть пароль">
-                    <i class="fas fa-eye"></i>
+                    <i class="fas fa-eye-slash"></i>
                   </button>
                   <span class="input-group-text validation-icon" id="studentConfirmPassword-icon">
                     <i class="fas fa-check-circle text-success" style="display: none;"></i>
@@ -1596,10 +1671,10 @@ function resetTeacherTutorial() {
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
-                <label for="studentCategory" class="form-label">Группа <span class="text-danger">*</span></label>
+                <label for="studentCategory" class="form-label">Класс <span class="text-danger">*</span></label>
                 <div class="input-group">
                   <select class="form-control" id="studentCategory" name="category" required>
-                    <option value="">Выберите группу</option>
+                    <option value="">Выберите класс</option>
                     <option value="1-2">1-2 класс</option>
                     <option value="3">3 класс</option>
                     <option value="4">4 класс</option>
