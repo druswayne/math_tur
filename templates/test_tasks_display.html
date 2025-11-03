@@ -35,10 +35,10 @@
                             <label for="categoryFilter" class="form-label">
                                 <i class="fas fa-filter me-1"></i>Категория
                             </label>
-                            <select class="form-select" id="categoryFilter">
-                                <option value="">Все категории</option>
+                            <select class="form-select" id="categoryFilter" name="category">
+                                <option value="" {% if not selected_category %}selected{% endif %}>Все категории</option>
                                 {% for category in categories %}
-                                <option value="{{ category }}">{{ category }} класс</option>
+                                <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }} класс</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -46,16 +46,19 @@
                             <label for="tournamentFilter" class="form-label">
                                 <i class="fas fa-trophy me-1"></i>Турнир
                             </label>
-                            <select class="form-select" id="tournamentFilter">
-                                <option value="">Все турниры</option>
-                                {% for tournament_title in tasks_by_tournament.keys() %}
-                                <option value="{{ tournament_title }}">{{ tournament_title }}</option>
+                            <select class="form-select" id="tournamentFilter" name="tournament">
+                                <option value="" {% if not selected_tournament %}selected{% endif %}>Все турниры</option>
+                                {% for tournament_title in tournaments %}
+                                <option value="{{ tournament_title }}" {% if selected_tournament == tournament_title %}selected{% endif %}>{{ tournament_title }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-12 text-center">
+                            <button type="button" class="btn btn-primary me-2" id="applyFilters">
+                                <i class="fas fa-play me-1"></i>Показать задачи
+                            </button>
                             <button type="button" class="btn btn-outline-secondary" id="resetFilters">
                                 <i class="fas fa-undo me-1"></i>Сбросить фильтры
                             </button>
@@ -215,15 +218,23 @@
             </div>
             {% endfor %}
 
-            <!-- Сообщение, если нет задач -->
-            {% if not tasks_by_tournament %}
-            <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                    <h4 class="text-muted">Задачи не найдены</h4>
-                    <p class="text-muted">В базе данных пока нет задач для отображения.</p>
+            <!-- Сообщения пустого состояния -->
+            {% if not tasks_by_tournament and not filters_selected %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-filter fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">Выберите фильтры, чтобы загрузить задачи</h4>
+                        <p class="text-muted">Укажите категорию и/или турнир и нажмите «Показать задачи».</p>
+                    </div>
                 </div>
-            </div>
+            {% elif not tasks_by_tournament and filters_selected %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">Задачи не найдены</h4>
+                        <p class="text-muted">По выбранным фильтрам задачи отсутствуют.</p>
+                    </div>
+                </div>
             {% endif %}
         </div>
     </div>
@@ -492,10 +503,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчик для кнопки сброса фильтров
     const resetFiltersBtn = document.getElementById('resetFilters');
     resetFiltersBtn.addEventListener('click', function() {
-        searchInput.value = '';
-        categoryFilter.value = '';
-        tournamentFilter.value = '';
-        filterTasks();
+        window.location.href = '/test/tasks';
+    });
+    
+    // Обработчик для применения фильтров (загрузка с сервера)
+    const applyFiltersBtn = document.getElementById('applyFilters');
+    applyFiltersBtn.addEventListener('click', function() {
+        const params = new URLSearchParams();
+        if (categoryFilter.value) params.set('category', categoryFilter.value);
+        if (tournamentFilter.value) params.set('tournament', tournamentFilter.value);
+        const query = params.toString();
+        const url = query ? `/test/tasks?${query}` : '/test/tasks';
+        window.location.href = url;
     });
     
     // Функция для выделения найденного текста

@@ -9813,6 +9813,211 @@ def admin_delete_link(link_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Ошибка при удалении ссылки: {str(e)}'}), 500
 
+@app.route('/tournament-rules')
+def tournament_rules():
+    """Страница с правилами турниров"""
+    rules_list = TournamentRules.query.filter_by(is_published=True).order_by(TournamentRules.created_at.desc()).all()
+    return render_template('tournament_rules.html', rules_list=rules_list, title='Правила турниров')
+
+@app.route('/admin/tournament-rules')
+@login_required
+def admin_tournament_rules():
+    """Страница управления правилами турниров в админ-панели"""
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    rules_list = TournamentRules.query.order_by(TournamentRules.created_at.desc()).all()
+    return render_template('admin/tournament_rules.html', rules_list=rules_list, title='Управление правилами турниров')
+
+@app.route('/admin/tournament-rules/add', methods=['GET', 'POST'])
+@login_required
+def admin_add_tournament_rules():
+    """Добавление новых правил турниров"""
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        is_published = 'is_published' in request.form
+        
+        if not title or not description:
+            flash('Все поля обязательны для заполнения', 'error')
+            return render_template('admin/add_tournament_rules.html')
+        
+        # Создаем правила
+        rules = TournamentRules(
+            title=title,
+            description=description,
+            is_published=is_published
+        )
+        
+        db.session.add(rules)
+        db.session.flush()  # Получаем ID правил
+        
+        # Обработка прикрепленного файла
+        rules_file = request.files.get('rules_file')
+        if rules_file and rules_file.filename:
+            # Проверяем, что файл является PDF
+            if rules_file.filename.lower().endswith('.pdf'):
+                # Загружаем файл в S3
+                file_filename = upload_file_to_s3(rules_file, 'tournament_rules_files')
+                if file_filename:
+                    # Получаем размер файла
+                    file_size = None
+                    try:
+                        rules_file.seek(0, 2)  # Переходим в конец файла
+                        file_size = rules_file.tell()
+                        rules_file.seek(0)  # Возвращаемся в начало
+                    except:
+                        pass
+                    
+                    # Создаем запись о файле
+                    rules_file_record = TournamentRulesFile(
+                        tournament_rules_id=rules.id,
+                        filename=file_filename,
+                        original_filename=rules_file.filename,
+                        file_size=file_size
+                    )
+                    
+                    db.session.add(rules_file_record)
+            else:
+                flash('Можно загружать только PDF файлы', 'error')
+                return render_template('admin/add_tournament_rules.html')
+        
+        db.session.commit()
+        
+        flash('Правила турниров успешно добавлены', 'success')
+        return redirect(url_for('admin_tournament_rules'))
+    
+    return render_template('admin/add_tournament_rules.html')
+
+@app.route('/admin/tournament-rules/<int:rules_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_edit_tournament_rules(rules_id):
+    """Редактирование правил турниров"""
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    rules = TournamentRules.query.get_or_404(rules_id)
+    
+    if request.method == 'POST':
+        rules.title = request.form.get('title')
+        rules.description = request.form.get('description')
+        rules.is_published = 'is_published' in request.form
+        
+        # Обработка удаления существующих файлов
+        existing_file_ids = request.form.getlist('existing_file_ids')
+        
+        for file in rules.files:
+            if str(file.id) not in existing_file_ids:
+                # Удаляем файл из S3
+                delete_file_from_s3(file.filename, 'tournament_rules_files')
+                # Удаляем запись из базы
+                db.session.delete(file)
+        
+        # Обработка нового файла
+        rules_file = request.files.get('rules_file')
+        if rules_file and rules_file.filename:
+            # Проверяем, что файл является PDF
+            if rules_file.filename.lower().endswith('.pdf'):
+                # Загружаем файл в S3
+                file_filename = upload_file_to_s3(rules_file, 'tournament_rules_files')
+                if file_filename:
+                    # Получаем размер файла
+                    file_size = None
+                    try:
+                        rules_file.seek(0, 2)  # Переходим в конец файла
+                        file_size = rules_file.tell()
+                        rules_file.seek(0)  # Возвращаемся в начало
+                    except:
+                        pass
+                    
+                    # Создаем запись о файле
+                    rules_file_record = TournamentRulesFile(
+                        tournament_rules_id=rules.id,
+                        filename=file_filename,
+                        original_filename=rules_file.filename,
+                        file_size=file_size
+                    )
+                    
+                    db.session.add(rules_file_record)
+            else:
+                flash('Можно загружать только PDF файлы', 'error')
+                return render_template('admin/edit_tournament_rules.html', rules=rules)
+        
+        db.session.commit()
+        flash('Правила турниров успешно обновлены', 'success')
+        return redirect(url_for('admin_tournament_rules'))
+    
+    return render_template('admin/edit_tournament_rules.html', rules=rules)
+
+@app.route('/admin/tournament-rules/<int:rules_id>/delete', methods=['POST'])
+@login_required
+def admin_delete_tournament_rules(rules_id):
+    """Удаление правил турниров"""
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+    
+    rules = TournamentRules.query.get_or_404(rules_id)
+    
+    # Удаляем все файлы из S3
+    for file in rules.files:
+        delete_file_from_s3(file.filename, 'tournament_rules_files')
+    
+    db.session.delete(rules)
+    db.session.commit()
+    
+    flash('Правила турниров успешно удалены', 'success')
+    return redirect(url_for('admin_tournament_rules'))
+
+@app.route('/tournament-rules/file/<int:file_id>')
+def tournament_rules_file_view(file_id):
+    """Просмотр PDF файла правил турниров"""
+    try:
+        # Получаем файл из базы данных
+        rules_file = TournamentRulesFile.query.get_or_404(file_id)
+        
+        # Проверяем, что правила опубликованы
+        if not rules_file.tournament_rules.is_published:
+            abort(404)
+        
+        # Получаем файл напрямую из S3
+        from s3_utils import s3_client, S3_CONFIG
+        import io
+        
+        s3_key = f"tournament_rules_files/{rules_file.filename}"
+        
+        # Скачиваем файл из S3
+        response = s3_client.get_object(
+            Bucket=S3_CONFIG['bucket_name'],
+            Key=s3_key
+        )
+        
+        # Создаем ответ с правильными заголовками
+        file_data = response['Body'].read()
+        
+        flask_response = make_response(file_data)
+        flask_response.headers['Content-Type'] = 'application/pdf'
+        
+        # Правильно кодируем имя файла для HTTP заголовка
+        import urllib.parse
+        encoded_filename = urllib.parse.quote(rules_file.original_filename.encode('utf-8'))
+        flask_response.headers['Content-Disposition'] = f'inline; filename*=UTF-8\'\'{encoded_filename}'
+        
+        flask_response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        flask_response.headers['Pragma'] = 'no-cache'
+        flask_response.headers['Expires'] = '0'
+        
+        return flask_response
+        
+    except Exception as e:
+        print(f"Ошибка при получении файла правил турниров: {e}")
+        abort(404)
 
 @app.route('/reset-session', methods=['POST'])
 def reset_session():
@@ -9935,6 +10140,29 @@ class NewsFile(db.Model):
     
     id = db.Column(db.Integer, primary_key=True, index=True)
     news_id = db.Column(db.Integer, db.ForeignKey('news.id', ondelete='CASCADE'), nullable=False)
+    filename = db.Column(db.String(500), nullable=False)  # Имя файла в S3
+    original_filename = db.Column(db.String(500), nullable=False)  # Оригинальное имя файла
+    file_size = db.Column(db.Integer, nullable=True)  # Размер файла в байтах
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+class TournamentRules(db.Model):
+    __tablename__ = "tournament_rules"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    is_published = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # Связь с файлами
+    files = db.relationship('TournamentRulesFile', backref='tournament_rules', lazy=True, cascade='all, delete-orphan')
+
+class TournamentRulesFile(db.Model):
+    __tablename__ = "tournament_rules_files"
+    
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    tournament_rules_id = db.Column(db.Integer, db.ForeignKey('tournament_rules.id', ondelete='CASCADE'), nullable=False)
     filename = db.Column(db.String(500), nullable=False)  # Имя файла в S3
     original_filename = db.Column(db.String(500), nullable=False)  # Оригинальное имя файла
     file_size = db.Column(db.Integer, nullable=True)  # Размер файла в байтах
@@ -11507,40 +11735,65 @@ def copy_referral_link():
 @app.route('/test/tasks')
 @login_required
 def test_tasks_display():
-    """Тестовый маршрут для отображения всех задач из базы данных"""
+    """Тестовый маршрут для отображения задач по фильтрам. По умолчанию задачи не загружаются."""
     if not current_user.is_admin:
         flash('Доступ запрещен', 'danger')
         return redirect(url_for('home'))
     
     try:
-        # Получаем все задачи с информацией о турнирах
-        tasks = db.session.query(Task).join(Tournament).order_by(
-            Tournament.title, Task.created_at
-        ).all()
+        # Фильтры из запроса
+        selected_category = request.args.get('category') or ''
+        selected_tournament = request.args.get('tournament') or ''
         
-        # Получаем уникальные категории из базы данных
+        # Справочники для фильтров
         categories = db.session.query(Task.category).distinct().order_by(Task.category).all()
         unique_categories = [cat[0] for cat in categories if cat[0]]  # Исключаем None значения
+        tournaments_q = db.session.query(Tournament.title).order_by(Tournament.title).all()
+        tournaments = [t[0] for t in tournaments_q]
         
-        # Группируем задачи по турнирам для лучшего отображения
+        filters_selected = bool(selected_category or selected_tournament)
         tasks_by_tournament = {}
-        for task in tasks:
-            tournament_title = task.tournament.title
-            if tournament_title not in tasks_by_tournament:
-                tasks_by_tournament[tournament_title] = []
-            tasks_by_tournament[tournament_title].append(task)
+        total_tasks = 0
         
-        return render_template('test_tasks_display.html', 
-                             tasks_by_tournament=tasks_by_tournament,
-                             total_tasks=len(tasks),
-                             categories=unique_categories)
+        if filters_selected:
+            # Загружаем задачи только при выбранных фильтрах
+            query = db.session.query(Task).join(Tournament)
+            if selected_category:
+                query = query.filter(Task.category == selected_category)
+            if selected_tournament:
+                query = query.filter(Tournament.title == selected_tournament)
+            tasks = query.order_by(Tournament.title, Task.created_at).all()
+            total_tasks = len(tasks)
+            
+            for task in tasks:
+                tournament_title = task.tournament.title
+                if tournament_title not in tasks_by_tournament:
+                    tasks_by_tournament[tournament_title] = []
+                tasks_by_tournament[tournament_title].append(task)
+        
+        return render_template(
+            'test_tasks_display.html',
+            tasks_by_tournament=tasks_by_tournament,
+            total_tasks=total_tasks,
+            categories=unique_categories,
+            tournaments=tournaments,
+            filters_selected=filters_selected,
+            selected_category=selected_category,
+            selected_tournament=selected_tournament,
+        )
     
     except Exception as e:
         flash(f'Ошибка при загрузке задач: {str(e)}', 'danger')
-        return render_template('test_tasks_display.html', 
-                             tasks_by_tournament={},
-                             total_tasks=0,
-                             categories=[])
+        return render_template(
+            'test_tasks_display.html', 
+            tasks_by_tournament={},
+            total_tasks=0,
+            categories=[],
+            tournaments=[],
+            filters_selected=False,
+            selected_category='',
+            selected_tournament='',
+        )
 
 @app.route('/debug/ip')
 def debug_ip():

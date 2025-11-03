@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Правила турниров - Лига Знатоков{% endblock %}
+
+{% block description %}Ознакомьтесь с правилами участия в мультипрофильных турнирах Лиги Знатоков.{% endblock %}
+
+{% block keywords %}правила турниров, лига знатоков, правила участия, турниры по математике{% endblock %}
+
+{% block og_title %}Правила турниров - Лига Знатоков{% endblock %}
+
+{% block og_description %}Правила участия в мультипрофильных онлайн турнирах{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="bi bi-file-earmark-text text-primary me-3"></i>
+                Правила турниров
+            </h1>
+            
+            <p class="mb-4" style="color: #000;">
+                Здесь вы найдете информацию о турнире.
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if rules_list %}
+                {% for rule in rules_list %}
+                <div class="card mb-4 shadow-sm rules-card">
+                    <div class="card-body">
+                        <div class="rules-header mb-3">
+                            <h3 class="card-title" style="color: #000;">{{ rule.title }}</h3>
+                        </div>
+                        
+                        <div class="rules-content mb-3">
+                            {{ rule.description|safe }}
+                        </div>
+                        
+                        {% if rule.files %}
+                        <div class="rules-files mt-3 pt-3 border-top">
+                            <h6 class="mb-3">
+                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                Прикрепленные файлы:
+                            </h6>
+                            <div class="list-group">
+                                {% for file in rule.files %}
+                                <a href="{{ url_for('tournament_rules_file_view', file_id=file.id) }}" 
+                                   class="list-group-item list-group-item-action file-item" 
+                                   target="_blank">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-file-earmark-pdf text-danger me-3" style="font-size: 1.5rem;"></i>
+                                            <div>
+                                                <div class="fw-bold">{{ file.original_filename }}</div>
+                                                {% if file.file_size %}
+                                                <small class="text-muted">
+                                                    Размер: {{ "%.1f"|format(file.file_size / 1024 / 1024) }} МБ
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <i class="bi bi-download text-primary"></i>
+                                    </div>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-earmark-text display-1 text-muted mb-3"></i>
+                        <h4>Правил пока нет</h4>
+                        <p class="text-muted">Правила турниров скоро появятся</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.rules-card {
+    border: none;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.rules-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.rules-header {
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+}
+
+.rules-content {
+    line-height: 1.8;
+    color: #333;
+}
+
+.rules-content p {
+    margin-bottom: 1rem;
+}
+
+.rules-content h2 {
+    font-size: 1.5rem;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    color: #000;
+}
+
+.rules-content h3 {
+    font-size: 1.25rem;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    color: #000;
+}
+
+.rules-content ul,
+.rules-content ol {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.rules-content li {
+    margin-bottom: 0.5rem;
+}
+
+.rules-content strong {
+    color: #000;
+    font-weight: 600;
+}
+
+.rules-content em {
+    font-style: italic;
+}
+
+.rules-content blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 1rem;
+    margin-left: 0;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.rules-footer {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 0.5rem;
+    margin-top: 1rem;
+}
+
+.file-item {
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.file-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(5px);
+    border-color: #007bff !important;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.display-1 {
+    font-size: 5rem;
+}
+
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.5rem;
+    }
+    
+    h1 .bi {
+        font-size: 1.3rem;
+        margin-right: 0.5rem !important;
+    }
+    
+    .alert {
+        font-size: 0.9rem;
+        padding: 0.75rem;
+    }
+    
+    .rules-card {
+        margin-bottom: 1rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .card-title {
+        font-size: 1.25rem;
+    }
+    
+    .rules-content h2 {
+        font-size: 1.25rem;
+    }
+    
+    .rules-content h3 {
+        font-size: 1.1rem;
+    }
+    
+    .file-item {
+        padding: 0.75rem;
+    }
+    
+    .file-item .bi-file-earmark-pdf {
+        font-size: 1.25rem !important;
+    }
+    
+    .display-1 {
+        font-size: 3rem;
+    }
+    
+    .card-body.text-center h4 {
+        font-size: 1.2rem;
+    }
+    
+    .card-body.text-center p {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+    
+    .file-item {
+        padding: 0.5rem;
+    }
+}
+</style>
+{% endblock %}
+

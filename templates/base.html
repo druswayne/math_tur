@@ -1064,6 +1064,11 @@
                                 <a class="dropdown-item" href="{{ url_for('shop') if current_user.is_authenticated and not isinstance(current_user, Teacher) else url_for('shop_preview') }}">
                                     <i class="fas fa-gift me-2"></i>Лавка призов
                                 </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('tournament_rules') }}">
+                                    <i class="fas fa-file-alt me-2"></i>Правила турниров
+                                </a>
                             </li><!--
                             <li>
                                 <a class="dropdown-item" href="{{ url_for('how_to_participate') }}">
