@@ -28,6 +28,7 @@ import random
 from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
+from sqlalchemy import nullslast
 from sqlalchemy.exc import IntegrityError
 from email_sender import add_to_queue, add_bulk_to_queue, start_email_worker
 import multiprocessing
@@ -2350,10 +2351,11 @@ def home():
         
         # Получаем статистику для информационного окна
         # Топ-10 лучших игроков по общему счету (balance)
+        # При равном балансе сортировка по месту в категории (category_rank)
         top_players = User.query.filter(
             User.is_active == True,
             User.is_admin == False
-        ).order_by(User.balance.desc()).limit(10).all()
+        ).order_by(User.balance.desc(), nullslast(User.category_rank.asc())).limit(10).all()
         
         # Общая статистика
         total_tournaments = Tournament.query.filter(
