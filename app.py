@@ -9774,24 +9774,32 @@ def admin_clear_user_data():
             referral.bonus_paid_at = None
             referral.last_bonus_paid_at = None
         
-        # Очищаем историю решенных задач
-        SolvedTask.query.delete()
+        # Очищаем данные только по неактивным турнирам
+        inactive_tournaments = Tournament.query.filter_by(is_active=False).all()
+        inactive_tournament_ids = [t.id for t in inactive_tournaments]
         
-        # Очищаем историю участия в турнирах
-        TournamentParticipation.query.delete()
+        if inactive_tournament_ids:
+            # Очищаем связанные активные задания
+            ActiveTask.query.filter(ActiveTask.tournament_id.in_(inactive_tournament_ids)).delete(synchronize_session=False)
+
+            # Находим задачи неактивных турниров и очищаем связанные решения
+            task_ids = [task_id for (task_id,) in db.session.query(Task.id).filter(Task.tournament_id.in_(inactive_tournament_ids)).all()]
+            if task_ids:
+                SolvedTask.query.filter(SolvedTask.task_id.in_(task_ids)).delete(synchronize_session=False)
+
+            # Очищаем историю участия в неактивных турнирах
+            TournamentParticipation.query.filter(TournamentParticipation.tournament_id.in_(inactive_tournament_ids)).delete(synchronize_session=False)
+
+            # Очищаем задачи планировщика, связанные с неактивными турнирами
+            SchedulerJob.query.filter(SchedulerJob.tournament_id.in_(inactive_tournament_ids)).delete(synchronize_session=False)
+
+            # Удаляем задачи неактивных турниров
+            Task.query.filter(Task.tournament_id.in_(inactive_tournament_ids)).delete(synchronize_session=False)
+
+            # Удаляем сами неактивные турниры
+            Tournament.query.filter(Tournament.id.in_(inactive_tournament_ids)).delete(synchronize_session=False)
         
-        # Очищаем все задачи
-        Task.query.delete()
-        
-        # Очищаем все турниры
-        Tournament.query.delete()
-        
-        # Очищаем настройки турниров
-        TournamentSettings.query.delete()
-        
-        # Создаем новые настройки турниров с дефолтными значениями
-        settings = TournamentSettings()
-        db.session.add(settings)
+        # Настройки турниров сохраняем без изменений
         
         db.session.commit()
         
@@ -11911,5 +11919,5 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    #update_category_ranks()
+    update_category_ranks()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
