@@ -9913,6 +9913,249 @@ def admin_delete_link(link_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Ошибка при удалении ссылки: {str(e)}'}), 500
 
+DEMO_TOURNAMENT_RULES_HTML = Markup("""
+<strong>Основные правила:</strong>
+
+<ul>
+
+  <li>
+
+    <strong>Запрещено выводить страницу с заданием из фокуса.</strong>
+
+    <b><em>Нельзя переключать вкладки, сворачивать окно, открывать другие приложения, блокировать экран мобильного устройства, выключать или перезагружать устройство и т.п. 
+
+Во избежание проблем отключите на устройстве антивирус при его наличии.</em>
+
+  </li>
+
+  <li>
+
+    <strong>Запрещено принимать звонки или использовать устройство для посторонних целей во время тура.</strong>
+
+  </li>
+
+  <li>
+
+    <strong>Требования к форме ответа обязательны.</strong>
+
+    <b><em>Ответы, оформленные неверно (не тот формат, неправильное округление, лишние/отсутствующие единицы измерения и т.п.), считаются неправильными.</em>
+
+  </li>
+
+</ul>
+
+<p>Нарушения фиксируются системой и влекут аннулирование текущей задачи; повторные или грубые нарушения могут привести к дисквалификации.</p>
+""")
+
+DEMO_TOURNAMENT_BASE_TASKS = [
+    {
+        'id': 1,
+        'title': 'Сложение однозначных чисел',
+        'description': 'Сколько будет 7 + 4?',
+        'correct_answer': '11'
+    },
+    {
+        'id': 2,
+        'title': 'Орфография',
+        'description': 'Выберите правильное написание: «пр_красный»?\n1) прикрасный  2) прекрасный  3) при красный',
+        'correct_answer': '2'
+    },
+    {
+        'id': 3,
+        'title': 'Умножение чисел',
+        'description': 'Вычислите произведение 6 и 8.',
+        'correct_answer': '48'
+    },
+    {
+        'id': 4,
+        'title': 'Химия',
+        'description': 'Укажите формулу воды.',
+        'correct_answer': 'H2O'
+    },
+    {
+        'id': 5,
+        'title': 'Простая геометрия',
+        'description': 'Периметр квадрата равен 24 см. Чему равна длина одной стороны?',
+        'correct_answer': '6'
+    },
+    {
+        'id': 6,
+        'title': 'Физика',
+        'description': 'Назовите планету Солнечной системы, где ускорение свободного падения примерно 3,7 м/с².',
+        'correct_answer': 'марс'
+    },
+    {
+        'id': 7,
+        'title': 'Работа с дробями',
+        'description': 'Найдите значение выражения 1/2 + 1/4.',
+        'correct_answer': '3/4'
+    },
+    {
+        'id': 8,
+        'title': 'История',
+        'description': 'В каком году произошло Крещение Руси?',
+        'correct_answer': '988'
+    },
+    {
+        'id': 9,
+        'title': 'Логика',
+        'description': 'В последовательности 2, 4, 8, 16, ... какое число будет следующим?',
+        'correct_answer': '32'
+    },
+    {
+        'id': 10,
+        'title': 'Физкультура',
+        'description': 'Сколько минут длится стандартный футбольный матч без учета добавленного времени? Введите целое число.',
+        'correct_answer': '90'
+    }
+]
+
+DEMO_TOURNAMENT_POINT_CHOICES = [10, 20, 30, 40, 50]
+
+
+@app.route('/demo-tournament')
+def demo_tournament_overview():
+    """Вводная страница демо-турнира"""
+    session.pop('demo_rules_accepted', None)
+    session.pop('demo_state', None)
+    return render_template('demo_tournament_overview.html', title='Тестовый турнир')
+
+
+@app.route('/demo-tournament/rules', methods=['GET', 'POST'])
+def demo_tournament_rules():
+    """Страница с правилами демо-турнира"""
+    if request.method == 'POST':
+        if request.form.get('accept_rules'):
+            session['demo_rules_accepted'] = True
+            return redirect(url_for('demo_tournament_start'))
+        flash('Пожалуйста, подтвердите, что вы ознакомились с правилами.', 'warning')
+
+    return render_template(
+        'demo_tournament_rules.html',
+        title='Правила демо-турнира',
+        rules_html=DEMO_TOURNAMENT_RULES_HTML
+    )
+
+
+@app.route('/demo-tournament/start')
+def demo_tournament_start():
+    """Инициализация демо-турнира и переход к задачам"""
+    if not session.get('demo_rules_accepted'):
+        flash('Пожалуйста, подтвердите правила перед началом демо-турнира.', 'warning')
+        return redirect(url_for('demo_tournament_rules'))
+
+    tasks_with_points = []
+    for task in DEMO_TOURNAMENT_BASE_TASKS:
+        enriched_task = dict(task)
+        enriched_task['points'] = random.choice(DEMO_TOURNAMENT_POINT_CHOICES)
+        tasks_with_points.append(enriched_task)
+
+    session['demo_state'] = {
+        'current_index': 0,
+        'answers': {},
+        'completed': False,
+        'tasks': tasks_with_points
+    }
+    session.modified = True
+
+    return redirect(url_for('demo_tournament_task'))
+
+
+@app.route('/demo-tournament/task', methods=['GET', 'POST'])
+def demo_tournament_task():
+    """Отображение и обработка текущей задачи демо-турнира"""
+    if not session.get('demo_rules_accepted'):
+        flash('Пожалуйста, подтвердите правила перед началом демо-турнира.', 'warning')
+        return redirect(url_for('demo_tournament_rules'))
+
+    state = session.get('demo_state')
+    if not state:
+        return redirect(url_for('demo_tournament_start'))
+
+    tasks = state.get('tasks') or []
+    if not tasks:
+        return redirect(url_for('demo_tournament_start'))
+
+    current_index = state.get('current_index', 0)
+    total_tasks = len(tasks)
+
+    if request.method == 'POST':
+        if current_index >= total_tasks:
+            return redirect(url_for('demo_tournament_results'))
+
+        task = tasks[current_index]
+        user_answer = request.form.get('answer', '').strip()
+        normalized_answer = user_answer.lower()
+        is_correct = normalized_answer == task['correct_answer'].lower()
+
+        answers = state.get('answers', {})
+        answers[str(task['id'])] = {
+            'answer': user_answer,
+            'is_correct': is_correct
+        }
+
+        state['answers'] = answers
+        state['current_index'] = current_index + 1
+        state['completed'] = state['current_index'] >= total_tasks
+        session['demo_state'] = state
+        session.modified = True
+
+        if is_correct:
+            flash(f"Правильный ответ! +{task['points']} баллов", 'success')
+        else:
+            flash('Неправильный ответ', 'danger')
+
+        if state['completed']:
+            return redirect(url_for('demo_tournament_results'))
+
+        return redirect(url_for('demo_tournament_task'))
+
+    if current_index >= total_tasks:
+        return redirect(url_for('demo_tournament_results'))
+
+    task = tasks[current_index]
+    answers = state.get('answers', {})
+    previous_answer = answers.get(str(task['id']), {}).get('answer', '')
+
+    return render_template(
+        'demo_tournament_task.html',
+        title='Тестовый турнир',
+        task=task,
+        current_index=current_index,
+        total_tasks=total_tasks,
+        solved_tasks_count=current_index,
+        previous_answer=previous_answer
+    )
+
+
+@app.route('/demo-tournament/results')
+def demo_tournament_results():
+    """Результаты демо-турнира"""
+    if not session.get('demo_rules_accepted'):
+        return redirect(url_for('demo_tournament_rules'))
+
+    state = session.get('demo_state')
+    if not state:
+        return redirect(url_for('demo_tournament_start'))
+
+    if not state.get('completed'):
+        return redirect(url_for('demo_tournament_task'))
+
+    tasks = state.get('tasks') or []
+    if not tasks:
+        return redirect(url_for('demo_tournament_start'))
+
+    answers = state.get('answers', {})
+    correct_count = sum(1 for task in tasks if answers.get(str(task['id']), {}).get('is_correct'))
+
+    return render_template(
+        'demo_tournament_results.html',
+        title='Результаты демо-турнира',
+        correct_count=correct_count,
+        total=len(tasks)
+    )
+
+
 @app.route('/tournament-rules')
 def tournament_rules():
     """Страница с правилами турниров"""

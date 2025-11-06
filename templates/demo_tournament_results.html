@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Результаты демо-турнира{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body p-4 p-md-5 text-center">
+                    <div class="mb-4">
+                        <span class="display-4 text-primary">
+                            <i class="fas fa-flag-checkered"></i>
+                        </span>
+                    </div>
+                    <h1 class="h3 fw-bold mb-3">Результаты демо-турнира</h1>
+                    <p class="lead text-muted mb-4">
+                        Вы правильно ответили на <strong>{{ correct_count }}</strong> из <strong>{{ total }}</strong> задач.
+                    </p>
+                    <div class="d-flex flex-wrap justify-content-center gap-3 mb-4">
+                        <div class="badge bg-success px-3 py-2 fs-6">
+                            <i class="fas fa-check-circle me-2"></i>Правильных: {{ correct_count }}
+                        </div>
+                        <div class="badge bg-danger px-3 py-2 fs-6">
+                            <i class="fas fa-times-circle me-2"></i>Неправильных: {{ total - correct_count }}
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-center gap-3">
+                        <a class="btn btn-primary btn-lg" href="{{ url_for('demo_tournament_start') }}">
+                            <i class="fas fa-redo me-2"></i>Попробовать ещё раз
+                        </a>
+                        <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('demo_tournament_overview') }}">
+                            <i class="fas fa-home me-2"></i>К описанию демо-турнира
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge {
+    border-radius: 999px;
+}
+</style>
+{% endblock %}
+
