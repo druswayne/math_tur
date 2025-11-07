@@ -5544,6 +5544,21 @@ def teacher_create_student():
         
         db.session.add(user)
         db.session.commit()
+
+        # Создаем запись о приглашении учителя для системы бонусов
+        try:
+            invite_link = TeacherInviteLink.query.filter_by(teacher_id=current_user.id, is_active=True).first()
+            if not invite_link:
+                invite_link = create_teacher_invite_link(current_user.id)
+            # На случай повторного создания аккаунта с тем же ID (не должно происходить),
+            # проверяем, что записи о пригласившем учителе еще нет
+            existing_referral = TeacherReferral.query.filter_by(student_id=user.id).first()
+            if not existing_referral and invite_link:
+                create_teacher_referral(current_user.id, user.id, invite_link.id)
+        except Exception as e:
+            db.session.rollback()
+            print(f"Ошибка при создании записи о приглашении учителем: {e}")
+            return jsonify({'success': False, 'message': 'Аккаунт создан, но возникла ошибка при привязке к бонусной программе. Обратитесь в поддержку.'})
         
         return jsonify({'success': True, 'message': 'Аккаунт ученика успешно создан'})
         
@@ -12162,5 +12177,6 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    update_category_ranks()
+    #update_category_ranks()
+    check_and_pay_teacher_referral_bonuses()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
