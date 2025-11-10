@@ -12178,5 +12178,6 @@ if __name__ == '__main__':
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
     #update_category_ranks()
-    check_and_pay_teacher_referral_bonuses()
+    #  c
+    #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)

@@ -41,10 +41,6 @@
                         
                         {% if rule.files %}
                         <div class="rules-files mt-3 pt-3 border-top">
-                            <h6 class="mb-3">
-                                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
-                                Прикрепленные файлы:
-                            </h6>
                             <div class="list-group">
                                 {% for file in rule.files %}
                                 <a href="{{ url_for('tournament_rules_file_view', file_id=file.id) }}" 
