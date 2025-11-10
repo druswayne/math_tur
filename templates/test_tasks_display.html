@@ -155,6 +155,15 @@
                                             </div>
                                             {% endif %}
                                             
+                                            {% if task.points is not none %}
+                                            <div class="mb-2">
+                                                <strong class="text-muted">
+                                                    <i class="fas fa-star me-1"></i>Стоимость:
+                                                </strong>
+                                                <span class="ms-1 fw-bold">{{ task.points }} баллов</span>
+                                            </div>
+                                            {% endif %}
+                                            
                                             <div class="mb-2">
                                                 <strong class="text-muted">
                                                     <i class="fas fa-check-circle me-1"></i>Правильный ответ:
