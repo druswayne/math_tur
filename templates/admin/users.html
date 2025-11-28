@@ -44,6 +44,7 @@
                             <th style="width: 60px;">ID</th>
                             <th style="width: 150px;">Логин</th>
                             <th style="width: 250px;">Email</th>
+                            <th style="width: 200px;">Учитель</th>
                             <th style="width: 150px;">Дата регистрации</th>
                             <th style="width: 150px;">Статус</th>
                             <th style="width: 200px;">Действия</th>
@@ -55,6 +56,13 @@
                             <td style="white-space: nowrap;">{{ user.id }}</td>
                             <td style="white-space: nowrap;">{{ user.username }}</td>
                             <td style="white-space: nowrap;">{{ user.email }}</td>
+                            <td style="white-space: nowrap;">
+                                {% if user.teacher %}
+                                    <span class="badge bg-info">{{ user.teacher.full_name }}</span>
+                                {% else %}
+                                    <span class="text-muted">Не привязан</span>
+                                {% endif %}
+                            </td>
                             <td style="white-space: nowrap;">{{ user.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td style="white-space: nowrap;">
                                 {% if user.is_active %}
@@ -240,6 +248,18 @@
                             <option value="10" {% if user.category == '10' %}selected{% endif %}>10 класс</option>
                             <option value="11" {% if user.category == '11' %}selected{% endif %}>11 класс</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="teacher_id{{ user.id }}" class="form-label">Учитель</label>
+                        <select class="form-control" id="teacher_id{{ user.id }}" name="teacher_id">
+                            <option value="">Не привязан</option>
+                            {% for teacher in teachers_list %}
+                            <option value="{{ teacher.id }}" {% if user.teacher_id == teacher.id %}selected{% endif %}>
+                                {{ teacher.full_name }} ({{ teacher.username }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Выберите учителя для привязки пользователя. Оставьте пустым, чтобы отвязать от учителя.</small>
                     </div>
                     <div class="mb-3">
                         <label for="password{{ user.id }}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>
@@ -437,6 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let searchQuery = '{{ search_query }}';
     let searchType = '{{ search_type }}';
     let currentUserId = {{ current_user.id if current_user.is_authenticated else 0 }};
+    let teachers = {{ teachers | tojson }};
 
     // Обработчик формы поиска (если форма существует)
     const searchForm = document.getElementById('searchForm');
@@ -502,6 +523,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td style="white-space: nowrap;">${user.id}</td>
                     <td style="white-space: nowrap;">${user.username}</td>
                     <td style="white-space: nowrap;">${user.email}</td>
+                    <td style="white-space: nowrap;">
+                        ${user.teacher_name ? `<span class="badge bg-info">${user.teacher_name}</span>` : '<span class="text-muted">Не привязан</span>'}
+                    </td>
                     <td style="white-space: nowrap;">${user.created_at}</td>
                     <td style="white-space: nowrap;">
                         ${user.is_active ? '<span class="badge bg-success">Активен</span>' : '<span class="badge bg-warning">Ожидает подтверждения</span>'}
@@ -637,6 +661,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                             <option value="10" ${user.category === '10' ? 'selected' : ''}>10 класс</option>
                                             <option value="11" ${user.category === '11' ? 'selected' : ''}>11 класс</option>
                                         </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="teacher_id${user.id}" class="form-label">Учитель</label>
+                                        <select class="form-control" id="teacher_id${user.id}" name="teacher_id">
+                                            <option value="">Не привязан</option>
+                                            ${teachers.map(teacher => `
+                                                <option value="${teacher.id}" ${(user.teacher_id && parseInt(user.teacher_id) === teacher.id) ? 'selected' : ''}>
+                                                    ${teacher.full_name} (${teacher.username})
+                                                </option>
+                                            `).join('')}
+                                        </select>
+                                        <small class="form-text text-muted">Выберите учителя для привязки пользователя. Оставьте пустым, чтобы отвязать от учителя.</small>
                                     </div>
                                     <div class="mb-3">
                                         <label for="password${user.id}" class="form-label">Новый пароль (оставьте пустым, чтобы не менять)</label>

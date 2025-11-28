@@ -2744,16 +2744,25 @@ def admin_users():
                 'parent_name': user.parent_name or '',
                 'phone': user.phone or '',
                 'category': user.category or '',
-                'is_admin': user.is_admin
+                'is_admin': user.is_admin,
+                'teacher_id': user.teacher_id,
+                'teacher_name': user.teacher.full_name if user.teacher else None
             } for user in users.items],
             'has_next': users.has_next
         })
+    
+    # Получаем список всех учителей для выбора при привязке
+    teachers_list = Teacher.query.order_by(Teacher.full_name, Teacher.username).all()
+    # Преобразуем в список словарей для JSON-сериализации
+    teachers = [{'id': t.id, 'full_name': t.full_name, 'username': t.username} for t in teachers_list]
     
     return render_template('admin/users.html', 
                          users=users.items,
                          pagination=users,
                          search_query=search_query,
-                         search_type=search_type)
+                         search_type=search_type,
+                         teachers=teachers,
+                         teachers_list=teachers_list)  # Передаем и список объектов для шаблона
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -2861,6 +2870,60 @@ def admin_edit_user(user_id):
         except ValueError:
             flash('Количество баллов для добавления должно быть числом', 'danger')
             return redirect(url_for('admin_users'))
+    
+    # Обработка привязки к учителю
+    teacher_id = request.form.get('teacher_id')
+    old_teacher_id = user.teacher_id
+    
+    if teacher_id:
+        # Если выбрали учителя
+        try:
+            teacher_id = int(teacher_id)
+            teacher = Teacher.query.get(teacher_id)
+            if not teacher:
+                flash('Учитель не найден', 'danger')
+                return redirect(url_for('admin_users'))
+            
+            # Если учитель изменился или пользователь не был привязан
+            if old_teacher_id != teacher_id:
+                user.teacher_id = teacher_id
+                
+                # Создаем запись TeacherReferral, если её еще нет
+                existing_referral = TeacherReferral.query.filter_by(student_id=user.id).first()
+                if not existing_referral:
+                    # Получаем или создаем invite_link для учителя
+                    invite_link = TeacherInviteLink.query.filter_by(teacher_id=teacher_id, is_active=True).first()
+                    if not invite_link:
+                        invite_link = create_teacher_invite_link(teacher_id)
+                    
+                    # Создаем запись о приглашении
+                    try:
+                        create_teacher_referral(teacher_id, user.id, invite_link.id)
+                        flash(f'Пользователь успешно привязан к учителю {teacher.full_name}', 'success')
+                    except Exception as e:
+                        print(f"Ошибка при создании записи TeacherReferral: {e}")
+                        flash('Пользователь привязан к учителю, но возникла ошибка при создании записи о приглашении', 'warning')
+                else:
+                    # Если запись уже есть, но учитель изменился, обновляем её
+                    if existing_referral.teacher_id != teacher_id:
+                        # Получаем или создаем invite_link для нового учителя
+                        invite_link = TeacherInviteLink.query.filter_by(teacher_id=teacher_id, is_active=True).first()
+                        if not invite_link:
+                            invite_link = create_teacher_invite_link(teacher_id)
+                        
+                        existing_referral.teacher_id = teacher_id
+                        existing_referral.teacher_invite_link_id = invite_link.id
+                        flash(f'Пользователь успешно перепривязан к учителю {teacher.full_name}', 'success')
+                    else:
+                        flash(f'Пользователь уже привязан к учителю {teacher.full_name}', 'info')
+        except ValueError:
+            flash('Неверный ID учителя', 'danger')
+            return redirect(url_for('admin_users'))
+    else:
+        # Если учитель не выбран (пустое значение), отвязываем пользователя
+        if old_teacher_id:
+            user.teacher_id = None
+            flash('Пользователь отвязан от учителя', 'info')
     
     user.username = username
     user.email = email
@@ -4296,8 +4359,17 @@ def register():
         if teacher_invite_link:
             try:
                 user.teacher_id = teacher_invite_link.teacher_id
-                # Создаем запись о приглашении учителем
-                create_teacher_referral(teacher_invite_link.teacher_id, user.id, teacher_invite_link.id)
+                
+                # Проверяем, нет ли уже записи TeacherReferral для этого ученика
+                existing_referral = TeacherReferral.query.filter_by(student_id=user.id).first()
+                if not existing_referral:
+                    # Создаем запись о приглашении учителем
+                    create_teacher_referral(teacher_invite_link.teacher_id, user.id, teacher_invite_link.id)
+                else:
+                    # Если запись уже существует, обновляем её (на случай, если ученик был привязан к другому учителю)
+                    existing_referral.teacher_id = teacher_invite_link.teacher_id
+                    existing_referral.teacher_invite_link_id = teacher_invite_link.id
+                    db.session.commit()
                 
                 # Формируем сообщение с информацией о школе
                 message = 'Вы успешно прикреплены к учителю!'
@@ -12242,7 +12314,7 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    #update_category_ranks()
+    update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='0.0.0.0', port=8000, debug=DEBAG)
