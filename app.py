@@ -29,7 +29,7 @@ from flask import session
 from sqlalchemy import func
 from sqlalchemy import case
 from sqlalchemy import nullslast
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, PendingRollbackError
 import psycopg2
 from email_sender import add_to_queue, add_bulk_to_queue, start_email_worker
 import multiprocessing
@@ -876,130 +876,169 @@ def end_tournament_job(tournament_id, max_retries=3):
     for attempt in range(max_retries):
         try:
             with app.app_context():
-                tournament = Tournament.query.get(tournament_id)
-                if not tournament:
-                    print(f"⚠️ Турнир {tournament_id} не найден")
-                    return
-                
-                tournament.status = 'finished'
-                tournament.is_active = False
-                
-                # Для каждой категории вычисляем места отдельно
-                from collections import defaultdict
-                participations_by_category = defaultdict(list)
-                participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).all()
-                for p in participations:
-                    if p.user and p.user.category:
-                        participations_by_category[p.user.category].append(p)
-                
-                current_time = datetime.now()
-                
-                # Словарь для накопления изменений времени участия пользователей
-                # Ключ: user_id, значение: время для добавления
-                user_time_updates = {}
-                
-                # Вычисляем места и собираем изменения времени участия
-                for category, plist in participations_by_category.items():
-                    # Сортируем по score (баллы), затем по времени участия (меньше — выше)
-                    plist_sorted = sorted(plist, key=lambda p: (-p.score, (p.end_time or current_time) - (p.start_time or current_time)))
-                    for rank, participation in enumerate(plist_sorted, 1):
-                        participation.place = rank
-                        
-                        # Проверяем, есть ли у пользователя решенные задачи в этом турнире
-                        solved_tasks = SolvedTask.query.filter_by(
-                            user_id=participation.user_id
-                        ).join(Task).filter(
-                            Task.tournament_id == tournament_id
-                        ).all()
-                        
-                        if solved_tasks:
-                            # Если есть решенные задачи, устанавливаем end_time как время последней решенной задачи
-                            if not participation.end_time:
-                                last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
-                                participation.end_time = last_solved_task.solved_at
+                try:
+                    # Очищаем сессию перед началом попытки, если есть невалидная транзакция
+                    try:
+                        db.session.rollback()
+                    except (PendingRollbackError, Exception):
+                        # Если сессия в невалидном состоянии, очищаем её
+                        db.session.remove()
+                    
+                    tournament = Tournament.query.get(tournament_id)
+                    if not tournament:
+                        print(f"⚠️ Турнир {tournament_id} не найден")
+                        return
+                    
+                    tournament.status = 'finished'
+                    tournament.is_active = False
+                    
+                    # Для каждой категории вычисляем места отдельно
+                    from collections import defaultdict
+                    participations_by_category = defaultdict(list)
+                    participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).all()
+                    for p in participations:
+                        if p.user and p.user.category:
+                            participations_by_category[p.user.category].append(p)
+                    
+                    current_time = datetime.now()
+                    
+                    # Словарь для накопления изменений времени участия пользователей
+                    # Ключ: user_id, значение: время для добавления
+                    user_time_updates = {}
+                    
+                    # Вычисляем места и собираем изменения времени участия
+                    for category, plist in participations_by_category.items():
+                        # Сортируем по score (баллы), затем по времени участия (меньше — выше)
+                        plist_sorted = sorted(plist, key=lambda p: (-p.score, (p.end_time or current_time) - (p.start_time or current_time)))
+                        for rank, participation in enumerate(plist_sorted, 1):
+                            participation.place = rank
                             
-                            # Вычисляем время участия в турнире и накапливаем для последующего обновления
-                            if participation.start_time and participation.end_time:
-                                time_spent = int((participation.end_time - participation.start_time).total_seconds())
-                                user_id = participation.user_id
-                                if user_id not in user_time_updates:
-                                    user_time_updates[user_id] = 0
-                                user_time_updates[user_id] += time_spent
-                
-                # Коммитим изменения в participations (места)
-                db.session.commit()
-                
-                # Обновляем время участия пользователей в отсортированном порядке (по ID)
-                # Это гарантирует, что все процессы блокируют пользователей в одном порядке
-                if user_time_updates:
-                    # Сортируем user_id для консистентного порядка блокировок
-                    sorted_user_ids = sorted(user_time_updates.keys())
+                            # Проверяем, есть ли у пользователя решенные задачи в этом турнире
+                            solved_tasks = SolvedTask.query.filter_by(
+                                user_id=participation.user_id
+                            ).join(Task).filter(
+                                Task.tournament_id == tournament_id
+                            ).all()
+                            
+                            if solved_tasks:
+                                # Если есть решенные задачи, устанавливаем end_time как время последней решенной задачи
+                                if not participation.end_time:
+                                    last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
+                                    participation.end_time = last_solved_task.solved_at
+                                
+                                # Вычисляем время участия в турнире и накапливаем для последующего обновления
+                                if participation.start_time and participation.end_time:
+                                    time_spent = int((participation.end_time - participation.start_time).total_seconds())
+                                    user_id = participation.user_id
+                                    if user_id not in user_time_updates:
+                                        user_time_updates[user_id] = 0
+                                    user_time_updates[user_id] += time_spent
                     
-                    # Обновляем пользователей по одному в отсортированном порядке
-                    for user_id in sorted_user_ids:
-                        time_to_add = user_time_updates[user_id]
+                    # Коммитим изменения в participations (места)
+                    db.session.commit()
+                    
+                    # Обновляем время участия пользователей в отсортированном порядке (по ID)
+                    # Это гарантирует, что все процессы блокируют пользователей в одном порядке
+                    if user_time_updates:
+                        # Сортируем user_id для консистентного порядка блокировок
+                        sorted_user_ids = sorted(user_time_updates.keys())
                         
-                        # Блокируем пользователя для обновления (в отсортированном порядке)
-                        user = User.query.with_for_update(nowait=False).filter_by(id=user_id).first()
-                        if user:
-                            if user.total_tournament_time is None:
-                                user.total_tournament_time = 0
-                            user.total_tournament_time += time_to_add
+                        # Обновляем пользователей по одному в отсортированном порядке
+                        for user_id in sorted_user_ids:
+                            time_to_add = user_time_updates[user_id]
+                            
+                            # Блокируем пользователя для обновления (в отсортированном порядке)
+                            user = User.query.with_for_update(nowait=False).filter_by(id=user_id).first()
+                            if user:
+                                if user.total_tournament_time is None:
+                                    user.total_tournament_time = 0
+                                user.total_tournament_time += time_to_add
+                        
+                        # Коммитим изменения времени участия
+                        db.session.commit()
                     
-                    # Коммитим изменения времени участия
-                    db.session.commit()
-                
-                # Обновляем рейтинги в категориях в отдельной транзакции
-                # Это уменьшает длительность основной транзакции
-                update_category_ranks()
-                
-                # Очищаем кэш задач турнира
-                print(f"🏁 [ПЛАНИРОВЩИК] Очищаем кэш задач турнира {tournament_id}")
-                tournament_task_cache.clear_tournament_cache(tournament_id)
-                
-                # Очищаем все активные задачи для этого турнира
-                active_tasks = ActiveTask.query.filter_by(tournament_id=tournament_id).all()
-                if active_tasks:
-                    for active_task in active_tasks:
-                        db.session.delete(active_task)
-                    db.session.commit()
-                    print(f"🧹 [ПЛАНИРОВЩИК] Очищено {len(active_tasks)} активных задач для турнира {tournament_id}")
-                
-                # Удаляем запись о задаче из БД после выполнения
-                job_id = f'end_tournament_{tournament_id}'
-                scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
-                if scheduler_job:
-                    db.session.delete(scheduler_job)
-                    db.session.commit()
-                
-                # Успешно завершено
-                if attempt > 0:
-                    print(f"✅ Турнир {tournament_id} успешно завершен с попытки {attempt + 1}")
-                return
+                    # Обновляем рейтинги в категориях в отдельной транзакции
+                    # Это уменьшает длительность основной транзакции
+                    update_category_ranks()
                     
-        except OperationalError as e:
-            # Проверяем, является ли это deadlock
-            error_str = str(e.orig) if hasattr(e, 'orig') else str(e)
-            if 'deadlock' in error_str.lower() or 'DeadlockDetected' in str(type(e.orig)):
-                if attempt < max_retries - 1:
-                    # Экспоненциальная задержка перед повтором
-                    wait_time = (2 ** attempt) * 0.1  # 0.1s, 0.2s, 0.4s
-                    print(f"⚠️ Deadlock обнаружен при завершении турнира {tournament_id}, попытка {attempt + 1}/{max_retries}. Повтор через {wait_time:.1f}с...")
-                    db.session.rollback()
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    print(f"❌ Не удалось завершить турнир {tournament_id} после {max_retries} попыток из-за deadlock")
-                    db.session.rollback()
+                    # Очищаем кэш задач турнира
+                    print(f"🏁 [ПЛАНИРОВЩИК] Очищаем кэш задач турнира {tournament_id}")
+                    tournament_task_cache.clear_tournament_cache(tournament_id)
+                    
+                    # Очищаем все активные задачи для этого турнира
+                    active_tasks = ActiveTask.query.filter_by(tournament_id=tournament_id).all()
+                    if active_tasks:
+                        for active_task in active_tasks:
+                            db.session.delete(active_task)
+                        db.session.commit()
+                        print(f"🧹 [ПЛАНИРОВЩИК] Очищено {len(active_tasks)} активных задач для турнира {tournament_id}")
+                    
+                    # Удаляем запись о задаче из БД после выполнения
+                    job_id = f'end_tournament_{tournament_id}'
+                    scheduler_job = SchedulerJob.query.filter_by(job_id=job_id).first()
+                    if scheduler_job:
+                        db.session.delete(scheduler_job)
+                        db.session.commit()
+                    
+                    # Успешно завершено
+                    if attempt > 0:
+                        print(f"✅ Турнир {tournament_id} успешно завершен с попытки {attempt + 1}")
+                    return
+                    
+                except OperationalError as e:
+                    # Проверяем, является ли это deadlock
+                    error_str = str(e.orig) if hasattr(e, 'orig') else str(e)
+                    if 'deadlock' in error_str.lower() or 'DeadlockDetected' in str(type(e.orig)):
+                        if attempt < max_retries - 1:
+                            # Экспоненциальная задержка перед повтором
+                            wait_time = (2 ** attempt) * 0.1  # 0.1s, 0.2s, 0.4s
+                            print(f"⚠️ Deadlock обнаружен при завершении турнира {tournament_id}, попытка {attempt + 1}/{max_retries}. Повтор через {wait_time:.1f}с...")
+                            try:
+                                db.session.rollback()
+                            except (PendingRollbackError, Exception):
+                                db.session.remove()
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            print(f"❌ Не удалось завершить турнир {tournament_id} после {max_retries} попыток из-за deadlock")
+                            try:
+                                db.session.rollback()
+                            except (PendingRollbackError, Exception):
+                                db.session.remove()
+                            raise
+                    else:
+                        # Другая операционная ошибка
+                        try:
+                            db.session.rollback()
+                        except (PendingRollbackError, Exception):
+                            db.session.remove()
+                        raise
+                except PendingRollbackError:
+                    # Если сессия в невалидном состоянии, очищаем её и повторяем попытку
+                    print(f"⚠️ Обнаружена невалидная транзакция при завершении турнира {tournament_id}, попытка {attempt + 1}/{max_retries}. Очищаем сессию...")
+                    db.session.remove()
+                    if attempt < max_retries - 1:
+                        wait_time = (2 ** attempt) * 0.1
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        raise
+                except Exception as e:
+                    try:
+                        db.session.rollback()
+                    except (PendingRollbackError, Exception):
+                        db.session.remove()
+                    print(f"Ошибка в end_tournament_job: {e}")
                     raise
-            else:
-                # Другая операционная ошибка
-                db.session.rollback()
-                raise
+                    
         except Exception as e:
-            db.session.rollback()
-            print(f"Ошибка в end_tournament_job: {e}")
-            raise
+            # Если ошибка произошла вне контекста, просто пробрасываем её дальше
+            if attempt < max_retries - 1:
+                wait_time = (2 ** attempt) * 0.1
+                time.sleep(wait_time)
+                continue
+            else:
+                raise
 
 def add_scheduler_job(job_func, run_date, tournament_id, job_type, interval_hours=None):
     """Добавляет задачу в планировщик и сохраняет информацию в БД"""
@@ -12317,4 +12356,4 @@ if __name__ == '__main__':
     update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
-    app.run(host='0.0.0.0', port=8000, debug=DEBAG)
+    app.run(host='127.0.0.1', port=8000, debug=True)
