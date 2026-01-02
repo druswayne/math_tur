@@ -308,13 +308,13 @@
                         <div class="mb-3">
                             <label class="form-label">Способ доставки *</label>
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="delivery_type" id="deliverySchool" value="school" checked>
-                                <label class="form-check-label" for="deliverySchool">
+                                <input class="form-check-input" type="radio" name="delivery_type" id="deliverySchool" value="school" disabled>
+                                <label class="form-check-label" for="deliverySchool" style="opacity: 0.5; cursor: not-allowed;">
                                     Доставить в учреждение образования
                                 </label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="delivery_type" id="deliveryAddress" value="address">
+                                <input class="form-check-input" type="radio" name="delivery_type" id="deliveryAddress" value="address" checked>
                                 <label class="form-check-label" for="deliveryAddress">
                                     Доставить по адресу
                                 </label>
@@ -322,7 +322,7 @@
                         </div>
                         
                         <!-- Информация об учреждении образования -->
-                        <div id="schoolInfo" class="mb-3">
+                        <div id="schoolInfo" class="mb-3" style="display: none;">
                             <div class="card bg-light">
                                 <div class="card-body">
                                     <h6 class="card-title mb-2">
@@ -344,10 +344,10 @@
                             </div>
                         </div>
                         
-                        <!-- Поле адреса доставки (скрыто по умолчанию) -->
-                        <div id="addressField" class="mb-3" style="display: none;">
+                        <!-- Поле адреса доставки -->
+                        <div id="addressField" class="mb-3">
                             <label for="address" class="form-label">Адрес доставки *</label>
-                            <textarea class="form-control" id="address" name="address" rows="3" placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
+                            <textarea class="form-control" id="address" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                         </div>
                         
                         <button type="submit" class="btn btn-primary w-100" 
@@ -581,13 +581,13 @@
                     <div class="mb-3">
                         <label class="form-label">Способ доставки *</label>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="mobile_delivery_type" id="mobileDeliverySchool" value="school" checked>
-                            <label class="form-check-label" for="mobileDeliverySchool">
+                            <input class="form-check-input" type="radio" name="mobile_delivery_type" id="mobileDeliverySchool" value="school" disabled>
+                            <label class="form-check-label" for="mobileDeliverySchool" style="opacity: 0.5; cursor: not-allowed;">
                                 Доставить в учреждение образования
                             </label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input" type="radio" name="mobile_delivery_type" id="mobileDeliveryAddress" value="address">
+                            <input class="form-check-input" type="radio" name="mobile_delivery_type" id="mobileDeliveryAddress" value="address" checked>
                             <label class="form-check-label" for="mobileDeliveryAddress">
                                 Доставить по адресу
                             </label>
@@ -595,7 +595,7 @@
                     </div>
                     
                     <!-- Информация об учреждении образования -->
-                    <div id="mobileSchoolInfo" class="mb-3">
+                    <div id="mobileSchoolInfo" class="mb-3" style="display: none;">
                         <div class="card bg-light">
                             <div class="card-body">
                                 <h6 class="card-title mb-2">
@@ -617,10 +617,10 @@
                         </div>
                     </div>
                     
-                    <!-- Поле адреса доставки (скрыто по умолчанию) -->
-                    <div id="mobileAddressField" class="mb-3" style="display: none;">
+                    <!-- Поле адреса доставки -->
+                    <div id="mobileAddressField" class="mb-3">
                         <label for="mobileAddress" class="form-label">Адрес доставки *</label>
-                        <textarea class="form-control" id="mobileAddress" name="address" rows="3" placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
+                        <textarea class="form-control" id="mobileAddress" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                     </div>
                     
                     <button type="submit" class="btn btn-primary w-100" 
