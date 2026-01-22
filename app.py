@@ -1623,6 +1623,10 @@ class TeacherCartItem(db.Model):
 class ShopSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     is_open = db.Column(db.Boolean, default=True)
+    # Способ доступа к лавке:
+    # - percentage: доступ по процентам лучших пользователей в каждой категории
+    # - fixed_top_3: фиксированный доступ для топ-3 пользователей в каждой категории
+    access_mode = db.Column(db.String(20), default='percentage')
     # Процент лучших пользователей для каждой категории
     top_users_percentage_1_2 = db.Column(db.Integer, default=100)  # 1-2 классы
     top_users_percentage_3 = db.Column(db.Integer, default=100)    # 3 класс
@@ -1645,6 +1649,13 @@ class ShopSettings(db.Model):
             db.session.commit()
         return settings
 
+    def _normalized_access_mode(self) -> str:
+        """Возвращает валидный режим доступа (с дефолтом на percentage)."""
+        mode = (self.access_mode or 'percentage').strip().lower()
+        if mode not in {'percentage', 'fixed_top_3'}:
+            return 'percentage'
+        return mode
+
     def can_user_shop(self, user):
         if not self.is_open:
             return False
@@ -1656,13 +1667,16 @@ class ShopSettings(db.Model):
         # Для обычных пользователей проверяем категорию
         if not hasattr(user, 'category'):
             return False
+
+        access_mode = self._normalized_access_mode()
             
-        # Получаем процент для категории пользователя
-        category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
-        
-        if category_percentage >= 100:
-            return True
-            
+        # Режим percentage: если доступ открыт для всех (100%),
+        # сохраняем старое поведение — не требуем участия/ранга.
+        if access_mode == 'percentage':
+            category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
+            if category_percentage >= 100:
+                return True
+
         # Получаем количество пользователей в категории, которые участвовали в турнирах
         from sqlalchemy import exists
         category_users_with_tournaments = User.query.filter(
@@ -1670,18 +1684,21 @@ class ShopSettings(db.Model):
             User.is_admin == False,
             exists().where(TournamentParticipation.user_id == User.id)
         ).count()
-        
         if category_users_with_tournaments == 0:
             return False
-            
-        # Вычисляем количество пользователей в категории, которым разрешено делать покупки
-        allowed_users_count = max(1, int(category_users_with_tournaments * category_percentage / 100))
-        
+
         # Получаем ранг пользователя в его категории
         user_rank = user.category_rank
         if not user_rank:
             return False
-            
+
+        if access_mode == 'fixed_top_3':
+            allowed_users_count = min(3, category_users_with_tournaments)
+            return user_rank <= allowed_users_count
+
+        # Режим percentage (по умолчанию)
+        category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
+        allowed_users_count = max(1, int(category_users_with_tournaments * category_percentage / 100))
         return user_rank <= allowed_users_count
 
     def get_user_shop_status(self, user):
@@ -1708,16 +1725,18 @@ class ShopSettings(db.Model):
                 'reason': 'no_category',
                 'message': 'У вас не указана возрастная категория'
             }
-            
-        # Получаем процент для категории пользователя
-        category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
-        
-        if category_percentage >= 100:
-            return {
-                'can_shop': True,
-                'reason': 'all_users',
-                'message': f'В вашей параллели ({user.category} класс) доступ к лавке открыт для всех пользователей'
-            }
+
+        access_mode = self._normalized_access_mode()
+
+        # Режим percentage: если 100%, возвращаем доступ для всех без проверок ранга/участия
+        if access_mode == 'percentage':
+            category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
+            if category_percentage >= 100:
+                return {
+                    'can_shop': True,
+                    'reason': 'all_users',
+                    'message': f'В вашей параллели ({user.category} класс) доступ к лавке открыт для всех пользователей'
+                }
             
         # Получаем количество пользователей в категории, которые участвовали в турнирах
         from sqlalchemy import exists
@@ -1733,21 +1752,51 @@ class ShopSettings(db.Model):
                 'reason': 'no_participants',
                 'message': f'В вашей параллели ({user.category} класс) пока нет участников турниров'
             }
-            
-        # Вычисляем количество пользователей в категории, которым разрешено делать покупки
-        allowed_users_count = max(1, int(category_users_with_tournaments * category_percentage / 100))
-        
+
         # Получаем ранг пользователя в его категории
         user_rank = user.category_rank
         if not user_rank:
+            if access_mode == 'fixed_top_3':
+                return {
+                    'can_shop': False,
+                    'reason': 'no_rank',
+                    'message': f'В вашей параллели ({user.category} класс) покупки доступны только для 3 лучших пользователей. Участвуйте в турнирах, чтобы получить рейтинг!'
+                }
+            # percentage (по умолчанию)
+            category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
             return {
                 'can_shop': False,
                 'reason': 'no_rank',
                 'message': f'В вашей параллели ({user.category} класс) покупки доступны только для {category_percentage}% лучших пользователей. Участвуйте в турнирах, чтобы получить рейтинг!'
             }
-            
+
+        if access_mode == 'fixed_top_3':
+            allowed_users_count = min(3, category_users_with_tournaments)
+            can_shop = user_rank <= allowed_users_count
+            if can_shop:
+                return {
+                    'can_shop': True,
+                    'reason': 'top_fixed',
+                    'message': f'Отлично! Вы входите в топ-{allowed_users_count} участников в своей параллели и можете обменять баллы на призы',
+                    'user_rank': user_rank,
+                    'allowed_count': allowed_users_count,
+                    'total_users': category_users_with_tournaments,
+                    'access_mode': 'fixed_top_3'
+                }
+            return {
+                'can_shop': False,
+                'reason': 'not_top_fixed',
+                'message': f'К сожалению, вы не вошли в топ-3 лучших участников в своей параллели. Ваше место: {user_rank} из {category_users_with_tournaments}. Участвуйте в турнирах, чтобы подняться в рейтинге!',
+                'user_rank': user_rank,
+                'allowed_count': allowed_users_count,
+                'total_users': category_users_with_tournaments,
+                'access_mode': 'fixed_top_3'
+            }
+
+        # Режим percentage (по умолчанию)
+        category_percentage = getattr(self, f'top_users_percentage_{user.category.replace("-", "_")}')
+        allowed_users_count = max(1, int(category_users_with_tournaments * category_percentage / 100))
         can_shop = user_rank <= allowed_users_count
-        
         if can_shop:
             return {
                 'can_shop': True,
@@ -1755,18 +1804,35 @@ class ShopSettings(db.Model):
                 'message': f'Отлично! Вы входите в {category_percentage}% лучших участников в своей параллели и можете обменять баллы на призы',
                 'user_rank': user_rank,
                 'allowed_count': allowed_users_count,
-                'percentage': category_percentage
+                'percentage': category_percentage,
+                'access_mode': 'percentage'
             }
-        else:
-            return {
-                'can_shop': False,
-                'reason': 'not_top_percentage',
-                'message': f'К сожалению, вам не хватило баллов, чтобы войти в топ {category_percentage}% лучших участников в своей параллели. Ваше место: {user_rank} из {category_users_with_tournaments}. Следующий турнир точно станет твоим звёздным часом!',
-                'user_rank': user_rank,
-                'allowed_count': allowed_users_count,
-                'total_users': category_users_with_tournaments,
-                'percentage': category_percentage
-            }
+        return {
+            'can_shop': False,
+            'reason': 'not_top_percentage',
+            'message': f'К сожалению, вам не хватило баллов, чтобы войти в топ {category_percentage}% лучших участников в своей параллели. Ваше место: {user_rank} из {category_users_with_tournaments}. Следующий турнир точно станет твоим звёздным часом!',
+            'user_rank': user_rank,
+            'allowed_count': allowed_users_count,
+            'total_users': category_users_with_tournaments,
+            'percentage': category_percentage,
+            'access_mode': 'percentage'
+        }
+
+
+def ensure_shop_settings_schema():
+    """
+    Обеспечивает наличие новых колонок в таблице shop_settings.
+    Нужна, потому что db.create_all() не изменяет существующие таблицы.
+    """
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if not inspector.has_table('shop_settings'):
+        return
+    columns = {col['name'] for col in inspector.get_columns('shop_settings')}
+    if 'access_mode' not in columns:
+        db.session.execute(text("ALTER TABLE shop_settings ADD COLUMN access_mode VARCHAR(20)"))
+        db.session.execute(text("UPDATE shop_settings SET access_mode='percentage' WHERE access_mode IS NULL"))
+        db.session.commit()
 
 class TournamentSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -2509,7 +2575,7 @@ def shop_preview():
 @app.route('/how-to-participate')
 def how_to_participate():
     """Страница с подробной информацией о том, как участвовать в турнирах"""
-    return render_template('how_to_participate.html', title='Как участвовать')
+    return redirect(url_for('home'))
 
 @app.route('/news')
 def news():
@@ -8056,6 +8122,9 @@ def add_to_cart():
     settings = ShopSettings.get_settings()
     if not settings.is_open:
         return jsonify({'success': False, 'message': 'Магазин временно закрыт'})
+
+    if not settings.can_user_shop(current_user):
+        return jsonify({'success': False, 'message': 'У вас нет доступа к магазину'})
     
     data = request.get_json()
     prize_id = data.get('prize_id')
@@ -8730,17 +8799,24 @@ def admin_update_shop_settings():
     
     # Обновляем настройки
     settings.is_open = 'is_open' in request.form
+
+    access_mode = (request.form.get('access_mode') or 'percentage').strip().lower()
+    if access_mode not in {'percentage', 'fixed_top_3'}:
+        return jsonify({'success': False, 'message': 'Некорректный способ доступа к лавке'})
+    settings.access_mode = access_mode
     
-    # Обновляем проценты для каждой категории
-    categories = ['1_2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
-    for category in categories:
-        try:
-            percentage = int(request.form.get(f'top_users_percentage_{category}', 100))
-            if percentage < 1 or percentage > 100:
-                raise ValueError
-            setattr(settings, f'top_users_percentage_{category}', percentage)
-        except ValueError:
-            return jsonify({'success': False, 'message': f'Некорректное значение процента для категории {category.replace("_", "-")}'})
+    # Обновляем проценты для каждой категории (только если выбран процентный режим).
+    # В фиксированном режиме поля могут быть отключены в UI и не приходить в request.form.
+    if access_mode == 'percentage':
+        categories = ['1_2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+        for category in categories:
+            try:
+                percentage = int(request.form.get(f'top_users_percentage_{category}', 100))
+                if percentage < 1 or percentage > 100:
+                    raise ValueError
+                setattr(settings, f'top_users_percentage_{category}', percentage)
+            except ValueError:
+                return jsonify({'success': False, 'message': f'Некорректное значение процента для категории {category.replace("_", "-")}'})
     
     db.session.commit()
     
@@ -9407,6 +9483,7 @@ def clear_sessions():
         # Сначала создаем все таблицы
         print("Создание таблиц базы данных...")
         db.create_all()
+        ensure_shop_settings_schema()
 
         # Затем создаем администратора
         print("Создание администратора...")

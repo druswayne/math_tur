@@ -26,6 +26,27 @@
                 </div>
 
                 <div class="mb-4">
+                    <h5>Способ доступа к лавке призов</h5>
+                    <small class="text-muted mb-3 d-block">
+                        Выберите, как определять пользователей, которым разрешены покупки.
+                    </small>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="access_mode" id="accessModePercentage"
+                               value="percentage" {% if settings.access_mode != 'fixed_top_3' %}checked{% endif %}>
+                        <label class="form-check-label" for="accessModePercentage">
+                            По проценту лучших (как сейчас)
+                        </label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="radio" name="access_mode" id="accessModeFixedTop3"
+                               value="fixed_top_3" {% if settings.access_mode == 'fixed_top_3' %}checked{% endif %}>
+                        <label class="form-check-label" for="accessModeFixedTop3">
+                            Фиксированный доступ: лучшие 3 игрока в каждой группе
+                        </label>
+                    </div>
+                </div>
+
+                <div class="mb-4" id="percentageSettings">
                     <h5>Доступ к покупкам по категориям</h5>
                     <small class="text-muted mb-3 d-block">
                         Укажите процент лучших пользователей для каждой категории, которым будет разрешено делать покупки в лавке призов.
@@ -147,6 +168,15 @@
                             {% endif %}
                         </li>
                         <li>
+                            Способ доступа:
+                            {% if settings.access_mode == 'fixed_top_3' %}
+                                фиксированный (топ-3 в каждой группе)
+                            {% else %}
+                                по проценту лучших
+                            {% endif %}
+                        </li>
+                        {% if settings.access_mode != 'fixed_top_3' %}
+                        <li>
                             Доступ к покупкам по категориям:
                             <ul>
                                 <li>1-2 классы: {{ settings.top_users_percentage_1_2 }}%</li>
@@ -161,6 +191,7 @@
                                 <li>11 класс: {{ settings.top_users_percentage_11 }}%</li>
                             </ul>
                         </li>
+                        {% endif %}
                     </ul>
                 </div>
 
@@ -173,6 +204,18 @@
 </div>
 
 <script>
+function updateAccessModeUI() {
+    const isFixed = document.getElementById('accessModeFixedTop3')?.checked;
+    const percentageBlock = document.getElementById('percentageSettings');
+    if (!percentageBlock) return;
+
+    // Прячем/показываем блок процентов и блокируем инпуты, чтобы было очевидно, что они не применяются
+    percentageBlock.style.display = isFixed ? 'none' : '';
+    percentageBlock.querySelectorAll('input[type="number"]').forEach((el) => {
+        el.disabled = Boolean(isFixed);
+    });
+}
+
 document.getElementById('shopSettingsForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -232,5 +275,10 @@ function showNotification(message, type = 'info') {
         setTimeout(() => messageDiv.remove(), 500);
     }, 5000);
 }
+
+document.querySelectorAll('input[name="access_mode"]').forEach((el) => {
+    el.addEventListener('change', updateAccessModeUI);
+});
+updateAccessModeUI();
 </script>
 {% endblock %} 
