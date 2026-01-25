@@ -2500,53 +2500,6 @@ main {
     transform: scale(1.05);
 }
 
-/* Стили для гифки в красной рамке поверх таймера */
-.gif-overlay-container {
-    position: absolute;
-    bottom: 2px;
-    right: 20px;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.gif-red-frame {
-    /* Убираем рамку, фон и анимацию - правило оставлено для совместимости */
-    display: block;
-}
-
-.overlay-gif {
-    max-width: 110px;
-    max-height: 110px;
-    border-radius: 4px;
-    display: block;
-}
-
-/* Анимация больше не нужна */
-
-/* Адаптивные стили для гифки */
-@media (max-width: 768px) {
-    .gif-overlay-container {
-        right: 10px;
-    }
-    
-    .overlay-gif {
-        max-width: 88px;
-        max-height: 88px;
-    }
-}
-
-@media (max-width: 576px) {
-    .gif-overlay-container {
-        right: -10px;
-        bottom: 2px;
-    }
-    
-    .overlay-gif {
-        max-width: 72px;
-        max-height: 72px;
-    }
-}
-
 /* Дополнительные стили для тестовой страницы задач */
 .test-tasks-page .task-image-preview {
     aspect-ratio: 4/3;

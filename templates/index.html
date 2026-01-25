@@ -14,6 +14,10 @@
 
 {% block twitter_description %}Международная платформа, где учеба превращается в увлекательное приключение для учащихся 1–11 классов из Беларуси и России{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index_hero_parallax.css', v='1') }}">
+{% endblock %}
+
 {% block content %}
 {% set show_partners = true %}
 <!-- Модальное окно приветствия для новых пользователей -->
@@ -123,8 +127,11 @@
     </div>
 </div>
 
-<div class="container mt-5">
-    <div class="row">
+<div class="index-main-parallax" id="indexMainParallax" data-word-set="school" data-parallax-quality="auto">
+    <div class="index-main-parallax__parallax" aria-hidden="true"></div>
+    <div class="index-main-parallax__content">
+        <div class="container mt-5">
+            <div class="row">
         <!-- Основной контент с турниром -->
         <div class="col-lg-8 col-12">
     {% if next_tournament %}
@@ -162,12 +169,6 @@
                         <div class="countdown-item">
                             <div class="countdown-number" id="seconds">00</div>
                             <div class="countdown-label">секунд</div>
-                        </div>
-                    </div>
-                    <!-- Контейнер для гифки в красной рамке -->
-                    <div class="gif-overlay-container">
-                        <div class="gif-red-frame">
-                            <img src="{{ url_for('static', filename='1.gif') }}" alt="Анимация" class="overlay-gif">
                         </div>
                     </div>
                 </div>
@@ -249,6 +250,9 @@
             </div>
         </div>
         {% endif %}
+    </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -455,3 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %} 
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/index_hero_parallax.js', v='1') }}"></script>
+{% endblock %}
