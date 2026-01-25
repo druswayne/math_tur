@@ -379,9 +379,30 @@
       rebuildAnim();
     });
 
+    // Для touch: реагируем на касание/drag, но не мешаем вертикальному скроллу
+    let touchActive = false;
+    let touchPointerId = null;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartScrollY = 0;
+
     function updateTargetFromEvent(e) {
-      // На touch не гоняем параллакс к пальцу: это мешает скроллу и выглядит “дёргано”.
-      if (e && e.pointerType && e.pointerType !== "mouse") return;
+      if (!e || !e.pointerType) return;
+
+      if (e.pointerType === "touch") {
+        // Обрабатываем только активный touch-указатель
+        if (!touchActive || touchPointerId !== e.pointerId) return;
+
+        const dx = Math.abs(e.clientX - touchStartX);
+        const dy = Math.abs(e.clientY - touchStartY);
+        const dScroll = Math.abs((window.scrollY || 0) - touchStartScrollY);
+
+        // Если жест похож на прокрутку — не двигаем параллакс
+        if (dy > dx && (dy > 10 || dScroll > 8)) return;
+      } else if (e.pointerType !== "mouse" && e.pointerType !== "pen") {
+        return;
+      }
+
       const r = hero.getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
@@ -392,6 +413,46 @@
       targetX = clamp(nx, -1, 1) * MAX_SHIFT;
       targetY = clamp(ny, -1, 1) * MAX_SHIFT;
     }
+
+    hero.addEventListener(
+      "pointerdown",
+      function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        touchActive = true;
+        touchPointerId = e.pointerId;
+        touchStartX = e.clientX;
+        touchStartY = e.clientY;
+        touchStartScrollY = window.scrollY || 0;
+        updateTargetFromEvent(e);
+      },
+      { passive: true }
+    );
+
+    hero.addEventListener(
+      "pointerup",
+      function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        if (touchPointerId !== e.pointerId) return;
+        touchActive = false;
+        touchPointerId = null;
+        targetX = 0;
+        targetY = 0;
+      },
+      { passive: true }
+    );
+
+    hero.addEventListener(
+      "pointercancel",
+      function (e) {
+        if (!e || e.pointerType !== "touch") return;
+        if (touchPointerId !== e.pointerId) return;
+        touchActive = false;
+        touchPointerId = null;
+        targetX = 0;
+        targetY = 0;
+      },
+      { passive: true }
+    );
 
     hero.addEventListener("pointermove", updateTargetFromEvent, { passive: true });
     hero.addEventListener(
