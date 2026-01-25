@@ -1,0 +1,227 @@
+.index-hero,
+.index-main-parallax {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  margin: 1.5rem 0 1.25rem 0;
+  padding: 2.25rem 0;
+  background:
+    radial-gradient(900px circle at 18% 20%, rgba(255, 140, 0, 0.22), rgba(255, 140, 0, 0) 60%),
+    radial-gradient(700px circle at 78% 65%, rgba(255, 215, 0, 0.18), rgba(255, 215, 0, 0) 60%),
+    linear-gradient(135deg, #fff4d6 0%, #ffffff 45%, #f7f8fa 100%);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  width: 100%;
+  touch-action: pan-y;
+}
+
+.index-main-parallax {
+  /* Компенсируем padding у main (style.css: main { padding: 2rem 0; }) */
+  margin-top: -2rem;
+  margin-bottom: -2rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.index-main-parallax__content {
+  padding: 2rem 0;
+}
+
+.index-hero {
+  color: #fff;
+}
+
+.index-hero::before,
+.index-main-parallax::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 140, 0, 0.22) 0%, rgba(255, 215, 0, 0.18) 100%);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.index-hero__content,
+.index-main-parallax__content {
+  position: relative;
+  z-index: 2;
+}
+
+.index-hero__title {
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  margin: 0 0 0.6rem 0;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+}
+
+.index-hero__subtitle {
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.index-hero__cta.btn {
+  border-radius: 14px;
+  font-weight: 700;
+  padding: 0.85rem 1.25rem;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+}
+
+.index-hero__parallax,
+.index-main-parallax__parallax {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.index-main-parallax__content .container {
+  position: relative;
+}
+
+/* Прозрачность для блока турнира/таймера на главной */
+.index-main-parallax .card {
+  background: rgba(255, 255, 255, 0.48) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* ВАЖНО: backdrop-filter дорогой при движущемся фоне.
+   Включаем блюр только в режиме качества "high". */
+@supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+  .index-main-parallax[data-parallax-quality="high"] .card {
+    background: rgba(255, 255, 255, 0.40) !important;
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    backdrop-filter: blur(10px) saturate(130%);
+  }
+}
+
+.index-main-parallax .countdown-timer {
+  background: rgba(255, 255, 255, 0.22);
+  color: #1f1f24;
+  border: 1px solid rgba(255, 140, 0, 0.28);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(255, 215, 0, 0.18) inset;
+}
+
+.index-main-parallax .countdown-timer::before {
+  opacity: 0.08;
+}
+
+.index-main-parallax .countdown-item {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.10);
+}
+
+.index-main-parallax .countdown-number {
+  color: #111;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.index-main-parallax .countdown-label {
+  color: rgba(17, 17, 17, 0.82);
+  letter-spacing: 0.08em;
+}
+
+@supports ((-webkit-backdrop-filter: blur(8px)) or (backdrop-filter: blur(8px))) {
+  .index-main-parallax[data-parallax-quality="high"] .countdown-timer {
+    background: rgba(255, 255, 255, 0.18);
+    -webkit-backdrop-filter: blur(8px) saturate(130%);
+    backdrop-filter: blur(8px) saturate(130%);
+  }
+  .index-main-parallax[data-parallax-quality="high"] .countdown-item {
+    background: rgba(255, 255, 255, 0.14);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    backdrop-filter: blur(6px) saturate(120%);
+  }
+}
+
+.ru-word {
+  position: absolute;
+  left: var(--x, 50%);
+  top: var(--y, 50%);
+  transform: rotate(var(--rot, 0deg)) scale(var(--scale, 1));
+  transform-origin: center;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ru-word__inner {
+  display: inline-block;
+  font-size: var(--fs, 16px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.10),
+    0 0 1px rgba(0, 0, 0, 0.12);
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.ru-word__inner[data-tone="far"] {
+  color: rgba(31, 31, 36, 0.12);
+}
+
+.ru-word__inner[data-tone="mid"] {
+  color: rgba(255, 140, 0, 0.12);
+}
+
+.ru-word__inner[data-tone="near"] {
+  color: rgba(255, 140, 0, 0.10);
+}
+
+@media (max-width: 992px) {
+  .index-hero,
+  .index-main-parallax {
+    border-radius: 14px;
+    padding: 1.75rem 0;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.10);
+  }
+  .index-hero__subtitle {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .index-hero {
+    padding: 1.5rem 0;
+    margin: 1rem 0 1rem 0;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+  }
+
+  /* На главной в мобилке убираем белые полосы вокруг main:
+     НЕ перетираем отрицательные отступы (компенсацию main padding). */
+  .index-main-parallax {
+    padding: 1.5rem 0;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.10);
+    margin-top: -2rem;
+    margin-bottom: -2rem;
+  }
+
+  .ru-word__inner {
+    letter-spacing: 0.02em;
+    font-weight: 650;
+  }
+
+  /* На мобилках повышаем читаемость таймера чуть сильнее */
+  .index-main-parallax .countdown-timer {
+    border-color: rgba(255, 140, 0, 0.34);
+  }
+  .index-main-parallax .countdown-item {
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.10);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ru-word__inner {
+    will-change: auto;
+  }
+}
+
