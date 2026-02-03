@@ -360,7 +360,7 @@ app.config['PREFERRED_URL_SCHEME'] = 'https'
 
 mail = Mail(app)
 # Rate limiting - используем in-memory storage для стабильности
-print("🔧 Используется in-memory storage для rate limiting")
+print("[rate-limit] Используется in-memory storage для rate limiting")
 
 def get_real_ip():
     """
@@ -9473,8 +9473,17 @@ def start_scheduler_recovery_thread():
     recovery_thread.start()
     print("Поток восстановления планировщика запущен")
 
-@app.before_first_request
+# Flask 3.x удалил app.before_first_request, поэтому используем before_request
+# с защитой "выполнить один раз".
+_app_startup_initialized = False
+
+@app.before_request
 def clear_sessions():
+    global _app_startup_initialized
+    if _app_startup_initialized:
+        return
+    _app_startup_initialized = True
+
     # Очищаем все токены сессий при запуске приложения
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
@@ -12281,6 +12290,9 @@ def check_abbreviations_match(name, query_words):
 @login_required
 def referral_dashboard():
     """Страница клуба друзей"""
+    # Функциональность "Пригласить" отключена для личного кабинета пользователя.
+    abort(404)
+
     # Получаем или создаем пригласительную ссылку
     referral_link = create_referral_link(current_user.id)
     
@@ -12331,6 +12343,9 @@ def referral_dashboard():
 @login_required
 def copy_referral_link():
     """Копирует пригласительную ссылку в буфер обмена"""
+    # Функциональность "Пригласить" отключена для личного кабинета пользователя.
+    abort(404)
+
     referral_link = ReferralLink.query.filter_by(user_id=current_user.id, is_active=True).first()
     if not referral_link:
         return jsonify({'success': False, 'error': 'Пригласительная ссылка не найдена'})
