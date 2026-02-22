@@ -7366,8 +7366,8 @@ def submit_task_answer(tournament_id, task_id):
         time_spent = (current_time - participation.start_time).total_seconds()
         
 
-        # Если время меньше 2 минут и процент правильных ответов больше 50%
-        if time_spent < 120 and correct_percentage > 50:  # 120 секунд = 2 минуты
+        # Если время меньше 5 минут и процент правильных ответов больше 50%
+        if time_spent < 300 and correct_percentage > 50:  # 300 секунд = 5 минут
             current_user.is_blocked = True
             current_user.block_reason = "Подозрение на жульничество"
             flash('Ваш аккаунт заблокирован из-за подозрительной активности', 'danger')
@@ -12445,7 +12445,7 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
-    update_category_ranks()
+    #update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8000, debug=True)
