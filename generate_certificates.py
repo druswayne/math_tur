@@ -61,27 +61,27 @@ class CertificateGenerator:
         
         # Координаты для сертификата
         self.cert_name_coords = {
-            'start': (168, 568),
-            'end': (729, 568),
+            'start': (172, 569),
+            'end': (725, 569),
             'max_height': 50
         }
         self.cert_score_coords = {
-            'start': (315, 815),
-            'end': (381, 815)
+            'start': (327, 826),
+            'end': (393, 826)
         }
         self.cert_place_coords = {
-            'start': (701, 815),
-            'end': (742, 815)
+            'start': (703, 826),
+            'end': (744, 826)
         }
         
         # Координаты для диплома
         self.diploma_coords = {
-            'place': {'start': (340, 408), 'end': (458, 408)},       # место (1–3) вверху
-            'name': {'start': (177, 552), 'end': (738, 552)},
-            'group': {'start': (486, 578), 'end': (528, 578)},       # класс
-            'school_line1': {'start': (175, 641), 'end': (735, 641)}, # первая строка школы
-            'school_line2': {'start': (175, 690), 'end': (735, 690)},# вторая строка школы
-            'score': {'start': (502, 846), 'end': (543, 846)}
+            'place': {'start': (360, 417), 'end': (455, 417)},        # степень диплома (1–3)
+            'name': {'start': (163, 556), 'end': (744, 556)},         # ФИО участника
+            'group': {'start': (469, 582), 'end': (512, 582)},        # класс
+            'school_line1': {'start': (163, 644), 'end': (744, 644)}, # первая строка школы
+            'school_line2': {'start': (163, 689), 'end': (744, 689)}, # вторая строка школы
+            'score': {'start': (507, 812), 'end': (560, 812)}         # баллы
         }
         
         self.diploma_font_size = 20

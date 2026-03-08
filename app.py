@@ -906,33 +906,34 @@ def end_tournament_job(tournament_id, max_retries=3):
                     # Ключ: user_id, значение: время для добавления
                     user_time_updates = {}
                     
-                    # Вычисляем места и собираем изменения времени участия
+                    # Вычисляем места по тем же правилам, что и category_rank: balance DESC, total_tournament_time ASC
                     for category, plist in participations_by_category.items():
-                        # Сортируем по score (баллы), затем по времени участия (меньше — выше)
-                        plist_sorted = sorted(plist, key=lambda p: (-p.score, (p.end_time or current_time) - (p.start_time or current_time)))
-                        for rank, participation in enumerate(plist_sorted, 1):
-                            participation.place = rank
-                            
-                            # Проверяем, есть ли у пользователя решенные задачи в этом турнире
+                        # Сначала для каждого участника считаем время в турнире и обновляем end_time
+                        participations_with_time = []
+                        for participation in plist:
+                            time_spent_this_tournament = 0
                             solved_tasks = SolvedTask.query.filter_by(
                                 user_id=participation.user_id
                             ).join(Task).filter(
                                 Task.tournament_id == tournament_id
                             ).all()
-                            
                             if solved_tasks:
-                                # Если есть решенные задачи, устанавливаем end_time как время последней решенной задачи
                                 if not participation.end_time:
                                     last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
                                     participation.end_time = last_solved_task.solved_at
-                                
-                                # Вычисляем время участия в турнире и накапливаем для последующего обновления
                                 if participation.start_time and participation.end_time:
-                                    time_spent = int((participation.end_time - participation.start_time).total_seconds())
+                                    time_spent_this_tournament = int((participation.end_time - participation.start_time).total_seconds())
                                     user_id = participation.user_id
                                     if user_id not in user_time_updates:
                                         user_time_updates[user_id] = 0
-                                    user_time_updates[user_id] += time_spent
+                                    user_time_updates[user_id] += time_spent_this_tournament
+                            # Эффективное общее время = текущее total_tournament_time + время в этом турнире (как после обновления)
+                            user_total_time = (participation.user.total_tournament_time or 0) + time_spent_this_tournament
+                            participations_with_time.append((participation, time_spent_this_tournament, user_total_time))
+                        # Сортируем как в update_category_ranks: balance DESC, total_tournament_time ASC
+                        participations_with_time.sort(key=lambda x: (-(x[0].user.balance or 0), x[2]))
+                        for rank, (participation, _tm, _) in enumerate(participations_with_time, 1):
+                            participation.place = rank
                     
                     # Коммитим изменения в participations (места)
                     db.session.commit()
