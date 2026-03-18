@@ -7345,7 +7345,10 @@ def submit_task_answer(tournament_id, task_id):
         if current_user.balance is None:
             current_user.balance = 0
         current_user.balance += task.points
-        
+        # Накапливаем баллы в участии в турнире (для истории турниров и сортировки при подведении итогов)
+        if participation:
+            participation.score = (participation.score or 0) + task.points
+
         # Проверяем на подозрительную активность
         # Получаем все задачи турнира для категории пользователя
         all_tasks = get_tournament_tasks_cached(tournament_id, current_user.category)

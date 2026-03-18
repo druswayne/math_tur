@@ -202,11 +202,6 @@
         <div class="px-3 px-md-4 px-lg-5">
             <div class="row align-items-center g-4">
             <div class="col-lg-7">
-                <div class="hero-badge mb-3">
-                    <i class="bi bi-calendar-x-fill"></i>
-                    Сезон турниров завершён
-                </div>
-
                 <p class="hero-lead mb-4">{{ message|safe }}</p>
                 <div class="quick-actions d-flex flex-wrap gap-2">
                     <a href="{{ url_for('news') }}" class="btn btn-primary">
@@ -215,8 +210,8 @@
                     <a href="{{ url_for('rating') }}" class="btn btn-primary">
                         <i class="bi bi-list-ol me-1"></i>Рейтинг
                     </a>
-                    <a href="{{ url_for('how_to_participate') }}" class="btn btn-primary">
-                        <i class="bi bi-question-circle me-1"></i>Как участвовать
+                    <a href="/tournament-rules" class="btn btn-primary">
+                        <i class="bi bi-question-circle me-1"></i>Как поучаствовать
                     </a>
                 </div>
             </div>
