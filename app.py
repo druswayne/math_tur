@@ -2570,8 +2570,14 @@ def shop_preview():
     """Страница предварительного просмотра лавки призов для неавторизованных пользователей и учителей"""
     # Получаем активные призы (только для обычных пользователей)
     prizes = Prize.query.filter_by(is_active=True, is_for_teachers=False).order_by(Prize.points_cost.asc()).all()
-    
-    return render_template('shop_preview.html', title='Лавка призов', prizes=prizes)
+
+    settings = ShopSettings.get_settings()
+    return render_template(
+        'shop_preview.html',
+        title='Лавка призов',
+        prizes=prizes,
+        settings=settings,
+    )
 
 @app.route('/how-to-participate')
 def how_to_participate():

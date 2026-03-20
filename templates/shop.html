@@ -241,8 +241,8 @@
         {% else %}
             {% if shop_status.reason == 'shop_closed' %}
             <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                {{ shop_status.message }}. Покупки недоступны, но вы можете просматривать доступные призы.
+                🎁 Лавка призов откроется 18 апреля в 12:00.<br>
+                Участники, занявшие 1, 2 и 3 место, смогут выбрать свой заслуженный приз!
             </div>
             {% elif shop_status.reason == 'not_top_percentage' %}
             <div class="alert" style="background-color: #f8d7da; border-color: #f5c6cb; color: #000000;">

@@ -17,17 +17,24 @@
                 </div>
             </div>
 
-            <div class="alert alert-info">
-                <h5><i class="fas fa-info-circle me-2"></i>Информация о лавке призов</h5>
-                <p class="mb-0">
-                    Здесь вы можете увидеть все доступные призы, которые можно обменять за баллы, заработанные в турнирах. 
-                    {% if not current_user.is_authenticated %}
-                        <strong>Для обмена призов необходимо войти в систему.</strong>
-                    {% elif isinstance(current_user, Teacher) %}
-                        <strong>Учителя могут только просматривать призы.</strong>
-                    {% endif %}
-                </p>
-            </div>
+            {% if not settings.is_open %}
+                <div class="alert alert-info">
+                    🎁 Лавка призов откроется 18 апреля в 12:00.<br>
+                    Участники, занявшие 1, 2 и 3 место, смогут выбрать свой заслуженный приз!
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle me-2"></i>Информация о лавке призов</h5>
+                    <p class="mb-0">
+                        Здесь вы можете увидеть все доступные призы, которые можно обменять за баллы, заработанные в турнирах. 
+                        {% if not current_user.is_authenticated %}
+                            <strong>Для обмена призов необходимо войти в систему.</strong>
+                        {% elif isinstance(current_user, Teacher) %}
+                            <strong>Учителя могут только просматривать призы.</strong>
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
 
             {% if prizes %}
                 <div class="row">
