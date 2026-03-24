@@ -1567,6 +1567,9 @@ class Prize(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_unique = db.Column(db.Boolean, default=False)  # Флаг уникального приза
     is_for_teachers = db.Column(db.Boolean, default=False)  # Флаг приза для учителей
+    available_for_rank_1 = db.Column(db.Boolean, default=True)  # Доступен для 1 места
+    available_for_rank_2 = db.Column(db.Boolean, default=True)  # Доступен для 2 места
+    available_for_rank_3 = db.Column(db.Boolean, default=True)  # Доступен для 3 места
     created_at = db.Column(db.DateTime, default=datetime.now)
 
 class PrizePurchase(db.Model):
@@ -1833,6 +1836,34 @@ def ensure_shop_settings_schema():
     if 'access_mode' not in columns:
         db.session.execute(text("ALTER TABLE shop_settings ADD COLUMN access_mode VARCHAR(20)"))
         db.session.execute(text("UPDATE shop_settings SET access_mode='percentage' WHERE access_mode IS NULL"))
+        db.session.commit()
+
+def ensure_prize_schema():
+    """
+    Добавляет колонки ограничений по призовым местам в таблицу prize при необходимости.
+    """
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if not inspector.has_table('prize'):
+        return
+
+    columns = {col['name'] for col in inspector.get_columns('prize')}
+    schema_changed = False
+
+    if 'available_for_rank_1' not in columns:
+        db.session.execute(text("ALTER TABLE prize ADD COLUMN available_for_rank_1 BOOLEAN DEFAULT TRUE"))
+        db.session.execute(text("UPDATE prize SET available_for_rank_1=TRUE WHERE available_for_rank_1 IS NULL"))
+        schema_changed = True
+    if 'available_for_rank_2' not in columns:
+        db.session.execute(text("ALTER TABLE prize ADD COLUMN available_for_rank_2 BOOLEAN DEFAULT TRUE"))
+        db.session.execute(text("UPDATE prize SET available_for_rank_2=TRUE WHERE available_for_rank_2 IS NULL"))
+        schema_changed = True
+    if 'available_for_rank_3' not in columns:
+        db.session.execute(text("ALTER TABLE prize ADD COLUMN available_for_rank_3 BOOLEAN DEFAULT TRUE"))
+        db.session.execute(text("UPDATE prize SET available_for_rank_3=TRUE WHERE available_for_rank_3 IS NULL"))
+        schema_changed = True
+
+    if schema_changed:
         db.session.commit()
 
 class TournamentSettings(db.Model):
@@ -3831,6 +3862,9 @@ def admin_add_prize():
     quantity = request.form.get('quantity', type=int, default=0)
     is_unique = 'is_unique' in request.form
     is_for_teachers = 'is_for_teachers' in request.form
+    available_for_rank_1 = 'available_for_rank_1' in request.form
+    available_for_rank_2 = 'available_for_rank_2' in request.form
+    available_for_rank_3 = 'available_for_rank_3' in request.form
     
     if not all([name, description, points_cost]):
         flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -3838,6 +3872,11 @@ def admin_add_prize():
     
     if points_cost < 1 or quantity < -1:
         flash('Некорректные значения', 'danger')
+        return redirect(url_for('admin_prizes'))
+
+    # Для призов не для учителей необходимо выбрать хотя бы одну призовую категорию
+    if not is_for_teachers and not (available_for_rank_1 or available_for_rank_2 or available_for_rank_3):
+        flash('Для приза нужно выбрать хотя бы одно место: 1, 2 или 3', 'danger')
         return redirect(url_for('admin_prizes'))
     
     # Обработка изображения
@@ -3853,7 +3892,10 @@ def admin_add_prize():
         points_cost=points_cost,
         quantity=quantity,
         is_unique=is_unique,
-        is_for_teachers=is_for_teachers
+        is_for_teachers=is_for_teachers,
+        available_for_rank_1=(False if is_for_teachers else available_for_rank_1),
+        available_for_rank_2=(False if is_for_teachers else available_for_rank_2),
+        available_for_rank_3=(False if is_for_teachers else available_for_rank_3)
     )
     
     db.session.add(prize)
@@ -3901,6 +3943,9 @@ def admin_edit_prize(prize_id):
         is_unique = 'is_unique' in request.form
         is_active = 'is_active' in request.form
         is_for_teachers = 'is_for_teachers' in request.form
+        available_for_rank_1 = 'available_for_rank_1' in request.form
+        available_for_rank_2 = 'available_for_rank_2' in request.form
+        available_for_rank_3 = 'available_for_rank_3' in request.form
         
         if not all([name, description, points_cost]):
             flash('Все обязательные поля должны быть заполнены', 'danger')
@@ -3908,6 +3953,10 @@ def admin_edit_prize(prize_id):
         
         if points_cost < 1 or quantity < -1:
             flash('Некорректные значения', 'danger')
+            return redirect(url_for('admin_edit_prize', prize_id=prize_id))
+
+        if not is_for_teachers and not (available_for_rank_1 or available_for_rank_2 or available_for_rank_3):
+            flash('Для приза нужно выбрать хотя бы одно место: 1, 2 или 3', 'danger')
             return redirect(url_for('admin_edit_prize', prize_id=prize_id))
         
         # Обработка изображения
@@ -3928,6 +3977,9 @@ def admin_edit_prize(prize_id):
         prize.is_unique = is_unique
         prize.is_active = is_active
         prize.is_for_teachers = is_for_teachers
+        prize.available_for_rank_1 = False if is_for_teachers else available_for_rank_1
+        prize.available_for_rank_2 = False if is_for_teachers else available_for_rank_2
+        prize.available_for_rank_3 = False if is_for_teachers else available_for_rank_3
         
         db.session.commit()
         flash('Приз успешно обновлен', 'success')
@@ -8034,6 +8086,9 @@ def shop():
     sort = request.args.get('sort', 'price_asc')  # По умолчанию сортировка по цене по возрастанию
     per_page = 9  # Количество призов на странице (3x3 сетка)
     
+    settings = ShopSettings.get_settings()
+    can_shop = settings.can_user_shop(current_user)
+
     # Базовый запрос
     query = Prize.query.filter(Prize.is_active == True)
     
@@ -8044,6 +8099,18 @@ def shop():
     else:
         # Для обычных пользователей показываем только призы НЕ для учителей
         query = query.filter(Prize.is_for_teachers == False)
+        # Для пользователей с доступом к лавке показываем призы по месту в категории
+        if can_shop:
+            user_rank = current_user.category_rank
+            if user_rank == 1:
+                query = query.filter(Prize.available_for_rank_1 == True)
+            elif user_rank == 2:
+                query = query.filter(Prize.available_for_rank_2 == True)
+            elif user_rank == 3:
+                query = query.filter(Prize.available_for_rank_3 == True)
+            else:
+                # Для мест вне 1-3 призы с категорийной привязкой не отображаем
+                query = query.filter(Prize.id == -1)
     
     # Применяем сортировку
     if sort == 'price_asc':
@@ -8064,8 +8131,6 @@ def shop():
     )
     
     prizes = pagination.items
-    settings = ShopSettings.get_settings()
-    can_shop = settings.can_user_shop(current_user)
     shop_status = settings.get_user_shop_status(current_user)
     
     return render_template('shop.html', 
@@ -9503,6 +9568,7 @@ def clear_sessions():
         print("Создание таблиц базы данных...")
         db.create_all()
         ensure_shop_settings_schema()
+        ensure_prize_schema()
 
         # Затем создаем администратора
         print("Создание администратора...")

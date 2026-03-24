@@ -57,6 +57,24 @@
                             <label class="form-check-label" for="is_for_teachers">Для учителей</label>
                             <small class="text-muted d-block">Приз доступен только для учителей</small>
                         </div>
+                        <div id="rank-categories-section" class="mb-2">
+                            <label class="form-label mb-1"><strong>Категории призовых мест (для учеников)</strong></label>
+                            <div class="d-flex flex-wrap gap-3">
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input rank-checkbox" id="available_for_rank_1" name="available_for_rank_1" {% if prize.available_for_rank_1 %}checked{% endif %}>
+                                    <label class="form-check-label" for="available_for_rank_1">1 место</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input rank-checkbox" id="available_for_rank_2" name="available_for_rank_2" {% if prize.available_for_rank_2 %}checked{% endif %}>
+                                    <label class="form-check-label" for="available_for_rank_2">2 место</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input rank-checkbox" id="available_for_rank_3" name="available_for_rank_3" {% if prize.available_for_rank_3 %}checked{% endif %}>
+                                    <label class="form-check-label" for="available_for_rank_3">3 место</label>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block">Выберите, для каких мест доступен этот приз.</small>
+                        </div>
                         <div class="form-check">
                             <input type="checkbox" class="form-check-input" id="is_active" name="is_active" {% if prize.is_active %}checked{% endif %}>
                             <label class="form-check-label" for="is_active">Активный приз</label>
@@ -71,4 +89,39 @@
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form[method="POST"]');
+        const isForTeachersCheckbox = document.getElementById('is_for_teachers');
+        const rankSection = document.getElementById('rank-categories-section');
+        const rankCheckboxes = document.querySelectorAll('.rank-checkbox');
+
+        function toggleRankSection() {
+            const isForTeachers = isForTeachersCheckbox && isForTeachersCheckbox.checked;
+            if (rankSection) {
+                rankSection.style.display = isForTeachers ? 'none' : '';
+            }
+            rankCheckboxes.forEach((checkbox) => {
+                checkbox.disabled = isForTeachers;
+            });
+        }
+
+        if (isForTeachersCheckbox) {
+            isForTeachersCheckbox.addEventListener('change', toggleRankSection);
+            toggleRankSection();
+        }
+
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                if (isForTeachersCheckbox && !isForTeachersCheckbox.checked) {
+                    const anyRankSelected = Array.from(rankCheckboxes).some((checkbox) => checkbox.checked);
+                    if (!anyRankSelected) {
+                        e.preventDefault();
+                        alert('Выберите хотя бы одно место: 1, 2 или 3');
+                    }
+                }
+            });
+        }
+    });
+</script>
 {% endblock %} 

@@ -300,7 +300,7 @@
                         <p class="card-text flex-grow-1">{{ prize.description }}</p>
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
-                        {% if settings.is_open %}
+                        {% if can_shop and settings.is_open %}
                         <p class="card-text mb-2">
                             <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов<br>
                             {% if not prize.is_unique %}
