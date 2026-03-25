@@ -50,15 +50,15 @@
   function generateWords(parallaxEl, wordSetName, quality, opts) {
     const WORD_SETS = {
       school: [
-        "арфаграфія", "пунктуацыя", "націск", "слоўнік", "сінонімы", "антонімы", "аманімы",
-        "марфалогія", "сінтаксіс", "часткі мовы", "падмет", "выказнік", "акалічнасць",
-        "вызначэнне", "дапаўненне", "прамая мова", "дыялог", "зварот", "аднародныя члены",
-        "складанае сказа", "складанападпарадкаванае", "складаназлучанае", "працяжнік", "коска", "коска з кропкай",
-        "прыстаўка", "корань", "суфікс", "канчатак", "чарадаванне", "Н/НН", "не/ні", "злітна/асобна",
-        "дзеяпрыслоўе", "дзеяпрыметнік", "ускосная мова", "двукоссі",
-        "назоўнік", "дзеяслоў", "прыметнік", "прыслоўе", "займеннік", "выслоўе", "злучнік", "часціца",
-        "верш", "проза", "паэма", "аповесць", "апавяданне", "балада", "метафара", "эпітэт", "параўнанне",
-        "гіпербала", "сюжэт", "кампазіцыя", "вобраз", "рыфма", "рытм", "лірыка", "сатыра", "алегорыя"
+        "spelling", "punctuation", "stress", "vocabulary", "synonyms", "antonyms", "homonyms",
+        "morphology", "syntax", "parts of speech", "subject", "predicate", "adverbial",
+        "attribute", "object", "direct speech", "dialogue", "address", "homogeneous members",
+        "complex sentence", "subordinate clause", "compound sentence", "dash", "comma", "semicolon",
+        "prefix", "root", "suffix", "ending", "alternation", "double consonants", "not/none", "together/separately",
+        "gerund", "participle", "reported speech", "quotation marks",
+        "noun", "verb", "adjective", "adverb", "pronoun", "interjection", "conjunction", "particle",
+        "poetry", "prose", "poem", "novella", "short story", "ballad", "metaphor", "epithet", "simile",
+        "hyperbole", "plot", "composition", "imagery", "rhyme", "rhythm", "lyrics", "satire", "allegory"
       ],
       olympiad: [
         "синтаксический разбор", "морфологический разбор", "фонетический разбор",

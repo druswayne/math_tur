@@ -296,20 +296,32 @@
                             {% if prize.is_unique %}
                             <span class="badge bg-warning text-dark me-1">Уникальный приз</span>
                             {% endif %}
+                            {% if prize.is_for_teachers %}
+                            <div class="mt-2">
+                                <span class="badge bg-info">Для учителей</span>
+                            </div>
+                            {% endif %}
                         </div>
                         <p class="card-text flex-grow-1">{{ prize.description }}</p>
                     </div>
                     <div class="card-footer bg-transparent border-top-0">
                         {% if can_shop and settings.is_open %}
                         <p class="card-text mb-2">
-                            <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов<br>
-                            {% if not prize.is_unique %}
-                            <strong>Доступно:</strong> {% if prize.quantity > 0 %}{{ prize.quantity }} шт.{% elif prize.quantity == -1 %}Неограниченно{% else %}Недоступно{% endif %}
-                            {% endif %}
+                            <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов
                         </p>
                         {% endif %}
                     {% if can_shop and settings.is_open %}
                         <div class="d-flex flex-column gap-3">
+                            {% if not prize.is_for_teachers %}
+                            <div>
+                                <small class="text-muted d-block mb-1">Приз могут выбрать призёры:</small>
+                                <span class="d-inline-flex flex-wrap gap-1">
+                                    {% if prize.available_for_rank_1 %}<span class="badge bg-primary">1 место</span>{% endif %}
+                                    {% if prize.available_for_rank_2 %}<span class="badge bg-primary">2 место</span>{% endif %}
+                                    {% if prize.available_for_rank_3 %}<span class="badge bg-primary">3 место</span>{% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
                             {% if not prize.is_unique %}
                             <div class="input-group" style="width: 150px;">
                                 <button class="btn btn-outline-secondary decrease-quantity" type="button">-</button>
@@ -321,6 +333,17 @@
                                 <i class="fas fa-gift me-2"></i>Выбрать приз
                             </button>
                         </div>
+                        {% elif not settings.is_open %}
+                        {% if not prize.is_for_teachers %}
+                        <div>
+                            <small class="text-muted d-block mb-1">Приз могут выбрать призёры:</small>
+                            <span class="d-inline-flex flex-wrap gap-1">
+                                {% if prize.available_for_rank_1 %}<span class="badge bg-primary">1 место</span>{% endif %}
+                                {% if prize.available_for_rank_2 %}<span class="badge bg-primary">2 место</span>{% endif %}
+                                {% if prize.available_for_rank_3 %}<span class="badge bg-primary">3 место</span>{% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
                         {% endif %}
                     </div>
                 </div>
