@@ -244,6 +244,53 @@
             margin: 0 auto;
         }
 
+        .partners-grid--single {
+            display: flex;
+            justify-content: center;
+            max-width: none;
+        }
+
+        .partner-logo-button {
+            display: inline-block;
+            line-height: 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .partner-logo-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+        }
+
+        .partner-logo-button:focus-visible {
+            outline: 3px solid #FF8C00;
+            outline-offset: 3px;
+        }
+
+        .partner-logo-button__img {
+            display: block;
+            height: 72px;
+            width: auto;
+            max-width: min(240px, 100%);
+            object-fit: contain;
+        }
+
+        .partner-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .partner-caption {
+            margin-top: 0.75rem;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #333;
+        }
+
         @media (max-width: 768px) {
             .partners-grid {
                 grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -1193,59 +1240,40 @@
 
     <!-- Блок партнеров проекта -->
     {% if show_partners %}
-       <!-- <section class="partners-section">
+    <section class="partners-section" aria-labelledby="partners-heading">
         <div class="container">
             <div class="row">
                 <div class="col-12 text-center mb-4">
-                    <h3 class="partners-title">
-                        <i class="fas fa-handshake me-2"></i>Партнеры проекта
+                    <h3 class="partners-title" id="partners-heading">
+                        <i class="fas fa-handshake me-2" aria-hidden="true"></i>Партнеры проекта
                     </h3>
                 </div>
             </div>
-            
+
             <div class="row justify-content-center">
                 <div class="col-12">
-                    <div class="partners-grid">
-
-                        <div class="partner-card">
-                            <div class="partner-logo-placeholder">
-                                <i class="fas fa-university"></i>
-                            </div>
-                            <h5>Образовательный центр</h5>
-                            <p>Стратегический партнер</p>
-                        </div>
-
-
-                        <div class="partner-card">
-                            <div class="partner-logo-placeholder">
-                                <i class="fas fa-graduation-cap"></i>
-                            </div>
-                            <h5>Университет</h5>
-                            <p>Академический партнер</p>
-                        </div>
-
-
-                        <div class="partner-card">
-                            <div class="partner-logo-placeholder">
-                                <i class="fas fa-rocket"></i>
-                            </div>
-                            <h5>Технологическая компания</h5>
-                            <p>Инновационный партнер</p>
-                        </div>
-
-
-                        <div class="partner-card">
-                            <div class="partner-logo-placeholder">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <h5>Инвестиционный фонд</h5>
-                            <p>Финансовый партнер</p>
+                    <div class="partners-grid partners-grid--single">
+                        <div class="partner-item">
+                            <a class="partner-logo-button"
+                               href="https://www.alfabank.by/alfabonus/partners/obuchenie-kursy-i-kantstovary/"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               aria-label="Альфа-Банк — партнёры программы лояльности в категории «Обучение, курсы и канцтовары» (открывается в новой вкладке)">
+                                <img class="partner-logo-button__img"
+                                     src="{{ url_for('static', filename='альфа.jpg') }}"
+                                     alt="ЗАО «Альфа-Банк Беларусь»"
+                                     width="120"
+                                     height="72"
+                                     loading="lazy"
+                                     decoding="async">
+                            </a>
+                            <p class="partner-caption mb-0">Альфа Бонус</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </section> -->
+    </section>
     {% endif %}
 
     <footer id="footer" style="background-color: #343a40; color: white;">
