@@ -7303,6 +7303,16 @@ def tournament_task(tournament_id):
                          total_tasks=total_tasks,
                          participation=participation)
 
+def normalize_tournament_user_answer(s):
+    """Убирает пробелы по краям и завершающие точки (и пробелы перед ними)."""
+    s = s.strip()
+    while True:
+        t = s.rstrip()
+        if t.endswith('.'):
+            s = t[:-1]
+        else:
+            return t
+
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
 def submit_task_answer(tournament_id, task_id):
@@ -7348,19 +7358,18 @@ def submit_task_answer(tournament_id, task_id):
             return redirect(url_for('tournament_results', tournament_id=tournament_id))
     
     # Получаем ответ пользователя
-    user_answer = request.form.get('answer', '').strip()
+    raw_answer = request.form.get('answer', '').strip()
     
     # Проверяем, является ли ответ специальной меткой
-    is_special_answer = user_answer.startswith('wrong_answer_due_to_') or user_answer.startswith('ABANDONED_')
+    is_special_answer = raw_answer.startswith('wrong_answer_due_to_') or raw_answer.startswith('ABANDONED_')
     
     if is_special_answer:
         # Специальные метки всегда считаются неправильными
+        user_answer = raw_answer
         is_correct = False
-        # Сохраняем оригинальный ответ (не приводим к нижнему регистру)
     else:
-        # Обычный ответ - приводим к нижнему регистру и проверяем
-        user_answer = user_answer.lower()
-    is_correct = user_answer == task.correct_answer.lower()
+        user_answer = normalize_tournament_user_answer(raw_answer)
+        is_correct = user_answer.lower() == task.correct_answer.lower()
     
     # Сохраняем результат только если записи еще нет
     task_skipped = False
@@ -10437,7 +10446,7 @@ def demo_tournament_task():
             return redirect(url_for('demo_tournament_results'))
 
         task = tasks[current_index]
-        user_answer = request.form.get('answer', '').strip()
+        user_answer = normalize_tournament_user_answer(request.form.get('answer', '').strip())
         normalized_answer = user_answer.lower()
         is_correct = normalized_answer == task['correct_answer'].lower()
 
