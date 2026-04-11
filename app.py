@@ -7438,7 +7438,7 @@ def submit_task_answer(tournament_id, task_id):
         
 
         # Если время меньше 5 минут и процент правильных ответов больше 50%
-        if time_spent < 600 and correct_percentage > 50:  # 300 секунд = 5 минут
+        if time_spent < 180 and correct_percentage > 50:  # 300 секунд = 5 минут
             current_user.is_blocked = True
             current_user.block_reason = "Подозрение на жульничество"
             flash('Ваш аккаунт заблокирован из-за подозрительной активности', 'danger')
