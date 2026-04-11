@@ -2613,7 +2613,7 @@ def shop_preview():
 @app.route('/how-to-participate')
 def how_to_participate():
     """Страница с подробной информацией о том, как участвовать в турнирах"""
-    return redirect(url_for('home'))
+    return render_template('how_to_participate.html')
 
 @app.route('/news')
 def news():
