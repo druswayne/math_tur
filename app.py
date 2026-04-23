@@ -7685,7 +7685,8 @@ def tournament_history():
             'solved_tasks': solved_tasks or 0,
             'earned_points': earned_points or 0,
             'score': score or 0,
-            'place': place,
+            # Временный фикс: в истории турниров показываем текущее место в категории.
+            'place': current_user.category_rank,
             'success_rate': success_rate,
             'time_spent': time_spent
         })
@@ -12530,6 +12531,7 @@ if __name__ == '__main__':
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
+
     #update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
