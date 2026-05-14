@@ -49,16 +49,22 @@
 
   function generateWords(parallaxEl, wordSetName, quality, opts) {
     const WORD_SETS = {
-      school: [
-        "spelling", "punctuation", "stress", "vocabulary", "synonyms", "antonyms", "homonyms",
-        "morphology", "syntax", "parts of speech", "subject", "predicate", "adverbial",
-        "attribute", "object", "direct speech", "dialogue", "address", "homogeneous members",
-        "complex sentence", "subordinate clause", "compound sentence", "dash", "comma", "semicolon",
-        "prefix", "root", "suffix", "ending", "alternation", "double consonants", "not/none", "together/separately",
-        "gerund", "participle", "reported speech", "quotation marks",
-        "noun", "verb", "adjective", "adverb", "pronoun", "interjection", "conjunction", "particle",
-        "poetry", "prose", "poem", "novella", "short story", "ballad", "metaphor", "epithet", "simile",
-        "hyperbole", "plot", "composition", "imagery", "rhyme", "rhythm", "lyrics", "satire", "allegory"
+      geography: [
+        "материк", "океан", "море", "залив", "пролив", "архипелаг", "остров", "полуостров",
+        "река", "рукав", "протока", "дельта", "эстуарий", "озеро", "водохранилище", "болото",
+        "исток", "устье", "бассейн", "водосбор", "порог", "плес", "водопад", "гейзер",
+        "равнина", "низменность", "возвышенность", "плато", "складчатость", "рельеф", "шельф",
+        "горы", "хребет", "вершина", "перевал", "ущелье", "каньон", "долина", "межгорная впадина",
+        "ледник", "фирн", "морена", "вечная мерзлота", "карст", "пещера", "промоина", "овраг",
+        "вулкан", "кальдера", "лава", "магма", "тектоника", "землетрясение", "эпицентр",
+        "климат", "погода", "осадки", "влажность", "ветер", "пассат", "муссон", "циклон", "антициклон",
+        "экватор", "полюс", "тропики", "неполные сутки", "полярная ночь", "полярный день",
+        "широта", "долгота", "меридиан", "параллель", "часовой пояс", "смена дат", "картография",
+        "масштаб", "топография", "изолиния", "легенда карты", "азимут",
+        "природная зона", "тундра", "тайга", "лесостепь", "степь", "полупустыня", "пустыня",
+        "саванна", "муссонные леса", "вечнозелёный лес", "мангры",
+        "почва", "подзол", "чернозём", "каштановые почвы", "солончак", "эрозия",
+        "природные ресурсы", "полезные ископаемые", "месторождение", "шельфовые месторождения"
       ],
       olympiad: [
         "синтаксический разбор", "морфологический разбор", "фонетический разбор",
@@ -72,7 +78,7 @@
       ],
     };
 
-    const words = WORD_SETS[wordSetName] || WORD_SETS.school;
+    const words = WORD_SETS[wordSetName] || WORD_SETS.geography;
 
     // Кол-во слов: зависит от площади видимой области
     const vw = Math.max(320, window.innerWidth || 1024);
@@ -280,7 +286,7 @@
       hero.querySelector(".index-hero__parallax") ||
       hero;
 
-    const wordSetName = (hero.getAttribute("data-word-set") || "school").trim();
+    const wordSetName = (hero.getAttribute("data-word-set") || "geography").trim();
     const quality = detectQuality(hero.getAttribute("data-parallax-quality"));
     // выставим фактическое значение, чтобы CSS мог реагировать
     hero.setAttribute("data-parallax-quality", quality);

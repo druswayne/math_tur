@@ -54,6 +54,8 @@ class CertificateGenerator:
         self.quality = quality  # качество для дипломов
         self.certificate_quality = certificate_quality  # качество для сертификатов
         self.compression_mode = compression_mode  # режим сжатия
+        self.text_y_offset = 4  # глобальный сдвиг всего текста вниз
+        self.score_extra_offset = 3  # дополнительный сдвиг поля баллов (вправо и вниз)
         
         # Пути к шаблонам
         self.certificate_template = 'doc/sertificat.jpg'
@@ -415,6 +417,10 @@ class CertificateGenerator:
         
         return lines
 
+    def apply_text_y_offset(self, y):
+        """Применить глобальный вертикальный сдвиг текста."""
+        return y + self.text_y_offset
+
     def generate_certificate(self, user_id, student_name, score, place, output_path):
         """Генерация сертификата для участника"""
         try:
@@ -461,7 +467,7 @@ class CertificateGenerator:
             text_y = start_y - text_height - 10  # поднимаем на высоту текста + отступ
             
             # Рисуем ФИО
-            draw.text((text_x, text_y), student_name, fill='black', font=font)
+            draw.text((text_x, self.apply_text_y_offset(text_y)), student_name, fill='black', font=font)
             
             # Рисуем баллы
             score_text = str(score) if score else "0"
@@ -475,7 +481,15 @@ class CertificateGenerator:
             
             score_x = score_start[0] + (score_width - score_text_width) // 2
             score_y = score_start[1] - score_text_height - 5  # поднимаем над линией
-            draw.text((score_x, score_y), score_text, fill='black', font=small_font)
+            draw.text(
+                (
+                    score_x + self.score_extra_offset,
+                    self.apply_text_y_offset(score_y + self.score_extra_offset),
+                ),
+                score_text,
+                fill='black',
+                font=small_font,
+            )
             
             # Рисуем место
             place_text = str(place) if place else "-"
@@ -489,7 +503,7 @@ class CertificateGenerator:
             
             place_x = place_start[0] + (place_width - place_text_width) // 2
             place_y = place_start[1] - place_text_height - 5  # поднимаем над линией
-            draw.text((place_x, place_y), place_text, fill='black', font=small_font)
+            draw.text((place_x, self.apply_text_y_offset(place_y)), place_text, fill='black', font=small_font)
             
             # Дополнительное сжатие для сертификатов - уменьшаем размер изображения
             original_size = image.size
@@ -608,7 +622,7 @@ class CertificateGenerator:
             place_text_height = bbox[3] - bbox[1]
             place_x = place_start[0] + (place_width - place_text_width) // 2
             place_y = place_start[1] - place_text_height - 5
-            draw.text((place_x, place_y), place_text, fill='black', font=place_font)
+            draw.text((place_x, self.apply_text_y_offset(place_y)), place_text, fill='black', font=place_font)
             
             # 1. ФИО (жирным и на 50% больше)
             name_start = self.diploma_coords['name']['start']
@@ -623,7 +637,7 @@ class CertificateGenerator:
                 bbox = name_font.getbbox(line)
                 line_width = bbox[2] - bbox[0]
                 line_x = name_start[0] + (name_width - line_width) // 2
-                draw.text((line_x, name_y), line, fill='black', font=name_font)
+                draw.text((line_x, self.apply_text_y_offset(name_y)), line, fill='black', font=name_font)
                 name_y += name_font_size + 5
             
             # 2. Группа (категория/класс)
@@ -632,7 +646,7 @@ class CertificateGenerator:
             group_end = self.diploma_coords['group']['end']
             group_x = group_start[0] + (group_end[0] - group_start[0]) // 2
             group_y = group_start[1] - self.diploma_font_size // 2 + 2  # поднимаем над нижней линией + опускаем на 2px
-            draw.text((group_x, group_y), group_text, fill='black', font=font, anchor='mm')
+            draw.text((group_x, self.apply_text_y_offset(group_y)), group_text, fill='black', font=font, anchor='mm')
             
             # 3. Название школы (две строки)
             if school_name:
@@ -646,14 +660,14 @@ class CertificateGenerator:
                     line1_width = bbox[2] - bbox[0]
                     line1_x = line1_coords['start'][0] + (school_width - line1_width) // 2
                     line1_y = line1_coords['start'][1] - self.diploma_font_size
-                    draw.text((line1_x, line1_y), line1, fill='black', font=font)
+                    draw.text((line1_x, self.apply_text_y_offset(line1_y)), line1, fill='black', font=font)
                 if len(school_lines) > 1:
                     line2 = school_lines[1]
                     bbox = font.getbbox(line2)
                     line2_width = bbox[2] - bbox[0]
                     line2_x = line2_coords['start'][0] + (school_width - line2_width) // 2
                     line2_y = line2_coords['start'][1] - self.diploma_font_size
-                    draw.text((line2_x, line2_y), line2, fill='black', font=font)
+                    draw.text((line2_x, self.apply_text_y_offset(line2_y)), line2, fill='black', font=font)
             
             # 4. Баллы
             score_text = str(score) if score else "0"
@@ -667,7 +681,15 @@ class CertificateGenerator:
             
             score_x = score_start[0] + (score_width - score_text_width) // 2
             score_y = score_start[1] - score_text_height - 5  # поднимаем над линией
-            draw.text((score_x, score_y), score_text, fill='black', font=small_font)
+            draw.text(
+                (
+                    score_x + self.score_extra_offset,
+                    self.apply_text_y_offset(score_y + self.score_extra_offset),
+                ),
+                score_text,
+                fill='black',
+                font=small_font,
+            )
             
             # Дополнительное сжатие для дипломов - уменьшаем размер изображения
             original_size = image.size
