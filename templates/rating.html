@@ -110,7 +110,6 @@
                                     <th>Время</th>
                                     <th>Решено задач</th>
                                     <th>Турниры</th>
-                                    <th>Успешность</th>
                                 </tr>
                             </thead>
                             <tbody id="table-{{ category }}">
@@ -131,7 +130,6 @@
                                     <td>{{ "%02d:%02d:%02d"|format(((user.total_tournament_time or 0) // 3600)|int, (((user.total_tournament_time or 0) % 3600) // 60)|int, ((user.total_tournament_time or 0) % 60)|int) }}</td>
                                     <td>{{ user.solved_tasks_count }}</td>
                                     <td>{{ user.tournaments_count }}</td>
-                                    <td>{{ user.success_rate }}%</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -352,11 +350,6 @@
         min-width: 80px;
     }
     
-    .table th:nth-child(7),
-    .table td:nth-child(7) {
-        min-width: 100px;
-    }
-    
     #searchInput {
         max-width: 100%;
     }
@@ -513,7 +506,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Показываем индикатор загрузки
         const activeTab = document.querySelector('.tab-pane.show');
         const tbody = activeTab.querySelector('tbody');
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Поиск...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm" role="status"></div> Поиск...</td></tr>';
         
         // Скрываем пагинацию при поиске
         const pagination = activeTab.querySelector('nav');
@@ -528,7 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 displaySearchResults(data.users, activeTab);
             })
             .catch(error => {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Ошибка при поиске</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Ошибка при поиске</td></tr>';
             });
     }
     
@@ -536,7 +529,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tbody = tabElement.querySelector('tbody');
         
         if (users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Участники не найдены</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Участники не найдены</td></tr>';
             return;
         }
                 
@@ -562,7 +555,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${timeStr}</td>
                     <td>${user.solved_tasks_count}</td>
                     <td>${user.tournaments_count}</td>
-                    <td>${user.success_rate}%</td>
                 </tr>
             `;
         });
