@@ -7,7 +7,14 @@
         <h4 class="alert-heading">Ваше место в рейтинге</h4>
         <p class="mb-0">
             В категории {% if current_user.category == '1-2' %}1-2 класс{% else %}{{ current_user.category }} класс{% endif %}: <strong>{{ current_user.category_rank }} место</strong><br>
+            {% if shop_is_open %}
+            Баллы в турнирной таблице: <strong>{{ current_user_display_balance }}</strong>
+            {% if current_user.balance != current_user_display_balance %}
+            <br>Доступно для обмена в лавке: <strong>{{ current_user.balance }}</strong>
+            {% endif %}
+            {% else %}
             Всего баллов: <strong>{{ current_user.balance }}</strong>
+            {% endif %}
             {% if show_full_rating %}
             <br><small class="text-muted">Вы видите полный рейтинг, так как участвовали в {{ current_user.tournaments_count }} турнире(ах)</small>
             {% endif %}
@@ -28,6 +35,9 @@
                     {% if current_user.is_authenticated and not current_user.is_admin %}
                     Если вы не входите в топ-10 своей параллели, ваша запись будет выделена отдельно.
                     {% endif %}
+                {% endif %}
+                {% if shop_is_open %}
+                <br><small class="text-muted">Баллы в таблице зафиксированы по итогам турниров и не уменьшаются при обмене на призы.</small>
                 {% endif %}
             </div>
             
@@ -117,7 +127,7 @@
                                             {{ user.student_name or user.username }}
                                         {% endif %}
                                     </td>
-                                    <td>{{ user.balance }}</td>
+                                    <td>{{ user.display_balance }}</td>
                                     <td>{{ "%02d:%02d:%02d"|format(((user.total_tournament_time or 0) // 3600)|int, (((user.total_tournament_time or 0) % 3600) // 60)|int, ((user.total_tournament_time or 0) % 60)|int) }}</td>
                                     <td>{{ user.solved_tasks_count }}</td>
                                     <td>{{ user.tournaments_count }}</td>

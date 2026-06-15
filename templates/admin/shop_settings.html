@@ -26,6 +26,24 @@
                 </div>
 
                 <div class="mb-4">
+                    <h5>Баллы для турнирной таблицы</h5>
+                    <small class="text-muted d-block mb-3">
+                        Сохраните текущие баллы пользователей перед открытием лавки. В рейтинге при открытой лавке
+                        будут показаны зафиксированные баллы, а не текущий баланс после обмена на призы.
+                    </small>
+                    <button type="button" class="btn btn-warning" id="saveRatingPointsBtn">
+                        <i class="fas fa-bookmark me-2"></i>Сохранить баллы
+                    </button>
+                    {% if users_with_saved_points > 0 %}
+                    <span class="text-muted ms-2">
+                        Сохранены баллы у {{ users_with_saved_points }} пользователей
+                    </span>
+                    {% else %}
+                    <span class="text-muted ms-2">Баллы ещё не сохранялись</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
                     <h5>Способ доступа к лавке призов</h5>
                     <small class="text-muted mb-3 d-block">
                         Выберите, как определять пользователей, которым разрешены покупки.
@@ -203,7 +221,35 @@
     </div>
 </div>
 
+<div class="modal fade" id="openShopReminderModal" tabindex="-1" aria-labelledby="openShopReminderModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="openShopReminderModalLabel">Открытие лавки призов</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">
+                    Вы включаете лавку призов. Не забудьте нажать <strong>«Сохранить баллы»</strong> —
+                    иначе в турнирной таблице у участников будут отображаться нули или уменьшенный баланс после обмена.
+                </p>
+                <p class="mb-0 text-muted">
+                    Рекомендуемый порядок: сначала сохранить баллы, затем открыть лавку.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelOpenShopBtn">Отмена</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Понятно</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+const shopWasOpenInitially = {{ settings.is_open|tojson }};
+let openShopReminderModal = null;
+let previousShopIsOpen = shopWasOpenInitially;
+
 function updateAccessModeUI() {
     const isFixed = document.getElementById('accessModeFixedTop3')?.checked;
     const percentageBlock = document.getElementById('percentageSettings');
@@ -238,6 +284,58 @@ document.getElementById('shopSettingsForm').addEventListener('submit', function(
         console.error('Error:', error);
         showNotification('Произошла ошибка при сохранении настроек', 'danger');
     });
+});
+
+document.getElementById('saveRatingPointsBtn').addEventListener('click', function() {
+    if (!confirm('Сохранить текущие баллы всех пользователей для турнирной таблицы? Существующие зафиксированные значения будут перезаписаны.')) {
+        return;
+    }
+
+    const button = this;
+    button.disabled = true;
+
+    fetch('{{ url_for("admin_save_rating_points") }}', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showNotification(data.message, 'danger');
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Произошла ошибка при сохранении баллов', 'danger');
+        button.disabled = false;
+    });
+});
+
+const isOpenCheckbox = document.getElementById('is_open');
+if (isOpenCheckbox) {
+    isOpenCheckbox.addEventListener('change', function() {
+        if (!previousShopIsOpen && this.checked) {
+            if (!openShopReminderModal) {
+                openShopReminderModal = new bootstrap.Modal(document.getElementById('openShopReminderModal'));
+            }
+            openShopReminderModal.show();
+        }
+        previousShopIsOpen = this.checked;
+    });
+}
+
+document.getElementById('cancelOpenShopBtn').addEventListener('click', function() {
+    const checkbox = document.getElementById('is_open');
+    if (checkbox) {
+        checkbox.checked = false;
+        previousShopIsOpen = false;
+    }
+    if (openShopReminderModal) {
+        openShopReminderModal.hide();
+    }
 });
 
 function showNotification(message, type = 'info') {

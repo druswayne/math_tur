@@ -892,50 +892,32 @@ def end_tournament_job(tournament_id, max_retries=3):
                     tournament.status = 'finished'
                     tournament.is_active = False
                     
-                    # Для каждой категории вычисляем места отдельно
-                    from collections import defaultdict
-                    participations_by_category = defaultdict(list)
                     participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).all()
-                    for p in participations:
-                        if p.user and p.user.category:
-                            participations_by_category[p.user.category].append(p)
-                    
-                    current_time = datetime.now()
                     
                     # Словарь для накопления изменений времени участия пользователей
                     # Ключ: user_id, значение: время для добавления
                     user_time_updates = {}
                     
-                    # Вычисляем места по тем же правилам, что и category_rank: balance DESC, total_tournament_time ASC
-                    for category, plist in participations_by_category.items():
-                        # Сначала для каждого участника считаем время в турнире и обновляем end_time
-                        participations_with_time = []
-                        for participation in plist:
-                            time_spent_this_tournament = 0
-                            solved_tasks = SolvedTask.query.filter_by(
-                                user_id=participation.user_id
-                            ).join(Task).filter(
-                                Task.tournament_id == tournament_id
-                            ).all()
-                            if solved_tasks:
-                                if not participation.end_time:
-                                    last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
-                                    participation.end_time = last_solved_task.solved_at
-                                if participation.start_time and participation.end_time:
-                                    time_spent_this_tournament = int((participation.end_time - participation.start_time).total_seconds())
-                                    user_id = participation.user_id
-                                    if user_id not in user_time_updates:
-                                        user_time_updates[user_id] = 0
-                                    user_time_updates[user_id] += time_spent_this_tournament
-                            # Эффективное общее время = текущее total_tournament_time + время в этом турнире (как после обновления)
-                            user_total_time = (participation.user.total_tournament_time or 0) + time_spent_this_tournament
-                            participations_with_time.append((participation, time_spent_this_tournament, user_total_time))
-                        # Сортируем как в update_category_ranks: balance DESC, total_tournament_time ASC
-                        participations_with_time.sort(key=lambda x: (-(x[0].user.balance or 0), x[2]))
-                        for rank, (participation, _tm, _) in enumerate(participations_with_time, 1):
-                            participation.place = rank
+                    for participation in participations:
+                        solved_tasks = SolvedTask.query.filter_by(
+                            user_id=participation.user_id
+                        ).join(Task).filter(
+                            Task.tournament_id == tournament_id
+                        ).all()
+                        if solved_tasks:
+                            if not participation.end_time:
+                                last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
+                                participation.end_time = last_solved_task.solved_at
+                            if participation.start_time and participation.end_time:
+                                time_spent_this_tournament = int(
+                                    (participation.end_time - participation.start_time).total_seconds()
+                                )
+                                user_id = participation.user_id
+                                if user_id not in user_time_updates:
+                                    user_time_updates[user_id] = 0
+                                user_time_updates[user_id] += time_spent_this_tournament
                     
-                    # Коммитим изменения в participations (места)
+                    # Коммитим end_time участников
                     db.session.commit()
                     
                     # Обновляем время участия пользователей в отсортированном порядке (по ID)
@@ -1378,6 +1360,7 @@ class User(UserMixin, db.Model):
     category = db.Column(db.String(50), nullable=True, index=True)
     category_rank = db.Column(db.Integer, nullable=True, index=True)
     balance = db.Column(db.Integer, default=0)
+    rating_points = db.Column(db.Integer, default=0)  # Зафиксированные баллы для турнирной таблицы
     tickets = db.Column(db.Integer, default=0)
     tournaments_count = db.Column(db.Integer, default=0)
     total_tournament_time = db.Column(db.Integer, default=0)
@@ -1865,6 +1848,24 @@ def ensure_prize_schema():
 
     if schema_changed:
         db.session.commit()
+
+def ensure_user_rating_points_schema():
+    """Добавляет колонку rating_points в таблицу user при необходимости."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if not inspector.has_table('user'):
+        return
+    columns = {col['name'] for col in inspector.get_columns('user')}
+    if 'rating_points' not in columns:
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN rating_points INTEGER DEFAULT 0'))
+        db.session.execute(text('UPDATE "user" SET rating_points = 0 WHERE rating_points IS NULL'))
+        db.session.commit()
+
+def get_rating_display_points(user, shop_is_open):
+    """Возвращает баллы для отображения в турнирной таблице."""
+    if shop_is_open:
+        return user.rating_points or 0
+    return user.balance or 0
 
 class TournamentSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -7685,8 +7686,7 @@ def tournament_history():
             'solved_tasks': solved_tasks or 0,
             'earned_points': earned_points or 0,
             'score': score or 0,
-            # Временный фикс: в истории турниров показываем текущее место в категории.
-            'place': current_user.category_rank,
+            'place': place,
             'success_rate': success_rate,
             'time_spent': time_spent
         })
@@ -7915,6 +7915,7 @@ def rating():
 
     users_by_category = {}
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+    shop_is_open = ShopSettings.get_settings().is_open
     
     # Получаем параметры пагинации и категории
     selected_category = request.args.get('category', '1-2')
@@ -7946,7 +7947,11 @@ def rating():
             )
             .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
             .filter(User.is_admin == False, User.category == category)
-            .filter(db.or_(User.balance > 0, User.total_tournament_time > 0))
+            .filter(db.or_(
+                User.balance > 0,
+                User.rating_points > 0,
+                User.total_tournament_time > 0
+            ))
             .group_by(User.id)
             .order_by(User.category_rank.asc())
         )
@@ -7990,6 +7995,7 @@ def rating():
             else:
                 user.country_flag = None
             
+            user.display_balance = get_rating_display_points(user, shop_is_open)
             users.append(user)
         
         # Проверяем, нужно ли добавить текущего пользователя (только для топ-10)
@@ -8032,6 +8038,7 @@ def rating():
                     else:
                         user.country_flag = None
                     
+                    user.display_balance = get_rating_display_points(user, shop_is_open)
                     users.append(user)
             else:
                 # Если текущий пользователь в списке, помечаем его
@@ -8060,7 +8067,7 @@ def rating():
             'users': [{
                 'username': user.username,
                 'student_name': user.student_name,
-                'balance': user.balance,
+                'balance': getattr(user, 'display_balance', get_rating_display_points(user, shop_is_open)),
                 'total_tournament_time': user.total_tournament_time or 0,
                 'solved_tasks_count': user.solved_tasks_count,
                 'tournaments_count': user.tournaments_count,
@@ -8074,11 +8081,17 @@ def rating():
             'total_pages': users_data.get('total_pages', 1)
         })
 
+    current_user_display_balance = None
+    if current_user.is_authenticated and hasattr(current_user, 'balance'):
+        current_user_display_balance = get_rating_display_points(current_user, shop_is_open)
+
     return render_template('rating.html', 
                          users_by_category=users_by_category,
                          user_rank=user_rank,
                          show_full_rating=show_full_rating,
-                         selected_category=selected_category)
+                         selected_category=selected_category,
+                         shop_is_open=shop_is_open,
+                         current_user_display_balance=current_user_display_balance)
 
 @app.route('/rating/load-more')
 def load_more_users():
@@ -8870,9 +8883,14 @@ def admin_shop_settings():
         return redirect(url_for('home'))
     
     settings = ShopSettings.get_settings()
+    users_with_saved_points = User.query.filter(
+        User.is_admin == False,
+        User.rating_points > 0
+    ).count()
     return render_template('admin/shop_settings.html', 
                          title='Настройки магазина',
-                         settings=settings)
+                         settings=settings,
+                         users_with_saved_points=users_with_saved_points)
 
 @app.route('/admin/shop/settings/update', methods=['POST'])
 @login_required
@@ -8909,6 +8927,25 @@ def admin_update_shop_settings():
         'success': True,
         'message': 'Настройки магазина успешно обновлены'
     })
+
+@app.route('/admin/shop/settings/save-rating-points', methods=['POST'])
+@login_required
+def admin_save_rating_points():
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': 'Недостаточно прав'}), 403
+
+    try:
+        users = User.query.filter_by(is_admin=False).all()
+        for user in users:
+            user.rating_points = user.balance or 0
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Баллы сохранены для {len(users)} пользователей'
+        })
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': 'Произошла ошибка при сохранении баллов'}), 500
 
 @app.route('/admin/tournaments/settings', methods=['GET', 'POST'])
 @login_required
@@ -9579,6 +9616,7 @@ def clear_sessions():
         db.create_all()
         ensure_shop_settings_schema()
         ensure_prize_schema()
+        ensure_user_rating_points_schema()
 
         # Затем создаем администратора
         print("Создание администратора...")
@@ -9955,8 +9993,38 @@ def create_consent_pdf(user):
         print(f"Ошибка при создании PDF согласия: {e}")
         return False
 
+def _participation_tournament_time_seconds(participation):
+    """Время участия в турнире в секундах."""
+    if participation.start_time and participation.end_time:
+        return int((participation.end_time - participation.start_time).total_seconds())
+    return 0
+
+
+def update_tournament_places(tournament_id=None):
+    """Пересчитывает места участников в завершённых турнирах внутри категорий."""
+    from collections import defaultdict
+
+    query = Tournament.query.filter_by(status='finished')
+    if tournament_id is not None:
+        query = query.filter_by(id=tournament_id)
+
+    for tournament in query.all():
+        participations_by_category = defaultdict(list)
+        participations = TournamentParticipation.query.filter_by(tournament_id=tournament.id).all()
+        for participation in participations:
+            if participation.user and participation.user.category:
+                participations_by_category[participation.user.category].append(participation)
+
+        for plist in participations_by_category.values():
+            plist.sort(
+                key=lambda p: (-(p.score or 0), _participation_tournament_time_seconds(p))
+            )
+            for rank, participation in enumerate(plist, 1):
+                participation.place = rank
+
+
 def update_category_ranks():
-    """Обновляет рейтинг пользователей внутри их возрастных категорий"""
+    """Обновляет глобальный рейтинг и места в завершённых турнирах."""
     # Используем те же категории, что и в интерфейсе рейтинга
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
     
@@ -9992,8 +10060,9 @@ def update_category_ranks():
         
         for user in inactive_users:
             user.category_rank = None
-        
-        db.session.commit()
+
+    update_tournament_places()
+    db.session.commit()
 
 # Рейтинг обновляется только после завершения турниров
 # При покупке призов рейтинг остается зафиксированным, чтобы не менять топ % во время работы лавки
@@ -10125,6 +10194,7 @@ def admin_clear_user_data():
         users = User.query.filter_by(is_admin=False).all()
         for user in users:
             user.balance = 0
+            user.rating_points = 0
             user.total_tournament_time = 0
             user.tournaments_count = 0  # Очищаем количество турниров
             user.category_rank = None  # Обнуляем ранг в категории
@@ -11467,6 +11537,8 @@ def rating_search():
     if category and category not in valid_categories:
         return jsonify({'users': []})
     
+    shop_is_open = ShopSettings.get_settings().is_open
+
     # Проверяем, должен ли показываться полный рейтинг
     show_full_rating = False
     if current_user.is_authenticated:
@@ -11489,7 +11561,11 @@ def rating_search():
         )
         .outerjoin(SolvedTask, User.id == SolvedTask.user_id)
         .filter(User.is_admin == False)
-        .filter(db.or_(User.balance > 0, User.total_tournament_time > 0))
+        .filter(db.or_(
+            User.balance > 0,
+            User.rating_points > 0,
+            User.total_tournament_time > 0
+        ))
         .filter(
             db.or_(
                 User.username.ilike('%' + query + '%'),
@@ -11541,7 +11617,7 @@ def rating_search():
             'username': user.username,
             'student_name': user.student_name,
             'category': user.category,
-            'balance': user.balance,
+            'balance': get_rating_display_points(user, shop_is_open),
             'solved_tasks_count': user.solved_tasks_count,
             'success_rate': user.success_rate,
             'category_rank': user.category_rank,
