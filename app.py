@@ -490,6 +490,10 @@ login_manager.login_view = 'login'
 login_manager.login_message = 'Пожалуйста, войдите в систему для доступа к этой странице.'
 login_manager.login_message_category = 'info'
 
+from db_admin import db_admin_bp, init_db_admin
+init_db_admin(db)
+app.register_blueprint(db_admin_bp)
+
 def add_logo_to_email_body(body_text):
     """Добавляет логотип сайта в конец текста письма в HTML формате"""
     logo_html = '''

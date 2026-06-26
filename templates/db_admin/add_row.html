@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавление записи - {{ table_name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            color: #dc3545 !important;
+        }
+        .form-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-label {
+            font-weight: 600;
+            color: #495057;
+        }
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .flash-message {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-out {
+            animation: fadeOut 0.5s ease-out forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+        .field-info {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+        .required-field {
+            border-left: 3px solid #dc3545;
+            padding-left: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигационная панель -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('db_admin.index') }}">
+                <i class="fas fa-database me-2"></i>
+                Администрирование БД
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <i class="fas fa-plus me-2"></i>
+                    Добавление записи
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Flash сообщения -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} flash-message alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Заголовок и кнопки -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h2>
+                    <i class="fas fa-plus text-success me-2"></i>
+                    Добавление новой записи
+                </h2>
+                <p class="text-muted">Таблица: {{ table_name }}</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <a href="{{ url_for('db_admin.view_table', table_name=table_name) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Назад к таблице
+                </a>
+            </div>
+        </div>
+
+        <!-- Форма добавления -->
+        <div class="row">
+            <div class="col-12">
+                <div class="form-card p-4">
+                    <form method="POST">
+                        <div class="row">
+                            {% for column in structure %}
+                                {% if column.name != 'id' %}
+                                    <div class="col-md-6 mb-3 {% if not column.get('nullable', True) %}required-field{% endif %}">
+                                        <label for="{{ column.name }}" class="form-label">
+                                            {{ column.name }}
+                                            {% if not column.get('nullable', True) %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+                                        </label>
+                                        
+                                        {% if column.type.__class__.__name__ == 'TEXT' or 'text' in column.type.__class__.__name__.lower() %}
+                                            <!-- Текстовое поле -->
+                                            <textarea class="form-control" id="{{ column.name }}" name="{{ column.name }}" 
+                                                      rows="3" {% if not column.get('nullable', True) %}required{% endif %}
+                                                      placeholder="Введите {{ column.name }}"></textarea>
+                                        {% elif column.type.__class__.__name__ == 'BOOLEAN' or 'boolean' in column.type.__class__.__name__.lower() %}
+                                            <!-- Булево поле -->
+                                            <select class="form-select" id="{{ column.name }}" name="{{ column.name }}" 
+                                                    {% if not column.get('nullable', True) %}required{% endif %}>
+                                                <option value="">Выберите значение</option>
+                                                <option value="1">True</option>
+                                                <option value="0">False</option>
+                                            </select>
+                                        {% elif column.type.__class__.__name__ == 'DATETIME' or 'datetime' in column.type.__class__.__name__.lower() %}
+                                            <!-- Поле даты и времени -->
+                                            <input type="datetime-local" class="form-control" id="{{ column.name }}" name="{{ column.name }}"
+                                                   {% if not column.get('nullable', True) %}required{% endif %}>
+                                        {% elif column.type.__class__.__name__ == 'DATE' or 'date' in column.type.__class__.__name__.lower() %}
+                                            <!-- Поле даты -->
+                                            <input type="date" class="form-control" id="{{ column.name }}" name="{{ column.name }}"
+                                                   {% if not column.get('nullable', True) %}required{% endif %}>
+                                        {% elif column.type.__class__.__name__ == 'INTEGER' or 'integer' in column.type.__class__.__name__.lower() %}
+                                            <!-- Целочисленное поле -->
+                                            <input type="number" class="form-control" id="{{ column.name }}" name="{{ column.name }}"
+                                                   {% if not column.get('nullable', True) %}required{% endif %}
+                                                   placeholder="Введите число">
+                                        {% elif column.type.__class__.__name__ == 'FLOAT' or 'float' in column.type.__class__.__name__.lower() %}
+                                            <!-- Поле с плавающей точкой -->
+                                            <input type="number" step="any" class="form-control" id="{{ column.name }}" name="{{ column.name }}"
+                                                   {% if not column.get('nullable', True) %}required{% endif %}
+                                                   placeholder="Введите число">
+                                        {% else %}
+                                            <!-- Обычное текстовое поле -->
+                                            <input type="text" class="form-control" id="{{ column.name }}" name="{{ column.name }}"
+                                                   {% if not column.get('nullable', True) %}required{% endif %}
+                                                   placeholder="Введите {{ column.name }}">
+                                        {% endif %}
+                                        
+                                        <!-- Информация о поле -->
+                                        <div class="field-info mt-1">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Тип: {{ column.type.__class__.__name__ }}
+                                            {% if column.get('nullable', True) %}
+                                                | Может быть пустым
+                                            {% else %}
+                                                | Обязательное поле
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <!-- Кнопки действий -->
+                        <div class="row mt-4">
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-success me-2">
+                                    <i class="fas fa-save me-2"></i>Добавить запись
+                                </button>
+                                <a href="{{ url_for('db_admin.view_table', table_name=table_name) }}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>Отмена
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Подсказки -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-lightbulb me-2"></i>Подсказки:</h6>
+                    <ul class="mb-0">
+                        <li>Поля, отмеченные красной звездочкой (*), являются обязательными</li>
+                        <li>Поле ID заполняется автоматически и не требует ввода</li>
+                        <li>Для полей типа TEXT используйте текстовые области для длинного текста</li>
+                        <li>Для полей типа BOOLEAN выберите True (1) или False (0)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Автоматическое скрытие flash сообщений
+        document.addEventListener('DOMContentLoaded', function() {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            
+            flashMessages.forEach(function(message) {
+                setTimeout(function() {
+                    message.classList.add('fade-out');
+                    setTimeout(function() {
+                        message.remove();
+                    }, 500);
+                }, 5000);
+            });
+
+            // Предупреждение при попытке покинуть страницу с несохраненными изменениями
+            let formChanged = false;
+            const form = document.querySelector('form');
+            const inputs = form.querySelectorAll('input, textarea, select');
+
+            inputs.forEach(function(input) {
+                input.addEventListener('change', function() {
+                    formChanged = true;
+                });
+                input.addEventListener('input', function() {
+                    formChanged = true;
+                });
+            });
+
+            window.addEventListener('beforeunload', function(e) {
+                if (formChanged) {
+                    e.preventDefault();
+                    e.returnValue = 'У вас есть несохраненные изменения. Вы уверены, что хотите покинуть страницу?';
+                }
+            });
+
+            form.addEventListener('submit', function() {
+                formChanged = false;
+            });
+
+            // Автозаполнение текущей даты для полей даты
+            const dateInputs = document.querySelectorAll('input[type="date"]');
+            dateInputs.forEach(function(input) {
+                if (!input.value) {
+                    const today = new Date().toISOString().split('T')[0];
+                    input.value = today;
+                }
+            });
+
+            // Автозаполнение текущего времени для полей datetime
+            const datetimeInputs = document.querySelectorAll('input[type="datetime-local"]');
+            datetimeInputs.forEach(function(input) {
+                if (!input.value) {
+                    const now = new Date();
+                    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                    input.value = localDateTime;
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
