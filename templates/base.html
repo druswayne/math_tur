@@ -543,7 +543,8 @@
             color: var(--text-color);
         }
 
-        .feedback-form .form-control {
+        .feedback-form .form-control,
+        .feedback-form .form-select {
             border-radius: var(--border-radius);
             border: 1px solid #ddd;
             padding: 0.5rem 0.75rem;
@@ -551,7 +552,8 @@
             font-size: 0.875rem;
         }
 
-        .feedback-form .form-control:focus {
+        .feedback-form .form-control:focus,
+        .feedback-form .form-select:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
         }
@@ -1566,17 +1568,10 @@
                     const formData = new FormData(feedbackForm);
                     const data = {
                         name: formData.get('name'),
-                        phone: formData.get('phone'),
                         email: formData.get('email'),
                         subject: formData.get('subject'),
                         message: formData.get('message')
                     };
-
-                    // Проверка наличия номера телефона
-                    if (!data.phone || data.phone.trim() === '') {
-                        showNotification('Ошибка', 'Пожалуйста, введите номер телефона', 'error');
-                        return;
-                    }
 
                     // Отправка данных
                     fetch('/send_feedback', {
@@ -1707,19 +1702,18 @@
                                       required placeholder="Введите ваше имя">
                            </div>
                            <div class="mb-2">
-                               <label for="feedbackPhone" class="form-label small mb-1">Номер телефона *</label>
-                               <input type="tel" class="form-control form-control-sm" id="feedbackPhone" name="phone" 
-                                      required>
-                           </div>
-                           <div class="mb-2">
                                <label for="feedbackEmail" class="form-label small mb-1">Email *</label>
                                <input type="email" class="form-control form-control-sm" id="feedbackEmail" name="email" 
                                       required placeholder="example@email.com">
                            </div>
                            <div class="mb-2">
-                               <label for="feedbackSubject" class="form-label small mb-1">Тема сообщения *</label>
-                               <input type="text" class="form-control form-control-sm" id="feedbackSubject" name="subject" 
-                                      required placeholder="Кратко опишите тему вашего обращения">
+                               <label for="feedbackSubject" class="form-label small mb-1">Категория *</label>
+                               <select class="form-select form-select-sm" id="feedbackSubject" name="subject" required>
+                                   <option value="" disabled selected>Выберите категорию</option>
+                                   <option value="Методический отдел">Методический отдел</option>
+                                   <option value="Технический отдел">Технический отдел</option>
+                                   <option value="Другое">Другое</option>
+                               </select>
                            </div>
                            <div class="mb-3">
                                <label for="feedbackMessage" class="form-label small mb-1">Текст сообщения *</label>

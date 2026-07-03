@@ -2108,7 +2108,7 @@ def send_admin_mass_email_with_attachment(subject, message, recipient_email, att
         print(f"Ошибка отправки административного письма с вложением пользователю {recipient_email}: {e}")
         raise e
 
-def send_feedback_email(name, phone, email, subject, message):
+def send_feedback_email(name, email, subject, message):
     """Отправка письма с обратной связью администратору"""
     try:
         # Создаем отдельную конфигурацию для писем обратной связи
@@ -2122,12 +2122,11 @@ def send_feedback_email(name, phone, email, subject, message):
         }
         
         # Формируем тему и текст письма
-        email_subject = f"Обратная связь: {subject}"
+        email_subject = subject
         email_body = f"""
 Новое сообщение с сайта Лига Знатоков
 
 Отправитель: {name}
-Телефон: {phone}
 Email: {email}
 
 Тема: {subject}
@@ -2159,7 +2158,6 @@ Email: {email}
         
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <p><strong>Отправитель:</strong> {name}</p>
-            <p><strong>Телефон:</strong> {phone}</p>
             <p><strong>Email:</strong> {email}</p>
             <p><strong>Тема:</strong> {subject}</p>
         </div>
@@ -3381,29 +3379,31 @@ def send_feedback():
         
         # Получаем данные из формы
         name = data.get('name', '').strip()
-        phone = data.get('phone', '').strip()
         email = data.get('email', '').strip()
         subject = data.get('subject', '').strip()
         message = data.get('message', '').strip()
+        
+        allowed_subjects = {
+            'Методический отдел',
+            'Технический отдел',
+            'Другое',
+        }
         
         # Валидация данных
         if not name or len(name) > 100:
             return jsonify({'success': False, 'message': 'Имя должно содержать от 1 до 100 символов'})
         
-        if not phone or len(phone) < 5:
-            return jsonify({'success': False, 'message': 'Номер телефона должен содержать минимум 5 символов'})
-        
         if not email or len(email) > 100:
             return jsonify({'success': False, 'message': 'Email должен содержать от 1 до 100 символов'})
         
-        if not subject or len(subject) > 200:
-            return jsonify({'success': False, 'message': 'Тема сообщения должна содержать от 1 до 200 символов'})
+        if subject not in allowed_subjects:
+            return jsonify({'success': False, 'message': 'Выберите категорию обращения'})
         
         if not message or len(message) > 2000:
             return jsonify({'success': False, 'message': 'Текст сообщения должен содержать от 1 до 2000 символов'})
         
         # Отправляем письмо администратору
-        send_feedback_email(name, phone, email, subject, message)
+        send_feedback_email(name, email, subject, message)
         
         return jsonify({'success': True, 'message': 'Сообщение успешно отправлено'})
         
