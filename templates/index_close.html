@@ -51,6 +51,34 @@
         color: #fff;
     }
     .hero-lead { color: #e8e8ea; }
+    .season-closed-message h2 {
+        font-weight: 800;
+        letter-spacing: 0.2px;
+        margin-bottom: 1rem;
+        color: #fff;
+    }
+    .season-closed-message p {
+        color: #e8e8ea;
+        margin-bottom: 1rem;
+        line-height: 1.6;
+    }
+    .season-closed-message p:last-child { margin-bottom: 0; }
+    .season-closed-message blockquote {
+        border-left: 4px solid rgba(255, 215, 0, 0.7);
+        padding: 0.75rem 1rem;
+        margin: 1.25rem 0;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 0 8px 8px 0;
+    }
+    .season-closed-message blockquote p {
+        margin-bottom: 0;
+        font-style: italic;
+    }
+    .season-closed-message a {
+        color: #ffd700;
+        text-decoration: underline;
+    }
+    .season-closed-message a:hover { color: #ffe566; }
     .tile-card {
         border-radius: var(--border-radius);
         border: 1px solid rgba(0,0,0,0.06);
@@ -202,7 +230,7 @@
         <div class="px-3 px-md-4 px-lg-5">
             <div class="row align-items-center g-4">
             <div class="col-lg-7">
-                <p class="hero-lead mb-4">{{ message|safe }}</p>
+                <div class="season-closed-message hero-lead mb-4">{{ message|safe }}</div>
                 <div class="quick-actions d-flex flex-wrap gap-2">
                     <a href="{{ url_for('news') }}" class="btn btn-primary">
                         <i class="bi bi-newspaper me-1"></i>Новости
