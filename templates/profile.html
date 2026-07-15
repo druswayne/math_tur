@@ -82,7 +82,13 @@
                 </div>
                 <div class="card-body">
                     <h5>{{ current_user.username }}</h5>
-                    <p class="text-muted">{{ current_user.email }}</p>
+                    <p class="text-muted">
+                        {% if can_set_email %}
+                            <span class="text-warning">Email не указан</span>
+                        {% else %}
+                            {{ current_user.email }}
+                        {% endif %}
+                    </p>
                     {% if current_user.student_name %}
                     <p><strong>Учащийся:</strong> {{ current_user.student_name }}</p>
                     {% endif %}
@@ -90,7 +96,7 @@
                     <p><strong>Законный представитель:</strong> {{ current_user.parent_name }}</p>
                     {% endif %}
                     <p>Дата регистрации: {{ current_user.created_at.strftime('%d.%m.%Y') }}</p>
-                    <p>Телефон: {{ current_user.phone }}</p>
+                    <p>Телефон: {{ current_user.phone or '—' }}</p>
                     <p>Класс: {{ current_user.category }}</p>
                     <p><strong>Учреждение образования:</strong> {{ current_user.educational_institution.name if current_user.educational_institution else '—' }}</p>
                     
@@ -197,6 +203,19 @@
             </div>
             <div class="modal-body">
                 <form id="changePasswordForm">
+                    {% if can_set_email %}
+                    <div class="mb-3">
+                        <label for="profileEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="email" class="form-control" id="profileEmail" value="" placeholder="email@example.com" required>
+                            <span class="input-group-text validation-icon" id="profileEmail-icon">
+                                <i class="fas fa-check text-success" style="display: none;"></i>
+                                <i class="fas fa-times text-danger" style="display: none;"></i>
+                            </span>
+                        </div>
+                        <div class="form-text">Укажите свой email — он понадобится для входа и восстановления доступа.</div>
+                    </div>
+                    {% endif %}
                     <div class="mb-3">
                         <label for="studentName" class="form-label">Фамилия и имя учащегося</label>
                         <div class="input-group">
@@ -222,12 +241,13 @@
                     <div class="mb-3">
                         <label for="phone" class="form-label">Номер телефона</label>
                         <div class="input-group">
+                            {% set phone_value = current_user.phone or '' %}
                             <select class="form-select" id="phone_country" style="max-width: 120px;">
-                                <option value="+375" {% if current_user.phone.startswith('+375') %}selected{% endif %}>🇧🇾 +375</option>
-                                <option value="+7" {% if current_user.phone.startswith('+7') %}selected{% endif %}>🇷🇺 +7</option>
+                                <option value="+375" {% if phone_value.startswith('+375') or not phone_value %}selected{% endif %}>🇧🇾 +375</option>
+                                <option value="+7" {% if phone_value.startswith('+7') %}selected{% endif %}>🇷🇺 +7</option>
                             </select>
-                            <input type="tel" class="form-control" id="phone" 
-                                   value="{% if current_user.phone.startswith('+375') %}{{ current_user.phone[4:] }}{% elif current_user.phone.startswith('+7') %}{{ current_user.phone[2:] }}{% else %}{{ current_user.phone }}{% endif %}" 
+                            <input type="tel" class="form-control" id="phone"
+                                   value="{% if phone_value.startswith('+375') %}{{ phone_value[4:] }}{% elif phone_value.startswith('+7') %}{{ phone_value[2:] }}{% else %}{{ phone_value }}{% endif %}"
                                    placeholder="XXXXXXXXX" required>
                             <span class="input-group-text validation-icon" id="phone-icon">
                                 <i class="fas fa-check text-success" style="display: none;"></i>
@@ -1173,6 +1193,8 @@ function updateProfile() {
     const educationalInstitutionId = document.getElementById('educational_institution_id').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
+    const emailInput = document.getElementById('profileEmail');
+    const email = emailInput ? emailInput.value.trim() : '';
     
     // Формируем полный номер телефона
     const fullPhone = phoneCountry + phone;
@@ -1181,26 +1203,35 @@ function updateProfile() {
         showNotification('Пожалуйста, заполните все обязательные поля', 'warning');
         return;
     }
+    if (emailInput && !email) {
+        showNotification('Пожалуйста, укажите email', 'warning');
+        return;
+    }
     
     if (newPassword && newPassword !== confirmPassword) {
         showNotification('Новые пароли не совпадают', 'danger');
         return;
     }
     
+    const payload = {
+        student_name: studentName,
+        parent_name: parentName,
+        phone: fullPhone,
+        category: category,
+        educational_institution_name: educationalInstitutionName,
+        educational_institution_id: educationalInstitutionId,
+        new_password: newPassword
+    };
+    if (emailInput) {
+        payload.email = email;
+    }
+
     fetch('/update-profile', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-            student_name: studentName,
-            parent_name: parentName,
-            phone: fullPhone,
-            category: category,
-            educational_institution_name: educationalInstitutionName,
-            educational_institution_id: educationalInstitutionId,
-            new_password: newPassword
-        })
+        body: JSON.stringify(payload)
     })
     .then(response => response.json())
     .then(data => {

@@ -58,15 +58,15 @@ class TeacherTutorial {
                 position: 'bottom'
             },
             {
-                title: "Пригласительная ссылка для учащихся",
-                description: "Используйте ссылку для регистрации своих учащихся.",
-                target: '.invite-link-card',
-                position: 'bottom'
-            },
-            {
                 title: "Мои учащиеся",
                 description: "Таблица с вашими учащимися. Для каждого учащегося в таблице доступно много полезной и интересной информации!",
                 target: '.students-card',
+                position: 'bottom'
+            },
+            {
+                title: "Пригласительная ссылка для учащихся",
+                description: "Используйте ссылку для регистрации своих учащихся.",
+                target: '.invite-link-card',
                 position: 'bottom'
             }
         ];
@@ -94,8 +94,8 @@ class TeacherTutorial {
              '.shop-btn',
              '.purchase-history-btn',
              '.transfer-history-btn',
-             '.invite-link-card',
-             '.students-card'
+             '.students-card',
+             '.invite-link-card'
          ];
         
         this.createOverlay();

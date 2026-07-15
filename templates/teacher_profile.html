@@ -109,73 +109,24 @@
                 </div>
             </div>
 
-            <!-- Пригласительная ссылка -->
-            <div class="card mb-4 invite-link-card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-link me-2"></i>Пригласительная ссылка для учащихся
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <p class="mb-3">
-                            <strong>Поделитесь этой ссылкой с учащимися:</strong><br>
-                            Когда учащиеся зарегистрируются по вашей ссылке, они автоматически привяжутся к вашему аккаунту.
-                        </p>
-                        <div class="mt-3 p-3 bg-light rounded">
-                            <h6 class="mb-2 text-dark"><i class="fas fa-gift me-2"></i>Система бонусов:</h6>
-                            <ul class="mb-0 small text-dark">
-                                <li>За каждого учащегося, который поучаствует в турнире: <strong>{{ bonus_points }} баллов</strong></li>
-                                <li>Бонус начисляется за каждое участие учащегося в турнире</li>
-                                <li>Бонусы начисляются автоматически после участия учащегося в турнире</li>
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <div class="input-group mb-3">
-                        <input type="text" class="form-control" 
-                               id="inviteLink" 
-                               value="{{ url_for('register', teacher=invite_link.invite_code, _external=True, _scheme='https') }}" 
-                               readonly>
-                        <button class="btn btn-outline-secondary text-center" type="button" onclick="copyToClipboard()">
-                            <i class="fas fa-copy me-1"></i>Копировать
-                        </button>
-                    </div>
-                    
-                    <div class="row share-buttons g-2 g-md-3 align-items-stretch">
-                        <div class="col-12 col-md-3 mb-2 mb-md-0">
-                            <button class="btn btn-whatsapp w-100 text-center" onclick="shareWhatsApp()">
-                                <i class="fab fa-whatsapp me-1"></i>Поделиться в WhatsApp
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-3 mb-2 mb-md-0">
-                            <button class="btn btn-telegram w-100 text-center" onclick="shareTelegram()">
-                                <i class="fab fa-telegram me-1"></i>Поделиться в Telegram
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-3 mb-2 mb-md-0">
-                            <button class="btn btn-viber w-100 text-center" onclick="shareViber()">
-                                <i class="fab fa-viber me-1"></i>Поделиться в Viber
-                            </button>
-                        </div>
-                        <div class="col-12 col-md-3 mb-0">
-                            <button class="btn btn-vk w-100" onclick="shareVK()">
-                                <i class="fab fa-vk me-1"></i>Поделиться в VK
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
                             <!-- Таблица учащихся -->
-            <div class="card students-card">
+            <div class="card students-card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="fas fa-table me-2"></i>Мои учащиеся
                     </h5>
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
                         <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createStudentModal">
                             <i class="fas fa-user-plus me-1"></i>Создать аккаунт
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#createStudentGroupModal">
+                            <i class="fas fa-users me-1"></i>Добавить группу учащихся
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm bulk-open-transfer-btn" data-bs-toggle="modal" data-bs-target="#bulkTransferTokensModal" id="openBulkTransferBtn">
+                            <i class="fas fa-gift me-1"></i>Раздать жетоны
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#groupImportsHistoryModal" id="openGroupImportsHistoryBtn">
+                            <i class="fas fa-file-excel me-1"></i>Файлы
                         </button>
                         <span class="badge bg-primary">{{ total_students }} учащихся</span>
                     </div>
@@ -378,6 +329,64 @@
                     {% endif %}
                 </div>
             </div>
+
+            <!-- Пригласительная ссылка -->
+            <div class="card mb-4 invite-link-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-link me-2"></i>Пригласительная ссылка для учащихся
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p class="mb-3">
+                            <strong>Поделитесь этой ссылкой с учащимися:</strong><br>
+                            Когда учащиеся зарегистрируются по вашей ссылке, они автоматически привяжутся к вашему аккаунту.
+                        </p>
+                        <div class="mt-3 p-3 bg-light rounded">
+                            <h6 class="mb-2 text-dark"><i class="fas fa-gift me-2"></i>Система бонусов:</h6>
+                            <ul class="mb-0 small text-dark">
+                                <li>За каждого учащегося, который поучаствует в турнире: <strong>{{ bonus_points }} баллов</strong></li>
+                                <li>Бонус начисляется за каждое участие учащегося в турнире</li>
+                                <li>Бонусы начисляются автоматически после участия учащегося в турнире</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control"
+                               id="inviteLink"
+                               value="{{ url_for('register', teacher=invite_link.invite_code, _external=True, _scheme='https') }}"
+                               readonly>
+                        <button class="btn btn-outline-secondary text-center" type="button" onclick="copyToClipboard()">
+                            <i class="fas fa-copy me-1"></i>Копировать
+                        </button>
+                    </div>
+
+                    <div class="row share-buttons g-2 g-md-3 align-items-stretch">
+                        <div class="col-12 col-md-3 mb-2 mb-md-0">
+                            <button class="btn btn-whatsapp w-100 text-center" onclick="shareWhatsApp()">
+                                <i class="fab fa-whatsapp me-1"></i>Поделиться в WhatsApp
+                            </button>
+                        </div>
+                        <div class="col-12 col-md-3 mb-2 mb-md-0">
+                            <button class="btn btn-telegram w-100 text-center" onclick="shareTelegram()">
+                                <i class="fab fa-telegram me-1"></i>Поделиться в Telegram
+                            </button>
+                        </div>
+                        <div class="col-12 col-md-3 mb-2 mb-md-0">
+                            <button class="btn btn-viber w-100 text-center" onclick="shareViber()">
+                                <i class="fab fa-viber me-1"></i>Поделиться в Viber
+                            </button>
+                        </div>
+                        <div class="col-12 col-md-3 mb-0">
+                            <button class="btn btn-vk w-100" onclick="shareVK()">
+                                <i class="fab fa-vk me-1"></i>Поделиться в VK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -529,6 +538,34 @@ document.addEventListener('DOMContentLoaded', function() {
 .students-card:hover { 
     transform: translateY(-2px); 
     box-shadow: var(--box-shadow-hover); 
+}
+
+.bulk-open-transfer-btn,
+.bulk-open-transfer-btn i {
+    color: #212529 !important;
+}
+.bulk-open-transfer-btn:hover,
+.bulk-open-transfer-btn:focus,
+.bulk-open-transfer-btn:hover i,
+.bulk-open-transfer-btn:focus i {
+    color: #212529 !important;
+}
+
+.group-sample-download-btn,
+.group-sample-download-btn i,
+.group-preview-btn,
+.group-preview-btn i {
+    color: #212529 !important;
+}
+.group-sample-download-btn:hover,
+.group-sample-download-btn:focus,
+.group-sample-download-btn:hover i,
+.group-sample-download-btn:focus i,
+.group-preview-btn:hover,
+.group-preview-btn:focus,
+.group-preview-btn:hover i,
+.group-preview-btn:focus i {
+    color: #212529 !important;
 }
 
 .stats-card .card-title { font-weight: 600; color: var(--text-color); margin-bottom: 0.25rem; }
@@ -1763,4 +1800,1023 @@ function resetTeacherTutorial() {
     </div>
   </div>
 </div>
+
+<!-- Модальное окно: добавить группу учащихся -->
+<div class="modal fade" id="createStudentGroupModal" tabindex="-1" aria-labelledby="createStudentGroupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="createStudentGroupModalLabel">
+          <i class="fas fa-users me-2"></i>Добавить группу учащихся
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="groupCreateStepForm">
+          <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle me-2"></i>
+            Укажите общие данные группы, загрузите Excel с ФИО и классом. Логины создадутся автоматически, пароль будет общим для всех.
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="groupStudentPassword" class="form-label">Пароль <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="groupStudentPassword" value="12345678" required>
+                  <button type="button" class="btn btn-outline-secondary" id="toggleGroupStudentPassword" title="Показать/скрыть пароль">
+                    <i class="fas fa-eye-slash"></i>
+                  </button>
+                </div>
+                <div class="form-text">По умолчанию: 12345678. Минимум 8 символов.</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="groupStudentConfirmPassword" class="form-label">Подтверждение пароля <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="text" class="form-control" id="groupStudentConfirmPassword" value="12345678" required>
+                  <button type="button" class="btn btn-outline-secondary" id="toggleGroupStudentConfirmPassword" title="Показать/скрыть пароль">
+                    <i class="fas fa-eye-slash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="groupStudentPhone" class="form-label">Номер телефона</label>
+                <input type="tel" class="form-control" id="groupStudentPhone" placeholder="+375XXXXXXXXX" value="{{ current_user.phone or '' }}">
+                <div class="form-text">По умолчанию указан ваш номер телефона</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="groupStudentInstitution" class="form-label">Учреждение образования</label>
+                <input type="text" class="form-control" id="groupStudentInstitution"
+                       value="{{ current_user.educational_institution.name if current_user.educational_institution else '' }}"
+                       placeholder="Название учреждения">
+                <div class="form-text">По умолчанию указано ваше учреждение образования</div>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Таблица учащихся (Excel) <span class="text-danger">*</span></label>
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+              <a href="{{ url_for('teacher_group_sample_excel') }}" class="btn btn-outline-primary btn-sm group-sample-download-btn">
+                <i class="fas fa-download me-1"></i>Скачать образец таблицы
+              </a>
+              <small class="text-muted">Столбцы: «ФИО учащегося», «Класс» (число 1–11)</small>
+            </div>
+            <input type="file" class="form-control" id="groupStudentsExcelFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+          </div>
+          <div id="groupPreviewErrors" class="alert alert-danger d-none"></div>
+          <div id="groupPreviewBlock" class="d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">Список для добавления: <span id="groupPreviewCount">0</span></h6>
+            </div>
+            <div class="table-responsive border rounded" style="max-height: 280px; overflow-y: auto;">
+              <table class="table table-sm table-striped mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>#</th>
+                    <th>ФИО учащегося</th>
+                    <th>Класс</th>
+                    <th>Группа</th>
+                  </tr>
+                </thead>
+                <tbody id="groupPreviewTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="groupCreateStepSuccess" class="d-none">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <span id="groupCreateSuccessMessage">Аккаунты созданы.</span>
+          </div>
+          <p class="mb-3">Скачайте Excel с ФИО, логинами и паролями для раздачи учащимся. Файл также доступен в разделе «Файлы».</p>
+          <a href="#" class="btn btn-success" id="groupCredentialsDownloadBtn" target="_blank">
+            <i class="fas fa-file-excel me-1"></i>Скачать таблицу с логинами и паролями
+          </a>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+        <button type="button" class="btn btn-outline-primary group-preview-btn" id="groupPreviewBtn">
+          <i class="fas fa-search me-1"></i>Проверить таблицу
+        </button>
+        <button type="button" class="btn btn-success d-none" id="groupCreateSubmitBtn" disabled>
+          <i class="fas fa-user-plus me-1"></i>Добавить учащихся
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно: история доступов групп -->
+<div class="modal fade" id="groupImportsHistoryModal" tabindex="-1" aria-labelledby="groupImportsHistoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="groupImportsHistoryModalLabel">
+          <i class="fas fa-history me-2"></i>История доступов групп
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="groupImportsHistoryLoading" class="text-center text-muted py-3">
+          <i class="fas fa-spinner fa-spin me-1"></i>Загрузка...
+        </div>
+        <div id="groupImportsHistoryEmpty" class="alert alert-info d-none mb-0">
+          Пока нет созданных групп. Добавьте группу учащихся — здесь появится файл с доступами.
+        </div>
+        <div class="table-responsive d-none" id="groupImportsHistoryTableWrap">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Учащихся</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="groupImportsHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Модальное окно: раздать жетоны группе -->
+<div class="modal fade" id="bulkTransferTokensModal" tabindex="-1" aria-labelledby="bulkTransferTokensModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content bulk-transfer-modal">
+      <div class="modal-header">
+        <h5 class="modal-title" id="bulkTransferTokensModalLabel">
+          <i class="fas fa-gift me-2"></i>Раздать жетоны
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="bulk-summary-row mb-3">
+          <div class="bulk-summary-card bulk-summary-available">
+            <div class="bulk-summary-label">Доступно у вас</div>
+            <div class="bulk-available-row">
+              <div class="bulk-summary-value" id="bulkTeacherTicketsInfo">
+                <i class="fas fa-ticket-alt me-1"></i>{{ current_user.tickets or 0 }}
+              </div>
+              <a href="{{ url_for('teacher_buy_tickets') }}" class="bulk-btn bulk-btn-buy-mini">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Купить</span>
+              </a>
+            </div>
+          </div>
+          <div class="bulk-summary-card bulk-summary-amount">
+            <label for="bulkTokensAmount" class="bulk-summary-label mb-1">
+              <i class="fas fa-ticket-alt me-1"></i>Жетонов каждому
+            </label>
+            <input type="number" class="form-control bulk-tokens-input" id="bulkTokensAmount" min="1" value="1" inputmode="numeric">
+          </div>
+          <div class="bulk-summary-card bulk-summary-selected">
+            <div class="bulk-summary-label">Выбрано</div>
+            <div class="bulk-summary-value" id="bulkSelectedCount">0</div>
+          </div>
+          <div class="bulk-summary-card bulk-summary-needed">
+            <div class="bulk-summary-label">Потребуется</div>
+            <div class="bulk-summary-value" id="bulkTokensNeedInfo">0</div>
+          </div>
+        </div>
+        <div class="alert alert-danger py-2 px-3 d-none mb-3" id="bulkTokensShortageInfo" role="alert"></div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+          <button type="button" class="bulk-btn bulk-btn-soft" id="bulkSelectAllBtn">
+            <i class="fas fa-check-double"></i>
+            <span>Выбрать всех</span>
+          </button>
+          <button type="button" class="bulk-btn bulk-btn-ghost" id="bulkDeselectAllBtn">
+            <i class="fas fa-ban"></i>
+            <span>Снять выбор</span>
+          </button>
+          <div class="ms-auto bulk-filter-wrap">
+            <i class="fas fa-search bulk-filter-icon"></i>
+            <input type="search" class="form-control form-control-sm" id="bulkStudentsFilter" placeholder="Поиск по ФИО или логину">
+          </div>
+        </div>
+
+        <div id="bulkStudentsLoading" class="text-center text-muted py-4">
+          <i class="fas fa-spinner fa-spin me-1"></i>Загрузка списка...
+        </div>
+        <div class="bulk-students-table-wrap d-none" id="bulkStudentsListWrap">
+          <table class="table table-sm table-hover align-middle mb-0 bulk-students-table">
+            <thead>
+              <tr>
+                <th class="bulk-col-check">
+                  <span class="visually-hidden">Выбор</span>
+                </th>
+                <th class="bulk-col-name">ФИО</th>
+                <th class="bulk-col-login">Логин</th>
+                <th class="bulk-col-class">Класс</th>
+                <th class="bulk-col-tickets text-end">Жетоны</th>
+              </tr>
+            </thead>
+            <tbody id="bulkStudentsList"></tbody>
+          </table>
+        </div>
+        <div id="bulkStudentsFilterEmpty" class="text-center text-muted py-3 d-none">
+          По вашему запросу никто не найден
+        </div>
+        <div id="bulkStudentsEmpty" class="alert alert-info d-none mb-0 mt-2">
+          У вас пока нет учащихся для выдачи жетонов.
+        </div>
+      </div>
+      <div class="modal-footer bulk-modal-footer">
+        <div class="me-auto small text-muted" id="bulkFooterHint">Выберите учащихся для выдачи жетонов</div>
+        <button type="button" class="bulk-btn bulk-btn-cancel" data-bs-dismiss="modal">Отмена</button>
+        <button type="button" class="bulk-btn bulk-btn-submit" id="bulkTransferSubmitBtn" disabled>
+          <i class="fas fa-gift"></i>
+          <span>Раздать жетоны</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.bulk-transfer-modal .bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.65rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0.55rem 0.9rem;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+.bulk-transfer-modal .bulk-btn i,
+.bulk-transfer-modal .bulk-btn span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.bulk-transfer-modal .bulk-btn i {
+  font-size: 0.9em;
+  width: 1em;
+  height: 1em;
+}
+.bulk-transfer-modal .bulk-btn:hover {
+  transform: translateY(-1px);
+}
+.bulk-transfer-modal .bulk-btn:active {
+  transform: translateY(0);
+}
+.bulk-transfer-modal .bulk-btn:focus-visible {
+  outline: 2px solid #fdba74;
+  outline-offset: 2px;
+}
+.bulk-transfer-modal .bulk-btn-buy-mini {
+  flex-shrink: 0;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.75rem;
+  gap: 0.3rem;
+  border-radius: 0.45rem;
+  background: #fff;
+  border-color: #86efac;
+  color: #166534;
+  box-shadow: none;
+}
+.bulk-transfer-modal .bulk-btn-buy-mini:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  color: #14532d;
+}
+.bulk-transfer-modal .bulk-btn-buy-mini i {
+  font-size: 0.75em;
+}
+.bulk-transfer-modal .bulk-modal-footer {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bulk-transfer-modal .bulk-summary-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.1fr 0.9fr 1.1fr;
+  gap: 0.65rem;
+  align-items: stretch;
+}
+.bulk-transfer-modal .bulk-summary-card {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.bulk-transfer-modal .bulk-summary-available {
+  background: #eefaf1;
+  border-color: #cce8d4;
+}
+.bulk-transfer-modal .bulk-available-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+.bulk-transfer-modal .bulk-available-row .bulk-summary-value {
+  margin-top: 0;
+}
+.bulk-transfer-modal .bulk-btn-soft {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  padding: 0.45rem 0.8rem;
+}
+.bulk-transfer-modal .bulk-btn-soft:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+.bulk-transfer-modal .bulk-btn-ghost {
+  background: #fff;
+  border-color: #e5e7eb;
+  color: #4b5563;
+  padding: 0.45rem 0.8rem;
+}
+.bulk-transfer-modal .bulk-btn-ghost:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  color: #374151;
+}
+.bulk-transfer-modal .bulk-btn-cancel {
+  background: transparent;
+  border-color: #e5e7eb;
+  color: #6b7280;
+  padding: 0.6rem 1rem;
+}
+.bulk-transfer-modal .bulk-btn-cancel:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+.bulk-transfer-modal .bulk-btn-submit {
+  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+  border-color: #ea580c;
+  color: #fff;
+  padding: 0.65rem 1.15rem;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);
+}
+.bulk-transfer-modal .bulk-btn-submit:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+  border-color: #c2410c;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+}
+.bulk-transfer-modal .bulk-btn-submit:disabled {
+  background: #e5e7eb;
+  border-color: #d1d5db;
+  color: #9ca3af;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.bulk-transfer-modal .bulk-summary-needed {
+  background: #fff8e8;
+  border-color: #ffe2a8;
+}
+.bulk-transfer-modal .bulk-summary-needed.is-shortage {
+  background: #fdecea;
+  border-color: #f5c2c7;
+}
+.bulk-transfer-modal .bulk-summary-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  width: 100%;
+}
+.bulk-transfer-modal .bulk-summary-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #212529;
+  line-height: 1.3;
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+}
+.bulk-transfer-modal .bulk-summary-amount {
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  border: 2px solid #fb923c;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.12);
+}
+.bulk-transfer-modal .bulk-summary-amount .bulk-summary-label {
+  color: #9a3412;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.bulk-transfer-modal .bulk-summary-amount .bulk-tokens-input {
+  margin-top: 0.15rem;
+  width: 100%;
+  max-width: 100px;
+}
+.bulk-transfer-modal .bulk-tokens-input {
+  max-width: 100%;
+  font-weight: 700;
+  font-size: 1.25rem;
+  text-align: center;
+  color: #9a3412;
+  background: #fff;
+  border: 2px solid #fdba74;
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  line-height: 1.2;
+  box-shadow: inset 0 1px 2px rgba(154, 52, 18, 0.06);
+}
+.bulk-transfer-modal .bulk-tokens-input:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 0.2rem rgba(249, 115, 22, 0.2);
+  color: #7c2d12;
+  outline: none;
+}
+.bulk-transfer-modal .bulk-filter-wrap {
+  position: relative;
+  width: min(260px, 100%);
+}
+.bulk-transfer-modal .bulk-filter-wrap .form-control {
+  padding-left: 2rem;
+}
+.bulk-transfer-modal .bulk-filter-icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #adb5bd;
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+.bulk-transfer-modal .bulk-students-table-wrap {
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  max-height: 340px;
+  overflow: auto;
+}
+.bulk-transfer-modal .bulk-students-table {
+  margin-bottom: 0;
+}
+.bulk-transfer-modal .bulk-students-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #6c757d;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bulk-transfer-modal .bulk-students-table tbody tr {
+  cursor: pointer;
+}
+.bulk-transfer-modal .bulk-students-table tbody tr.is-selected {
+  background-color: rgba(13, 110, 253, 0.06);
+}
+.bulk-transfer-modal .bulk-col-check {
+  width: 42px;
+  text-align: center;
+}
+.bulk-transfer-modal .bulk-col-name {
+  min-width: 160px;
+}
+.bulk-transfer-modal .bulk-col-login {
+  width: 120px;
+  color: #6c757d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+}
+.bulk-transfer-modal .bulk-col-class {
+  width: 90px;
+}
+.bulk-transfer-modal .bulk-col-tickets {
+  width: 90px;
+  white-space: nowrap;
+}
+.bulk-transfer-modal .bulk-name {
+  font-weight: 600;
+  color: #212529;
+}
+.bulk-transfer-modal .bulk-ticket-cell {
+  color: #d97706;
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .bulk-transfer-modal .bulk-summary-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .bulk-transfer-modal .bulk-filter-wrap {
+    width: 100%;
+  }
+  .bulk-transfer-modal .bulk-col-login {
+    display: none;
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // ===== Группа учащихся =====
+  let groupPreviewStudents = [];
+  let lastGroupImportId = null;
+
+  const groupModal = document.getElementById('createStudentGroupModal');
+  const groupPreviewBtn = document.getElementById('groupPreviewBtn');
+  const groupCreateSubmitBtn = document.getElementById('groupCreateSubmitBtn');
+  const groupFileInput = document.getElementById('groupStudentsExcelFile');
+  const groupPreviewBlock = document.getElementById('groupPreviewBlock');
+  const groupPreviewErrors = document.getElementById('groupPreviewErrors');
+  const groupCreateStepForm = document.getElementById('groupCreateStepForm');
+  const groupCreateStepSuccess = document.getElementById('groupCreateStepSuccess');
+
+  function resetGroupModal() {
+    groupPreviewStudents = [];
+    lastGroupImportId = null;
+    if (groupFileInput) groupFileInput.value = '';
+    if (groupPreviewBlock) groupPreviewBlock.classList.add('d-none');
+    if (groupPreviewErrors) {
+      groupPreviewErrors.classList.add('d-none');
+      groupPreviewErrors.innerHTML = '';
+    }
+    if (groupCreateStepForm) groupCreateStepForm.classList.remove('d-none');
+    if (groupCreateStepSuccess) groupCreateStepSuccess.classList.add('d-none');
+    if (groupPreviewBtn) groupPreviewBtn.classList.remove('d-none');
+    if (groupCreateSubmitBtn) {
+      groupCreateSubmitBtn.classList.add('d-none');
+      groupCreateSubmitBtn.disabled = true;
+      groupCreateSubmitBtn.innerHTML = '<i class="fas fa-user-plus me-1"></i>Добавить учащихся';
+    }
+    const pwd = document.getElementById('groupStudentPassword');
+    const conf = document.getElementById('groupStudentConfirmPassword');
+    if (pwd) pwd.value = '12345678';
+    if (conf) conf.value = '12345678';
+  }
+
+  if (groupModal) {
+    groupModal.addEventListener('hidden.bs.modal', function() {
+      const wasSuccess = groupCreateStepSuccess && !groupCreateStepSuccess.classList.contains('d-none');
+      resetGroupModal();
+      if (wasSuccess) {
+        window.location.reload();
+      }
+    });
+  }
+
+  function bindPasswordToggle(btnId, inputId) {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    if (!btn || !input) return;
+    btn.addEventListener('click', function() {
+      const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+      input.setAttribute('type', type);
+      const icon = this.querySelector('i');
+      if (icon) icon.className = type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+    });
+  }
+  bindPasswordToggle('toggleGroupStudentPassword', 'groupStudentPassword');
+  bindPasswordToggle('toggleGroupStudentConfirmPassword', 'groupStudentConfirmPassword');
+
+  if (groupFileInput) {
+    groupFileInput.addEventListener('change', function() {
+      groupPreviewStudents = [];
+      if (groupPreviewBlock) groupPreviewBlock.classList.add('d-none');
+      if (groupCreateSubmitBtn) {
+        groupCreateSubmitBtn.classList.add('d-none');
+        groupCreateSubmitBtn.disabled = true;
+      }
+      if (groupPreviewErrors) groupPreviewErrors.classList.add('d-none');
+    });
+  }
+
+  if (groupPreviewBtn) {
+    groupPreviewBtn.addEventListener('click', async function() {
+      const file = groupFileInput && groupFileInput.files[0];
+      if (!file) {
+        showNotification('Выберите Excel-файл', 'warning');
+        return;
+      }
+      const password = (document.getElementById('groupStudentPassword') || {}).value || '';
+      const confirmPassword = (document.getElementById('groupStudentConfirmPassword') || {}).value || '';
+      if (password.length < 8) {
+        showNotification('Пароль должен содержать минимум 8 символов', 'warning');
+        return;
+      }
+      if (password !== confirmPassword) {
+        showNotification('Пароли не совпадают', 'warning');
+        return;
+      }
+
+      groupPreviewBtn.disabled = true;
+      groupPreviewBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Проверка...';
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch('/teacher/group-preview', { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!data.success) {
+          const errors = (data.errors || [data.message || 'Ошибка проверки файла']).map(e => `<div>${e}</div>`).join('');
+          groupPreviewErrors.innerHTML = errors;
+          groupPreviewErrors.classList.remove('d-none');
+          groupPreviewBlock.classList.add('d-none');
+          groupCreateSubmitBtn.classList.add('d-none');
+          groupCreateSubmitBtn.disabled = true;
+          showNotification(data.message || 'Таблица заполнена некорректно', 'danger');
+          return;
+        }
+        groupPreviewErrors.classList.add('d-none');
+        groupPreviewStudents = data.students || [];
+        const tbody = document.getElementById('groupPreviewTableBody');
+        tbody.innerHTML = groupPreviewStudents.map((s, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${s.student_name}</td>
+            <td>${s.class_number}</td>
+            <td><span class="badge bg-info">${s.category}</span></td>
+          </tr>
+        `).join('');
+        document.getElementById('groupPreviewCount').textContent = groupPreviewStudents.length;
+        groupPreviewBlock.classList.remove('d-none');
+        groupCreateSubmitBtn.classList.remove('d-none');
+        groupCreateSubmitBtn.disabled = groupPreviewStudents.length === 0;
+        showNotification(`Таблица корректна: ${groupPreviewStudents.length} учащихся`, 'success');
+      } catch (e) {
+        console.error(e);
+        showNotification('Ошибка при проверке файла', 'danger');
+      } finally {
+        groupPreviewBtn.disabled = false;
+        groupPreviewBtn.innerHTML = '<i class="fas fa-search me-1"></i>Проверить таблицу';
+      }
+    });
+  }
+
+  if (groupCreateSubmitBtn) {
+    groupCreateSubmitBtn.addEventListener('click', async function() {
+      if (!groupPreviewStudents.length) {
+        showNotification('Сначала проверьте таблицу', 'warning');
+        return;
+      }
+      const password = document.getElementById('groupStudentPassword').value;
+      const confirmPassword = document.getElementById('groupStudentConfirmPassword').value;
+      const phone = document.getElementById('groupStudentPhone').value.trim();
+      const institution = document.getElementById('groupStudentInstitution').value.trim();
+      if (password.length < 8 || password !== confirmPassword) {
+        showNotification('Проверьте пароль и подтверждение', 'warning');
+        return;
+      }
+
+      groupCreateSubmitBtn.disabled = true;
+      groupCreateSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Создание...';
+      try {
+        const response = await fetch('/teacher/group-create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: password,
+            confirm_password: confirmPassword,
+            phone: phone || null,
+            educational_institution_name: institution || null,
+            students: groupPreviewStudents
+          })
+        });
+        const data = await response.json();
+        if (!data.success) {
+          showNotification(data.message || 'Ошибка создания аккаунтов', 'danger');
+          groupCreateSubmitBtn.disabled = false;
+          groupCreateSubmitBtn.innerHTML = '<i class="fas fa-user-plus me-1"></i>Добавить учащихся';
+          return;
+        }
+        lastGroupImportId = data.import_id;
+        document.getElementById('groupCreateSuccessMessage').textContent = data.message;
+        const downloadBtn = document.getElementById('groupCredentialsDownloadBtn');
+        downloadBtn.href = `/teacher/group-imports/${data.import_id}/download`;
+        groupCreateStepForm.classList.add('d-none');
+        groupCreateStepSuccess.classList.remove('d-none');
+        groupPreviewBtn.classList.add('d-none');
+        groupCreateSubmitBtn.classList.add('d-none');
+        showNotification(data.message, 'success');
+      } catch (e) {
+        console.error(e);
+        showNotification('Ошибка при создании аккаунтов', 'danger');
+        groupCreateSubmitBtn.disabled = false;
+        groupCreateSubmitBtn.innerHTML = '<i class="fas fa-user-plus me-1"></i>Добавить учащихся';
+      }
+    });
+  }
+
+  // ===== История доступов =====
+  const historyModal = document.getElementById('groupImportsHistoryModal');
+  if (historyModal) {
+    historyModal.addEventListener('show.bs.modal', async function() {
+      const loading = document.getElementById('groupImportsHistoryLoading');
+      const empty = document.getElementById('groupImportsHistoryEmpty');
+      const wrap = document.getElementById('groupImportsHistoryTableWrap');
+      const body = document.getElementById('groupImportsHistoryBody');
+      loading.classList.remove('d-none');
+      empty.classList.add('d-none');
+      wrap.classList.add('d-none');
+      body.innerHTML = '';
+      try {
+        const response = await fetch('/teacher/group-imports');
+        const data = await response.json();
+        loading.classList.add('d-none');
+        if (!data.success || !data.imports || !data.imports.length) {
+          empty.classList.remove('d-none');
+          return;
+        }
+        body.innerHTML = data.imports.map(item => `
+          <tr>
+            <td>${item.created_at}</td>
+            <td>${item.students_count}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-success" href="/teacher/group-imports/${item.id}/download">
+                <i class="fas fa-download me-1"></i>Excel
+              </a>
+            </td>
+          </tr>
+        `).join('');
+        wrap.classList.remove('d-none');
+      } catch (e) {
+        loading.classList.add('d-none');
+        showNotification('Не удалось загрузить историю', 'danger');
+      }
+    });
+  }
+
+  // ===== Раздача жетонов =====
+  let bulkStudents = [];
+  let teacherTicketsAvailable = {{ current_user.tickets or 0 }};
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatCategoryLabel(category) {
+    if (!category) return '—';
+    if (category === '1-2') return '1–2';
+    return String(category);
+  }
+
+  function getSelectedBulkStudentIds() {
+    return Array.from(document.querySelectorAll('.bulk-student-checkbox:checked')).map(el => parseInt(el.value, 10));
+  }
+
+  function updateBulkTokensSummary() {
+    const selected = getSelectedBulkStudentIds().length;
+    const amount = parseInt((document.getElementById('bulkTokensAmount') || {}).value || '1', 10) || 0;
+    const needed = selected * amount;
+    const selectedEl = document.getElementById('bulkSelectedCount');
+    const needInfo = document.getElementById('bulkTokensNeedInfo');
+    const needCard = needInfo ? needInfo.closest('.bulk-summary-card') : null;
+    const shortage = document.getElementById('bulkTokensShortageInfo');
+    const submitBtn = document.getElementById('bulkTransferSubmitBtn');
+    const footerHint = document.getElementById('bulkFooterHint');
+
+    if (selectedEl) selectedEl.textContent = String(selected);
+    if (needInfo) {
+      needInfo.innerHTML = `<i class="fas fa-ticket-alt me-1"></i>${needed}`;
+    }
+    const notEnough = selected > 0 && needed > teacherTicketsAvailable;
+    if (needCard) needCard.classList.toggle('is-shortage', notEnough);
+
+    if (shortage) {
+      if (notEnough) {
+        shortage.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Недостаточно жетонов: нужно <strong>${needed}</strong>, доступно <strong>${teacherTicketsAvailable}</strong>. Уменьшите список или количество.`;
+        shortage.classList.remove('d-none');
+      } else {
+        shortage.classList.add('d-none');
+        shortage.innerHTML = '';
+      }
+    }
+    if (footerHint) {
+      if (selected === 0) {
+        footerHint.textContent = 'Выберите учащихся для выдачи жетонов';
+      } else if (notEnough) {
+        footerHint.textContent = 'Выдача недоступна: не хватает жетонов';
+      } else {
+        footerHint.textContent = `Будет выдано по ${amount} · всего ${needed}`;
+      }
+    }
+    if (submitBtn) {
+      submitBtn.disabled = selected === 0 || amount < 1 || notEnough;
+    }
+  }
+
+  function renderBulkStudentsList(filterText) {
+    const list = document.getElementById('bulkStudentsList');
+    const wrap = document.getElementById('bulkStudentsListWrap');
+    const empty = document.getElementById('bulkStudentsEmpty');
+    const filterEmpty = document.getElementById('bulkStudentsFilterEmpty');
+    const loading = document.getElementById('bulkStudentsLoading');
+    if (!list) return;
+    loading.classList.add('d-none');
+    const q = (filterText || '').trim().toLowerCase();
+    const filtered = bulkStudents.filter(s => {
+      if (!q) return true;
+      return (s.student_name || '').toLowerCase().includes(q) || (s.username || '').toLowerCase().includes(q);
+    });
+    if (!bulkStudents.length) {
+      wrap.classList.add('d-none');
+      empty.classList.remove('d-none');
+      if (filterEmpty) filterEmpty.classList.add('d-none');
+      updateBulkTokensSummary();
+      return;
+    }
+    empty.classList.add('d-none');
+    if (!filtered.length) {
+      wrap.classList.add('d-none');
+      if (filterEmpty) filterEmpty.classList.remove('d-none');
+      updateBulkTokensSummary();
+      return;
+    }
+    if (filterEmpty) filterEmpty.classList.add('d-none');
+    wrap.classList.remove('d-none');
+    const selectedSet = new Set(getSelectedBulkStudentIds());
+    list.innerHTML = filtered.map(s => {
+      const checked = selectedSet.has(s.id);
+      const name = escapeHtml(s.student_name || s.username || 'Без имени');
+      const username = escapeHtml(s.username || '—');
+      const category = escapeHtml(formatCategoryLabel(s.category));
+      const tickets = Number(s.tickets || 0);
+      return `
+        <tr class="${checked ? 'is-selected' : ''}" data-student-id="${s.id}">
+          <td class="bulk-col-check text-center">
+            <input class="form-check-input bulk-student-checkbox" type="checkbox" value="${s.id}" ${checked ? 'checked' : ''} aria-label="Выбрать ${name}">
+          </td>
+          <td class="bulk-col-name"><span class="bulk-name">${name}</span></td>
+          <td class="bulk-col-login">${username}</td>
+          <td class="bulk-col-class"><span class="badge bg-info">${category}</span></td>
+          <td class="bulk-col-tickets text-end bulk-ticket-cell">
+            <i class="fas fa-ticket-alt me-1"></i>${tickets}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    list.querySelectorAll('tr[data-student-id]').forEach(row => {
+      row.addEventListener('click', function(e) {
+        if (e.target.closest('input, button, a')) return;
+        const checkbox = row.querySelector('.bulk-student-checkbox');
+        if (!checkbox) return;
+        checkbox.checked = !checkbox.checked;
+        row.classList.toggle('is-selected', checkbox.checked);
+        updateBulkTokensSummary();
+      });
+    });
+    list.querySelectorAll('.bulk-student-checkbox').forEach(cb => {
+      cb.addEventListener('change', function() {
+        const row = cb.closest('tr');
+        if (row) row.classList.toggle('is-selected', cb.checked);
+        updateBulkTokensSummary();
+      });
+    });
+    updateBulkTokensSummary();
+  }
+
+  const bulkModal = document.getElementById('bulkTransferTokensModal');
+  if (bulkModal) {
+    bulkModal.addEventListener('show.bs.modal', async function() {
+      const loading = document.getElementById('bulkStudentsLoading');
+      const wrap = document.getElementById('bulkStudentsListWrap');
+      const empty = document.getElementById('bulkStudentsEmpty');
+      const filterEmpty = document.getElementById('bulkStudentsFilterEmpty');
+      loading.classList.remove('d-none');
+      wrap.classList.add('d-none');
+      empty.classList.add('d-none');
+      if (filterEmpty) filterEmpty.classList.add('d-none');
+      document.getElementById('bulkTokensAmount').value = 1;
+      document.getElementById('bulkStudentsFilter').value = '';
+      try {
+        const response = await fetch('/teacher/students-for-tokens');
+        const data = await response.json();
+        if (!data.success) {
+          showNotification(data.message || 'Не удалось загрузить учащихся', 'danger');
+          loading.classList.add('d-none');
+          return;
+        }
+        bulkStudents = data.students || [];
+        teacherTicketsAvailable = data.teacher_tickets || 0;
+        document.getElementById('bulkTeacherTicketsInfo').innerHTML =
+          `<i class="fas fa-ticket-alt me-1"></i>${teacherTicketsAvailable}`;
+        renderBulkStudentsList('');
+      } catch (e) {
+        loading.classList.add('d-none');
+        showNotification('Ошибка загрузки списка учащихся', 'danger');
+      }
+    });
+  }
+
+  const bulkSelectAllBtn = document.getElementById('bulkSelectAllBtn');
+  const bulkDeselectAllBtn = document.getElementById('bulkDeselectAllBtn');
+  const bulkStudentsFilter = document.getElementById('bulkStudentsFilter');
+  const bulkTokensAmount = document.getElementById('bulkTokensAmount');
+  const bulkTransferSubmitBtn = document.getElementById('bulkTransferSubmitBtn');
+
+  if (bulkSelectAllBtn) {
+    bulkSelectAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('.bulk-student-checkbox').forEach(cb => {
+        cb.checked = true;
+        const row = cb.closest('tr');
+        if (row) row.classList.add('is-selected');
+      });
+      updateBulkTokensSummary();
+    });
+  }
+  if (bulkDeselectAllBtn) {
+    bulkDeselectAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('.bulk-student-checkbox').forEach(cb => {
+        cb.checked = false;
+        const row = cb.closest('tr');
+        if (row) row.classList.remove('is-selected');
+      });
+      updateBulkTokensSummary();
+    });
+  }
+  if (bulkStudentsFilter) {
+    bulkStudentsFilter.addEventListener('input', function() {
+      renderBulkStudentsList(this.value);
+    });
+  }
+  if (bulkTokensAmount) {
+    bulkTokensAmount.addEventListener('input', updateBulkTokensSummary);
+  }
+  if (bulkTransferSubmitBtn) {
+    bulkTransferSubmitBtn.addEventListener('click', async function() {
+      const studentIds = getSelectedBulkStudentIds();
+      const tokensAmount = parseInt(bulkTokensAmount.value, 10) || 0;
+      const needed = studentIds.length * tokensAmount;
+      if (!studentIds.length || tokensAmount < 1) {
+        showNotification('Выберите учащихся и укажите количество жетонов', 'warning');
+        return;
+      }
+      if (needed > teacherTicketsAvailable) {
+        showNotification('Недостаточно жетонов. Уменьшите список или количество.', 'danger');
+        return;
+      }
+      bulkTransferSubmitBtn.disabled = true;
+      bulkTransferSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Выдача...</span>';
+      try {
+        const response = await fetch('/teacher/transfer-tokens-bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_ids: studentIds, tokens_amount: tokensAmount })
+        });
+        const data = await response.json();
+        if (!data.success) {
+          showNotification(data.message || 'Ошибка выдачи жетонов', 'danger');
+          bulkTransferSubmitBtn.disabled = false;
+          bulkTransferSubmitBtn.innerHTML = '<i class="fas fa-gift"></i><span>Раздать жетоны</span>';
+          updateBulkTokensSummary();
+          return;
+        }
+        showNotification(data.message, 'success');
+        setTimeout(() => window.location.reload(), 800);
+      } catch (e) {
+        showNotification('Ошибка при выдаче жетонов', 'danger');
+        bulkTransferSubmitBtn.disabled = false;
+        bulkTransferSubmitBtn.innerHTML = '<i class="fas fa-gift"></i><span>Раздать жетоны</span>';
+        updateBulkTokensSummary();
+      }
+    });
+  }
+});
+</script>
 {% endblock %} 

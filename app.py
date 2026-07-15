@@ -47,6 +47,8 @@ import json
 import hashlib
 import smtplib
 import math
+import io
+import string
 from dotenv import load_dotenv
 import time
 load_dotenv()
@@ -761,12 +763,59 @@ def start_memory_cleanup_once():
         else:
             print("🧹 Поток очистки памяти уже запущен")
 
+_app_startup_initialized = False
+
+
+def initialize_app_once():
+    """Одноразовая инициализация БД/планировщика при первом запросе."""
+    global _app_startup_initialized
+    if _app_startup_initialized:
+        return
+    _app_startup_initialized = True
+
+    # Не использовать вложенный app.app_context(): teardown вызовет db.session.remove()
+    # и отвяжет current_user (DetachedInstanceError).
+    start_memory_cleanup_once()
+    print("Создание таблиц базы данных...")
+    db.create_all()
+    ensure_shop_settings_schema()
+    ensure_prize_schema()
+    ensure_user_rating_points_schema()
+
+    print("Создание администратора...")
+    create_admin_user()
+
+    print("Очистка сессий...")
+    try_acquire_scheduler()
+    start_scheduler_recovery_thread()
+    tournament_task_cache.initialize_cache_for_active_tournaments()
+
+    from logging.handlers import RotatingFileHandler
+    handler = RotatingFileHandler(
+        'err.log',
+        maxBytes=1024 * 1024,
+        backupCount=1,
+        encoding='utf-8'
+    )
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(handler)
+    print("Приложение готово к запуску!")
+
+
 @app.before_request
 def before_request():
 
     """Инициализация перед каждым запросом"""
     # Создаем сессию базы данных для текущего потока
     thread_local.db = db.create_scoped_session()
+
+    # Сначала инициализация БД — до обращения к current_user
+    initialize_app_once()
     
     # Обновляем статус турниров
     update_tournament_status()
@@ -4229,6 +4278,15 @@ def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
+
+NOEMAIL_LOCAL_PATTERN = re.compile(r'^student_\d+@noemail\.local$', re.IGNORECASE)
+
+
+def is_placeholder_email(email):
+    """Проверяет, что email является техническим плейсхолдером без реального адреса."""
+    return bool(email and NOEMAIL_LOCAL_PATTERN.match(email.strip()))
+
+
 def validate_phone(phone):
     """Валидация номера телефона"""
     import re
@@ -4852,12 +4910,14 @@ def profile():
     user_rank = current_user.category_rank
     settings = TournamentSettings.get_settings()
     
+    can_set_email = is_placeholder_email(getattr(current_user, 'email', None)) or not (getattr(current_user, 'email', None) or '').strip()
     return render_template('profile.html', 
                          title='Личный кабинет', 
                          user_rank=user_rank,
                          next_tournament=next_tournament,
                          now=current_time,
-                         settings=settings)
+                         settings=settings,
+                         can_set_email=can_set_email)
 
 @app.route('/teacher-profile')
 @login_required
@@ -5872,6 +5932,509 @@ def teacher_create_student():
         db.session.rollback()
         print(f"Ошибка при создании аккаунта ученика: {e}")
         return jsonify({'success': False, 'message': 'Произошла ошибка при создании аккаунта'})
+
+
+GROUP_STUDENT_MAX_COUNT = 300
+GROUP_EXCEL_HEADERS = ('ФИО учащегося', 'Класс')
+
+
+def generate_unique_student_username():
+    """Генерирует уникальный логин ученика (3 буквы + 3 цифры)."""
+    chars = string.ascii_lowercase
+    numbers = string.digits
+    for _ in range(80):
+        username = ''.join(random.choice(chars) for _ in range(3))
+        username += ''.join(random.choice(numbers) for _ in range(3))
+        if User.query.filter(User.username.ilike(username)).first():
+            continue
+        if Teacher.query.filter(Teacher.username.ilike(username)).first():
+            continue
+        return username
+    return f'student_{random.randint(100000, 999999)}'
+
+
+def normalize_class_to_category(raw_value):
+    """
+    Преобразует класс из Excel (число 1..11) в категорию турнира.
+    1 и 2 → группа '1-2'.
+    """
+    if raw_value is None:
+        return None, 'Класс не указан'
+    if isinstance(raw_value, float):
+        if raw_value.is_integer():
+            raw_value = int(raw_value)
+        else:
+            return None, f'Класс должен быть целым числом от 1 до 11 (получено: {raw_value})'
+    value = str(raw_value).strip()
+    if value.endswith('.0'):
+        value = value[:-2]
+    if not value.isdigit():
+        return None, f'Класс должен быть числом от 1 до 11 (получено: {value})'
+    class_num = int(value)
+    if class_num in (1, 2):
+        return '1-2', None
+    if 3 <= class_num <= 11:
+        return str(class_num), None
+    return None, f'Класс должен быть от 1 до 11 (получено: {class_num})'
+
+
+def parse_group_students_excel(file_storage):
+    """Читает Excel с колонками ФИО/Класс и возвращает (students, errors)."""
+    from openpyxl import load_workbook
+
+    errors = []
+    students = []
+    try:
+        wb = load_workbook(file_storage, read_only=True, data_only=True)
+    except Exception:
+        return [], ['Не удалось прочитать файл. Загрузите Excel в формате .xlsx']
+
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return [], ['Файл пустой. Добавьте строки с ФИО и классом']
+
+    header = [str(c).strip() if c is not None else '' for c in rows[0]]
+    try:
+        name_idx = header.index(GROUP_EXCEL_HEADERS[0])
+        class_idx = header.index(GROUP_EXCEL_HEADERS[1])
+    except ValueError:
+        return [], [
+            f'В первой строке должны быть столбцы: «{GROUP_EXCEL_HEADERS[0]}» и «{GROUP_EXCEL_HEADERS[1]}». '
+            'Скачайте образец таблицы.'
+        ]
+
+    for row_num, row in enumerate(rows[1:], start=2):
+        if row is None or all(cell is None or str(cell).strip() == '' for cell in row):
+            continue
+        name_raw = row[name_idx] if name_idx < len(row) else None
+        class_raw = row[class_idx] if class_idx < len(row) else None
+        student_name = sanitize_input(str(name_raw).strip() if name_raw is not None else '', 100)
+        if not student_name:
+            errors.append(f'Строка {row_num}: не указано ФИО учащегося')
+            continue
+        if not validate_name(student_name):
+            errors.append(f'Строка {row_num}: ФИО может содержать только буквы, пробелы, дефисы и точки')
+            continue
+        category, class_error = normalize_class_to_category(class_raw)
+        if class_error:
+            errors.append(f'Строка {row_num}: {class_error}')
+            continue
+        class_display = str(class_raw).strip()
+        if isinstance(class_raw, float) and class_raw.is_integer():
+            class_display = str(int(class_raw))
+        elif isinstance(class_raw, int):
+            class_display = str(class_raw)
+        elif class_display.endswith('.0'):
+            class_display = class_display[:-2]
+        students.append({
+            'student_name': student_name,
+            'category': category,
+            'class_number': class_display
+        })
+
+    if not students and not errors:
+        errors.append('В таблице нет данных об учащихся')
+    if len(students) > GROUP_STUDENT_MAX_COUNT:
+        errors.append(f'Слишком много учащихся за один раз. Максимум: {GROUP_STUDENT_MAX_COUNT}')
+        students = students[:GROUP_STUDENT_MAX_COUNT]
+
+    return students, errors
+
+
+def build_group_credentials_workbook(credentials):
+    """Создаёт Excel с ФИО/логин/пароль для скачивания учителем."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Доступы'
+    ws.append(['ФИО учащегося', 'Логин', 'Пароль'])
+    for item in credentials:
+        ws.append([
+            item.get('student_name', ''),
+            item.get('username', ''),
+            item.get('password', ''),
+        ])
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            max_length = max(max_length, len(str(cell.value or '')))
+        ws.column_dimensions[column_letter].width = min(max(max_length + 2, 12), 40)
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+def resolve_educational_institution_id(teacher, educational_institution_name):
+    """Возвращает ID УО из формы модалки; если пусто — учреждение учителя."""
+    if educational_institution_name:
+        edu_institution = EducationalInstitution.query.filter_by(name=educational_institution_name).first()
+        if not edu_institution:
+            edu_institution = EducationalInstitution(name=educational_institution_name, address='')
+            db.session.add(edu_institution)
+            db.session.flush()
+        return edu_institution.id
+    return teacher.educational_institution_id
+
+
+def is_teacher_student(teacher_id, student):
+    """Проверяет, что ученик принадлежит учителю."""
+    if not student:
+        return False
+    if student.teacher_id == teacher_id:
+        return True
+    return TeacherReferral.query.filter_by(teacher_id=teacher_id, student_id=student.id).first() is not None
+
+
+@app.route('/teacher/group-sample-excel', methods=['GET'])
+@login_required
+def teacher_group_sample_excel():
+    """Скачать образец Excel для массового добавления учащихся."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Учащиеся'
+    ws.append(list(GROUP_EXCEL_HEADERS))
+    ws.append(['Иванов Иван Иванович', 5])
+    ws.append(['Петрова Анна Сергеевна', 1])
+    ws.append(['Сидоров Пётр Алексеевич', 11])
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 12
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name='образец_группы_учащихся.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+
+@app.route('/teacher/group-preview', methods=['POST'])
+@login_required
+def teacher_group_preview():
+    """Проверка Excel и предпросмотр списка учащихся перед созданием."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': 'Загрузите Excel-файл'})
+
+    # secure_filename выкидывает кириллицу — проверяем исходное имя файла
+    original_name = (file.filename or '').lower()
+    if not original_name.endswith('.xlsx'):
+        return jsonify({'success': False, 'message': 'Допустим только формат .xlsx. Скачайте образец таблицы.'})
+
+    students, errors = parse_group_students_excel(file)
+    if errors:
+        return jsonify({'success': False, 'message': 'Таблица заполнена некорректно', 'errors': errors})
+
+    return jsonify({
+        'success': True,
+        'students': students,
+        'count': len(students)
+    })
+
+
+@app.route('/teacher/group-create', methods=['POST'])
+@login_required
+def teacher_group_create():
+    """Массовое создание аккаунтов учащихся из проверенного списка."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    # Сохраняем id до любых commit — иначе current_user может отвязаться от сессии
+    teacher_id = current_user.id
+
+    try:
+        data = request.get_json() or {}
+        password = data.get('password') or ''
+        confirm_password = data.get('confirm_password') or password
+        phone = sanitize_input(data.get('phone', ''), 20) if data.get('phone') else None
+        educational_institution_name = sanitize_input(
+            data.get('educational_institution_name', ''), 500
+        ) if data.get('educational_institution_name') else None
+        students_data = data.get('students') or []
+
+        if not password or not confirm_password:
+            return jsonify({'success': False, 'message': 'Укажите пароль для группы учащихся'})
+        if password != confirm_password:
+            return jsonify({'success': False, 'message': 'Пароли не совпадают'})
+        if len(password) < 8:
+            return jsonify({'success': False, 'message': 'Пароль должен содержать минимум 8 символов'})
+        if phone and not validate_phone(phone):
+            return jsonify({'success': False, 'message': 'Номер телефона должен быть в формате +375XXXXXXXXX'})
+        if not students_data:
+            return jsonify({'success': False, 'message': 'Список учащихся пуст'})
+        if len(students_data) > GROUP_STUDENT_MAX_COUNT:
+            return jsonify({'success': False, 'message': f'Максимум {GROUP_STUDENT_MAX_COUNT} учащихся за один раз'})
+
+        validated_students = []
+        for idx, item in enumerate(students_data, start=1):
+            student_name = sanitize_input(item.get('student_name', ''), 100)
+            category = item.get('category', '')
+            if not student_name or not validate_name(student_name):
+                return jsonify({'success': False, 'message': f'Некорректное ФИО в строке {idx}'})
+            if category not in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
+                return jsonify({'success': False, 'message': f'Некорректный класс в строке {idx}'})
+            validated_students.append({'student_name': student_name, 'category': category})
+
+        invite_link = TeacherInviteLink.query.filter_by(teacher_id=teacher_id, is_active=True).first()
+        if not invite_link:
+            invite_link = create_teacher_invite_link(teacher_id)
+            # create_teacher_invite_link делает commit — подгружаем учителя заново
+            teacher = Teacher.query.get(teacher_id)
+        else:
+            teacher = Teacher.query.get(teacher_id) or current_user
+
+        edu_id = resolve_educational_institution_id(teacher, educational_institution_name)
+        credentials = []
+
+        for student_info in validated_students:
+            username = None
+            for _ in range(20):
+                candidate = generate_unique_student_username()
+                if not User.query.filter(User.username.ilike(candidate)).first() \
+                        and not Teacher.query.filter(Teacher.username.ilike(candidate)).first():
+                    username = candidate
+                    break
+            if not username:
+                db.session.rollback()
+                return jsonify({'success': False, 'message': 'Не удалось сгенерировать уникальные логины. Попробуйте ещё раз.'})
+
+            temp_email = f'temp_{uuid.uuid4().hex}@noemail.local'
+            user = User(
+                username=username,
+                email=temp_email,
+                phone=phone,
+                student_name=student_info['student_name'],
+                parent_name=None,
+                category=student_info['category'],
+                is_active=True,
+                teacher_id=teacher_id
+            )
+            user.set_password(password)
+            if edu_id:
+                user.educational_institution_id = edu_id
+            db.session.add(user)
+            db.session.flush()
+            user.email = f'student_{user.id}@noemail.local'
+
+            existing_referral = TeacherReferral.query.filter_by(student_id=user.id).first()
+            if not existing_referral and invite_link:
+                db.session.add(TeacherReferral(
+                    teacher_id=teacher_id,
+                    student_id=user.id,
+                    teacher_invite_link_id=invite_link.id,
+                    bonus_paid=False
+                ))
+
+            credentials.append({
+                'student_name': student_info['student_name'],
+                'username': username,
+                'password': password,
+                'user_id': user.id,
+                'category': student_info['category']
+            })
+
+        group_import = TeacherStudentGroupImport(
+            teacher_id=teacher_id,
+            students_count=len(credentials),
+            shared_password=password,
+            credentials_json=json.dumps(credentials, ensure_ascii=False)
+        )
+        db.session.add(group_import)
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'Успешно создано аккаунтов: {len(credentials)}',
+            'import_id': group_import.id,
+            'students_count': len(credentials),
+            'credentials': [
+                {
+                    'student_name': c['student_name'],
+                    'username': c['username'],
+                    'password': c['password'],
+                } for c in credentials
+            ]
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при массовом создании учеников: {e}")
+        return jsonify({'success': False, 'message': 'Произошла ошибка при создании аккаунтов'})
+
+
+@app.route('/teacher/group-imports', methods=['GET'])
+@login_required
+def teacher_group_imports():
+    """История массовых добавлений групп учащихся."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    imports = TeacherStudentGroupImport.query.filter_by(teacher_id=current_user.id)\
+        .order_by(TeacherStudentGroupImport.created_at.desc()).all()
+    items = [{
+        'id': item.id,
+        'created_at': item.created_at.strftime('%d.%m.%Y %H:%M') if item.created_at else '',
+        'students_count': item.students_count,
+    } for item in imports]
+    return jsonify({'success': True, 'imports': items})
+
+
+@app.route('/teacher/group-imports/<int:import_id>/download', methods=['GET'])
+@login_required
+def teacher_group_import_download(import_id):
+    """Скачать Excel с доступами для ранее созданной группы."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    group_import = TeacherStudentGroupImport.query.get_or_404(import_id)
+    if group_import.teacher_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Доступ запрещен'}), 403
+
+    try:
+        credentials = json.loads(group_import.credentials_json or '[]')
+    except Exception:
+        return jsonify({'success': False, 'message': 'Не удалось прочитать данные импорта'}), 500
+
+    output = build_group_credentials_workbook(credentials)
+    filename = f'доступы_группы_{group_import.created_at.strftime("%Y%m%d_%H%M") if group_import.created_at else import_id}.xlsx'
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+
+@app.route('/teacher/students-for-tokens', methods=['GET'])
+@login_required
+def teacher_students_for_tokens():
+    """Список всех учеников учителя для массовой выдачи жетонов."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    students = User.query.filter_by(teacher_id=current_user.id)\
+        .order_by(User.student_name.asc(), User.username.asc()).all()
+    referral_ids = {
+        r.student_id for r in TeacherReferral.query.filter_by(teacher_id=current_user.id).all()
+    }
+    for student_id in referral_ids:
+        if any(s.id == student_id for s in students):
+            continue
+        student = User.query.get(student_id)
+        if student:
+            students.append(student)
+
+    items = [{
+        'id': s.id,
+        'username': s.username,
+        'student_name': s.student_name or s.username,
+        'category': s.category or '',
+        'tickets': s.tickets or 0,
+    } for s in students]
+    return jsonify({
+        'success': True,
+        'students': items,
+        'teacher_tickets': current_user.tickets or 0
+    })
+
+
+@app.route('/teacher/transfer-tokens-bulk', methods=['POST'])
+@login_required
+def teacher_transfer_tokens_bulk():
+    """Массовая передача жетонов выбранным учащимся."""
+    if not isinstance(current_user, Teacher):
+        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+
+    data = request.get_json() or {}
+    student_ids = data.get('student_ids') or []
+    tokens_per_student = data.get('tokens_amount', 1)
+
+    try:
+        tokens_per_student = int(tokens_per_student)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'message': 'Укажите корректное количество жетонов'})
+
+    if not student_ids or not isinstance(student_ids, list):
+        return jsonify({'success': False, 'message': 'Выберите хотя бы одного учащегося'}), 400
+    if tokens_per_student <= 0:
+        return jsonify({'success': False, 'message': 'Количество жетонов должно быть больше 0'})
+
+    # Убираем дубликаты, сохраняя порядок
+    unique_ids = []
+    seen = set()
+    for sid in student_ids:
+        try:
+            sid_int = int(sid)
+        except (TypeError, ValueError):
+            continue
+        if sid_int in seen:
+            continue
+        seen.add(sid_int)
+        unique_ids.append(sid_int)
+
+    if not unique_ids:
+        return jsonify({'success': False, 'message': 'Выберите хотя бы одного учащегося'})
+
+    total_needed = tokens_per_student * len(unique_ids)
+    teacher_tickets = current_user.tickets or 0
+    if teacher_tickets < total_needed:
+        return jsonify({
+            'success': False,
+            'message': (
+                f'Недостаточно жетонов. Нужно: {total_needed}, доступно: {teacher_tickets}. '
+                f'Уменьшите список учащихся или количество жетонов.'
+            ),
+            'needed': total_needed,
+            'available': teacher_tickets
+        })
+
+    try:
+        students = []
+        for sid in unique_ids:
+            student = User.query.get(sid)
+            if not student or not is_teacher_student(current_user.id, student):
+                return jsonify({'success': False, 'message': f'Учащийся с id={sid} не найден среди ваших учеников'})
+            students.append(student)
+
+        if current_user.tickets is None:
+            current_user.tickets = 0
+
+        for student in students:
+            if student.tickets is None:
+                student.tickets = 0
+            transfer = TeacherStudentTransfer(
+                teacher_id=current_user.id,
+                student_id=student.id,
+                tokens_amount=tokens_per_student
+            )
+            current_user.tickets -= tokens_per_student
+            student.tickets += tokens_per_student
+            db.session.add(transfer)
+
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': f'Успешно выдано по {tokens_per_student} жетонов {len(students)} учащимся '
+                       f'(всего списано: {total_needed})',
+            'teacher_tickets': current_user.tickets
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка массовой передачи жетонов: {e}")
+        return jsonify({'success': False, 'message': 'Ошибка при передаче жетонов'})
+
 
 @app.route('/buy-tickets')
 @login_required
@@ -9599,65 +10162,10 @@ def start_scheduler_recovery_thread():
     recovery_thread.start()
     print("Поток восстановления планировщика запущен")
 
-# Flask 3.x удалил app.before_first_request, поэтому используем before_request
-# с защитой "выполнить один раз".
-_app_startup_initialized = False
-
+# Flask 3.x удалил app.before_first_request — инициализация в initialize_app_once()
 @app.before_request
 def clear_sessions():
-    global _app_startup_initialized
-    if _app_startup_initialized:
-        return
-    _app_startup_initialized = True
-
-    # Очищаем все токены сессий при запуске приложения
-    # Запускаем поток очистки памяти только один раз при старте приложения
-    start_memory_cleanup_once()
-    #cleanup_all_sessions()
-    with app.app_context():
-        # Сначала создаем все таблицы
-        print("Создание таблиц базы данных...")
-        db.create_all()
-        ensure_shop_settings_schema()
-        ensure_prize_schema()
-        ensure_user_rating_points_schema()
-
-        # Затем создаем администратора
-        print("Создание администратора...")
-        create_admin_user()
-
-        # Только после создания таблиц выполняем остальные операции
-        print("Очистка сессий...")
-        #cleanup_all_sessions()
-
-        # Пытаемся получить планировщик
-        try_acquire_scheduler()
-        
-        # Запускаем поток восстановления планировщика
-        start_scheduler_recovery_thread()
-        
-        # Инициализируем кеш для активных турниров
-        tournament_task_cache.initialize_cache_for_active_tournaments()
-        
-        # Настройка логирования с автоматической очисткой файла при достижении 1MB
-        from logging.handlers import RotatingFileHandler
-        handler = RotatingFileHandler(
-            'err.log', 
-            maxBytes=1024*1024,  # 1MB
-            backupCount=1,       # Хранить только 1 резервный файл
-            encoding='utf-8'
-        )
-        handler.setFormatter(logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        ))
-        
-        # Настраиваем корневой логгер
-        root_logger = logging.getLogger()
-        root_logger.setLevel(logging.DEBUG)
-        root_logger.addHandler(handler)
-        
-        print("Приложение готово к запуску!")
+    initialize_app_once()
 
 @app.route('/change-password', methods=['POST'])
 @login_required
@@ -10084,6 +10592,8 @@ def update_profile():
     educational_institution_name = data.get('educational_institution_name', '').strip()
     educational_institution_id = data.get('educational_institution_id', '').strip()
     new_password = data.get('new_password', '').strip()
+    email = data.get('email', '').strip()
+    can_set_email = is_placeholder_email(current_user.email) or not (current_user.email or '').strip()
     
     # Проверяем обязательные поля
     if not student_name:
@@ -10100,6 +10610,15 @@ def update_profile():
     
     if not educational_institution_name:
         return jsonify({'success': False, 'message': 'Пожалуйста, введите учреждение образования'})
+
+    if can_set_email:
+        if not email:
+            return jsonify({'success': False, 'message': 'Пожалуйста, укажите email'})
+        if not validate_email(email):
+            return jsonify({'success': False, 'message': 'Некорректный email адрес'})
+        if User.query.filter(User.email.ilike(email), User.id != current_user.id).first() \
+                or Teacher.query.filter(Teacher.email.ilike(email)).first():
+            return jsonify({'success': False, 'message': 'Пользователь с таким email уже существует'})
     
     # Валидация имени учащегося
     if len(student_name) < 2:
@@ -10169,6 +10688,8 @@ def update_profile():
         current_user.parent_name = parent_name
         current_user.phone = phone
         current_user.category = category
+        if can_set_email:
+            current_user.email = email
         
         # Если указан новый пароль, обновляем его
         if new_password:
@@ -11165,6 +11686,21 @@ class TeacherStudentTransfer(db.Model):
             return False
         time_diff = datetime.now() - self.transfer_date
         return time_diff.total_seconds() <= 300  # 5 минут = 300 секунд
+
+
+class TeacherStudentGroupImport(db.Model):
+    """История массового создания аккаунтов учеников учителем"""
+    __tablename__ = "teacher_student_group_imports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teachers.id'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+    students_count = db.Column(db.Integer, nullable=False, default=0)
+    shared_password = db.Column(db.String(128), nullable=False)
+    credentials_json = db.Column(db.Text, nullable=False)  # JSON: [{student_name, username, password}]
+
+    teacher = db.relationship('Teacher', backref=db.backref('student_group_imports', lazy=True))
+
 
 class CurrencyRate(db.Model):
     """Модель для хранения курсов валют"""

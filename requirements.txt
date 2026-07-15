@@ -33,3 +33,4 @@ psutil
 paramiko==3.4.0  # Для SSH подключений в сервисе бекапов
 PyPDF2
 reportlab
+openpyxl==3.1.5
