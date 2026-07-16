@@ -8660,6 +8660,65 @@ def rating():
                          shop_is_open=shop_is_open,
                          current_user_display_balance=current_user_display_balance)
 
+@app.route('/school-rating')
+@limiter.limit("15 per minute; 10 per 10 seconds")
+def school_rating():
+    """Рейтинг школ по числу участников турниров."""
+    from sqlalchemy import func
+
+    schools_query = (
+        db.session.query(
+            EducationalInstitution.id,
+            EducationalInstitution.name,
+            func.count(func.distinct(User.id)).label('participant_count')
+        )
+        .join(User, User.educational_institution_id == EducationalInstitution.id)
+        .join(TournamentParticipation, TournamentParticipation.user_id == User.id)
+        .filter(User.is_admin == False)
+        .group_by(EducationalInstitution.id, EducationalInstitution.name)
+        .order_by(
+            func.count(func.distinct(User.id)).desc(),
+            EducationalInstitution.name.asc()
+        )
+    )
+
+    user_school_id = None
+    if current_user.is_authenticated:
+        user_school_id = getattr(current_user, 'educational_institution_id', None)
+
+    # Без школы пользователя достаточно топ-10; иначе нужен полный список для места
+    schools_ordered = schools_query.all() if user_school_id else schools_query.limit(10).all()
+
+    top_schools = []
+    user_school_outside_top = None
+    user_school_in_top = False
+
+    for rank, (school_id, name, participant_count) in enumerate(schools_ordered, 1):
+        is_user_school = user_school_id is not None and school_id == user_school_id
+        entry = {
+            'id': school_id,
+            'name': name,
+            'participant_count': participant_count,
+            'rank': rank,
+            'is_user_school': is_user_school,
+        }
+
+        if rank <= 10:
+            top_schools.append(entry)
+            if is_user_school:
+                user_school_in_top = True
+        elif is_user_school:
+            user_school_outside_top = entry
+            break
+        elif user_school_id is None or user_school_in_top:
+            break
+
+    return render_template(
+        'school_rating.html',
+        top_schools=top_schools,
+        user_school_outside_top=user_school_outside_top,
+    )
+
 @app.route('/rating/load-more')
 def load_more_users():
     # Пагинация больше не используется, так как показываем только топ-10
@@ -10969,6 +11028,12 @@ DEMO_TOURNAMENT_BASE_TASKS = [
 ]
 
 DEMO_TOURNAMENT_POINT_CHOICES = [10, 20, 30, 40, 50]
+
+
+@app.route('/tournament-tour')
+def tournament_tour():
+    """Тестовый раздел: анимации пути участника (регистрация → призы)"""
+    return render_template('tournament_tour.html', title='Как это работает')
 
 
 @app.route('/demo-tournament')

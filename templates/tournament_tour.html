@@ -1,0 +1,736 @@
+{% extends "base.html" %}
+
+{% block title %}Как это работает — Лига Знатоков{% endblock %}
+
+{% block styles %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tournament_tour.css', v='22') }}">
+{% endblock %}
+
+{% block content %}
+{% set show_partners = false %}
+<div id="tourHero" class="tour-hero" style="background-color: #E67E00;">
+  <div class="tour-hero__viewport">
+    <!-- Grain -->
+    <div class="tour-hero__grain" aria-hidden="true"></div>
+
+    <!-- Ghost text -->
+    <div class="tour-hero__ghost" aria-hidden="true">
+      <span id="tourGhostText">РЕГИСТРАЦИЯ</span>
+    </div>
+
+    <!-- Brand -->
+    <div class="tour-hero__brand">Лига знатоков</div>
+
+    <!-- Carousel -->
+    <div class="tour-carousel" id="tourCarousel" aria-live="polite">
+      <!-- 0: Регистрация -->
+      <div class="tour-slide" data-index="0">
+        <div class="tour-phone">
+          <div class="tour-phone__chrome">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="tour-phone__screen anim-register">
+            <div class="mock-card mock-card--scroll">
+              <div class="mock-card__header">Регистрация</div>
+              <div class="mock-form-viewport">
+              <div class="mock-form-scroll">
+                <div class="mock-field anim-fill" style="--d:0.5s">
+                  <span class="mock-label">Логин *</span>
+                  <span class="mock-typed">ivan2004</span>
+                </div>
+                <div class="mock-field anim-fill" style="--d:2.2s">
+                  <span class="mock-label">Пароль *</span>
+                  <span class="mock-typed">••••••••</span>
+                </div>
+                <ul class="mock-pwd-reqs anim-check" style="--d:3.6s">
+                  <li>✓ 8+ символов</li>
+                  <li>✓ A/a, цифра, символ</li>
+                </ul>
+                <div class="mock-field anim-fill" style="--d:4.6s">
+                  <span class="mock-label">Подтвердите пароль *</span>
+                  <span class="mock-typed">••••••••</span>
+                </div>
+                <div class="mock-divider"></div>
+                <div class="mock-field anim-fill" style="--d:6.2s">
+                  <span class="mock-label">Фамилия и имя учащегося *</span>
+                  <span class="mock-typed">Иванов Иван</span>
+                </div>
+                <div class="mock-field anim-fill" style="--d:8s">
+                  <span class="mock-label">ФИО законного представителя *</span>
+                  <span class="mock-typed">Иванов Иван Иванович</span>
+                </div>
+                <div class="mock-field mock-field--phone anim-fill" style="--d:9.8s">
+                  <span class="mock-label">Номер телефона *</span>
+                  <div class="mock-phone-row">
+                    <span class="mock-phone-code">🇧🇾 +375</span>
+                    <span class="mock-typed">291127105</span>
+                  </div>
+                </div>
+                <div class="mock-field anim-fill" style="--d:11.6s">
+                  <span class="mock-label">Email *</span>
+                  <span class="mock-typed">ivan@mail.by</span>
+                </div>
+                <div class="mock-divider"></div>
+                <div class="mock-field anim-fill" style="--d:13.4s">
+                  <span class="mock-label">Учреждение образования *</span>
+                  <span class="mock-typed">СШ №2 г. Минск</span>
+                </div>
+                <div class="mock-field anim-fill" style="--d:15s">
+                  <span class="mock-label">Класс *</span>
+                  <span class="mock-typed">7 класс</span>
+                </div>
+                <div class="mock-checks">
+                  <label class="mock-check-row anim-check" style="--d:16.2s">
+                    <span class="mock-checkbox is-on"></span>
+                    Согласие на обработку данных
+                  </label>
+                  <label class="mock-check-row anim-check" style="--d:17s">
+                    <span class="mock-checkbox is-on"></span>
+                    Согласие с офертой
+                  </label>
+                </div>
+                <button class="mock-btn anim-btn" style="--d:18s" type="button">Зарегистрироваться</button>
+                <div class="mock-success anim-success" style="--d:19.5s">
+                  <i class="fas fa-check-circle"></i> Аккаунт создан
+                </div>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1: Покупка жетонов -->
+      <div class="tour-slide" data-index="1">
+        <div class="tour-phone">
+          <div class="tour-phone__chrome">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="tour-phone__screen anim-tickets">
+            <div class="ticket-scenes">
+              <!-- Шаг 1: Личный кабинет (как profile.html) -->
+              <div class="ticket-scene ticket-scene--profile">
+                <div class="tk-page">
+                  <div class="tk-card">
+                    <div class="tk-card__head">Статистика</div>
+                    <div class="tk-stats">
+                      <div class="tk-stat tk-stat--balance">
+                        <span class="tk-badge tk-badge--gold">Общий счёт</span>
+                        <div class="tk-stat__value">210</div>
+                        <div class="tk-stat__sub">Место в рейтинге: 12</div>
+                      </div>
+                      <div class="tk-stat tk-stat--wallet anim-wallet-tap">
+                        <span class="tk-badge tk-badge--orange">Кошелек</span>
+                        <div class="tk-stat__title">Жетоны</div>
+                        <div class="tk-stat__value anim-wallet-bal">0</div>
+                        <div class="tk-alert-danger">
+                          <i class="fas fa-exclamation-triangle"></i> Недостаточно для участия
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tk-card">
+                    <div class="tk-card__head">Действия</div>
+                    <div class="tk-actions">
+                      <button class="tk-action-btn tk-action-btn--primary anim-buy-tap" type="button">
+                        <i class="fas fa-ticket-alt"></i> Купить жетоны
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-shopping-cart"></i> Лавка призов
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-history"></i> История активности
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-trophy"></i> История турниров
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Шаг 2: Покупка жетонов (как buy_tickets.html) -->
+              <div class="ticket-scene ticket-scene--buy">
+                <div class="tk-page">
+                  <div class="tk-page__title-row">
+                    <h3>Покупка жетонов</h3>
+                    <span class="tk-back"><i class="fas fa-arrow-left"></i> Назад</span>
+                  </div>
+                  <div class="tk-info-banner tk-info-banner--compact">
+                    <div class="tk-info-banner__title">
+                      <i class="fas fa-info-circle"></i> Для чего нужны жетоны?
+                    </div>
+                    <div class="tk-info-banner__check"><i class="fas fa-check"></i> 1 жетон = 1 участие в турнире</div>
+                    <div class="tk-info-banner__check"><i class="fas fa-check"></i> Укажите число и оформите покупку</div>
+                  </div>
+                  <div class="tk-card">
+                    <div class="tk-card__title">Выберите количество жетонов</div>
+                    <label class="tk-label">Количество жетонов</label>
+                    <div class="tk-input anim-qty-wrap">
+                      <span class="anim-qty">1</span>
+                    </div>
+                  </div>
+                  <div class="tk-card">
+                    <div class="tk-card__title">Ваш заказ</div>
+                    <div class="tk-order-row">
+                      <span class="tk-label">Количество жетонов</span>
+                      <span class="anim-ticket-count">1</span>
+                    </div>
+                    <div class="tk-order-row">
+                      <span class="tk-label">Базовая цена</span>
+                      <span>5.00 BYN за жетон<br><small>≈ 150 RUB за жетон</small></span>
+                    </div>
+                    <div class="tk-order-row">
+                      <span class="tk-label">Итоговая сумма к оплате</span>
+                      <strong class="anim-price">5.00 BYN<br><small>≈ 150 RUB</small></strong>
+                    </div>
+                    <button class="tk-purchase-btn anim-purchase-btn" type="button" disabled>
+                      <i class="fas fa-shopping-cart"></i> Оформить покупку
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Шаг 3: Модалка выбора системы -->
+              <div class="ticket-scene ticket-scene--pay">
+                <div class="tk-pay-overlay">
+                  <div class="tk-pay-modal">
+                    <div class="tk-pay-modal__head">
+                      <span>Выберите платежную систему</span>
+                      <span class="tk-pay-close">×</span>
+                    </div>
+                    <button class="tk-pay-btn anim-pay-by" type="button">
+                      <span class="mock-flag mock-flag--by"></span>
+                      <span>
+                        <strong>Оплатить в BYN</strong>
+                        <small>ЕРИП, E-POS, WebPay*, МИР</small>
+                      </span>
+                    </button>
+                    <button class="tk-pay-btn anim-pay-ru" type="button">
+                      <span class="mock-flag mock-flag--ru"></span>
+                      <span>
+                        <strong>Оплатить в ₽</strong>
+                        <small>ЮKassa</small>
+                      </span>
+                    </button>
+                    <button class="tk-pay-cancel" type="button" tabindex="-1">Отмена</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Шаг 4: Платёжная страница Express Pay -->
+              <div class="ticket-scene ticket-scene--gateway">
+                <div class="ep-page">
+                  <div class="ep-top">
+                    <div class="ep-brand">
+                      <span class="ep-brand__mark">EP</span>
+                      <span>Экспресс Платежи</span>
+                    </div>
+                    <div class="ep-secure"><i class="fas fa-lock"></i> Безопасная оплата</div>
+                  </div>
+                  <div class="ep-order">
+                    <div class="ep-order__merchant">Лига Знатоков</div>
+                    <div class="ep-order__sum">25.00 <small>BYN</small></div>
+                    <div class="ep-order__desc">Покупка жетонов · 5 шт.</div>
+                  </div>
+                  <div class="ep-methods">
+                    <button class="ep-method anim-ep-card" type="button">Карта</button>
+                    <button class="ep-method anim-ep-epos" type="button">E-POS</button>
+                    <button class="ep-method" type="button" tabindex="-1">ЕРИП</button>
+                  </div>
+                  <div class="ep-card-form">
+                    <label class="ep-label">Номер карты</label>
+                    <div class="ep-field anim-ep-fill" style="--d:13s">
+                      <span class="ep-typed">4532 14•• •••• 8841</span>
+                      <span class="ep-schemes">VISA</span>
+                    </div>
+                    <div class="ep-row">
+                      <div>
+                        <label class="ep-label">Срок</label>
+                        <div class="ep-field ep-field--sm anim-ep-fill" style="--d:14s">
+                          <span class="ep-typed">09/28</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="ep-label">CVV</label>
+                        <div class="ep-field ep-field--sm anim-ep-fill" style="--d:14.6s">
+                          <span class="ep-typed">•••</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button class="ep-pay-btn anim-ep-pay" type="button">
+                      Оплатить 25.00 BYN
+                    </button>
+                  </div>
+                  <div class="ep-processing anim-ep-wait">
+                    <div class="ep-spinner"></div>
+                    <div>Обработка платежа…</div>
+                  </div>
+                  <div class="ep-ok anim-ep-ok">
+                    <i class="fas fa-check-circle"></i> Платеж успешно выполнен
+                  </div>
+                </div>
+              </div>
+
+              <!-- Шаг 5: Тот же личный кабинет, но уже с жетонами -->
+              <div class="ticket-scene ticket-scene--done">
+                <div class="tk-page">
+                  <div class="tk-card">
+                    <div class="tk-card__head">Статистика</div>
+                    <div class="tk-stats">
+                      <div class="tk-stat tk-stat--balance">
+                        <span class="tk-badge tk-badge--gold">Общий счёт</span>
+                        <div class="tk-stat__value">210</div>
+                        <div class="tk-stat__sub">Место в рейтинге: 12</div>
+                      </div>
+                      <div class="tk-stat tk-stat--wallet tk-stat--ok anim-wallet-done">
+                        <span class="tk-badge tk-badge--orange">Кошелек</span>
+                        <div class="tk-stat__title">Жетоны</div>
+                        <div class="tk-stat__value anim-final-bal">5</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tk-card">
+                    <div class="tk-card__head">Действия</div>
+                    <div class="tk-actions">
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-ticket-alt"></i> Купить жетоны
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-shopping-cart"></i> Лавка призов
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-history"></i> История активности
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-trophy"></i> История турниров
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2: Ожидание турнира -->
+      <div class="tour-slide" data-index="2">
+        <div class="tour-phone">
+          <div class="tour-phone__chrome">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="tour-phone__screen anim-wait">
+            <div class="mock-card mock-card--center">
+              <h4 class="mock-tour-title">Весенний турнир</h4>
+              <p class="mock-muted">До начала турнира осталось:</p>
+              <div class="mock-countdown">
+                <div class="mock-cd-item"><span class="mock-cd-num" data-cd="days">02</span><span class="mock-cd-lbl">дней</span></div>
+                <div class="mock-cd-item"><span class="mock-cd-num" data-cd="hours">14</span><span class="mock-cd-lbl">часов</span></div>
+                <div class="mock-cd-item"><span class="mock-cd-num" data-cd="mins">37</span><span class="mock-cd-lbl">минут</span></div>
+                <div class="mock-cd-item"><span class="mock-cd-num" data-cd="secs">00</span><span class="mock-cd-lbl">секунд</span></div>
+              </div>
+              <div class="mock-alert-info">
+                Турнир начнется в 18.04.2026 в 10:00
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3: Участие в турнире -->
+      <div class="tour-slide" data-index="3">
+        <div class="tour-phone">
+          <div class="tour-phone__chrome">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="tour-phone__screen anim-play">
+            <div class="play-scenes">
+              <!-- Главная: таймер до старта → до конца + Участвовать -->
+              <div class="play-scene play-scene--home">
+                <div class="tk-page">
+                  <div class="tk-card mock-card--center" style="padding:8px;">
+                    <h4 class="mock-tour-title">Весенний турнир</h4>
+                    <p class="mock-muted" id="playHomeLabel">До начала турнира осталось:</p>
+                    <div class="mock-countdown" id="playHomeCountdown">
+                      <div class="mock-cd-item"><span class="mock-cd-num" data-play-home="days">00</span><span class="mock-cd-lbl">дней</span></div>
+                      <div class="mock-cd-item"><span class="mock-cd-num" data-play-home="hours">00</span><span class="mock-cd-lbl">часов</span></div>
+                      <div class="mock-cd-item"><span class="mock-cd-num" data-play-home="mins">00</span><span class="mock-cd-lbl">минут</span></div>
+                      <div class="mock-cd-item"><span class="mock-cd-num" data-play-home="secs">03</span><span class="mock-cd-lbl">секунд</span></div>
+                    </div>
+                    <button class="mock-btn anim-play-join" type="button">Участвовать</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Правила турнира (как tournament_menu.html) -->
+              <div class="play-scene play-scene--rules">
+                <div class="tk-page">
+                  <div class="tk-card play-menu-card">
+                    <h4 class="play-menu-title">Весенний турнир</h4>
+                    <div class="play-menu-block">
+                      <h5>Описание турнира:</h5>
+                      <p>Онлайн-турнир по математике для школьников. Решите задачи и наберите как можно больше баллов.</p>
+                    </div>
+                    <div class="play-menu-block">
+                      <h5>Правила турнира:</h5>
+                      <ul>
+                        <li>Участие доступно, пока турнир активен</li>
+                        <li>Один участник может участвовать только один раз</li>
+                        <li>За правильные ответы начисляются баллы</li>
+                        <li>Нельзя переключаться между вкладками браузера</li>
+                      </ul>
+                    </div>
+                    <button class="play-pdf-btn" type="button" tabindex="-1">
+                      <i class="fas fa-file-pdf"></i> Подробнее о правилах турнира
+                    </button>
+                    <label class="play-form-check anim-play-check">
+                      <span class="play-form-check__box anim-play-box"></span>
+                      <span>С правилами турнира ознакомился(лась)</span>
+                    </label>
+                    <button class="play-start-btn anim-play-start" type="button">Начать турнир</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Задача 1 -->
+              <div class="play-scene play-scene--task1">
+                <div class="tk-page">
+                  <div class="tk-card mock-card--tight">
+                    <div class="mock-play-top">
+                      <div>
+                        <small class="mock-muted">До окончания:</small>
+                        <div class="mock-timer-compact"><span data-end="h">01</span>:<span data-end="m">58</span>:<span data-end="s">12</span></div>
+                      </div>
+                      <div class="text-end">
+                        <small class="mock-muted">Прогресс:</small>
+                        <div class="mock-progress">
+                          <span>0/10</span>
+                          <div class="mock-progress__bar"><div class="mock-progress__fill" style="width:0"></div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mock-task">
+                      <div class="mock-task__head">
+                        <strong>Задача 1</strong>
+                        <span class="mock-badge">20 баллов</span>
+                      </div>
+                      <p class="mock-task__q">Сколько будет 15 × 8?</p>
+                      <label class="tk-label" style="padding:0;">Ваш ответ:</label>
+                      <div class="mock-field anim-fill" style="--d:11.2s"><span class="mock-typed">120</span></div>
+                      <button class="mock-btn anim-btn" style="--d:12.4s" type="button">Отправить ответ</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Задача 2 + всплывающее сообщение -->
+              <div class="play-scene play-scene--task2">
+                <div class="tk-page" style="position:relative;">
+                  <div class="tk-card mock-card--tight">
+                    <div class="mock-play-top">
+                      <div>
+                        <small class="mock-muted">До окончания:</small>
+                        <div class="mock-timer-compact"><span data-end2="h">01</span>:<span data-end2="m">57</span>:<span data-end2="s">40</span></div>
+                      </div>
+                      <div class="text-end">
+                        <small class="mock-muted">Прогресс:</small>
+                        <div class="mock-progress">
+                          <span>1/10</span>
+                          <div class="mock-progress__bar"><div class="mock-progress__fill" style="width:10%"></div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="mock-task">
+                      <div class="mock-task__head">
+                        <strong>Задача 2</strong>
+                        <span class="mock-badge">30 баллов</span>
+                      </div>
+                      <p class="mock-task__q">Чему равен корень из 144?</p>
+                      <label class="tk-label" style="padding:0;">Ваш ответ:</label>
+                      <div class="mock-field"><span class="mock-typed" style="max-width:0;border:none;"></span></div>
+                      <button class="mock-btn mock-btn--ghost" type="button" tabindex="-1" style="opacity:1!important;transform:none!important;">Отправить ответ</button>
+                    </div>
+                  </div>
+                  <div class="play-toast anim-play-toast">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                      <strong>Правильный ответ!</strong>
+                      <span>+20 баллов</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4: Результаты + турнирная таблица -->
+      <div class="tour-slide" data-index="4">
+        <div class="tour-phone">
+          <div class="tour-phone__chrome">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="tour-phone__screen anim-results">
+            <div class="results-scenes">
+              <!-- Личные результаты -->
+              <div class="results-scene results-scene--personal">
+                <div class="tk-page">
+                  <div class="tk-card mock-card--tight">
+                    <h4 class="mock-results-title">Результаты турнира</h4>
+                    <div class="mock-stats">
+                      <div class="mock-stat anim-stat" style="--d:0.4s"><span>Всего</span><strong>10</strong></div>
+                      <div class="mock-stat anim-stat" style="--d:0.7s"><span>Решено</span><strong>9</strong></div>
+                      <div class="mock-stat anim-stat" style="--d:1s"><span>Верно</span><strong class="text-ok">7</strong></div>
+                      <div class="mock-stat anim-stat" style="--d:1.3s"><span>Баллы</span><strong class="text-gold">210</strong></div>
+                    </div>
+                    <div class="mock-rate">
+                      <small>Процент правильных</small>
+                      <div class="mock-progress__bar mock-progress__bar--lg">
+                        <div class="mock-progress__fill anim-rate-fill">78%</div>
+                      </div>
+                    </div>
+                    <div class="mock-rank anim-rank">
+                      <i class="fas fa-medal"></i> Место в рейтинге: <strong>12</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Турнирная таблица (как rating.html) -->
+              <div class="results-scene results-scene--rating">
+                <div class="tk-page rating-page">
+                  <div class="tk-card rating-card">
+                    <h4 class="rating-title">Рейтинг участников</h4>
+                    <div class="rating-info">
+                      <i class="fas fa-info-circle"></i>
+                      <span>Полный рейтинг участников — отображаются все участники в каждой параллели.</span>
+                    </div>
+                    <div class="rating-search">
+                      <div class="rating-search__input">Поиск по имени участника</div>
+                      <div class="rating-search__hint">Введите минимум 2 символа для поиска по всем участникам</div>
+                    </div>
+                    <div class="rating-tabs">
+                      <span class="rating-tab">1-2 класс</span>
+                      <span class="rating-tab">3 класс</span>
+                      <span class="rating-tab">4 класс</span>
+                      <span class="rating-tab">5 класс</span>
+                      <span class="rating-tab">6 класс</span>
+                      <span class="rating-tab is-active anim-rating-tab">7 класс</span>
+                      <span class="rating-tab">8 класс</span>
+                      <span class="rating-tab">9 класс</span>
+                    </div>
+                    <div class="rating-table-wrap">
+                      <table class="rating-table">
+                        <thead>
+                          <tr>
+                            <th>Место</th>
+                            <th>Участник</th>
+                            <th>Баллы</th>
+                            <th>Время</th>
+                            <th>Решено задач</th>
+                            <th>Турниры</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>1</td>
+                            <td><span class="rating-flag" aria-hidden="true">🇧🇾</span> Бусько Диана</td>
+                            <td>300</td>
+                            <td>00:06:52</td>
+                            <td>20</td>
+                            <td>1</td>
+                          </tr>
+                          <tr>
+                            <td>2</td>
+                            <td><span class="rating-flag" aria-hidden="true">🇧🇾</span> Петрова Анна</td>
+                            <td>280</td>
+                            <td>00:12:18</td>
+                            <td>18</td>
+                            <td>2</td>
+                          </tr>
+                          <tr>
+                            <td>3</td>
+                            <td><span class="rating-flag" aria-hidden="true">🇷🇺</span> Сидоров Кирилл</td>
+                            <td>265</td>
+                            <td>00:15:40</td>
+                            <td>17</td>
+                            <td>2</td>
+                          </tr>
+                          <tr class="is-you anim-rating-you">
+                            <td>12</td>
+                            <td>
+                              <span class="rating-flag" aria-hidden="true">🇧🇾</span>
+                              <strong>Иванов Иван</strong>
+                              <span class="rating-you">Вы</span>
+                            </td>
+                            <td>210</td>
+                            <td>01:42:33</td>
+                            <td>7</td>
+                            <td>2</td>
+                          </tr>
+                          <tr>
+                            <td>13</td>
+                            <td><span class="rating-flag" aria-hidden="true">🇧🇾</span> Орлова Дарья</td>
+                            <td>205</td>
+                            <td>01:50:02</td>
+                            <td>7</td>
+                            <td>1</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5: Лавка призов -->
+      <div class="tour-slide" data-index="5">
+        <div class="tour-phone">
+          <div class="tour-phone__chrome">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="tour-phone__screen anim-shop">
+            <div class="shop-scenes">
+              <!-- 1. Личный кабинет → Лавка призов -->
+              <div class="shop-scene shop-scene--profile">
+                <div class="tk-page">
+                  <div class="tk-card">
+                    <div class="tk-card__head">Статистика</div>
+                    <div class="tk-stats">
+                      <div class="tk-stat tk-stat--balance">
+                        <span class="tk-badge tk-badge--gold">Общий счёт</span>
+                        <div class="tk-stat__value">210</div>
+                        <div class="tk-stat__sub">Место в рейтинге: 12</div>
+                      </div>
+                      <div class="tk-stat tk-stat--wallet tk-stat--ok">
+                        <span class="tk-badge tk-badge--orange">Кошелек</span>
+                        <div class="tk-stat__title">Жетоны</div>
+                        <div class="tk-stat__value">5</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tk-card">
+                    <div class="tk-card__head">Действия</div>
+                    <div class="tk-actions">
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-ticket-alt"></i> Купить жетоны
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary anim-shop-tap" type="button">
+                        <i class="fas fa-shopping-cart"></i> Лавка призов
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-history"></i> История активности
+                      </button>
+                      <button class="tk-action-btn tk-action-btn--primary" type="button" tabindex="-1">
+                        <i class="fas fa-trophy"></i> История турниров
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. Лавка призов -->
+              <div class="shop-scene shop-scene--store">
+                <div class="tk-page">
+                  <div class="tk-page__title-row">
+                    <h3>Лавка призов</h3>
+                    <span class="tk-back"><i class="fas fa-arrow-left"></i> Назад</span>
+                  </div>
+                  <div class="shop-top">
+                    <div class="shop-balance">
+                      <i class="fas fa-coins"></i> Ваш счёт: <strong>210</strong> баллов
+                    </div>
+                    <button class="shop-cart-btn anim-shop-cart" type="button">
+                      <i class="fas fa-gift"></i> Выбранные призы
+                      <span class="shop-cart-badge anim-shop-badge">1</span>
+                    </button>
+                  </div>
+                  <div class="shop-grid">
+                    <div class="shop-prize anim-shop-p1">
+                      <div class="shop-prize__img"><i class="fas fa-gift"></i></div>
+                      <div class="shop-prize__name">Блокнот</div>
+                      <div class="shop-prize__cost"><strong>80</strong> баллов</div>
+                      <button class="shop-prize__btn" type="button" tabindex="-1">Выбрать приз</button>
+                    </div>
+                    <div class="shop-prize anim-shop-p2">
+                      <div class="shop-prize__img"><i class="fas fa-medal"></i></div>
+                      <div class="shop-prize__name">Медаль</div>
+                      <div class="shop-prize__cost"><strong>150</strong> баллов</div>
+                      <button class="shop-prize__btn anim-shop-pick" type="button">Выбрать приз</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. Оформление доставки (cart) -->
+              <div class="shop-scene shop-scene--checkout">
+                <div class="tk-page">
+                  <div class="tk-page__title-row">
+                    <h3>Корзина</h3>
+                    <span class="tk-back"><i class="fas fa-arrow-left"></i> В лавку</span>
+                  </div>
+                  <div class="tk-card shop-checkout">
+                    <div class="shop-checkout__title">Оформить получение приза</div>
+                    <div class="shop-summary">
+                      <div class="shop-summary__row"><span>Ваш баланс:</span><span>210 баллов</span></div>
+                      <div class="shop-summary__row shop-summary__row--total"><span>Списать:</span><span>150 баллов</span></div>
+                      <div class="shop-summary__item">Медаль × 1</div>
+                    </div>
+                    <label class="tk-label">ФИО *</label>
+                    <div class="tk-input anim-shop-fill" style="--d:13.2s"><span class="mock-typed">Иванов Иван Иванович</span></div>
+                    <label class="tk-label">Номер телефона *</label>
+                    <div class="tk-input anim-shop-fill" style="--d:14.2s">
+                      <span class="mock-phone-code">🇧🇾 +375</span>
+                      <span class="mock-typed">291127105</span>
+                    </div>
+                    <label class="tk-label">Способ доставки *</label>
+                    <div class="shop-delivery anim-shop-delivery">
+                      <span class="shop-radio is-on"></span> Доставить по адресу
+                    </div>
+                    <label class="tk-label">Адрес доставки *</label>
+                    <div class="tk-input anim-shop-fill" style="--d:15.4s"><span class="mock-typed">г. Минск, ул. Ленина, 10</span></div>
+                    <button class="shop-submit anim-shop-submit" type="button">Оформить</button>
+                    <div class="shop-ok anim-shop-ok">
+                      <i class="fas fa-check-circle"></i> Заказ на получение приза оформлен
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom left -->
+    <div class="tour-hero__copy">
+      <p class="tour-hero__kicker" id="tourKicker">1. Регистрация</p>
+      <p class="tour-hero__desc" id="tourDesc">
+        Заполните анкету, подтвердите согласия — и активируйте аккаунт по ссылке из письма на email.
+      </p>
+      <div class="tour-hero__nav">
+        <button type="button" class="tour-nav-btn" id="tourPrev" aria-label="Предыдущий шаг">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <button type="button" class="tour-nav-btn" id="tourNext" aria-label="Следующий шаг">
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+      <div class="tour-dots" id="tourDots"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tournament_tour.js', v='14') }}"></script>
+{% endblock %}
