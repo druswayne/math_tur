@@ -1917,8 +1917,8 @@ def ensure_user_rating_points_schema():
 def get_rating_display_points(user, shop_is_open):
     """Возвращает баллы для отображения в турнирной таблице."""
     if shop_is_open:
-        return user.rating_points or 0
-    return user.balance or 0
+        return getattr(user, 'rating_points', None) or 0
+    return getattr(user, 'balance', None) or 0
 
 class TournamentSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -8649,7 +8649,7 @@ def rating():
         })
 
     current_user_display_balance = None
-    if current_user.is_authenticated and hasattr(current_user, 'balance'):
+    if current_user.is_authenticated and isinstance(current_user, User):
         current_user_display_balance = get_rating_display_points(current_user, shop_is_open)
 
     return render_template('rating.html', 

@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container mt-4">
-    {% if current_user.is_authenticated and not current_user.is_admin %}
+    {% if current_user.is_authenticated and not current_user.is_admin and not isinstance(current_user, Teacher) %}
     <div class="alert alert-info mb-4">
         <h4 class="alert-heading">Ваше место в рейтинге</h4>
         <p class="mb-0">
@@ -32,7 +32,7 @@
                     <strong>Полный рейтинг участников</strong> - отображаются все участники в каждой параллели.
                 {% else %}
                     В каждой параллели отображаются только <strong>10 лучших участников</strong>. 
-                    {% if current_user.is_authenticated and not current_user.is_admin %}
+                    {% if current_user.is_authenticated and not current_user.is_admin and not isinstance(current_user, Teacher) %}
                     Если вы не входите в топ-10 своей параллели, ваша запись будет выделена отдельно.
                     {% endif %}
                 {% endif %}
