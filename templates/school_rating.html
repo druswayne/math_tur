@@ -6,10 +6,9 @@
         <div class="card-body">
             <h2 class="card-title mb-4">Рейтинг школ</h2>
 
-            <div class="alert alert-info mb-4">
+            <div class="alert school-rating-info mb-4">
                 <i class="bi bi-info-circle me-2"></i>
-                Отображаются <strong>10 школ</strong> с наибольшим числом участников турниров.
-                Учитываются пользователи, которые указали школу и хотя бы раз участвовали в турнире.
+                Топ-10 учебных заведений по количеству участников. В рейтинге учитываются пользователи, которые указали свою школу, лицей или гимназию и приняли участие хотя бы в одном турнире.
                 {% if current_user.is_authenticated %}
                 {% if user_school_outside_top %}
                 <br>Ваша школа не входит в топ-10 — её место показано отдельно в конце таблицы.
@@ -20,7 +19,7 @@
             </div>
 
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover school-rating-table align-middle">
                     <thead>
                         <tr>
                             <th>Место</th>
@@ -30,8 +29,30 @@
                     </thead>
                     <tbody>
                         {% for school in top_schools %}
-                        <tr {% if school.is_user_school %}class="table-warning"{% endif %}>
-                            <td>{{ school.rank }}</td>
+                        {% set rank = school.rank %}
+                        <tr class="school-rank-row school-rank-{{ rank }}{% if school.is_user_school %} is-user-school{% endif %}">
+                            <td class="school-rank-cell">
+                                {% if rank == 1 %}
+                                <span class="school-place school-place--gold" title="1 место">
+                                    <span class="school-place__medal">🥇</span>
+                                    <span class="school-place__gift" aria-hidden="true">🎁</span>
+                                </span>
+                                {% elif rank == 2 %}
+                                <span class="school-place school-place--silver" title="2 место">
+                                    <span class="school-place__medal">🥈</span>
+                                    <span class="school-place__gift" aria-hidden="true">🎁</span>
+                                </span>
+                                {% elif rank == 3 %}
+                                <span class="school-place school-place--bronze" title="3 место">
+                                    <span class="school-place__medal">🥉</span>
+                                    <span class="school-place__gift" aria-hidden="true">🎁</span>
+                                </span>
+                                {% else %}
+                                <span class="school-place school-place--rest" title="{{ rank }} место">
+                                    <span class="school-place__num">{{ rank }}</span>
+                                </span>
+                                {% endif %}
+                            </td>
                             <td>
                                 {% if school.is_user_school %}
                                     <strong>{{ school.name }}</strong>
@@ -40,7 +61,9 @@
                                     {{ school.name }}
                                 {% endif %}
                             </td>
-                            <td>{{ school.participant_count }}</td>
+                            <td class="school-count-cell">
+                                <strong>{{ school.participant_count }}</strong>
+                            </td>
                         </tr>
                         {% endfor %}
 
@@ -50,13 +73,17 @@
                                 <small>…</small>
                             </td>
                         </tr>
-                        <tr class="table-warning">
-                            <td>{{ user_school_outside_top.rank }}</td>
+                        <tr class="table-warning is-user-school">
+                            <td>
+                                <span class="school-place school-place--rest">
+                                    <span class="school-place__num">{{ user_school_outside_top.rank }}</span>
+                                </span>
+                            </td>
                             <td>
                                 <strong>{{ user_school_outside_top.name }}</strong>
                                 <span class="badge bg-warning text-dark">Ваша школа</span>
                             </td>
-                            <td>{{ user_school_outside_top.participant_count }}</td>
+                            <td><strong>{{ user_school_outside_top.participant_count }}</strong></td>
                         </tr>
                         {% endif %}
                     </tbody>
@@ -73,8 +100,122 @@
 </div>
 
 <style>
-.table-warning {
-    background-color: #fff3cd !important;
+.school-rating-info {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.22) 0%, rgba(255, 140, 0, 0.18) 100%);
+    border: 1px solid rgba(255, 140, 0, 0.35);
+    color: #333;
+    border-radius: 10px;
+}
+
+.school-rating-table thead th {
+    border-bottom: 2px solid #FF8C00;
+    background: #f8f9fa;
+}
+
+.school-place {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.school-place__medal {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+.school-place__gift {
+    font-size: 1.05rem;
+    line-height: 1;
+    filter: saturate(1.1);
+}
+
+.school-place__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 999px;
+    font-size: 0.95rem;
+}
+
+.school-place--gold .school-place__gift {
+    font-size: 1.25rem;
+    filter: saturate(1.35) drop-shadow(0 1px 2px rgba(255, 140, 0, 0.5));
+    animation: schoolGiftPulse 1.8s ease-in-out infinite;
+}
+
+.school-place--silver .school-place__gift {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    filter: saturate(0.85);
+}
+
+.school-place--bronze .school-place__gift {
+    font-size: 1.05rem;
+    opacity: 0.82;
+    filter: saturate(0.7);
+}
+
+.school-place--rest .school-place__num {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.school-rank-1 {
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.28) 0%, rgba(255, 215, 0, 0.06) 100%) !important;
+    box-shadow: inset 4px 0 0 #FFD700;
+}
+
+.school-rank-2 {
+    background: linear-gradient(90deg, rgba(192, 192, 192, 0.28) 0%, rgba(192, 192, 192, 0.05) 100%) !important;
+    box-shadow: inset 4px 0 0 #a8a8a8;
+}
+
+.school-rank-3 {
+    background: linear-gradient(90deg, rgba(205, 127, 50, 0.24) 0%, rgba(205, 127, 50, 0.05) 100%) !important;
+    box-shadow: inset 4px 0 0 #cd7f32;
+}
+
+.school-rank-4 { background: rgba(255, 140, 0, 0.07) !important; }
+.school-rank-5 { background: rgba(255, 140, 0, 0.055) !important; }
+.school-rank-6 { background: rgba(255, 140, 0, 0.04) !important; }
+.school-rank-7 { background: rgba(255, 215, 0, 0.045) !important; }
+.school-rank-8 { background: rgba(255, 215, 0, 0.03) !important; }
+.school-rank-9 { background: rgba(0, 0, 0, 0.015) !important; }
+.school-rank-10 { background: rgba(0, 0, 0, 0.01) !important; }
+
+.school-rank-4 .school-place__num { background: #ffe0b2; color: #5d4037; }
+.school-rank-5 .school-place__num { background: #ffe8c4; color: #6d4c41; }
+.school-rank-6 .school-place__num { background: #fff0d6; color: #795548; }
+.school-rank-7 .school-place__num { background: #fff6e0; color: #8d6e63; }
+.school-rank-8 .school-place__num { background: #faf6ef; color: #8d6e63; }
+.school-rank-9 .school-place__num,
+.school-rank-10 .school-place__num { background: #f1f3f5; color: #6c757d; }
+
+.school-rank-row.is-user-school {
+    outline: 2px solid rgba(255, 193, 7, 0.7);
+    outline-offset: -2px;
+}
+
+.school-count-cell {
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes schoolGiftPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+}
+
+@media (max-width: 576px) {
+    .school-place__gift {
+        display: none;
+    }
+    .school-place__medal {
+        font-size: 1.15rem;
+    }
 }
 </style>
 {% endblock %}

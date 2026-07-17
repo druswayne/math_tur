@@ -1879,11 +1879,10 @@ function resetTeacherTutorial() {
           </div>
           <div class="mb-3">
             <label class="form-label">Таблица учащихся (Excel) <span class="text-danger">*</span></label>
-            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            <div class="mb-2">
               <a href="{{ url_for('teacher_group_sample_excel') }}" class="btn btn-outline-primary btn-sm group-sample-download-btn">
                 <i class="fas fa-download me-1"></i>Скачать образец таблицы
               </a>
-              <small class="text-muted">Столбцы: «ФИО учащегося», «Класс» (число 1–11)</small>
             </div>
             <input type="file" class="form-control" id="groupStudentsExcelFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
           </div>
