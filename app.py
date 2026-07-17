@@ -6064,6 +6064,40 @@ def build_group_credentials_workbook(credentials):
     return output
 
 
+def send_xlsx_download(file_obj, ascii_filename, utf8_filename=None):
+    """Отдаёт Excel из памяти так, чтобы работало под gunicorn/uwsgi/nginx.
+
+    Кириллица в download_name часто ломает заголовки на проде;
+    BytesIO через нативный sendfile uWSGI тоже может падать.
+    """
+    from urllib.parse import quote
+    from flask import Response
+    from werkzeug.wsgi import FileWrapper
+
+    if hasattr(file_obj, 'getvalue'):
+        data = file_obj.getvalue()
+    else:
+        file_obj.seek(0)
+        data = file_obj.read()
+
+    response = Response(
+        FileWrapper(io.BytesIO(data)),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        direct_passthrough=True,
+    )
+    ascii_name = ascii_filename.replace('"', '')
+    if utf8_filename:
+        quoted = quote(utf8_filename)
+        response.headers['Content-Disposition'] = (
+            f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quoted}'
+        )
+    else:
+        response.headers['Content-Disposition'] = f'attachment; filename="{ascii_name}"'
+    response.headers['Content-Length'] = str(len(data))
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 def resolve_educational_institution_id(teacher, educational_institution_name):
     """Возвращает ID УО из формы модалки; если пусто — учреждение учителя."""
     if educational_institution_name:
@@ -6090,28 +6124,33 @@ def is_teacher_student(teacher_id, student):
 def teacher_group_sample_excel():
     """Скачать образец Excel для массового добавления учащихся."""
     if not isinstance(current_user, Teacher):
-        return jsonify({'success': False, 'message': 'Доступ только для учителей'}), 403
+        flash('Доступ только для учителей', 'error')
+        return redirect(url_for('teacher_profile'))
 
-    from openpyxl import Workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = 'Учащиеся'
-    ws.append(list(GROUP_EXCEL_HEADERS))
-    ws.append(['Иванов Иван Иванович', 5])
-    ws.append(['Петрова Анна Сергеевна', 1])
-    ws.append(['Сидоров Пётр Алексеевич', 11])
-    ws.column_dimensions['A'].width = 30
-    ws.column_dimensions['B'].width = 12
+    try:
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Учащиеся'
+        ws.append(list(GROUP_EXCEL_HEADERS))
+        ws.append(['Иванов Иван Иванович', 5])
+        ws.append(['Петрова Анна Сергеевна', 1])
+        ws.append(['Сидоров Пётр Алексеевич', 11])
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 12
 
-    output = io.BytesIO()
-    wb.save(output)
-    output.seek(0)
-    return send_file(
-        output,
-        as_attachment=True,
-        download_name='образец_группы_учащихся.xlsx',
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return send_xlsx_download(
+            output,
+            ascii_filename='group_students_sample.xlsx',
+            utf8_filename='образец_группы_учащихся.xlsx',
+        )
+    except Exception as e:
+        logging.error(f'Ошибка формирования образца Excel для группы: {e}')
+        flash('Не удалось сформировать образец таблицы. Попробуйте позже.', 'error')
+        return redirect(url_for('teacher_profile'))
 
 
 @app.route('/teacher/group-preview', methods=['POST'])
@@ -6304,12 +6343,11 @@ def teacher_group_import_download(import_id):
         return jsonify({'success': False, 'message': 'Не удалось прочитать данные импорта'}), 500
 
     output = build_group_credentials_workbook(credentials)
-    filename = f'доступы_группы_{group_import.created_at.strftime("%Y%m%d_%H%M") if group_import.created_at else import_id}.xlsx'
-    return send_file(
+    stamp = group_import.created_at.strftime('%Y%m%d_%H%M') if group_import.created_at else str(import_id)
+    return send_xlsx_download(
         output,
-        as_attachment=True,
-        download_name=filename,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ascii_filename=f'group_credentials_{stamp}.xlsx',
+        utf8_filename=f'доступы_группы_{stamp}.xlsx',
     )
 
 
