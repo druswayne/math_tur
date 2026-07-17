@@ -5578,7 +5578,7 @@ def teacher_create_payment():
 @app.route('/teacher-purchase-history')
 @login_required
 def teacher_purchase_history():
-    """История покупок учителя"""
+    """История активности учителя (покупки и передачи жетонов)"""
     # Проверяем, что пользователь является учителем
     if not isinstance(current_user, Teacher):
         flash('Доступ только для учителей', 'error')
@@ -5587,6 +5587,7 @@ def teacher_purchase_history():
     # Получаем параметры пагинации
     ticket_page = request.args.get('ticket_page', 1, type=int)
     prize_page = request.args.get('prize_page', 1, type=int)
+    transfer_page = request.args.get('transfer_page', 1, type=int)
     per_page = 10  # количество записей на странице
     
     # Получаем историю покупок билетов с пагинацией
@@ -5598,12 +5599,19 @@ def teacher_purchase_history():
     prize_purchases = TeacherPrizePurchase.query.filter_by(teacher_id=current_user.id)\
         .order_by(TeacherPrizePurchase.created_at.desc())\
         .paginate(page=prize_page, per_page=per_page, error_out=False)
+
+    # Получаем историю передач жетонов ученикам
+    transfers = TeacherStudentTransfer.query.filter_by(teacher_id=current_user.id)\
+        .order_by(TeacherStudentTransfer.transfer_date.desc())\
+        .paginate(page=transfer_page, per_page=per_page, error_out=False)
     
     return render_template('purchase_history.html', 
                          title='История активности',
                          ticket_purchases=ticket_purchases,
                          prize_purchases=prize_purchases,
+                         transfers=transfers,
                          is_teacher=True,
+                         history_endpoint='teacher_purchase_history',
                          back_url=url_for('teacher_profile'))
 
 @app.route('/teacher-check-payment-status/<payment_id>')
@@ -5801,23 +5809,11 @@ def teacher_cancel_transfer(transfer_id):
 @app.route('/teacher/transfer-history')
 @login_required
 def teacher_transfer_history():
-    """История передач жетонов учителя"""
-    # Проверяем, что пользователь является учителем
+    """Редирект на объединённую историю активности"""
     if not isinstance(current_user, Teacher):
         flash('Доступ только для учителей', 'error')
         return redirect(url_for('home'))
-    
-    # Получаем историю передач с пагинацией
-    page = request.args.get('page', 1, type=int)
-    per_page = 20
-    
-    transfers = TeacherStudentTransfer.query.filter_by(teacher_id=current_user.id)\
-        .order_by(TeacherStudentTransfer.transfer_date.desc())\
-        .paginate(page=page, per_page=per_page, error_out=False)
-    
-    return render_template('teacher_transfer_history.html', 
-                         title='История передач жетонов',
-                         transfers=transfers)
+    return redirect(url_for('teacher_purchase_history') + '#transfers')
 
 @app.route('/teacher/create-student', methods=['POST'])
 @login_required
@@ -6660,7 +6656,9 @@ def purchase_history():
                          title='История активности',
                          ticket_purchases=ticket_purchases,
                          prize_purchases=prize_purchases,
+                         transfers=None,
                          is_teacher=False,
+                         history_endpoint='purchase_history',
                          back_url=url_for('profile'))
 
 @app.route('/purchase/<int:purchase_id>/details')

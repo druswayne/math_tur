@@ -23,7 +23,7 @@ class TeacherTutorial {
              },
                          {
                 title: "Баланс",
-                description: "Баллы, которые начисляются за каждое участие учащегося в турнире. В конце сезона баллы можно обменять на призы!",
+                description: "Баллы, которые начисляются за каждое участие учащегося в турнире. Баллы можно обменивать на призы!",
                 target: '.row.mb-4.g-3 .col-md-3:nth-child(3) .stats-card',
                 position: 'bottom'
             },
@@ -41,20 +41,14 @@ class TeacherTutorial {
             },
             {
                 title: "Обменять баллы",
-                description: "Страница на которой в конце сезона вы можете обменять баллы на призы.",
+                description: "Страница на которой вы можете обменять баллы на призы.",
                 target: '.shop-btn',
                 position: 'bottom'
             },
             {
                 title: "История активности",
-                description: "Страница на которой вы можете видеть историю покупки жетонов и получения призов.",
+                description: "Страница с историей покупки жетонов, получения призов и передач жетонов учащимся. Передачу можно отменить в течение 5 минут.",
                 target: '.purchase-history-btn',
-                position: 'bottom'
-            },
-            {
-                title: "История передач",
-                description: "Страница на которой вы видите историю выдачи жетонов своим учащимся. На этой странице можно отменить передачу.",
-                target: '.transfer-history-btn',
                 position: 'bottom'
             },
             {
@@ -93,7 +87,6 @@ class TeacherTutorial {
              '.buy-tickets-btn',
              '.shop-btn',
              '.purchase-history-btn',
-             '.transfer-history-btn',
              '.students-card',
              '.invite-link-card'
          ];
