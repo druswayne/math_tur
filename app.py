@@ -726,16 +726,33 @@ logging.info("Инициализация кеша наград...")
 update_achievements_cache()
 
 def update_tournament_status():
-    now = datetime.now()  # Московское время
-    tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
-    
-    for tournament in tournaments:
-        if tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
-            tournament.status = 'started'
-        elif now > tournament.start_date + timedelta(minutes=tournament.duration):
-            tournament.status = 'finished'
-    
-    db.session.commit()
+    """Обновляет статусы турниров. Не чаще раза в 30 секунд — иначе каждый запрос тормозит."""
+    now_ts = time.time()
+    last = getattr(update_tournament_status, '_last_run', 0)
+    if now_ts - last < 30:
+        return
+    update_tournament_status._last_run = now_ts
+
+    try:
+        now = datetime.now()  # Московское время
+        tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
+        changed = False
+        for tournament in tournaments:
+            if tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
+                if tournament.status != 'started':
+                    tournament.status = 'started'
+                    changed = True
+            elif now > tournament.start_date + timedelta(minutes=tournament.duration):
+                if tournament.status != 'finished':
+                    tournament.status = 'finished'
+                    changed = True
+        if changed:
+            db.session.commit()
+        else:
+            db.session.rollback()
+    except Exception as e:
+        db.session.rollback()
+        logging.warning(f'update_tournament_status: {e}')
 
 
 
@@ -5981,53 +5998,72 @@ def parse_group_students_excel(file_storage):
     errors = []
     students = []
     try:
-        wb = load_workbook(file_storage, read_only=True, data_only=True)
+        # FileStorage + read_only часто тормозит; читаем в память целиком
+        raw = file_storage.read()
+        if hasattr(file_storage, 'seek'):
+            try:
+                file_storage.seek(0)
+            except Exception:
+                pass
+        if not raw:
+            return [], ['Файл пустой. Добавьте строки с ФИО и классом']
+        wb = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
     except Exception:
         return [], ['Не удалось прочитать файл. Загрузите Excel в формате .xlsx']
 
-    ws = wb.active
-    rows = list(ws.iter_rows(values_only=True))
-    if not rows:
-        return [], ['Файл пустой. Добавьте строки с ФИО и классом']
-
-    header = [str(c).strip() if c is not None else '' for c in rows[0]]
     try:
-        name_idx = header.index(GROUP_EXCEL_HEADERS[0])
-        class_idx = header.index(GROUP_EXCEL_HEADERS[1])
-    except ValueError:
-        return [], [
-            f'В первой строке должны быть столбцы: «{GROUP_EXCEL_HEADERS[0]}» и «{GROUP_EXCEL_HEADERS[1]}». '
-            'Скачайте образец таблицы.'
-        ]
+        ws = wb.active
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            header_row = next(rows_iter)
+        except StopIteration:
+            return [], ['Файл пустой. Добавьте строки с ФИО и классом']
 
-    for row_num, row in enumerate(rows[1:], start=2):
-        if row is None or all(cell is None or str(cell).strip() == '' for cell in row):
-            continue
-        name_raw = row[name_idx] if name_idx < len(row) else None
-        class_raw = row[class_idx] if class_idx < len(row) else None
-        student_name = sanitize_input(str(name_raw).strip() if name_raw is not None else '', 100)
-        if not student_name:
-            errors.append(f'Строка {row_num}: не указано ФИО учащегося')
-            continue
-        if not validate_name(student_name):
-            errors.append(f'Строка {row_num}: ФИО может содержать только буквы, пробелы, дефисы и точки')
-            continue
-        category, class_error = normalize_class_to_category(class_raw)
-        if class_error:
-            errors.append(f'Строка {row_num}: {class_error}')
-            continue
-        class_display = str(class_raw).strip()
-        if isinstance(class_raw, float) and class_raw.is_integer():
-            class_display = str(int(class_raw))
-        elif isinstance(class_raw, int):
-            class_display = str(class_raw)
-        elif class_display.endswith('.0'):
-            class_display = class_display[:-2]
-        students.append({
-            'student_name': student_name,
-            'category': category,
-            'class_number': class_display
-        })
+        header = [str(c).strip() if c is not None else '' for c in header_row]
+        try:
+            name_idx = header.index(GROUP_EXCEL_HEADERS[0])
+            class_idx = header.index(GROUP_EXCEL_HEADERS[1])
+        except ValueError:
+            return [], [
+                f'В первой строке должны быть столбцы: «{GROUP_EXCEL_HEADERS[0]}» и «{GROUP_EXCEL_HEADERS[1]}». '
+                'Скачайте образец таблицы.'
+            ]
+
+        for row_num, row in enumerate(rows_iter, start=2):
+            if row is None or all(cell is None or str(cell).strip() == '' for cell in row):
+                continue
+            name_raw = row[name_idx] if name_idx < len(row) else None
+            class_raw = row[class_idx] if class_idx < len(row) else None
+            student_name = sanitize_input(str(name_raw).strip() if name_raw is not None else '', 100)
+            if not student_name:
+                errors.append(f'Строка {row_num}: не указано ФИО учащегося')
+                continue
+            if not validate_name(student_name):
+                errors.append(f'Строка {row_num}: ФИО может содержать только буквы, пробелы, дефисы и точки')
+                continue
+            category, class_error = normalize_class_to_category(class_raw)
+            if class_error:
+                errors.append(f'Строка {row_num}: {class_error}')
+                continue
+            class_display = str(class_raw).strip()
+            if isinstance(class_raw, float) and class_raw.is_integer():
+                class_display = str(int(class_raw))
+            elif isinstance(class_raw, int):
+                class_display = str(class_raw)
+            elif class_display.endswith('.0'):
+                class_display = class_display[:-2]
+            students.append({
+                'student_name': student_name,
+                'category': category,
+                'class_number': class_display
+            })
+            if len(students) > GROUP_STUDENT_MAX_COUNT:
+                break
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
 
     if not students and not errors:
         errors.append('В таблице нет данных об учащихся')
@@ -7318,18 +7354,6 @@ def admin_user_details(user_id):
                          average_tournament_score=round(average_tournament_score, 2),
                          ticket_purchases=ticket_purchases,
                          tournament_participations=tournament_participations)
-
-def update_tournament_status():
-    now = datetime.now()  # Московское время
-    tournaments = Tournament.query.filter(Tournament.status != 'finished').all()
-    
-    for tournament in tournaments:
-        if tournament.start_date <= now and now <= tournament.start_date + timedelta(minutes=tournament.duration):
-            tournament.status = 'started'
-        elif now > tournament.start_date + timedelta(minutes=tournament.duration):
-            tournament.status = 'finished'
-    
-    db.session.commit()
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика из БД при запуске приложения"""
