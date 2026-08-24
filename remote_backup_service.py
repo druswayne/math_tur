@@ -37,7 +37,7 @@ class RemoteBackupService:
         
         # Настройки подключения к серверу БД
         self.db_host = "193.47.42.117"
-        self.db_port = "5432"
+        self.db_port = "5431"
         self.db_name = "school_tournaments"
         self.db_user = "admin"
         self.db_password = "S3cureP@ssw0rd!"
