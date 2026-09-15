@@ -3997,66 +3997,93 @@ def admin_delete_prize(prize_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при удалении приза'}), 500
 
+def _wants_json_response():
+    return (
+        request.args.get('format') == 'json'
+        or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        or request.accept_mimetypes.best_match(['application/json', 'text/html']) == 'application/json'
+    )
+
+
 @app.route('/admin/shop/prizes/<int:prize_id>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_edit_prize(prize_id):
     if not current_user.is_admin:
+        if _wants_json_response():
+            return jsonify({'success': False, 'message': 'Недостаточно прав'}), 403
         flash('Недостаточно прав', 'error')
         return redirect(url_for('home'))
     
     prize = Prize.query.get_or_404(prize_id)
-    
-    if request.method == 'POST':
-        name = request.form.get('name')
-        description = request.form.get('description')
-        points_cost = request.form.get('points_cost', type=int)
-        quantity = request.form.get('quantity', type=int, default=0)
-        is_unique = 'is_unique' in request.form
-        is_active = 'is_active' in request.form
-        is_for_teachers = 'is_for_teachers' in request.form
-        available_for_rank_1 = 'available_for_rank_1' in request.form
-        available_for_rank_2 = 'available_for_rank_2' in request.form
-        available_for_rank_3 = 'available_for_rank_3' in request.form
-        
-        if not all([name, description, points_cost]):
-            flash('Все обязательные поля должны быть заполнены', 'danger')
-            return redirect(url_for('admin_edit_prize', prize_id=prize_id))
-        
-        if points_cost < 1 or quantity < -1:
-            flash('Некорректные значения', 'danger')
-            return redirect(url_for('admin_edit_prize', prize_id=prize_id))
+    wants_json = _wants_json_response()
 
-        if not is_for_teachers and not (available_for_rank_1 or available_for_rank_2 or available_for_rank_3):
-            flash('Для приза нужно выбрать хотя бы одно место: 1, 2 или 3', 'danger')
-            return redirect(url_for('admin_edit_prize', prize_id=prize_id))
-        
-        # Обработка изображения
-        image = request.files.get('image')
-        if image and image.filename:
-            # Удаляем старое изображение
-            if prize.image:
-                delete_file_from_s3(prize.image, 'prizes')
-            
-            # Загружаем новое изображение
-            image_filename = upload_file_to_s3(image, 'prizes')
-            prize.image = image_filename
-        
-        prize.name = name
-        prize.description = description
-        prize.points_cost = points_cost
-        prize.quantity = quantity
-        prize.is_unique = is_unique
-        prize.is_active = is_active
-        prize.is_for_teachers = is_for_teachers
-        prize.available_for_rank_1 = False if is_for_teachers else available_for_rank_1
-        prize.available_for_rank_2 = False if is_for_teachers else available_for_rank_2
-        prize.available_for_rank_3 = False if is_for_teachers else available_for_rank_3
-        
-        db.session.commit()
-        flash('Приз успешно обновлен', 'success')
+    if request.method == 'GET':
+        if wants_json:
+            return jsonify({
+                'id': prize.id,
+                'name': prize.name,
+                'description': prize.description,
+                'points_cost': prize.points_cost,
+                'quantity': prize.quantity,
+                'is_unique': prize.is_unique,
+                'is_active': prize.is_active,
+                'is_for_teachers': prize.is_for_teachers,
+                'available_for_rank_1': prize.available_for_rank_1,
+                'available_for_rank_2': prize.available_for_rank_2,
+                'available_for_rank_3': prize.available_for_rank_3,
+                'image': prize.image,
+                'image_url': get_s3_url(prize.image, 'prizes') if prize.image else None,
+            })
+        return render_template('admin/edit_prize.html', prize=prize)
+
+    name = request.form.get('name')
+    description = request.form.get('description')
+    points_cost = request.form.get('points_cost', type=int)
+    quantity = request.form.get('quantity', type=int, default=0)
+    is_unique = 'is_unique' in request.form
+    is_active = 'is_active' in request.form
+    is_for_teachers = 'is_for_teachers' in request.form
+    available_for_rank_1 = 'available_for_rank_1' in request.form
+    available_for_rank_2 = 'available_for_rank_2' in request.form
+    available_for_rank_3 = 'available_for_rank_3' in request.form
+
+    def fail(message):
+        if wants_json:
+            return jsonify({'success': False, 'message': message}), 400
+        flash(message, 'danger')
         return redirect(url_for('admin_prizes'))
-    
-    return render_template('admin/edit_prize.html', prize=prize)
+
+    if not all([name, description, points_cost]):
+        return fail('Все обязательные поля должны быть заполнены')
+
+    if points_cost < 1 or quantity < -1:
+        return fail('Некорректные значения')
+
+    if not is_for_teachers and not (available_for_rank_1 or available_for_rank_2 or available_for_rank_3):
+        return fail('Для приза нужно выбрать хотя бы одно место: 1, 2 или 3')
+
+    image = request.files.get('image')
+    if image and image.filename:
+        if prize.image:
+            delete_file_from_s3(prize.image, 'prizes')
+        prize.image = upload_file_to_s3(image, 'prizes')
+
+    prize.name = name
+    prize.description = description
+    prize.points_cost = points_cost
+    prize.quantity = quantity
+    prize.is_unique = is_unique
+    prize.is_active = is_active
+    prize.is_for_teachers = is_for_teachers
+    prize.available_for_rank_1 = False if is_for_teachers else available_for_rank_1
+    prize.available_for_rank_2 = False if is_for_teachers else available_for_rank_2
+    prize.available_for_rank_3 = False if is_for_teachers else available_for_rank_3
+
+    db.session.commit()
+    if wants_json:
+        return jsonify({'success': True, 'message': 'Приз успешно обновлен'})
+    flash('Приз успешно обновлен', 'success')
+    return redirect(url_for('admin_prizes'))
 
 @app.route('/admin/tournaments/<int:tournament_id>/configure')
 @login_required
@@ -13276,4 +13303,4 @@ if __name__ == '__main__':
     #update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
-    app.run(host='127.0.0.1', port=8000, debug=True)
+    app.run(host='127.0.0.1', port=8001, debug=True)

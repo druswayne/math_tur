@@ -278,6 +278,12 @@
         {% endif %}
     {% endif %}
 
+        {% if can_shop and settings.is_open %}
+        <div class="mb-3">
+            {% include '_prize_order_disclaimer.html' %}
+        </div>
+        {% endif %}
+
         <!-- Сетка товаров -->
         <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
             {% for prize in prizes %}
@@ -308,6 +314,16 @@
                         {% if can_shop and settings.is_open %}
                         <p class="card-text mb-2">
                             <strong>Стоимость:</strong> <span class="text-primary">{{ prize.points_cost }}</span> баллов
+                        </p>
+                        <p class="card-text mb-2">
+                            <strong>В наличии:</strong>
+                            {% if prize.quantity == -1 %}
+                            неограниченно
+                            {% elif prize.quantity > 0 %}
+                            {{ prize.quantity }} шт.
+                            {% else %}
+                            нет
+                            {% endif %}
                         </p>
                         {% endif %}
                     {% if can_shop and settings.is_open %}

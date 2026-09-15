@@ -53,7 +53,19 @@
   ];
 
   var TOTAL = SLIDES.length;
-  var activeIndex = 0;
+
+  function slideFromHash() {
+    var hash = (window.location.hash || '').replace('#', '').toLowerCase();
+    if (!hash) return 0;
+    if (hash === '2' || hash === 'tokens' || hash === 'zhetony' || hash === 'pokupka-zhetonov') {
+      return 1;
+    }
+    var n = parseInt(hash, 10);
+    if (n >= 1 && n <= TOTAL) return n - 1;
+    return 0;
+  }
+
+  var activeIndex = slideFromHash();
   var isAnimating = false;
   var isMobile = window.innerWidth < 640;
   var waitTimer = null;

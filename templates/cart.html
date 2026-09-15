@@ -349,6 +349,8 @@
                             <label for="address" class="form-label">Адрес доставки *</label>
                             <textarea class="form-control" id="address" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                         </div>
+
+                        {% include '_prize_order_disclaimer.html' %}
                         
                         <button type="submit" class="btn btn-primary w-100" 
                                 {% if current_user.balance < total_cost %}disabled{% endif %}>
@@ -383,6 +385,7 @@
                             <label for="address" class="form-label">Адрес доставки *</label>
                             <textarea class="form-control" id="address" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                         </div>
+                        {% include '_prize_order_disclaimer.html' %}
                         <button type="submit" class="btn btn-primary w-100" 
                                 {% if current_user.balance < total_cost %}disabled{% endif %}>
                             Оформить
@@ -622,6 +625,8 @@
                         <label for="mobileAddress" class="form-label">Адрес доставки *</label>
                         <textarea class="form-control" id="mobileAddress" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                     </div>
+
+                    {% include '_prize_order_disclaimer.html' %}
                     
                     <button type="submit" class="btn btn-primary w-100" 
                             {% if current_user.balance < total_cost %}disabled{% endif %}>
@@ -656,6 +661,7 @@
                         <label for="mobileAddress" class="form-label">Адрес доставки *</label>
                         <textarea class="form-control" id="mobileAddress" name="address" rows="3" required placeholder="231892 аг.Лойки ул.Юбилейная д.1, кв. 13 Гродненская обл."></textarea>
                     </div>
+                    {% include '_prize_order_disclaimer.html' %}
                     <button type="submit" class="btn btn-primary w-100" 
                             {% if current_user.balance < total_cost %}disabled{% endif %}>
                         Оформить получение приза

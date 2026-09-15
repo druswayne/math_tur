@@ -112,7 +112,7 @@
             </div>
             <div class="row">
                 {% for prize in prizes %}
-                <div class="col-md-4 mb-4">
+                <div class="col-md-4 mb-4 prize-item" data-active="{{ 'true' if prize.is_active else 'false' }}">
                     <div class="card h-100 prize-card">
                         {% if prize.image %}
                         <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/{{ prize.image }}" class="card-img-top" alt="{{ prize.name }}" style="height: 200px; object-fit: contain; background-color: #f8f9fa;">
@@ -239,6 +239,90 @@
     </div>
 </div>
 
+<div class="modal fade" id="editPrizeModal" tabindex="-1" aria-labelledby="editPrizeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPrizeModalLabel">Редактирование приза</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPrizeForm" method="POST" enctype="multipart/form-data">
+                    <div id="editPrizeError" class="alert alert-danger d-none"></div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_name" class="form-label">Название приза</label>
+                            <input type="text" class="form-control" id="edit_name" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_points_cost" class="form-label">Стоимость (баллы)</label>
+                            <input type="number" class="form-control" id="edit_points_cost" name="points_cost" min="1" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Описание</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="2" required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_image" class="form-label">Изображение</label>
+                            <div id="edit_current_image_wrap" class="mb-2 d-none">
+                                <img id="edit_current_image" src="" alt="Текущее изображение приза" class="img-thumbnail" style="max-height: 140px; max-width: 100%; object-fit: contain; background-color: #f8f9fa;">
+                            </div>
+                            <input type="file" class="form-control" id="edit_image" name="image" accept="image/*">
+                            <small class="form-text text-muted">Оставьте пустым, чтобы сохранить текущее изображение</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_quantity" class="form-label">Количество доступных призов</label>
+                            <input type="number" class="form-control" id="edit_quantity" name="quantity" min="-1">
+                            <small class="form-text text-muted">Укажите -1 для неограниченного количества, 0 или больше для конкретного количества</small>
+                        </div>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="edit_is_unique" name="is_unique">
+                        <label class="form-check-label" for="edit_is_unique">Уникальный приз</label>
+                        <small class="text-muted d-block">Уникальный приз можно купить только один раз</small>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="edit_is_for_teachers" name="is_for_teachers">
+                        <label class="form-check-label" for="edit_is_for_teachers">Для учителей</label>
+                        <small class="text-muted d-block">Приз доступен только для учителей</small>
+                    </div>
+                    <div id="edit-rank-categories-section" class="mb-2">
+                        <label class="form-label mb-1"><strong>Категории призовых мест (для учеников)</strong></label>
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input edit-rank-checkbox" id="edit_available_for_rank_1" name="available_for_rank_1">
+                                <label class="form-check-label" for="edit_available_for_rank_1">1 место</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input edit-rank-checkbox" id="edit_available_for_rank_2" name="available_for_rank_2">
+                                <label class="form-check-label" for="edit_available_for_rank_2">2 место</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input edit-rank-checkbox" id="edit_available_for_rank_3" name="available_for_rank_3">
+                                <label class="form-check-label" for="edit_available_for_rank_3">3 место</label>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block">Выберите, для каких мест доступен этот приз.</small>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_is_active" name="is_active">
+                        <label class="form-check-label" for="edit_is_active">Активный приз</label>
+                        <small class="text-muted d-block">Неактивные призы не отображаются в лавке призов</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" form="editPrizeForm" class="btn btn-primary" id="editPrizeSubmit">
+                    <i class="fas fa-save me-2"></i>Сохранить изменения
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const addPrizeForm = document.querySelector('form[action="{{ url_for('admin_add_prize') }}"]');
@@ -304,30 +388,174 @@
         
         // Обработчики для фильтров призов
         const filterInputs = document.querySelectorAll('input[name="filter"]');
-        const prizeCards = document.querySelectorAll('.prize-card');
+        const prizeItems = document.querySelectorAll('.prize-item');
         
         filterInputs.forEach(input => {
             input.addEventListener('change', function() {
                 const filterValue = this.value;
                 
-                prizeCards.forEach(card => {
-                    const isActive = card.querySelector('.badge.bg-secondary') === null;
-                    
-                    if (filterValue === 'all') {
-                        card.style.display = 'block';
-                    } else if (filterValue === 'active') {
-                        card.style.display = isActive ? 'block' : 'none';
-                    } else if (filterValue === 'inactive') {
-                        card.style.display = isActive ? 'none' : 'block';
-                    }
+                prizeItems.forEach(item => {
+                    const isActive = item.dataset.active === 'true';
+                    const matchesFilter = filterValue === 'all'
+                        || (filterValue === 'active' && isActive)
+                        || (filterValue === 'inactive' && !isActive);
+
+                    item.style.display = matchesFilter ? '' : 'none';
                 });
             });
         });
+
+        const editPrizeModalEl = document.getElementById('editPrizeModal');
+        const editPrizeForm = document.getElementById('editPrizeForm');
+        const editPrizeError = document.getElementById('editPrizeError');
+        const editIsForTeachers = document.getElementById('edit_is_for_teachers');
+        const editRankSection = document.getElementById('edit-rank-categories-section');
+        const editRankCheckboxes = document.querySelectorAll('.edit-rank-checkbox');
+        const editSubmitBtn = document.getElementById('editPrizeSubmit');
+        let editPrizeModal = null;
+
+        if (editPrizeModalEl && window.bootstrap) {
+            editPrizeModal = new bootstrap.Modal(editPrizeModalEl);
+        }
+
+        function toggleEditRankSection() {
+            const isForTeachers = editIsForTeachers && editIsForTeachers.checked;
+            if (editRankSection) {
+                editRankSection.style.display = isForTeachers ? 'none' : '';
+            }
+            editRankCheckboxes.forEach((checkbox) => {
+                checkbox.disabled = isForTeachers;
+            });
+        }
+
+        function showEditPrizeError(message) {
+            if (!editPrizeError) return;
+            editPrizeError.textContent = message;
+            editPrizeError.classList.remove('d-none');
+        }
+
+        function hideEditPrizeError() {
+            if (!editPrizeError) return;
+            editPrizeError.textContent = '';
+            editPrizeError.classList.add('d-none');
+        }
+
+        if (editIsForTeachers) {
+            editIsForTeachers.addEventListener('change', toggleEditRankSection);
+        }
+
+        window.openEditPrizeModal = function(prizeId) {
+            hideEditPrizeError();
+            fetch(`/admin/shop/prizes/${prizeId}/edit?format=json`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Не удалось загрузить данные приза');
+                }
+                return response.json();
+            })
+            .then(prize => {
+                editPrizeForm.action = `/admin/shop/prizes/${prize.id}/edit`;
+                document.getElementById('edit_name').value = prize.name || '';
+                document.getElementById('edit_points_cost').value = prize.points_cost || '';
+                document.getElementById('edit_description').value = prize.description || '';
+                document.getElementById('edit_quantity').value = prize.quantity;
+                document.getElementById('edit_image').value = '';
+                document.getElementById('edit_is_unique').checked = !!prize.is_unique;
+                document.getElementById('edit_is_for_teachers').checked = !!prize.is_for_teachers;
+                document.getElementById('edit_is_active').checked = !!prize.is_active;
+                document.getElementById('edit_available_for_rank_1').checked = !!prize.available_for_rank_1;
+                document.getElementById('edit_available_for_rank_2').checked = !!prize.available_for_rank_2;
+                document.getElementById('edit_available_for_rank_3').checked = !!prize.available_for_rank_3;
+
+                const imageWrap = document.getElementById('edit_current_image_wrap');
+                const imageEl = document.getElementById('edit_current_image');
+                const cardImg = document.querySelector(`[onclick="editPrize(${prize.id})"]`)
+                    ?.closest('.prize-item')
+                    ?.querySelector('img.card-img-top');
+                const imageUrl = (cardImg && cardImg.src)
+                    || prize.image_url
+                    || (prize.image ? `https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/prizes/${prize.image}` : '');
+
+                imageEl.onerror = function() {
+                    imageEl.src = '';
+                    imageWrap.classList.add('d-none');
+                };
+
+                if (imageUrl) {
+                    imageEl.alt = prize.name || 'Текущее изображение приза';
+                    imageEl.src = imageUrl;
+                    imageWrap.classList.remove('d-none');
+                } else {
+                    imageEl.src = '';
+                    imageWrap.classList.add('d-none');
+                }
+
+                toggleEditRankSection();
+                if (editPrizeModal) {
+                    editPrizeModal.show();
+                }
+            })
+            .catch(error => {
+                alert(error.message || 'Произошла ошибка при загрузке приза');
+            });
+        };
+
+        if (editPrizeForm) {
+            editPrizeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                hideEditPrizeError();
+
+                if (editIsForTeachers && !editIsForTeachers.checked) {
+                    const anyRankSelected = Array.from(editRankCheckboxes).some((checkbox) => checkbox.checked);
+                    if (!anyRankSelected) {
+                        showEditPrizeError('Выберите хотя бы одно место: 1, 2 или 3');
+                        return;
+                    }
+                }
+
+                const originalLabel = editSubmitBtn.innerHTML;
+                editSubmitBtn.disabled = true;
+                editSubmitBtn.innerHTML = 'Сохранение...';
+
+                fetch(editPrizeForm.action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(editPrizeForm)
+                })
+                .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                .then(({ ok, data }) => {
+                    if (ok && data.success) {
+                        if (editPrizeModal) {
+                            editPrizeModal.hide();
+                        }
+                        window.location.reload();
+                    } else {
+                        showEditPrizeError(data.message || 'Не удалось сохранить приз');
+                    }
+                })
+                .catch(() => {
+                    showEditPrizeError('Произошла ошибка при сохранении приза');
+                })
+                .finally(() => {
+                    editSubmitBtn.disabled = false;
+                    editSubmitBtn.innerHTML = originalLabel;
+                });
+            });
+        }
     });
 
     function editPrize(prizeId) {
-        // Перенаправляем на страницу редактирования приза
-        window.location.href = `/admin/shop/prizes/${prizeId}/edit`;
+        if (typeof window.openEditPrizeModal === 'function') {
+            window.openEditPrizeModal(prizeId);
+        }
     }
 
     function deletePrize(prizeId) {
