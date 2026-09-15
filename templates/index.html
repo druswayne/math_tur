@@ -127,7 +127,8 @@
     </div>
 </div>
 
-<div class="index-main-parallax" id="indexMainParallax" data-word-set="geography" data-parallax-quality="auto">
+{% set _parallax_title = (next_tournament.title if next_tournament else '')|lower %}
+<div class="index-main-parallax" id="indexMainParallax" data-word-set="{% if 'english' in _parallax_title or 'английск' in _parallax_title %}english{% else %}geography{% endif %}" data-parallax-quality="auto">
     <div class="index-main-parallax__parallax" aria-hidden="true"></div>
     <div class="index-main-parallax__content">
         <div class="container mt-5">
@@ -461,5 +462,5 @@ document.addEventListener('DOMContentLoaded', function() {
 {% endblock %} 
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/index_hero_parallax.js', v='2') }}"></script>
+<script src="{{ url_for('static', filename='js/index_hero_parallax.js', v='3') }}"></script>
 {% endblock %}

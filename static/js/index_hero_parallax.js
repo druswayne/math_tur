@@ -76,6 +76,22 @@
         "орфоэпическая норма", "вариант нормы", "акцентология", "пунктуационная норма",
         "словообразование", "морфемика", "слитное/дефисное", "правописание суффиксов"
       ],
+      english: [
+        "noun", "verb", "adjective", "adverb", "pronoun", "preposition", "conjunction", "article",
+        "present", "past", "future", "simple", "continuous", "perfect", "tense",
+        "irregular verb", "phrasal verb", "modal verb", "infinitive", "gerund", "participle",
+        "passive voice", "active voice", "reported speech", "conditionals",
+        "singular", "plural", "countable", "uncountable", "comparative", "superlative",
+        "alphabet", "vowel", "consonant", "syllable", "spelling", "pronunciation",
+        "listening", "speaking", "reading", "writing", "vocabulary", "grammar", "translation",
+        "synonym", "antonym", "idiom", "collocation", "prefix", "suffix", "homonym",
+        "dialogue", "sentence", "paragraph", "question", "answer", "punctuation",
+        "essay", "letter", "story", "poem", "conversation",
+        "school", "teacher", "student", "homework", "textbook", "dictionary",
+        "family", "friends", "hobbies", "weather", "seasons", "colours", "numbers",
+        "animals", "food", "clothes", "sports", "travel", "holiday",
+        "hello", "please", "thank you", "word", "phrase", "meaning", "example"
+      ],
     };
 
     const words = WORD_SETS[wordSetName] || WORD_SETS.geography;
