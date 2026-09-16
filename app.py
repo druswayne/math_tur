@@ -307,8 +307,9 @@ def nl2br(text):
     """Преобразует переносы строк в HTML <br> теги"""
     if not text:
         return ''
-    # Заменяем переносы строк на <br> теги
-    return Markup(text.replace('\n', '<br>').replace('\r\n', '<br>').replace('\r', '<br>'))
+    # Сначала нормализуем Windows/Mac переносы, затем заменяем на <br>
+    normalized = text.replace('\r\n', '\n').replace('\r', '\n')
+    return Markup(normalized.replace('\n', '<br>'))
 
 # Регистрируем фильтр для использования в шаблонах
 app.jinja_env.filters['nl2br'] = nl2br
@@ -4105,7 +4106,11 @@ def add_tournament_task(tournament_id):
     tournament = Tournament.query.get_or_404(tournament_id)
     
     title = request.form.get('title')
-    description = request.form.get('description')
+    description = validate_html_content(
+        request.form.get('description'),
+        max_length=None,
+        allowed_tags=TASK_DESCRIPTION_HTML_TAGS
+    )
     points = request.form.get('points')
     correct_answer = request.form.get('correct_answer')
     category = request.form.get('category')
@@ -4170,7 +4175,11 @@ def edit_tournament_task(tournament_id, task_id):
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
     title = request.form.get('title')
-    description = request.form.get('description')
+    description = validate_html_content(
+        request.form.get('description'),
+        max_length=None,
+        allowed_tags=TASK_DESCRIPTION_HTML_TAGS
+    )
     points = request.form.get('points')
     correct_answer = request.form.get('correct_answer')
     topic = request.form.get('topic')
@@ -4362,15 +4371,19 @@ def validate_text_content(text, max_length=1000):
     text = re.sub(r'<[^>]*>', '', text)
     return text.strip()
 
-def validate_html_content(text, max_length=2000):
-    """Валидация HTML контента с разрешенными тегами (правила турнира)"""
+# HTML-теги, разрешённые в описании задачи
+TASK_DESCRIPTION_HTML_TAGS = ['ul', 'ol', 'li', 'p', 'strong', 'b', 'em', 'i', 'u', 'sub', 'sup', 'br']
+
+def validate_html_content(text, max_length=2000, allowed_tags=None):
+    """Валидация HTML контента с разрешенными тегами (правила турнира, описания задач)"""
     if not text:
         return False
-    if len(text) > max_length:
+    if max_length is not None and len(text) > max_length:
         return False
     
-    # Разрешенные HTML теги для правил турнира
-    allowed_tags = ['ul', 'li', 'p', 'strong', 'b', 'em', 'i']
+    # Разрешенные HTML теги по умолчанию — для правил турнира
+    if allowed_tags is None:
+        allowed_tags = ['ul', 'li', 'p', 'strong', 'b', 'em', 'i']
     
     # Удаляем все теги, кроме разрешенных
     import re
@@ -4379,13 +4392,17 @@ def validate_html_content(text, max_length=2000):
     # Сначала экранируем весь текст
     text = escape(text)
     
-    # Затем разрешаем только безопасные теги
-    for tag in allowed_tags:
-        # Разрешаем открывающие теги
-        text = re.sub(f'&lt;{tag}&gt;', f'<{tag}>', text)
-        text = re.sub(f'&lt;/{tag}&gt;', f'</{tag}>', text)
-        # Разрешаем теги с атрибутами (но удаляем атрибуты для безопасности)
-        text = re.sub(f'&lt;{tag}[^&]*&gt;', f'<{tag}>', text)
+    # Затем разрешаем только безопасные теги (длинные имена первыми, чтобы b не затронул blockquote)
+    for tag in sorted(allowed_tags, key=len, reverse=True):
+        # Открывающие и самозакрывающиеся теги; атрибуты удаляем
+        text = re.sub(
+            rf'&lt;{tag}(?:\s(?:(?!&gt;).)*)?\s*/?\s*&gt;',
+            f'<{tag}>',
+            text,
+            flags=re.IGNORECASE
+        )
+        # Закрывающие теги
+        text = re.sub(rf'&lt;/{tag}\s*&gt;', f'</{tag}>', text, flags=re.IGNORECASE)
     
     return text.strip()
 

@@ -186,8 +186,9 @@
                                         </td>
                                         <td>
                                             <div class="task-description">
-                                                {{ task_data.task.description[:100] }}{% if task_data.task.description|length > 100 %}...{% endif %}
-                                                {% if task_data.task.description|length > 100 %}
+                                                {% set desc_preview = task_data.task.description|striptags %}
+                                                {{ desc_preview[:100] }}{% if desc_preview|length > 100 %}...{% endif %}
+                                                {% if desc_preview|length > 100 %}
                                                 <br><button type="button" 
                                                     class="btn btn-link btn-sm p-0 text-primary" 
                                                     data-bs-toggle="modal" 
@@ -293,8 +294,9 @@
                                     {% endif %}
                                     
                                     <p class="card-text">
-                                        {{ task_data.task.description[:150] }}{% if task_data.task.description|length > 150 %}...{% endif %}
-                                        {% if task_data.task.description|length > 150 %}
+                                        {% set desc_preview = task_data.task.description|striptags %}
+                                        {{ desc_preview[:150] }}{% if desc_preview|length > 150 %}...{% endif %}
+                                        {% if desc_preview|length > 150 %}
                                         <br><button type="button" 
                                             class="btn btn-link btn-sm p-0 text-primary" 
                                             data-bs-toggle="modal" 
@@ -554,7 +556,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formattedDescription = description.replace(/\n/g, '<br>').replace(/\r\n/g, '<br>').replace(/\r/g, '<br>');
             
             // Формируем содержимое описания
-            const descriptionContent = `<div class="description-text" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; line-height: 1.6; font-size: 1.05em;">
+            const descriptionContent = `<div class="description-text task-description-formatted" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #28a745; line-height: 1.6; font-size: 1.05em;">
                 ${formattedDescription}
             </div>`;
             

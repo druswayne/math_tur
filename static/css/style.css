@@ -2559,3 +2559,27 @@ main {
         line-height: 1.4;
     }
 }
+
+/* Форматирование HTML в описании задачи */
+.task-description-formatted p {
+    margin-bottom: 0.5rem;
+}
+
+.task-description-formatted p:last-child {
+    margin-bottom: 0;
+}
+
+.task-description-formatted ul,
+.task-description-formatted ol {
+    padding-left: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.task-description-formatted li {
+    margin-bottom: 0.25rem;
+}
+
+.task-description-formatted sub,
+.task-description-formatted sup {
+    font-size: 0.75em;
+}

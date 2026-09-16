@@ -54,7 +54,8 @@
                                     <td>{{ loop.index }}</td>
                                     <td>{{ task.title }}</td>
                                     <td>{{ task.topic or 'Не указана' }}</td>
-                                    <td>{{ task.description[:100] }}{% if task.description|length > 100 %}...{% endif %}</td>
+                                    {% set desc_preview = task.description|striptags %}
+                                    <td>{{ desc_preview[:100] }}{% if desc_preview|length > 100 %}...{% endif %}</td>
                                     <td>{{ task.category }}</td>
                                     <td class="text-center">
                                         {% if task.image %}
@@ -142,7 +143,23 @@
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Описание задачи *</label>
-                        <textarea class="form-control" id="description" name="description" rows="5" required></textarea>
+                        <div class="btn-group btn-group-sm mb-2 flex-wrap task-format-toolbar" role="group" aria-label="Форматирование описания">
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="b" data-target="description" title="Жирный"><strong>B</strong></button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="i" data-target="description" title="Курсив"><em>I</em></button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="u" data-target="description" title="Подчёркнутый"><u>U</u></button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="sup" data-target="description" title="Надстрочный индекс">x²</button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="sub" data-target="description" title="Подстрочный индекс">x₂</button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="br" data-target="description" title="Перенос строки">BR</button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="ul" data-target="description" title="Маркированный список">• Список</button>
+                        </div>
+                        <textarea class="form-control" id="description" name="description" rows="6" required></textarea>
+                        <div class="form-text">
+                            Можно форматировать HTML-тегами:
+                            <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;u&gt;</code>,
+                            <code>&lt;sup&gt;</code>, <code>&lt;sub&gt;</code>, <code>&lt;br&gt;</code>,
+                            <code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>.
+                            Пример: <code>x&lt;sup&gt;2&lt;/sup&gt;</code> → x²
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="category" class="form-label">Категория *</label>
@@ -212,7 +229,23 @@
                     </div>
                     <div class="mb-3">
                         <label for="edit_description" class="form-label">Описание задачи *</label>
-                        <textarea class="form-control" id="edit_description" name="description" rows="5" required></textarea>
+                        <div class="btn-group btn-group-sm mb-2 flex-wrap task-format-toolbar" role="group" aria-label="Форматирование описания">
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="b" data-target="edit_description" title="Жирный"><strong>B</strong></button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="i" data-target="edit_description" title="Курсив"><em>I</em></button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="u" data-target="edit_description" title="Подчёркнутый"><u>U</u></button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="sup" data-target="edit_description" title="Надстрочный индекс">x²</button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="sub" data-target="edit_description" title="Подстрочный индекс">x₂</button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="br" data-target="edit_description" title="Перенос строки">BR</button>
+                            <button type="button" class="btn btn-outline-secondary" data-format-tag="ul" data-target="edit_description" title="Маркированный список">• Список</button>
+                        </div>
+                        <textarea class="form-control" id="edit_description" name="description" rows="6" required></textarea>
+                        <div class="form-text">
+                            Можно форматировать HTML-тегами:
+                            <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;u&gt;</code>,
+                            <code>&lt;sup&gt;</code>, <code>&lt;sub&gt;</code>, <code>&lt;br&gt;</code>,
+                            <code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;li&gt;</code>.
+                            Пример: <code>x&lt;sup&gt;2&lt;/sup&gt;</code> → x²
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="edit_category" class="form-label">Категория *</label>
@@ -324,7 +357,61 @@
 </div>
 
 <script>
+function insertTaskFormatTag(textarea, tag) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
+    const selected = value.slice(start, end);
+    let insert;
+    let cursorStart;
+    let cursorEnd;
+
+    if (tag === 'br') {
+        insert = '<br>';
+        cursorStart = cursorEnd = start + insert.length;
+    } else if (tag === 'ul' || tag === 'ol') {
+        const item = selected || '';
+        insert = `<${tag}>\n<li>${item}</li>\n</${tag}>`;
+        if (selected) {
+            cursorStart = start;
+            cursorEnd = start + insert.length;
+        } else {
+            cursorStart = cursorEnd = start + `<${tag}>\n<li>`.length;
+        }
+    } else {
+        insert = `<${tag}>${selected}</${tag}>`;
+        if (selected) {
+            cursorStart = start;
+            cursorEnd = start + insert.length;
+        } else {
+            cursorStart = cursorEnd = start + tag.length + 2;
+        }
+    }
+
+    textarea.value = value.slice(0, start) + insert + value.slice(end);
+    textarea.focus();
+    textarea.setSelectionRange(cursorStart, cursorEnd);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.task-format-toolbar').forEach(function(toolbar) {
+        toolbar.addEventListener('mousedown', function(event) {
+            if (event.target.closest('button')) {
+                event.preventDefault();
+            }
+        });
+        toolbar.addEventListener('click', function(event) {
+            const button = event.target.closest('button[data-format-tag]');
+            if (!button) {
+                return;
+            }
+            const textarea = document.getElementById(button.getAttribute('data-target'));
+            if (textarea) {
+                insertTaskFormatTag(textarea, button.getAttribute('data-format-tag'));
+            }
+        });
+    });
+
     // Обработка редактирования задачи
     const editTaskModal = document.getElementById('editTaskModal');
     editTaskModal.addEventListener('show.bs.modal', function(event) {

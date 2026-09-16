@@ -45,7 +45,7 @@
                             <h4 class="mb-0 flex-grow-1">{{ task.title }}</h4>
                             <span class="badge bg-primary fs-5">{{ task.points }} баллов</span>
                         </div>
-                        <div class="mb-4">{{ task.description|nl2br }}</div>
+                        <div class="mb-4 task-description-formatted">{{ task.description|nl2br }}</div>
 
                         <form method="post" class="mt-4" id="answerForm">
                             <div class="mb-3">
