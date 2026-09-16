@@ -258,7 +258,7 @@
                     </div>
                     <div class="form-group mb-3">
                         <label for="category">Класс</label>
-                        <select class="form-control" id="category" name="category" {% if settings.is_season_active or not settings.allow_category_change %}disabled{% endif %}>
+                        <select class="form-control" id="category" name="category" {% if not settings.allow_category_change %}disabled{% endif %}>
                             <option value="1-2" {% if current_user.category == '1-2' %}selected{% endif %}>1-2 класс</option>
                             <option value="3" {% if current_user.category == '3' %}selected{% endif %}>3 класс</option>
                             <option value="4" {% if current_user.category == '4' %}selected{% endif %}>4 класс</option>
@@ -270,9 +270,7 @@
                             <option value="10" {% if current_user.category == '10' %}selected{% endif %}>10 класс</option>
                             <option value="11" {% if current_user.category == '11' %}selected{% endif %}>11 класс</option>
                         </select>
-                        {% if settings.is_season_active %}
-                        <small class="form-text text-muted">Изменение группы недоступно во время активного сезона</small>
-                        {% elif not settings.allow_category_change %}
+                        {% if not settings.allow_category_change %}
                         <small class="form-text text-muted">Изменение группы временно недоступно</small>
                         {% endif %}
                     </div>

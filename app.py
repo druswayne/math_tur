@@ -10795,13 +10795,9 @@ def update_profile():
     if category not in valid_categories:
         return jsonify({'success': False, 'message': 'Неверная категория'})
     
-    # Проверяем статус сезона
     settings = TournamentSettings.get_settings()
-    if settings.is_season_active and category != current_user.category:
-        if not settings.allow_category_change:
-            return jsonify({'success': False, 'message': 'Изменение группы временно недоступно'})
-        else:
-            return jsonify({'success': False, 'message': 'Изменение группы недоступно во время активного сезона'})
+    if not settings.allow_category_change and category != current_user.category:
+        return jsonify({'success': False, 'message': 'Изменение группы временно недоступно'})
     
     # Валидация пароля
     if new_password:
