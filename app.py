@@ -4105,7 +4105,7 @@ def add_tournament_task(tournament_id):
     
     tournament = Tournament.query.get_or_404(tournament_id)
     
-    title = request.form.get('title')
+    title = (request.form.get('title') or '').strip()
     description = validate_html_content(
         request.form.get('description'),
         max_length=None,
@@ -4117,7 +4117,7 @@ def add_tournament_task(tournament_id):
     topic = request.form.get('topic')
     solution_text = request.form.get('solution_text')
     
-    if not all([title, description, points, correct_answer, category]):
+    if not all([description, points, correct_answer, category]):
         flash('Все обязательные поля должны быть заполнены', 'danger')
         return redirect(url_for('configure_tournament', tournament_id=tournament_id))
     
@@ -4143,7 +4143,7 @@ def add_tournament_task(tournament_id):
     
     task = Task(
         tournament_id=tournament_id,
-        title=title,
+        title=title or 'турнирная задача',
         description=description,
         image=image_filename,
         points=points,
@@ -4155,6 +4155,9 @@ def add_tournament_task(tournament_id):
     )
     
     db.session.add(task)
+    if not title:
+        db.session.flush()
+        task.title = f'турнирная задача #{task.id}'
     db.session.commit()
     
     flash('Задача успешно добавлена', 'success')

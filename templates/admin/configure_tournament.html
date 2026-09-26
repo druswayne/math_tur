@@ -134,8 +134,8 @@
             <form action="{{ url_for('add_tournament_task', tournament_id=tournament.id) }}" method="POST" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="title" class="form-label">Название задачи *</label>
-                        <input type="text" class="form-control" id="title" name="title" required>
+                        <label for="title" class="form-label">Название задачи</label>
+                        <input type="text" class="form-control" id="title" name="title" placeholder="Если пусто — «турнирная задача #id»">
                     </div>
                     <div class="mb-3">
                         <label for="topic" class="form-label">Тема задачи</label>
