@@ -63,27 +63,27 @@ class CertificateGenerator:
         
         # Координаты для сертификата
         self.cert_name_coords = {
-            'start': (150, 435),
-            'end': (756, 435),
+            'start': (190, 712),
+            'end': (726, 712),
             'max_height': 50
         }
         self.cert_score_coords = {
-            'start': (330, 680),
-            'end': (404, 680)
+            'start': (273, 955),
+            'end': (364, 955)
         }
         self.cert_place_coords = {
-            'start': (711, 680),
-            'end': (763, 680)
+            'start': (710, 960),
+            'end': (786, 960)
         }
         
         # Координаты для диплома
         self.diploma_coords = {
-            'place': {'start': (360, 286), 'end': (440, 286)},        # степень диплома (1–3)
-            'name': {'start': (120, 466), 'end': (780, 466)},         # ФИО участника
-            'group': {'start': (426, 510), 'end': (567, 510)},        # класс
-            'school_line1': {'start': (121, 595), 'end': (783, 595)}, # первая строка школы
-            'school_line2': {'start': (121, 635), 'end': (783, 635)}, # вторая строка школы
-            'score': {'start': (501, 775), 'end': (545, 775)}         # баллы
+            'place': {'start': (363, 337), 'end': (401, 337)},        # степень диплома (1–3)
+            'name': {'start': (233, 607), 'end': (672, 607)},         # ФИО участника
+            'group': {'start': (489, 645), 'end': (532, 645)},        # класс
+            'school_line1': {'start': (227, 731), 'end': (675, 731)}, # первая строка школы
+            'school_line2': {'start': (227, 785), 'end': (675, 785)}, # вторая строка школы
+            'score': {'start': (484, 913), 'end': (527, 913)}         # баллы
         }
         
         self.diploma_font_size = 20
@@ -417,6 +417,51 @@ class CertificateGenerator:
         
         return lines
 
+    def _load_truetype_font(self, font_paths, size):
+        """Загрузить TrueType-шрифт заданного размера из списка путей."""
+        for font_path in font_paths:
+            if os.path.exists(font_path):
+                try:
+                    return ImageFont.truetype(font_path, size), font_path
+                except Exception:
+                    continue
+        return ImageFont.load_default(), None
+
+    def fit_text_to_max_lines(self, text, max_width, font_paths, initial_size, max_lines=2, min_size=10):
+        """
+        Подобрать размер шрифта так, чтобы текст уместился не более чем в max_lines строк.
+        Возвращает (font, font_size, lines).
+        """
+        font_size = initial_size
+        font, font_path = self._load_truetype_font(font_paths, font_size)
+
+        def reload(size):
+            if font_path:
+                try:
+                    return ImageFont.truetype(font_path, size)
+                except Exception:
+                    pass
+            f, _ = self._load_truetype_font(font_paths, size)
+            return f
+
+        def lines_fit(fnt):
+            lines = self.split_text_to_lines(text, max_width, fnt)
+            if len(lines) > max_lines:
+                return False, lines
+            for line in lines:
+                bbox = fnt.getbbox(line)
+                if bbox[2] - bbox[0] > max_width:
+                    return False, lines
+            return True, lines
+
+        fits, school_lines = lines_fit(font)
+        while not fits and font_size > min_size:
+            font_size -= 1
+            font = reload(font_size)
+            fits, school_lines = lines_fit(font)
+
+        return font, font_size, school_lines[:max_lines]
+
     def apply_text_y_offset(self, y):
         """Применить глобальный вертикальный сдвиг текста."""
         return y + self.text_y_offset
@@ -624,13 +669,16 @@ class CertificateGenerator:
             place_y = place_start[1] - place_text_height - 5
             draw.text((place_x, self.apply_text_y_offset(place_y)), place_text, fill='black', font=place_font)
             
-            # 1. ФИО (жирным и на 50% больше)
+            # 1. ФИО (жирным и на 50% больше); отчество (3-е слово) на диплом не выводим
+            name_parts = (student_name or "").split()
+            diploma_name = " ".join(name_parts[:2]) if len(name_parts) >= 3 else (student_name or "")
+
             name_start = self.diploma_coords['name']['start']
             name_end = self.diploma_coords['name']['end']
             name_width = name_end[0] - name_start[0]
             
             # Разбиваем ФИО на строки если нужно (используем жирный шрифт)
-            name_lines = self.split_text_to_lines(student_name, name_width, name_font)
+            name_lines = self.split_text_to_lines(diploma_name, name_width, name_font)
             name_y = name_start[1] - name_font_size  # поднимаем над нижней линией
             
             for line in name_lines:
@@ -648,26 +696,31 @@ class CertificateGenerator:
             group_y = group_start[1] - self.diploma_font_size // 2 + 2  # поднимаем над нижней линией + опускаем на 2px
             draw.text((group_x, self.apply_text_y_offset(group_y)), group_text, fill='black', font=font, anchor='mm')
             
-            # 3. Название школы (две строки)
+            # 3. Название школы (не больше двух строк; при нехватке места уменьшаем шрифт)
             if school_name:
                 line1_coords = self.diploma_coords['school_line1']
                 line2_coords = self.diploma_coords['school_line2']
                 school_width = line1_coords['end'][0] - line1_coords['start'][0]
-                school_lines = self.split_text_to_lines(school_name, school_width, font)
-                if len(school_lines) > 0:
-                    line1 = school_lines[0]
-                    bbox = font.getbbox(line1)
-                    line1_width = bbox[2] - bbox[0]
-                    line1_x = line1_coords['start'][0] + (school_width - line1_width) // 2
-                    line1_y = line1_coords['start'][1] - self.diploma_font_size
-                    draw.text((line1_x, self.apply_text_y_offset(line1_y)), line1, fill='black', font=font)
-                if len(school_lines) > 1:
-                    line2 = school_lines[1]
-                    bbox = font.getbbox(line2)
-                    line2_width = bbox[2] - bbox[0]
-                    line2_x = line2_coords['start'][0] + (school_width - line2_width) // 2
-                    line2_y = line2_coords['start'][1] - self.diploma_font_size
-                    draw.text((line2_x, self.apply_text_y_offset(line2_y)), line2, fill='black', font=font)
+                school_font, school_font_size, school_lines = self.fit_text_to_max_lines(
+                    school_name,
+                    school_width,
+                    font_paths,
+                    initial_size=self.diploma_font_size,
+                    max_lines=2,
+                    min_size=10,
+                )
+                line_coords = [line1_coords, line2_coords]
+                for i, line in enumerate(school_lines):
+                    bbox = school_font.getbbox(line)
+                    line_width = bbox[2] - bbox[0]
+                    line_x = line_coords[i]['start'][0] + (school_width - line_width) // 2
+                    line_y = line_coords[i]['start'][1] - school_font_size
+                    draw.text(
+                        (line_x, self.apply_text_y_offset(line_y)),
+                        line,
+                        fill='black',
+                        font=school_font,
+                    )
             
             # 4. Баллы
             score_text = str(score) if score else "0"

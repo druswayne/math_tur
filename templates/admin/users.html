@@ -5,10 +5,18 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h4 class="mb-0">Управление пользователями</h4>
-            <div>
+            <div class="d-flex flex-wrap justify-content-end align-items-center">
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
                     <i class="bi bi-plus-lg"></i> Добавить пользователя
                 </button>
+                <form action="{{ url_for('admin_confirm_unconfirmed_users') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-success ms-2"
+                            {% if not unconfirmed_count %}disabled{% endif %}
+                            title="Подтвердить все аккаунты, которые ожидают подтверждения по email"
+                            onclick="return confirm('Подтвердить все неподтверждённые аккаунты ({{ unconfirmed_count }})? Они станут активными. Если при регистрации был сохранён пароль, пользователь получит письмо с данными для входа.');">
+                        <i class="bi bi-check2-all"></i> Подтвердить все{% if unconfirmed_count %} ({{ unconfirmed_count }}){% endif %}
+                    </button>
+                </form>
                 <button type="button" class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#clearDataModal">
                     <i class="bi bi-gear"></i>
                 </button>

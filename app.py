@@ -2968,6 +2968,7 @@ def admin_users():
     teachers_list = Teacher.query.order_by(Teacher.full_name, Teacher.username).all()
     # Преобразуем в список словарей для JSON-сериализации
     teachers = [{'id': t.id, 'full_name': t.full_name, 'username': t.username} for t in teachers_list]
+    unconfirmed_count = User.query.filter_by(is_active=False).count()
     
     return render_template('admin/users.html', 
                          users=users.items,
@@ -2975,7 +2976,8 @@ def admin_users():
                          search_query=search_query,
                          search_type=search_type,
                          teachers=teachers,
-                         teachers_list=teachers_list)  # Передаем и список объектов для шаблона
+                         teachers_list=teachers_list,  # Передаем и список объектов для шаблона
+                         unconfirmed_count=unconfirmed_count)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -3266,6 +3268,21 @@ def admin_reset_all_balances():
         db.session.rollback()
         return jsonify({'success': False, 'message': 'Произошла ошибка при обнулении счетов'})
 
+def confirm_pending_user(user):
+    """Подтверждает аккаунт так же, как переход по ссылке из письма."""
+    user.is_active = True
+    user.email_confirmation_token = None
+    db.session.commit()
+    password = user.temp_password
+    if password:
+        send_credentials_email(user, password)
+        user.temp_password = None
+        db.session.commit()
+    try:
+        create_consent_pdf(user)
+    except Exception:
+        pass
+
 @app.route('/admin/users/<int:user_id>/confirm', methods=['POST'])
 @login_required
 def admin_confirm_user(user_id):
@@ -3277,24 +3294,51 @@ def admin_confirm_user(user_id):
         flash('Аккаунт уже подтвержден', 'info')
         return redirect(url_for('admin_users'))
     try:
-        user.is_active = True
-        user.email_confirmation_token = None
-        db.session.commit()
-        # Отправляем письмо с учетными данными, если есть временный пароль
-        password = user.temp_password
-        if password:
-            send_credentials_email(user, password)
-            user.temp_password = None
-            db.session.commit()
-        # Генерируем PDF согласия, как при обычном подтверждении
-        try:
-            create_consent_pdf(user)
-        except Exception:
-            pass
+        confirm_pending_user(user)
         flash(f'Аккаунт пользователя {user.username} подтвержден администратором', 'success')
     except Exception as e:
         db.session.rollback()
         flash('Ошибка при подтверждении аккаунта', 'danger')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/users/confirm-unconfirmed', methods=['POST'])
+@login_required
+def admin_confirm_unconfirmed_users():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+
+    pending_ids = [
+        row[0] for row in User.query.filter_by(is_active=False).with_entities(User.id).all()
+    ]
+    if not pending_ids:
+        flash('Нет аккаунтов, ожидающих подтверждения', 'info')
+        return redirect(url_for('admin_users'))
+
+    confirmed = 0
+    failed = 0
+    for user_id in pending_ids:
+        user = User.query.get(user_id)
+        if not user or user.is_active:
+            continue
+        try:
+            confirm_pending_user(user)
+            confirmed += 1
+        except Exception as e:
+            db.session.rollback()
+            print(f"Ошибка подтверждения пользователя {user_id}: {e}")
+            user = User.query.get(user_id)
+            if user and user.is_active:
+                confirmed += 1
+            else:
+                failed += 1
+
+    if confirmed and failed:
+        flash(f'Подтверждено аккаунтов: {confirmed}. Не удалось подтвердить: {failed}.', 'warning')
+    elif confirmed:
+        flash(f'Подтверждено аккаунтов: {confirmed}.', 'success')
+    else:
+        flash('Не удалось подтвердить аккаунты', 'danger')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/users/mass-email', methods=['POST'])
@@ -10679,7 +10723,13 @@ def _participation_tournament_time_seconds(participation):
 
 
 def update_tournament_places(tournament_id=None):
-    """Пересчитывает места участников в завершённых турнирах внутри категорий."""
+    """Пересчитывает место участника внутри каждого завершённого турнира.
+
+    Место считается отдельно по категориям и по тем же правилам, что глобальный
+    рейтинг: больше баллов за этот турнир, при равенстве — меньше время участия.
+    Одинаковые балл и время дают одно место, следующее место пропускается.
+    Участник без баллов и без времени остаётся без места.
+    """
     from collections import defaultdict
 
     query = Tournament.query.filter_by(status='finished')
@@ -10687,18 +10737,55 @@ def update_tournament_places(tournament_id=None):
         query = query.filter_by(id=tournament_id)
 
     for tournament in query.all():
+        points_rows = (
+            db.session.query(
+                SolvedTask.user_id,
+                func.coalesce(func.sum(Task.points), 0),
+            )
+            .join(Task, Task.id == SolvedTask.task_id)
+            .filter(
+                Task.tournament_id == tournament.id,
+                SolvedTask.is_correct.is_(True),
+            )
+            .group_by(SolvedTask.user_id)
+            .all()
+        )
+        points_by_user = {user_id: int(points or 0) for user_id, points in points_rows}
+
         participations_by_category = defaultdict(list)
         participations = TournamentParticipation.query.filter_by(tournament_id=tournament.id).all()
         for participation in participations:
-            if participation.user and participation.user.category:
-                participations_by_category[participation.user.category].append(participation)
+            earned = points_by_user.get(participation.user_id, 0)
+            participation.score = earned
+            user = participation.user
+            if not user or not user.category:
+                participation.place = None
+                continue
+            participations_by_category[user.category].append(participation)
 
         for plist in participations_by_category.values():
-            plist.sort(
-                key=lambda p: (-(p.score or 0), _participation_tournament_time_seconds(p))
-            )
-            for rank, participation in enumerate(plist, 1):
-                participation.place = rank
+            ranked = []
+            for participation in plist:
+                earned = participation.score or 0
+                spent = _participation_tournament_time_seconds(participation)
+                if earned == 0 and spent == 0:
+                    participation.place = None
+                else:
+                    ranked.append((participation, earned, spent))
+
+            ranked.sort(key=lambda item: (-item[1], item[2]))
+
+            current_rank = 1
+            current_key = None
+            same_rank_count = 0
+            for participation, earned, spent in ranked:
+                key = (earned, spent)
+                if current_key != key:
+                    current_rank += same_rank_count
+                    same_rank_count = 0
+                    current_key = key
+                participation.place = current_rank
+                same_rank_count += 1
 
 
 def update_category_ranks():
@@ -13301,7 +13388,7 @@ def debug_ip():
     
     # Добавляем дополнительную информацию
     debug_info.update({
-        'user_agent': request.headers.get('User-Agent'),
+        'uspython generate_certificates.py -t "Название_папки"er_agent': request.headers.get('User-Agent'),
         'request_method': request.method,
         'request_url': request.url,
         'timestamp': datetime.now().isoformat()
@@ -13316,7 +13403,7 @@ if __name__ == '__main__':
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
 
-    #update_category_ranks()
+    update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8001, debug=True)
