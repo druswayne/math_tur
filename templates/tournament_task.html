@@ -7,7 +7,7 @@
         <div class="spinner-border" role="status">
             <span class="visually-hidden">Загрузка...</span>
         </div>
-        <p class="mt-3">Загрузка задачи...</p>
+        <p class="mt-3" id="loadingOverlayText">Загрузка задачи...</p>
         <p class="text-light small">Пожалуйста, не закрывайте страницу</p>
     </div>
 </div>
@@ -46,9 +46,9 @@
                             <div class="timer-progress-item text-end">
                                 <small class="text-muted d-block mb-1">Прогресс:</small>
                                 <div class="progress-compact">
-                                    <span class="progress-text">{{ solved_tasks_count }}/{{ total_tasks }}</span>
+                                    <span class="progress-text" id="taskProgressText">{{ solved_tasks_count }}/{{ total_tasks }}</span>
                                     <div class="progress-bar-compact">
-                                        <div class="progress-fill" 
+                                        <div class="progress-fill" id="taskProgressFill"
                                              style="width: {{ (solved_tasks_count / total_tasks * 100)|round(1) }}%">
                                         </div>
                                     </div>
@@ -70,13 +70,12 @@
                     
                     <div class="task-content">
                         <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4 class="mb-0 no-select flex-grow-1">{{ task.title }}</h4>
-                            <span class="badge bg-primary fs-5">{{ task.points }} баллов</span>
+                            <h4 class="mb-0 no-select flex-grow-1" id="taskTitle">{{ task.title }}</h4>
+                            <span class="badge bg-primary fs-5" id="taskPoints">{{ task.points }} баллов</span>
                         </div>
-                        <div class="mb-4 no-select task-description-formatted">{{ task.description|nl2br }}</div>
+                        <div class="mb-4 no-select task-description-formatted" id="taskDescription">{{ task.description|nl2br }}</div>
 
-                        {% if task.image %}
-                        <div class="text-center mb-4">
+                        <div class="text-center mb-4" id="taskImageBlock" {% if not task.image %}style="display:none"{% endif %}>
                             <div class="image-container-wrapper" id="taskImageContainer">
                                 <div class="image-loading" id="imageLoading">
                                     <div class="spinner-border text-primary" role="status">
@@ -84,7 +83,7 @@
                                     </div>
                                     <p class="mt-2 text-muted">Загрузка изображения...</p>
                                 </div>
-                                <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
+                                <img {% if task.image %}src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"{% endif %}
                                      class="img-fluid task-image"
                                      alt="Изображение к задаче"
                                      data-bs-toggle="modal"
@@ -108,7 +107,6 @@
                                 </small>
                             </div>
                         </div>
-                        {% endif %}
 
                         <form id="answerForm" action="{{ url_for('submit_task_answer', tournament_id=tournament.id, task_id=task.id) }}"
                               method="POST"
@@ -171,7 +169,7 @@
                         </div>
                         <p class="mt-2 text-muted">Загрузка изображения...</p>
                     </div>
-                    <img src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"
+                    <img {% if task.image %}src="https://s3.twcstorage.ru/5e984fdc-c435406b-ee7b-4296-aaed-0ceae9456f42/tasks/{{ task.image }}"{% endif %}
                          class="fullscreen-image"
                          alt="Изображение к задаче"
                          id="modalImage"
@@ -708,15 +706,231 @@ document.addEventListener('DOMContentLoaded', function() {
     // Объявляем переменные состояния
     let serverTimeOffset = 0; // Смещение между серверным и клиентским временем
     let isSubmitting = false;
+    let retryImageLoad = null;
+    let overlayHideTimer = null;
+    const tournamentId = {{ tournament.id|tojson }};
+    const taskCurrentUrl = "{{ url_for('tournament_task_current', tournament_id=tournament.id) }}";
 
-    // Скрываем оверлей после полной загрузки страницы
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    if (loadingOverlay) {
-        loadingOverlay.style.opacity = '0';
-        setTimeout(() => {
-            loadingOverlay.style.display = 'none';
-        }, 300);
+    function setSubmitCookie() {
+        document.cookie = 'task_submit=' + tournamentId + ':' + currentTask.id + '; path=/; max-age=600; SameSite=Lax';
     }
+
+    function clearSubmitCookie() {
+        document.cookie = 'task_submit=; path=/; max-age=0; SameSite=Lax';
+    }
+    let currentTask = {
+        id: {{ task.id }},
+        submitUrl: "{{ url_for('submit_task_answer', tournament_id=tournament.id, task_id=task.id) }}",
+        seenUrl: "{{ url_for('mark_task_seen', tournament_id=tournament.id, task_id=task.id) }}",
+        submittingUrl: "{{ url_for('mark_task_submitting', tournament_id=tournament.id, task_id=task.id) }}"
+    };
+
+    function sleep(ms) {
+        return new Promise(function(resolve) { setTimeout(resolve, ms); });
+    }
+
+    function setLoadingOverlay(visible, text) {
+        const overlay = document.getElementById('loadingOverlay');
+        if (!overlay) return;
+        const loadingText = document.getElementById('loadingOverlayText');
+        if (loadingText && text) loadingText.textContent = text;
+        if (overlayHideTimer) {
+            clearTimeout(overlayHideTimer);
+            overlayHideTimer = null;
+        }
+        if (visible) {
+            overlay.style.display = 'flex';
+            overlay.style.opacity = '1';
+        } else {
+            overlay.style.opacity = '0';
+            overlayHideTimer = setTimeout(function() {
+                overlay.style.display = 'none';
+            }, 300);
+        }
+    }
+
+    function showResultMessage(category, message) {
+        if (!message) return;
+        const allowed = ['success', 'danger', 'info', 'warning'];
+        const safeCategory = allowed.indexOf(category) === -1 ? 'info' : category;
+        const box = document.querySelector('.flash-messages');
+        if (!box) return;
+        box.querySelectorAll('.task-live-result').forEach(function(node) { node.remove(); });
+        const el = document.createElement('div');
+        el.className = 'alert alert-' + safeCategory + ' flash-message alert-dismissible fade show task-live-result';
+        el.setAttribute('role', 'alert');
+        const span = document.createElement('span');
+        span.textContent = message;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn-close';
+        button.setAttribute('data-bs-dismiss', 'alert');
+        button.setAttribute('aria-label', 'Close');
+        el.appendChild(span);
+        el.appendChild(button);
+        box.prepend(el);
+    }
+
+    function markCurrentTaskSeen() {
+        const url = currentTask.seenUrl;
+        const taskId = currentTask.id;
+        let attempt = 0;
+        function send() {
+            attempt += 1;
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'fetch' },
+                credentials: 'same-origin',
+                keepalive: true
+            }).then(function(response) {
+                if (!response.ok && attempt < 3 && currentTask.id === taskId) {
+                    setTimeout(send, 500 * attempt);
+                }
+            }).catch(function() {
+                if (attempt < 3 && currentTask.id === taskId) {
+                    setTimeout(send, 500 * attempt);
+                }
+            });
+        }
+        send();
+    }
+
+    async function markSubmitting() {
+        try {
+            const controller = new AbortController();
+            const timer = setTimeout(function() { controller.abort(); }, 3000);
+            await fetch(currentTask.submittingUrl, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'fetch' },
+                credentials: 'same-origin',
+                keepalive: true,
+                signal: controller.signal
+            });
+            clearTimeout(timer);
+        } catch (e) {}
+    }
+
+    function applyTaskPayload(task) {
+        clearSubmitCookie();
+        currentTask = {
+            id: task.id,
+            submitUrl: task.submit_url,
+            seenUrl: task.seen_url,
+            submittingUrl: task.submitting_url
+        };
+        const form = document.getElementById('answerForm');
+        if (form) form.action = task.submit_url;
+        document.getElementById('taskTitle').textContent = task.title || '';
+        document.getElementById('taskPoints').textContent = task.points + ' баллов';
+        document.getElementById('taskDescription').innerHTML = task.description_html || '';
+        const total = task.total_tasks || 0;
+        const solved = task.solved_tasks_count || 0;
+        document.getElementById('taskProgressText').textContent = solved + '/' + total;
+        document.getElementById('taskProgressFill').style.width = (total ? (solved / total * 100) : 0).toFixed(1) + '%';
+        const input = document.getElementById('answer');
+        if (input) input.value = '';
+        const violation = document.getElementById('violationOverlay');
+        if (violation) violation.style.display = 'none';
+        setupTaskImage(task.image_url || '');
+    }
+
+    async function loadNextTaskWithRetry() {
+        let attempt = 1;
+        setLoadingOverlay(true, 'Загрузка вопроса, попытка ' + attempt + '...');
+        while (true) {
+            let timer = null;
+            try {
+                const controller = new AbortController();
+                timer = setTimeout(function() { controller.abort(); }, 20000);
+                const response = await fetch(taskCurrentUrl, {
+                    headers: {
+                        'X-Requested-With': 'fetch',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                timer = null;
+                if (response.redirected) {
+                    clearSubmitCookie();
+                    window.location.href = response.url;
+                    return;
+                }
+                const data = await response.json();
+                if (data.redirect) {
+                    clearSubmitCookie();
+                    window.location.href = data.redirect;
+                    return;
+                }
+                if (!response.ok || !data.task) throw new Error('retry');
+                applyTaskPayload(data.task);
+                setLoadingOverlay(false);
+                isSubmitting = false;
+                markCurrentTaskSeen();
+                return;
+            } catch (e) {
+                if (timer) clearTimeout(timer);
+                attempt += 1;
+                setLoadingOverlay(true, 'Загрузка вопроса, попытка ' + attempt + '...');
+                await sleep(Math.min(1000 * (attempt - 1), 5000));
+            }
+        }
+    }
+
+    async function submitAnswerWithRetry(answerText) {
+        if (isSubmitting) return;
+        isSubmitting = true;
+        setSubmitCookie();
+        if (typeof stopFocusCountdown === 'function') stopFocusCountdown();
+        if (confirmModal) confirmModal.hide();
+        if (skipTaskModal) skipTaskModal.hide();
+        let attempt = 1;
+        setLoadingOverlay(true, 'Отправка ответа, попытка ' + attempt + '...');
+        await markSubmitting();
+        while (true) {
+            let timer = null;
+            try {
+                const formData = new FormData();
+                formData.append('answer', answerText);
+                const controller = new AbortController();
+                timer = setTimeout(function() { controller.abort(); }, 20000);
+                const response = await fetch(currentTask.submitUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'fetch' },
+                    credentials: 'same-origin',
+                    signal: controller.signal
+                });
+                clearTimeout(timer);
+                timer = null;
+                if (response.redirected) {
+                    clearSubmitCookie();
+                    window.location.href = response.url;
+                    return;
+                }
+                const data = await response.json();
+                if (data.redirect) {
+                    clearSubmitCookie();
+                    window.location.href = data.redirect;
+                    return;
+                }
+                if (!response.ok || !data.ok) throw new Error('retry');
+                showResultMessage(data.category, data.message);
+                await loadNextTaskWithRetry();
+                return;
+            } catch (e) {
+                if (timer) clearTimeout(timer);
+                attempt += 1;
+                setLoadingOverlay(true, 'Отправка ответа, попытка ' + attempt + '...');
+                await sleep(Math.min(1000 * (attempt - 1), 5000));
+            }
+        }
+    }
+
+    // Текст вопроса уже в странице: отмечаем показ и убираем заставку
+    markCurrentTaskSeen();
+    setLoadingOverlay(false);
 
     // Инициализация модальных окон
     const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
@@ -755,31 +969,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обработчик подтверждения отправки
     confirmSubmitBtn.addEventListener('click', function() {
-        isSubmitting = true;
-
-        // Показываем оверлей загрузки
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            // Меняем текст в оверлее
-            const loadingText = loadingOverlay.querySelector('p');
-            if (loadingText) {
-                loadingText.textContent = 'Отправка ответа...';
-                // Добавляем дополнительный текст
-                const warningText = document.createElement('p');
-                warningText.className = 'text-light small mt-2';
-                //warningText.textContent = 'Пожалуйста, не закрывайте страницу';
-                loadingText.parentNode.appendChild(warningText);
-            }
-
-            loadingOverlay.style.display = 'flex';
-            setTimeout(() => {
-                loadingOverlay.style.opacity = '1';
-                // Отправляем форму
-                answerForm.submit();
-            }, 200);
-        } else {
-            answerForm.submit();
-        }
+        submitAnswerWithRetry(answerInput.value);
     });
 
     // Обработчик нажатия на кнопку "Пропустить задачу"
@@ -789,30 +979,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обработчик подтверждения пропуска задачи
     confirmSkipTaskBtn.addEventListener('click', function() {
-        // Закрываем модальное окно
-        skipTaskModal.hide();
-        
-        // Записываем метку в поле ответа
         answerInput.value = 'wrong_answer_due_to_skip';
-        
-        // Показываем оверлей загрузки
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (loadingOverlay) {
-            // Меняем текст в оверлее
-            const loadingText = loadingOverlay.querySelector('p');
-            if (loadingText) {
-                loadingText.textContent = 'Пропуск задачи...';
-            }
-
-            loadingOverlay.style.display = 'flex';
-            setTimeout(() => {
-                loadingOverlay.style.opacity = '1';
-                // Отправляем форму
-                answerForm.submit();
-            }, 200);
-        } else {
-            answerForm.submit();
-        }
+        submitAnswerWithRetry('wrong_answer_due_to_skip');
     });
 
 
@@ -1032,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const taskImage = document.getElementById('taskImage');
     
     // Предзагрузка изображения задачи при загрузке страницы
-    if (taskImage && taskImage.src) {
+    if (taskImage && taskImage.getAttribute('src')) {
         preloadImage(taskImage.src)
             .then(() => {
                 console.log('Изображение задачи предзагружено успешно');
@@ -1085,14 +1253,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageError = document.getElementById('imageError');
     const imageInstructions = document.getElementById('imageInstructions');
     const retryImageBtn = document.getElementById('retryImageBtn');
-    
-    if (taskImage && imageLoading && imageError) {
-        const retryImageLoad = handleImageLoad(taskImage, imageLoading, imageError, imageInstructions);
-        
-        // Обработчик кнопки повтора
-        if (retryImageBtn) {
-            retryImageBtn.addEventListener('click', retryImageLoad);
+
+    function setupTaskImage(url) {
+        const block = document.getElementById('taskImageBlock');
+        const image = document.getElementById('taskImage');
+        const modalImg = document.getElementById('modalImage');
+        if (!block || !image) return;
+        if (!url) {
+            block.style.display = 'none';
+            image.removeAttribute('src');
+            if (modalImg) modalImg.removeAttribute('src');
+            retryImageLoad = null;
+            return;
         }
+        block.style.display = '';
+        image.src = url;
+        if (modalImg) modalImg.src = url;
+        if (imageLoading && imageError) {
+            retryImageLoad = handleImageLoad(image, imageLoading, imageError, imageInstructions);
+        }
+    }
+
+    if (taskImage && taskImage.getAttribute('src')) {
+        setupTaskImage(taskImage.getAttribute('src'));
+    }
+    if (retryImageBtn) {
+        retryImageBtn.addEventListener('click', function() {
+            if (retryImageLoad) retryImageLoad();
+        });
     }
     
     // Обработка модального окна изображения
@@ -1164,8 +1352,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Показываем оверлей нарушения
             showViolationOverlay();
             
-            // Автоматически отправляем форму (как будто пользователь нажал кнопку)
-            answerForm.submit();
+            submitAnswerWithRetry('wrong_answer_due_to_focus_loss');
         }
     }
 
@@ -1181,14 +1368,15 @@ document.addEventListener('DOMContentLoaded', function() {
             isSubmitting = true;
             input.value = 'wrong_answer_due_to_navigation';
 
-            // Используем sendBeacon для гарантированной отправки данных
-            const formData = new FormData(answerForm);
-            navigator.sendBeacon(answerForm.action, formData);
+            const beaconData = new FormData();
+            beaconData.append('answer', input.value);
+            navigator.sendBeacon(answerForm.action, beaconData);
 
-            // Дополнительная попытка через fetch с keepalive
+            const fallbackData = new FormData();
+            fallbackData.append('answer', input.value);
             fetch(answerForm.action, {
                 method: 'POST',
-                body: formData,
+                body: fallbackData,
                 keepalive: true
             }).catch(() => {
                 // Игнорируем ошибки, так как это fallback
@@ -1235,6 +1423,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчики событий видимости страницы для предупреждения
     document.addEventListener('visibilitychange', function() {
         if (document.hidden) {
+            if (isSubmitting) return;
             // Страница стала невидимой - запускаем таймер
             focusTimeout = setTimeout(() => {
                 startFocusCountdown();
@@ -1247,6 +1436,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обработчик потери фокуса окна
     window.addEventListener('blur', function() {
+        if (isSubmitting) return;
         // Окно потеряло фокус - запускаем таймер
         focusTimeout = setTimeout(() => {
             startFocusCountdown();

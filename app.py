@@ -800,6 +800,7 @@ def initialize_app_once():
     ensure_prize_schema()
     ensure_user_rating_points_schema()
     ensure_news_views_schema()
+    ensure_active_task_schema()
 
     print("Создание администратора...")
     create_admin_user()
@@ -1574,6 +1575,8 @@ class ActiveTask(db.Model):
     task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)  # Время истечения активной задачи
+    seen_at = db.Column(db.DateTime, nullable=True)  # Когда вопрос реально показался на экране
+    submit_started_at = db.Column(db.DateTime, nullable=True)  # Когда началась отправка ответа
     
     # Уникальное ограничение - один пользователь может иметь только одну активную задачу в турнире
     __table_args__ = (db.UniqueConstraint('user_id', 'tournament_id', name='unique_user_tournament_active_task'),)
@@ -1931,6 +1934,28 @@ def ensure_user_rating_points_schema():
     if 'rating_points' not in columns:
         db.session.execute(text('ALTER TABLE "user" ADD COLUMN rating_points INTEGER DEFAULT 0'))
         db.session.execute(text('UPDATE "user" SET rating_points = 0 WHERE rating_points IS NULL'))
+        db.session.commit()
+
+def ensure_active_task_schema():
+    """Добавляет отметки показа вопроса и начала отправки в active_task."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    table_name = None
+    for name in ('active_task', 'activetask'):
+        if inspector.has_table(name):
+            table_name = name
+            break
+    if not table_name:
+        return
+    columns = {col['name'] for col in inspector.get_columns(table_name)}
+    changed = False
+    if 'seen_at' not in columns:
+        db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN seen_at TIMESTAMP'))
+        changed = True
+    if 'submit_started_at' not in columns:
+        db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN submit_started_at TIMESTAMP'))
+        changed = True
+    if changed:
         db.session.commit()
 
 def ensure_news_views_schema():
@@ -7962,6 +7987,153 @@ def handle_abandoned_task(user_id, tournament_id, reason="page_reload"):
         db.session.rollback()
         return False
 
+def json_no_store(payload, status=200):
+    response = jsonify(payload)
+    response.status_code = status
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+def handle_task_page_reload(user_id, tournament_id):
+    """Перезагрузка страницы вопроса.
+
+    Непоказанный вопрос и вопрос, по которому уже начата отправка, остаются.
+    Показанный вопрос без отправки засчитывается как неверный.
+    Уже сохранённый ответ не перезаписывается.
+    """
+    try:
+        active_task = ActiveTask.query.filter_by(
+            user_id=user_id,
+            tournament_id=tournament_id
+        ).first()
+        if not active_task:
+            return False
+        if active_task.is_expired():
+            db.session.delete(active_task)
+            db.session.commit()
+            return False
+
+        existing_solution = SolvedTask.query.filter_by(
+            user_id=user_id,
+            task_id=active_task.task_id
+        ).first()
+        if existing_solution:
+            db.session.delete(active_task)
+            db.session.commit()
+            return False
+
+        # Кука ставится в браузере до сетевого запроса. Если отправка зависла
+        # и сигнал на сервер не дошёл, перезагрузка всё равно не сжигает вопрос.
+        submit_cookie = request.cookies.get('task_submit') or ''
+        submit_in_browser = submit_cookie == f'{active_task.tournament_id}:{active_task.task_id}'
+        if active_task.seen_at and not active_task.submit_started_at and not submit_in_browser:
+            return handle_abandoned_task(user_id, tournament_id, "page_reload")
+
+        if active_task.submit_started_at:
+            active_task.submit_started_at = None
+            db.session.commit()
+        return False
+    except Exception as e:
+        print(f"Ошибка при обработке перезагрузки вопроса: {e}")
+        db.session.rollback()
+        return False
+
+def load_current_task_state(tournament):
+    """Возвращает текущий вопрос участника или назначает следующий.
+
+    Уже решённые вопросы не выдаются повторно. Если вопросов не осталось,
+    finished=True.
+    """
+    solved_tasks = SolvedTask.query.filter_by(
+        user_id=current_user.id
+    ).join(Task).filter(Task.tournament_id == tournament.id).all()
+    solved_task_ids = [row.task_id for row in solved_tasks]
+
+    all_tasks = get_tournament_tasks_cached(tournament.id, current_user.category)
+    available_tasks = [item for item in all_tasks if item.id not in solved_task_ids]
+    total_tasks = len(all_tasks)
+    solved_tasks_count = len(solved_task_ids)
+    empty_state = {
+        'finished': True,
+        'task': None,
+        'solved_tasks_count': solved_tasks_count,
+        'total_tasks': total_tasks,
+    }
+
+    if not available_tasks:
+        clear_current_task_from_db(current_user.id, tournament.id)
+        return empty_state
+
+    current_task_id = get_current_task_from_db(current_user.id, tournament.id)
+    if current_task_id:
+        existing_solution = SolvedTask.query.filter_by(
+            user_id=current_user.id,
+            task_id=current_task_id
+        ).first()
+        if not existing_solution:
+            task = get_task_by_id_cached(tournament.id, current_task_id)
+            if task and task.tournament_id == tournament.id and task.category == current_user.category:
+                return {
+                    'finished': False,
+                    'task': task,
+                    'solved_tasks_count': solved_tasks_count,
+                    'total_tasks': total_tasks,
+                }
+        else:
+            clear_current_task_from_db(current_user.id, tournament.id)
+
+    task = get_simple_task_selection(available_tasks, solved_tasks, tournament.id)
+    if task is None:
+        return empty_state
+
+    existing_solution = SolvedTask.query.filter_by(
+        user_id=current_user.id,
+        task_id=task.id
+    ).first()
+    if existing_solution:
+        solved_task_ids.append(task.id)
+        available_tasks = [item for item in all_tasks if item.id not in solved_task_ids]
+        if not available_tasks:
+            clear_current_task_from_db(current_user.id, tournament.id)
+            return empty_state
+        task = get_simple_task_selection(available_tasks, solved_tasks, tournament.id)
+        if task is None:
+            return empty_state
+
+    set_current_task_in_db(current_user.id, tournament.id, task.id)
+    return {
+        'finished': False,
+        'task': task,
+        'solved_tasks_count': solved_tasks_count,
+        'total_tasks': total_tasks,
+    }
+
+def public_task_payload(task, solved_tasks_count, total_tasks):
+    """Данные вопроса для страницы участника. Без правильного ответа и решения."""
+    return {
+        'id': task.id,
+        'title': task.title,
+        'description_html': str(nl2br(task.description or '')),
+        'points': task.points,
+        'image_url': get_s3_url(task.image, 'tasks') if task.image else None,
+        'solved_tasks_count': solved_tasks_count,
+        'total_tasks': total_tasks,
+        'submit_url': url_for('submit_task_answer', tournament_id=task.tournament_id, task_id=task.id),
+        'seen_url': url_for('mark_task_seen', tournament_id=task.tournament_id, task_id=task.id),
+        'submitting_url': url_for('mark_task_submitting', tournament_id=task.tournament_id, task_id=task.id),
+    }
+
+def active_task_for_player(tournament_id, task_id):
+    active_task = ActiveTask.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament_id,
+        task_id=task_id
+    ).first()
+    if not active_task or active_task.is_expired():
+        return None
+    if SolvedTask.query.filter_by(user_id=current_user.id, task_id=task_id).first():
+        return None
+    return active_task
+
 @app.route('/tournament/<int:tournament_id>/task')
 @login_required
 def tournament_task(tournament_id):
@@ -7992,91 +8164,97 @@ def tournament_task(tournament_id):
         participation.solving_start_time = datetime.now()
         db.session.commit()
     
-    # Проверяем, является ли запрос перезагрузкой страницы
-    is_page_reload = detect_page_reload(request)
-    
-    # Если это перезагрузка страницы, обрабатываем брошенную задачу
-    if is_page_reload:
-        handle_abandoned_task(current_user.id, tournament_id, "page_reload")
-    
-    # Получаем список всех задач, которые пользователь уже решал (и правильно, и неправильно)
-    # ВАЖНО: После обработки нарушения, чтобы включить ABANDONED_ задачи
-    solved_tasks = SolvedTask.query.filter_by(
-        user_id=current_user.id
-    ).join(Task).filter(Task.tournament_id == tournament_id).all()
-    solved_task_ids = [task.task_id for task in solved_tasks]
-    
-    # Получаем текущую задачу из БД
-    current_task_id = get_current_task_from_db(current_user.id, tournament_id)
-    
-    # Получаем все задачи турнира для категории пользователя, исключая уже решенные
-    all_tasks = get_tournament_tasks_cached(tournament_id, current_user.category)
-    available_tasks = [task for task in all_tasks if task.id not in solved_task_ids]
-    
-    if not available_tasks:
-        # Если все задачи решены, перенаправляем на страницу результатов
+    # Перезагрузка документа. Запрос следующего вопроса с страницы сюда не попадает.
+    if detect_page_reload(request):
+        handle_task_page_reload(current_user.id, tournament_id)
+
+    state = load_current_task_state(tournament)
+    if state['finished'] or not state['task']:
         return redirect(url_for('tournament_results', tournament_id=tournament_id))
-    
-    if current_task_id:
-        # Проверяем в БД реального времени, не решена ли уже эта задача
-        existing_solution = SolvedTask.query.filter_by(
-            user_id=current_user.id,
-            task_id=current_task_id
-        ).first()
-        
-        if not existing_solution:
-            # Задача еще не решена - можно показать
-            task = get_task_by_id_cached(tournament_id, current_task_id)
-            if task and task.tournament_id == tournament_id and task.category == current_user.category:
-                # Вычисляем количество решенных задач и общее количество
-                total_tasks = len(all_tasks)
-                solved_tasks_count = len(solved_task_ids)  # Без +1, показываем только решенные
-                
-                return render_template('tournament_task.html', 
-                                     tournament=tournament, 
-                                     task=task,
-                                     timedelta=timedelta,
-                                     now=datetime.now(),
-                                     solved_tasks_count=solved_tasks_count,
-                                     total_tasks=total_tasks,
-                                     participation=participation)
-        else:
-            # Задача уже решена - очищаем из БД
-            clear_current_task_from_db(current_user.id, tournament_id)
-    
-    # Если нет сохраненной задачи или она уже решена, выбираем новую по простой схеме
-    task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
-    
-    # Проверяем, не была ли эта задача уже заблокирована (защита от дублей)
-    existing_solution = SolvedTask.query.filter_by(
-        user_id=current_user.id,
-        task_id=task.id
-    ).first()
-    
-    if existing_solution:
-        # Задача уже решена - обновляем список и выбираем новую
-        solved_task_ids.append(task.id)
-        available_tasks = [t for t in all_tasks if t.id not in solved_task_ids]
-        if available_tasks:
-            task = get_simple_task_selection(available_tasks, solved_tasks, tournament_id)
-        else:
-            return redirect(url_for('tournament_results', tournament_id=tournament_id))
-    
-    # Сохраняем ID задачи в БД
-    set_current_task_in_db(current_user.id, tournament_id, task.id)
-    
-    # Вычисляем количество решенных задач и общее количество
-    total_tasks = len(all_tasks)
-    solved_tasks_count = len(solved_task_ids)  # Без +1, показываем только решенные
-    
-    return render_template('tournament_task.html', 
-                         tournament=tournament, 
-                         task=task,
+
+    response = make_response(render_template('tournament_task.html',
+                         tournament=tournament,
+                         task=state['task'],
                          timedelta=timedelta,
                          now=datetime.now(),
-                         solved_tasks_count=solved_tasks_count,
-                         total_tasks=total_tasks,
-                         participation=participation)
+                         solved_tasks_count=state['solved_tasks_count'],
+                         total_tasks=state['total_tasks'],
+                         participation=participation))
+    if request.cookies.get('task_submit'):
+        response.delete_cookie('task_submit', path='/')
+    return response
+
+def tournament_player_or_json_leave(tournament):
+    """Проверки участия для запросов страницы вопроса. None, если можно продолжать."""
+    if not tournament.is_active:
+        return json_no_store({
+            'ok': False,
+            'message': 'Турнир неактивен',
+            'category': 'warning',
+            'redirect': url_for('home'),
+        })
+    if datetime.now() > tournament.start_date + timedelta(minutes=tournament.duration):
+        return json_no_store({
+            'ok': False,
+            'message': 'Турнир уже закончился',
+            'category': 'warning',
+            'redirect': url_for('home'),
+        })
+    participation = TournamentParticipation.query.filter_by(
+        user_id=current_user.id,
+        tournament_id=tournament.id
+    ).first()
+    if not participation:
+        return json_no_store({
+            'ok': False,
+            'message': 'Вы не участвуете в этом турнире',
+            'category': 'warning',
+            'redirect': url_for('home'),
+        })
+    return None
+
+@app.route('/tournament/<int:tournament_id>/task/current.json')
+@login_required
+def tournament_task_current(tournament_id):
+    tournament = Tournament.query.get_or_404(tournament_id)
+    problem = tournament_player_or_json_leave(tournament)
+    if problem:
+        return problem
+    state = load_current_task_state(tournament)
+    if state['finished'] or not state['task']:
+        return json_no_store({
+            'ok': True,
+            'redirect': url_for('tournament_results', tournament_id=tournament_id),
+        })
+    return json_no_store({
+        'ok': True,
+        'task': public_task_payload(
+            state['task'],
+            state['solved_tasks_count'],
+            state['total_tasks'],
+        ),
+    })
+
+@app.route('/tournament/<int:tournament_id>/task/<int:task_id>/seen', methods=['POST'])
+@login_required
+def mark_task_seen(tournament_id, task_id):
+    active_task = active_task_for_player(tournament_id, task_id)
+    if not active_task:
+        return json_no_store({'ok': False}, 409)
+    if not active_task.seen_at:
+        active_task.seen_at = datetime.utcnow()
+        db.session.commit()
+    return json_no_store({'ok': True})
+
+@app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submitting', methods=['POST'])
+@login_required
+def mark_task_submitting(tournament_id, task_id):
+    active_task = active_task_for_player(tournament_id, task_id)
+    if not active_task:
+        return json_no_store({'ok': False}, 409)
+    active_task.submit_started_at = datetime.utcnow()
+    db.session.commit()
+    return json_no_store({'ok': True})
 
 def normalize_tournament_user_answer(s):
     """Убирает пробелы по краям и завершающие точки (и пробелы перед ними)."""
@@ -8091,18 +8269,54 @@ def normalize_tournament_user_answer(s):
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
 def submit_task_answer(tournament_id, task_id):
+    fetch_mode = request.headers.get('X-Requested-With') == 'fetch'
+
+    def respond_leave(message, category, endpoint, **kwargs):
+        if fetch_mode:
+            return json_no_store({
+                'ok': False,
+                'message': message,
+                'category': category,
+                'redirect': url_for(endpoint, **kwargs),
+            })
+        flash(message, category)
+        return redirect(url_for(endpoint, **kwargs))
+
+    def result_message(saved_correct, saved_answer):
+        saved_answer = saved_answer or ''
+        is_marker = (
+            saved_answer.startswith('wrong_answer_due_to_')
+            or saved_answer.startswith('ABANDONED_')
+        )
+        if saved_correct:
+            return f'Правильный ответ! +{task.points} баллов', 'success'
+        if is_marker:
+            return None, None
+        return 'Неправильный ответ', 'danger'
+
+    def respond_already_saved(prior):
+        message, category = result_message(prior.is_correct, prior.user_answer)
+        if fetch_mode:
+            return json_no_store({
+                'ok': True,
+                'already_saved': True,
+                'correct': bool(prior.is_correct),
+                'message': message,
+                'category': category,
+            })
+        flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
+        return redirect(url_for('tournament_task', tournament_id=tournament_id))
+
     tournament = Tournament.query.get_or_404(tournament_id)
     task = get_task_by_id_cached(tournament_id, task_id)
     if not task:
-        flash('Задача не найдена', 'error')
-        return redirect(url_for('tournament_task', tournament_id=tournament_id))
+        return respond_leave('Задача не найдена', 'error', 'tournament_task', tournament_id=tournament_id)
     
     # Проверяем, идет ли турнир
     current_time = datetime.now()  # Используем локальное время
     if not (tournament.start_date <= current_time and 
             current_time <= tournament.start_date + timedelta(minutes=tournament.duration)):
-        flash('Турнир не активен', 'warning')
-        return redirect(url_for('home'))
+        return respond_leave('Турнир не активен', 'warning', 'home')
     
     # Проверяем, есть ли уже запись о решении этой задачи
     existing_solution = SolvedTask.query.filter_by(
@@ -8117,8 +8331,7 @@ def submit_task_answer(tournament_id, task_id):
     ).first()
     
     if not participation:
-        flash('Вы не участвуете в этом турнире', 'warning')
-        return redirect(url_for('home'))
+        return respond_leave('Вы не участвуете в этом турнире', 'warning', 'home')
     
     # Проверяем личное время на решение задач
     if tournament.solving_time_minutes and participation.solving_start_time:
@@ -8129,8 +8342,12 @@ def submit_task_answer(tournament_id, task_id):
         actual_end_time = min(solving_end_time, tournament_end_time)
         
         if current_time > actual_end_time:
-            flash('Время на решение задач истекло', 'warning')
-            return redirect(url_for('tournament_results', tournament_id=tournament_id))
+            return respond_leave(
+                'Время на решение задач истекло',
+                'warning',
+                'tournament_results',
+                tournament_id=tournament_id,
+            )
     
     # Получаем ответ пользователя
     raw_answer = request.form.get('answer', '').strip()
@@ -8146,37 +8363,25 @@ def submit_task_answer(tournament_id, task_id):
         user_answer = normalize_tournament_user_answer(raw_answer)
         is_correct = user_answer.lower() == task.correct_answer.lower()
     
-    # Сохраняем результат только если записи еще нет
-    task_skipped = False
-    
-    if existing_solution:
-        # Запись уже существует - пропускаем
-        flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
-        task_skipped = True
-    else:
-        # Дополнительная проверка перед созданием новой записи (защита от race condition)
-        duplicate_check = SolvedTask.query.filter_by(
+    # Сохраняем результат только если записи еще нет.
+    # Повтор той же отправки подтверждает уже записанный ответ и не начисляет баллы снова.
+    prior_solution = existing_solution
+    if not prior_solution:
+        prior_solution = SolvedTask.query.filter_by(
             user_id=current_user.id,
             task_id=task_id
         ).first()
-        
-        if duplicate_check:
-            # Запись появилась между проверками - пропускаем
-            flash('Задача пропущена из-за несоблюдения правил турнира', 'info')
-            task_skipped = True
-        else:
-            # Создаем новую запись
-            solution = SolvedTask(
-                user_id=current_user.id,
-                task_id=task_id,
-                is_correct=is_correct,
-                user_answer=user_answer
-            )
-            db.session.add(solution)
-    
-    # Если задача была пропущена, не показываем сообщения о правильности ответа
-    if task_skipped:
-        return redirect(url_for('tournament_task', tournament_id=tournament_id))
+
+    if prior_solution:
+        return respond_already_saved(prior_solution)
+
+    solution = SolvedTask(
+        user_id=current_user.id,
+        task_id=task_id,
+        is_correct=is_correct,
+        user_answer=user_answer
+    )
+    db.session.add(solution)
     
     # Обновляем время окончания участия в турнире
     if participation:
@@ -8225,23 +8430,49 @@ def submit_task_answer(tournament_id, task_id):
             db.session.commit()
             session.pop('session_token', None)
             logout_user()
-            
+
+            if fetch_mode:
+                return json_no_store({
+                    'ok': False,
+                    'redirect': url_for('login'),
+                    'message': 'Ваш аккаунт заблокирован из-за подозрительной активности',
+                    'category': 'danger',
+                })
             return redirect(url_for('login'))
         
-        flash(f'Правильный ответ! +{task.points} баллов', 'success')
+        if not fetch_mode:
+            flash(f'Правильный ответ! +{task.points} баллов', 'success')
     else:
         # Показываем сообщение только для обычных неправильных ответов
-        if not is_special_answer:
+        if not is_special_answer and not fetch_mode:
             flash('Неправильный ответ', 'danger')
     
     try:
         db.session.commit()
-    except IntegrityError as e:
+    except IntegrityError:
         db.session.rollback()
+        prior = SolvedTask.query.filter_by(
+            user_id=current_user.id,
+            task_id=task_id
+        ).first()
+        if prior:
+            return respond_already_saved(prior)
+        if fetch_mode:
+            return json_no_store({'ok': False, 'retry': True}, 503)
         return redirect(url_for('tournament_task', tournament_id=tournament_id))
     
     # Удаляем текущую задачу из БД
     clear_current_task_from_db(current_user.id, tournament_id)
+
+    if fetch_mode:
+        message, category = result_message(is_correct, user_answer)
+        return json_no_store({
+            'ok': True,
+            'already_saved': False,
+            'correct': is_correct,
+            'message': message,
+            'category': category,
+        })
     
     return redirect(url_for('tournament_task', tournament_id=tournament_id))
 
