@@ -2621,13 +2621,40 @@ def home():
                 Tournament.is_active == True
             ).order_by(Tournament.start_date.asc()).first()
         
-        # Получаем статистику для информационного окна
-        # Топ-10 лучших игроков по общему счету (balance)
-        # При равном балансе сортировка по месту в категории (category_rank)
+        # Топ-5 участников по балансу. При равном балансе — по месту в категории.
         top_players = User.query.filter(
             User.is_active == True,
-            User.is_admin == False
-        ).order_by(User.balance.desc(), nullslast(User.category_rank.asc())).limit(10).all()
+            User.is_admin == False,
+            User.balance > 0
+        ).order_by(User.balance.desc(), nullslast(User.category_rank.asc())).limit(5).all()
+
+        top_schools = (
+            db.session.query(
+                EducationalInstitution.name.label('name'),
+                db.func.count(db.func.distinct(User.id)).label('participant_count')
+            )
+            .join(User, User.educational_institution_id == EducationalInstitution.id)
+            .join(TournamentParticipation, TournamentParticipation.user_id == User.id)
+            .filter(User.is_admin == False)
+            .group_by(EducationalInstitution.id, EducationalInstitution.name)
+            .order_by(
+                db.func.count(db.func.distinct(User.id)).desc(),
+                EducationalInstitution.name.asc()
+            )
+            .limit(5)
+            .all()
+        )
+
+        featured_prizes = (
+            Prize.query.filter(
+                Prize.is_active == True,
+                Prize.is_for_teachers == False,
+                Prize.quantity != 0
+            )
+            .order_by(Prize.points_cost.asc())
+            .limit(12)
+            .all()
+        )
         
         # Общая статистика
         total_tournaments = Tournament.query.filter(
@@ -2649,6 +2676,8 @@ def home():
                              now=current_time,
                              is_tournament_running=is_tournament_running,
                              top_players=top_players,
+                             top_schools=top_schools,
+                             featured_prizes=featured_prizes,
                              total_tournaments=total_tournaments,
                              avg_tournament_score=round(avg_tournament_score, 1),
                              max_tournament_score=max_tournament_score,
@@ -10818,13 +10847,15 @@ def update_category_ranks():
             user.category_rank = current_rank
             same_rank_count += 1
         
-        # Обнуляем рейтинг для пользователей с нулевыми показателями
-        inactive_users = User.query.filter_by(category=category)\
-            .filter(db.and_(User.balance == 0, User.total_tournament_time == 0))\
-            .all()
-        
-        for user in inactive_users:
-            user.category_rank = None
+        # Сбрасываем место только у тех, у кого оно ещё стоит.
+        # Не загружаем всех участников с нулевым балансом: в крупных категориях
+        # такой SELECT не укладывается в statement_timeout.
+        User.query.filter(
+            User.category == category,
+            User.balance == 0,
+            User.total_tournament_time == 0,
+            User.category_rank.isnot(None),
+        ).update({User.category_rank: None}, synchronize_session=False)
 
     update_tournament_places()
     db.session.commit()

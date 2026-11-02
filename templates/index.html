@@ -132,11 +132,11 @@
     <div class="index-main-parallax__parallax" aria-hidden="true"></div>
     <div class="index-main-parallax__content">
         <div class="container mt-5">
-            <div class="row">
+            <div class="row mb-4 index-hero-row">
         <!-- Основной контент с турниром -->
-        <div class="col-lg-8 col-12">
+        <div class="col-lg-7 col-12">
     {% if next_tournament %}
-    <div class="card mb-4">
+    <div class="card index-timer-card mb-0">
         <div class="card-body">
             <div class="text-center">
                 <h3 class="card-title mb-4">{{ next_tournament.title }}</h3>
@@ -210,10 +210,14 @@
     {% endif %}
         </div>
         
-        <!-- Боковая панель со статистикой -->
-        {% if total_tournaments > 0 %}
-        <div class="col-lg-4 col-12">
-            <div class="card mb-4">
+        {% set shop_url = url_for('shop') if current_user.is_authenticated and not isinstance(current_user, Teacher) else url_for('shop_preview') %}
+        {# Топ лучших игроков временно скрыт. Вернуть: total_tournaments > 0 #}
+        {% set show_leaders = false %}
+        <div class="col-lg-5 col-12 d-flex">
+            <div class="index-side">
+        {% if show_leaders %}
+            {#
+            <div class="card mb-0 h-100">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="fas fa-trophy text-warning me-2"></i>
@@ -258,9 +262,213 @@
                     {% endif %}
                 </div>
             </div>
+            #}
+        {% else %}
+                {% if featured_prizes %}
+                <section class="card index-prize-window mb-0" aria-labelledby="indexPrizeTitle">
+        <div class="index-prize-window__head">
+            <div class="index-prize-window__top">
+                <h2 class="index-prize-window__title" id="indexPrizeTitle">
+                    <i class="fas fa-gift" aria-hidden="true"></i>
+                    Лавка призов
+                </h2>
+                <a class="index-prize-window__more" href="{{ shop_url }}">Открыть лавку</a>
+            </div>
+            <p class="index-prize-window__lead">Участвуй в турнире, решай задачи и зарабатывай баллы, которые можно обменять на призы.</p>
         </div>
+        <div class="index-prize-window__stage">
+            <button type="button" class="index-prize-window__nav index-prize-window__nav--prev" aria-label="Предыдущие призы">
+                <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            </button>
+            <div class="index-prize-rail" id="indexPrizeRail" tabindex="0">
+                {% for prize in featured_prizes %}
+                <a class="index-prize-card" href="{{ shop_url }}">
+                    <span class="index-prize-card__photo">
+                        {% if prize.image %}
+                        <img src="{{ get_s3_url(prize.image, 'prizes') }}" alt="{{ prize.name }}">
+                        {% else %}
+                        <i class="fas fa-gift" aria-hidden="true"></i>
+                        {% endif %}
+                    </span>
+                    <span class="index-prize-card__name">{{ prize.name }}</span>
+                    <span class="index-prize-card__cost">{{ prize.points_cost }} баллов</span>
+                </a>
+                {% endfor %}
+            </div>
+            <button type="button" class="index-prize-window__nav index-prize-window__nav--next" aria-label="Следующие призы">
+                <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>
+        </div>
+    </section>
+                {% endif %}
+                <section class="index-demo-board" aria-label="Пример турнирной таблицы">
+                    <h3 class="index-demo-board__title"><i class="fas fa-list-ol" aria-hidden="true"></i> Турнирная таблица</h3>
+                    <p class="index-demo-board__lead">Покажи, на что ты способен — участвуй и решай!</p>
+                    <div class="index-demo-board__scroll">
+                        <table class="index-demo-board__table">
+                            <thead>
+                                <tr>
+                                    <th>Место</th>
+                                    <th>Участник</th>
+                                    <th>Баллы</th>
+                                    <th>Время</th>
+                                    <th>Решено задач</th>
+                                    <th>Турниры</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>Аня Ковалева</td>
+                                    <td>240</td>
+                                    <td>01:12:40</td>
+                                    <td>18</td>
+                                    <td>4</td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td>Марк Соколов</td>
+                                    <td>210</td>
+                                    <td>01:18:05</td>
+                                    <td>16</td>
+                                    <td>4</td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td>Лера Петрова</td>
+                                    <td>180</td>
+                                    <td>01:26:22</td>
+                                    <td>14</td>
+                                    <td>3</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                <div class="index-side__actions">
+                <a class="index-explore-card" href="{{ url_for('tournament_tour') }}">
+                    <span class="index-explore-card__icon" aria-hidden="true"><i class="fas fa-play-circle"></i></span>
+                    <span class="index-explore-card__body">
+                        <span class="index-explore-card__title">Как участвовать</span>
+                        <span class="index-explore-card__text">Регистрация, жетоны, турнир и баллы — короткий путь от первого входа до приза.</span>
+                    </span>
+                </a>
+                <a class="index-explore-card index-explore-card--demo" href="{{ url_for('demo_tournament_overview') }}">
+                    <span class="index-explore-card__icon" aria-hidden="true"><i class="fas fa-graduation-cap"></i></span>
+                    <span class="index-explore-card__body">
+                        <span class="index-explore-card__title">Попробовать</span>
+                        <span class="index-explore-card__text">Пройдите тренировочные задачи без регистрации и посмотрите, как устроен настоящий турнир.</span>
+                    </span>
+                </a>
+                </div>
         {% endif %}
+            </div>
+        </div>
     </div>
+
+    {% if show_leaders %}
+    <div class="index-below mb-4">
+        {% if featured_prizes %}
+        <section class="card index-prize-window mb-0" aria-labelledby="indexPrizeTitleWide">
+            <div class="index-prize-window__head">
+                <div class="index-prize-window__top">
+                    <h2 class="index-prize-window__title" id="indexPrizeTitleWide">
+                        <i class="fas fa-gift" aria-hidden="true"></i>
+                        Лавка призов
+                    </h2>
+                    <a class="index-prize-window__more" href="{{ shop_url }}">Открыть лавку</a>
+                </div>
+                <p class="index-prize-window__lead">Участвуй в турнире, решай задачи и зарабатывай баллы, которые можно обменять на призы.</p>
+            </div>
+            <div class="index-prize-window__stage">
+                <button type="button" class="index-prize-window__nav index-prize-window__nav--prev" aria-label="Предыдущие призы">
+                    <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                </button>
+                <div class="index-prize-rail" id="indexPrizeRail" tabindex="0">
+                    {% for prize in featured_prizes %}
+                    <a class="index-prize-card" href="{{ shop_url }}">
+                        <span class="index-prize-card__photo">
+                            {% if prize.image %}
+                            <img src="{{ get_s3_url(prize.image, 'prizes') }}" alt="{{ prize.name }}">
+                            {% else %}
+                            <i class="fas fa-gift" aria-hidden="true"></i>
+                            {% endif %}
+                        </span>
+                        <span class="index-prize-card__name">{{ prize.name }}</span>
+                        <span class="index-prize-card__cost">{{ prize.points_cost }} баллов</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                <button type="button" class="index-prize-window__nav index-prize-window__nav--next" aria-label="Следующие призы">
+                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                </button>
+            </div>
+        </section>
+        {% endif %}
+        <section class="index-demo-board" aria-label="Пример турнирной таблицы">
+            <h3 class="index-demo-board__title"><i class="fas fa-list-ol" aria-hidden="true"></i> Турнирная таблица</h3>
+            <p class="index-demo-board__lead">Покажи, на что ты способен — участвуй и решай!</p>
+            <div class="index-demo-board__scroll">
+                <table class="index-demo-board__table">
+                    <thead>
+                        <tr>
+                            <th>Место</th>
+                            <th>Участник</th>
+                            <th>Баллы</th>
+                            <th>Время</th>
+                            <th>Решено задач</th>
+                            <th>Турниры</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Аня Ковалева</td>
+                            <td>240</td>
+                            <td>01:12:40</td>
+                            <td>18</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>Марк Соколов</td>
+                            <td>210</td>
+                            <td>01:18:05</td>
+                            <td>16</td>
+                            <td>4</td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>Лера Петрова</td>
+                            <td>180</td>
+                            <td>01:26:22</td>
+                            <td>14</td>
+                            <td>3</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        <div class="index-below__actions">
+            <a class="index-explore-card" href="{{ url_for('tournament_tour') }}">
+                <span class="index-explore-card__icon" aria-hidden="true"><i class="fas fa-play-circle"></i></span>
+                <span class="index-explore-card__body">
+                    <span class="index-explore-card__title">Как участвовать</span>
+                    <span class="index-explore-card__text">Регистрация, жетоны, турнир и баллы — короткий путь от первого входа до приза.</span>
+                </span>
+                <i class="fas fa-arrow-right index-explore-card__arrow" aria-hidden="true"></i>
+            </a>
+            <a class="index-explore-card index-explore-card--demo" href="{{ url_for('demo_tournament_overview') }}">
+                <span class="index-explore-card__icon" aria-hidden="true"><i class="fas fa-graduation-cap"></i></span>
+                <span class="index-explore-card__body">
+                    <span class="index-explore-card__title">Попробовать</span>
+                    <span class="index-explore-card__text">Пройдите тренировочные задачи без регистрации и посмотрите, как устроен настоящий турнир.</span>
+                </span>
+                <i class="fas fa-arrow-right index-explore-card__arrow" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
+    {% endif %}
             </div>
         </div>
     </div>
@@ -446,6 +654,528 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #2c2c32;
 }
 
+.index-side {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+}
+
+@media (min-width: 992px) {
+    .index-hero-row > .col-lg-5 {
+        align-items: stretch;
+    }
+
+    .index-side {
+        justify-content: space-between;
+    }
+}
+
+.index-timer-card .card-body {
+    padding: 1.15rem 1.1rem 1.25rem;
+}
+
+.index-timer-card .card-title.mb-4 {
+    font-size: 1.7rem;
+    line-height: 1.25;
+    margin-bottom: 0.65rem !important;
+}
+
+.index-timer-card .tournament-description.mb-4 {
+    margin-bottom: 0.65rem !important;
+}
+
+.index-timer-card .countdown-label {
+    white-space: nowrap;
+}
+
+.index-timer-card .index-register-btn {
+    min-width: 0;
+    padding: 0.55rem 1.25rem;
+}
+
+.index-side__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+}
+
+.index-side__actions .index-explore-card {
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.55rem;
+}
+
+.index-side__actions .index-explore-card__text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.index-side .index-explore-card {
+    flex: 0 0 auto;
+    height: auto;
+    padding: 0.4rem 0.5rem;
+}
+
+.index-side .index-explore-card__text {
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+
+.index-side .index-prize-window {
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 0.55rem 0.55rem 0.5rem;
+}
+
+.index-side .index-prize-window__head {
+    align-items: stretch;
+    gap: 0.2rem;
+    margin-bottom: 0.35rem;
+}
+
+.index-side .index-prize-window__title {
+    font-size: 1rem;
+}
+
+.index-side .index-prize-window__lead {
+    font-size: 0.8rem;
+    line-height: 1.35;
+}
+
+.index-side .index-prize-window__more {
+    padding: 0.18rem 0.65rem;
+    font-size: 0.75rem;
+}
+
+.index-side .index-prize-rail {
+    gap: 0.45rem;
+    padding: 0.05rem 1.45rem 0.2rem;
+}
+
+.index-side .index-prize-card {
+    flex-basis: 96px;
+    gap: 0.15rem;
+    padding: 0.35rem;
+}
+
+.index-side .index-prize-card__photo {
+    height: 44px;
+}
+
+.index-side .index-demo-board {
+    padding: 0.45rem 0.55rem 0.35rem;
+}
+
+.index-side .index-demo-board__lead {
+    margin: 0.25rem 0 0.35rem;
+    font-size: 0.8rem;
+}
+
+.index-side .index-demo-board__table th,
+.index-side .index-demo-board__table td {
+    padding: 0.2rem 0.55rem;
+}
+
+.index-side .index-prize-card__name {
+    min-height: 0;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    -webkit-line-clamp: 1;
+}
+
+.index-side .index-prize-card__cost {
+    font-size: 0.7rem;
+}
+
+.index-demo-board {
+    padding: 0.75rem 0.7rem 0.65rem;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid rgba(230, 150, 40, 0.38);
+    box-shadow: 0 8px 18px rgba(90, 50, 0, 0.08);
+}
+
+.index-demo-board__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #3d4450;
+}
+
+.index-demo-board__title i {
+    color: #e67e00;
+    margin-right: 0.35rem;
+}
+
+.index-demo-board__lead {
+    margin: 0.35rem 0 0.55rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    background: #ffe08a;
+    color: #6b3300;
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.index-demo-board__scroll {
+    overflow-x: auto;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 176, 0, 0.55) transparent;
+}
+
+.index-demo-board__scroll::-webkit-scrollbar {
+    height: 6px;
+}
+
+.index-demo-board__scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 176, 0, 0.55);
+    border-radius: 999px;
+}
+
+.index-demo-board__table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.index-demo-board__table th,
+.index-demo-board__table td {
+    padding: 0.32rem 0.7rem;
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid rgba(230, 150, 40, 0.2);
+}
+
+.index-demo-board__table th {
+    color: #8a6230;
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+.index-demo-board__table td:nth-child(3) {
+    color: #c56a00;
+    font-weight: 700;
+}
+
+.index-demo-board__table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.index-below {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.index-below__actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.85rem;
+}
+
+@media (max-width: 767.98px) {
+    .index-below__actions {
+        grid-template-columns: 1fr;
+    }
+}
+
+.index-explore-card {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    height: auto;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+    background: #ffc107;
+    border: 2px solid #e6a200;
+    color: #2c2208;
+    text-decoration: none;
+    box-shadow: 0 4px 0 #d89200, 0 8px 16px rgba(160, 90, 0, 0.22);
+}
+
+.index-explore-card:hover {
+    color: #2c2208;
+    text-decoration: none;
+    background: #ffca28;
+    border-color: #d89200;
+    box-shadow: 0 4px 0 #c98400, 0 10px 18px rgba(160, 90, 0, 0.28);
+}
+
+.index-explore-card--demo {
+    background: #ff8c1a;
+    border-color: #e07000;
+    color: #fff;
+    box-shadow: 0 4px 0 #d06800, 0 8px 16px rgba(160, 70, 0, 0.24);
+}
+
+.index-explore-card--demo:hover {
+    color: #fff;
+    background: #ff9a33;
+    border-color: #d06800;
+    box-shadow: 0 4px 0 #c45e00, 0 10px 18px rgba(160, 70, 0, 0.3);
+}
+
+.index-explore-card__icon {
+    flex: 0 0 auto;
+    width: 2.15rem;
+    height: 2.15rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    color: #c47a00;
+    font-size: 0.95rem;
+}
+
+.index-explore-card--demo .index-explore-card__icon {
+    background: #fff;
+    color: #e07000;
+}
+
+.index-explore-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.index-explore-card__title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: inherit;
+}
+
+.index-explore-card__text {
+    color: rgba(44, 34, 8, 0.82);
+    font-size: 0.82rem;
+    line-height: 1.35;
+}
+
+.index-explore-card--demo .index-explore-card__text {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.index-explore-card__arrow {
+    margin-left: auto;
+    color: #8a92a8;
+    flex: 0 0 auto;
+}
+
+.index-main-parallax .index-prize-window.card {
+    padding: 1.15rem 1.15rem 1.25rem;
+    background: #fff !important;
+    border: 1px solid rgba(230, 150, 40, 0.38);
+    box-shadow: 0 8px 18px rgba(90, 50, 0, 0.08);
+}
+
+.index-prize-window__head {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    margin-bottom: 0.55rem;
+}
+
+.index-prize-window__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.index-prize-window__title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #3d4450;
+}
+
+.index-prize-window__title i {
+    color: #e67e00;
+    margin-right: 0.4rem;
+}
+
+.index-prize-window__lead {
+    margin: 0.3rem 0 0;
+    padding: 0.35rem 0.65rem;
+    border-radius: 8px;
+    background: #ffe08a;
+    color: #6b3300;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+.index-prize-window__more {
+    flex: 0 0 auto;
+    width: auto;
+    margin-top: 0;
+    white-space: nowrap;
+    padding: 0.3rem 0.85rem;
+    border-radius: 10px;
+    border: 1px solid rgba(93, 99, 106, 0.35);
+    background: #fff;
+    color: #5d636a;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.index-prize-window__more:hover {
+    color: #3d4450;
+    background: #fff;
+    text-decoration: none;
+}
+
+.index-prize-window__stage {
+    position: relative;
+}
+
+.index-prize-rail {
+    display: flex;
+    gap: 0.85rem;
+    cursor: grab;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    padding: 0.35rem 2.4rem 0.6rem;
+    touch-action: pan-x;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 176, 0, 0.55) transparent;
+}
+
+.index-prize-rail.is-dragging {
+    cursor: grabbing;
+    scroll-behavior: auto;
+    user-select: none;
+}
+
+.index-prize-rail::-webkit-scrollbar {
+    height: 8px;
+}
+
+.index-prize-rail::-webkit-scrollbar-thumb {
+    background: rgba(255, 176, 0, 0.55);
+    border-radius: 999px;
+}
+
+.index-prize-card {
+    flex: 0 0 168px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.65rem;
+    border-radius: 12px;
+    background: #fff8ec;
+    border: 1px solid rgba(230, 150, 40, 0.28);
+    color: #2c2c32;
+    text-decoration: none;
+}
+
+.index-prize-card:hover {
+    color: #2c2c32;
+    text-decoration: none;
+    border-color: rgba(255, 140, 0, 0.4);
+}
+
+.index-prize-card__photo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 112px;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.index-prize-card__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.index-prize-card__photo > i {
+    font-size: 1.8rem;
+    color: #c5bba8;
+}
+
+.index-prize-card__badge {
+    position: absolute;
+    left: 0.35rem;
+    top: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: #ffd54a;
+    color: #2c2c32;
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.index-prize-card__name {
+    font-weight: 650;
+    font-size: 0.92rem;
+    line-height: 1.3;
+    min-height: 2.4em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.index-prize-card__cost {
+    color: #c56a00;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.index-prize-window__nav {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-top: -1rem;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    color: #3d4450;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    cursor: pointer;
+}
+
+.index-prize-window__nav--prev { left: 0; }
+.index-prize-window__nav--next { right: 0; }
+
+.index-prize-window__nav:hover {
+    background: #ffd54a;
+}
+
+@media (max-width: 576px) {
+    .index-prize-window__head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .index-explore-card {
+        align-items: flex-start;
+    }
+}
+
 @keyframes pulse {
     0% { transform: scale(1); }
     50% { transform: scale(1.1); }
@@ -516,4 +1246,146 @@ document.addEventListener('DOMContentLoaded', function() {
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/index_hero_parallax.js', v='3') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rail = document.getElementById('indexPrizeRail');
+    const stage = rail ? rail.closest('.index-prize-window__stage') : null;
+    if (!rail || !stage) return;
+
+    const prev = stage.querySelector('.index-prize-window__nav--prev');
+    const next = stage.querySelector('.index-prize-window__nav--next');
+    const originals = Array.from(rail.children).filter(function(node) {
+        return node.classList && node.classList.contains('index-prize-card');
+    });
+    const step = function() {
+        const card = rail.querySelector('.index-prize-card');
+        if (!card) return 180;
+        const styles = window.getComputedStyle(rail);
+        const gap = parseFloat(styles.columnGap || styles.gap) || 12;
+        return card.getBoundingClientRect().width + gap;
+    };
+
+    let dragging = false;
+    const infinite = originals.length > 1 && rail.scrollWidth > rail.clientWidth + 8;
+
+    function measureLoop() {
+        const cards = rail.querySelectorAll('.index-prize-card');
+        const count = originals.length;
+        if (cards.length < count * 2) return 0;
+        return cards[count].offsetLeft - cards[0].offsetLeft;
+    }
+
+    function jumpTo(left) {
+        const behavior = rail.style.scrollBehavior;
+        rail.style.scrollBehavior = 'auto';
+        rail.scrollLeft = left;
+        rail.style.scrollBehavior = behavior;
+    }
+
+    function normalize() {
+        if (!infinite || dragging) return;
+        const width = measureLoop();
+        if (width <= 0) return;
+        let left = rail.scrollLeft;
+        let changed = false;
+        while (left >= width * 2) {
+            left -= width;
+            changed = true;
+        }
+        while (left < width - 1) {
+            left += width;
+            changed = true;
+        }
+        if (changed) jumpTo(left);
+    }
+
+    if (infinite) {
+        const before = document.createDocumentFragment();
+        const after = document.createDocumentFragment();
+        originals.forEach(function(card) {
+            const cloneBefore = card.cloneNode(true);
+            const cloneAfter = card.cloneNode(true);
+            cloneBefore.setAttribute('aria-hidden', 'true');
+            cloneAfter.setAttribute('aria-hidden', 'true');
+            cloneBefore.tabIndex = -1;
+            cloneAfter.tabIndex = -1;
+            before.appendChild(cloneBefore);
+            after.appendChild(cloneAfter);
+        });
+        rail.insertBefore(before, rail.firstChild);
+        rail.appendChild(after);
+        jumpTo(measureLoop());
+    }
+
+    if (prev) prev.addEventListener('click', function() { rail.scrollBy({ left: -step(), behavior: 'smooth' }); });
+    if (next) next.addEventListener('click', function() { rail.scrollBy({ left: step(), behavior: 'smooth' }); });
+
+    let startX = 0;
+    let startScroll = 0;
+    let moved = false;
+
+    rail.addEventListener('pointerdown', function(event) {
+        if (event.pointerType === 'touch') return;
+        dragging = true;
+        moved = false;
+        startX = event.clientX;
+        startScroll = rail.scrollLeft;
+        rail.classList.add('is-dragging');
+    });
+
+    rail.addEventListener('pointermove', function(event) {
+        if (!dragging) return;
+        const delta = event.clientX - startX;
+        if (Math.abs(delta) > 4) moved = true;
+        rail.scrollLeft = startScroll - delta;
+    });
+
+    function stopDrag() {
+        dragging = false;
+        rail.classList.remove('is-dragging');
+        normalize();
+    }
+
+    rail.addEventListener('pointerup', stopDrag);
+    rail.addEventListener('pointercancel', stopDrag);
+    rail.addEventListener('click', function(event) {
+        if (moved) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }, true);
+
+    let settleTimer = 0;
+    rail.addEventListener('scroll', function() {
+        if (!infinite || dragging) return;
+        window.clearTimeout(settleTimer);
+        settleTimer = window.setTimeout(normalize, 90);
+    });
+    window.addEventListener('resize', normalize);
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canHover = window.matchMedia('(hover: hover)').matches;
+    if (!canHover || reduceMotion || (!infinite && rail.scrollWidth <= rail.clientWidth + 8)) return;
+
+    let paused = false;
+    stage.addEventListener('mouseenter', function() { paused = true; });
+    stage.addEventListener('mouseleave', function() { paused = false; });
+    rail.addEventListener('pointerdown', function() { paused = true; });
+    rail.addEventListener('pointerup', function() {
+        window.setTimeout(function() { paused = false; }, 4000);
+    });
+
+    window.setInterval(function() {
+        if (paused || document.hidden) return;
+        if (!infinite) {
+            const maxScroll = rail.scrollWidth - rail.clientWidth;
+            if (rail.scrollLeft >= maxScroll - 4) {
+                rail.scrollTo({ left: 0, behavior: 'smooth' });
+                return;
+            }
+        }
+        rail.scrollBy({ left: step(), behavior: 'smooth' });
+    }, 3800);
+});
+</script>
 {% endblock %}
