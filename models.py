@@ -47,6 +47,7 @@ class News(Base):
     full_content = Column(Text, nullable=False)
     image = Column(String(500), nullable=True)  # Путь к изображению
     is_published = Column(Boolean, default=True)
+    views_count = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

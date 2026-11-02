@@ -27,6 +27,7 @@
                             <th>Заголовок</th>
                             <th>Краткое описание</th>
                             <th>Статус</th>
+                            <th>Просмотры</th>
                             <th>Дата создания</th>
                             <th>Действия</th>
                         </tr>
@@ -48,6 +49,11 @@
                                 {% else %}
                                 <span class="badge bg-warning">Черновик</span>
                                 {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-nowrap">
+                                    <i class="bi bi-eye me-1 text-muted"></i>{{ news.views_count or 0 }}
+                                </span>
                             </td>
                             <td>{{ news.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>

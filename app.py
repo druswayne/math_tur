@@ -799,6 +799,7 @@ def initialize_app_once():
     ensure_shop_settings_schema()
     ensure_prize_schema()
     ensure_user_rating_points_schema()
+    ensure_news_views_schema()
 
     print("Создание администратора...")
     create_admin_user()
@@ -1932,6 +1933,18 @@ def ensure_user_rating_points_schema():
         db.session.execute(text('UPDATE "user" SET rating_points = 0 WHERE rating_points IS NULL'))
         db.session.commit()
 
+def ensure_news_views_schema():
+    """Добавляет колонку views_count в таблицу news при необходимости."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if not inspector.has_table('news'):
+        return
+    columns = {col['name'] for col in inspector.get_columns('news')}
+    if 'views_count' not in columns:
+        db.session.execute(text('ALTER TABLE news ADD COLUMN views_count INTEGER DEFAULT 0'))
+        db.session.execute(text('UPDATE news SET views_count = 0 WHERE views_count IS NULL'))
+        db.session.commit()
+
 def get_rating_display_points(user, shop_is_open):
     """Возвращает баллы для отображения в турнирной таблице."""
     if shop_is_open:
@@ -2733,6 +2746,20 @@ def news():
 def news_detail(news_id):
     # Получаем конкретную новость по ID
     news_item = News.query.filter_by(id=news_id, is_published=True).first_or_404()
+
+    # Считаем просмотр страницы. Заходы администратора не учитываем.
+    is_admin_view = current_user.is_authenticated and getattr(current_user, 'is_admin', False)
+    if not is_admin_view:
+        try:
+            from sqlalchemy import text
+            db.session.execute(
+                text('UPDATE news SET views_count = COALESCE(views_count, 0) + 1 WHERE id = :news_id'),
+                {'news_id': news_id},
+            )
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            print(f"Ошибка при подсчёте просмотра новости {news_id}: {e}")
     
     # Получаем список других новостей для боковой панели
     other_news = News.query.filter(
@@ -11702,6 +11729,7 @@ class News(db.Model):
     full_content = db.Column(db.Text, nullable=False)
     image = db.Column(db.String(500), nullable=True)  # Главное изображение (для обратной совместимости)
     is_published = db.Column(db.Boolean, default=True)
+    views_count = db.Column(db.Integer, nullable=False, default=0, server_default='0')
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     
