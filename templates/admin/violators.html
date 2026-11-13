@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Потенциальные нарушители</h1>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> В панель
+        </a>
+    </div>
+
+    <ul class="nav nav-pills mb-3 flex-wrap gap-2">
+        {% for key, label in kinds %}
+        <li class="nav-item">
+            <a class="nav-link {% if kind == key %}active{% endif %}" href="{{ url_for('admin_violators', kind=key) }}">
+                {{ label }}
+                <span class="badge {% if kind == key %}bg-light text-dark{% else %}bg-secondary{% endif %}">{{ counts.get(key, 0) }}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <p class="text-muted">{{ note }}</p>
+    <p class="mb-4">Групп: <strong>{{ total_groups }}</strong>{% if hidden_groups %}. Скрыто слишком больших групп: {{ hidden_groups }}{% endif %}</p>
+
+    {% if groups %}
+        {% for group in groups %}
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong class="text-break">{{ group.label }}</strong>
+                <span class="badge bg-danger">аккаунтов: {{ group.users|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if group.shared_tournaments %}
+                <p class="mb-2">
+                    Вместе отвечали в турнирах:
+                    {% for tournament in group.shared_tournaments %}
+                    <span class="badge bg-dark">{{ tournament.title }}</span>
+                    {% endfor %}
+                </p>
+                {% endif %}
+                {% if group.common_ips %}
+                <p class="mb-3">Общий IP: {{ group.common_ips|join(', ') }}</p>
+                {% endif %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Логин</th>
+                                <th>Участник</th>
+                                <th>Родитель</th>
+                                <th>Телефон</th>
+                                <th>Группа</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in group.users %}
+                            <tr>
+                                <td>
+                                    {{ user.username }}
+                                    {% if user.is_blocked %}
+                                    <span class="badge bg-danger">заблокирован</span>
+                                    {% endif %}
+                                    <div class="small text-muted text-break">{{ user.email }}</div>
+                                </td>
+                                <td>{{ user.student_name or '—' }}</td>
+                                <td>{{ user.parent_name or '—' }}</td>
+                                <td>{{ user.phone or '—' }}</td>
+                                <td>{{ user.category or '—' }}</td>
+                                <td>
+                                    <a class="btn btn-sm btn-info" href="{{ url_for('admin_user_details', user_id=user.id) }}">Карточка</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if pages > 1 %}
+        <nav>
+            <ul class="pagination">
+                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin_violators', kind=kind, page=page-1) }}">Назад</a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">{{ page }} из {{ pages }}</span>
+                </li>
+                <li class="page-item {% if page == pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin_violators', kind=kind, page=page+1) }}">Дальше</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-secondary">Совпадений этого типа нет.</div>
+    {% endif %}
+</div>
+{% endblock %}

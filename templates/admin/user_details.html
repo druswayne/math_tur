@@ -156,6 +156,97 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Устройства при прохождении турниров</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">Каждый участник записывается отдельно, даже если двое отвечают с одного компьютера. Совпадение ищется по браузеру и параметрам устройства. Общий IP школы сам по себе совпадением не считается.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Когда</th>
+                                    <th>Турнир</th>
+                                    <th>IP</th>
+                                    <th>Устройство</th>
+                                    <th>Другие участники</th>
+                                    <th>Экран и система</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in device_log_rows %}
+                                {% set log = row.log %}
+                                <tr>
+                                    <td class="text-nowrap">{{ log.recorded_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                                    <td>
+                                        {{ row.tournament_title }}
+                                        {% if log.task_id %}
+                                        <div class="small text-muted">задача {{ log.task_id }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ log.ip_address or '—' }}
+                                        {% for note in row.network_notes %}
+                                        <div class="small text-muted text-break">{{ note }}</div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {{ log.os_name or 'Неизвестная ОС' }},
+                                        {{ log.browser_name or 'Неизвестный браузер' }},
+                                        {{ log.device_type or 'Компьютер' }}
+                                        {% if row.webdriver %}
+                                        <div><span class="badge bg-warning text-dark">признак автоматизации</span></div>
+                                        {% endif %}
+                                        {% if log.user_agent %}
+                                        <div class="small text-muted text-break">{{ log.user_agent }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.same_device_users %}
+                                            {% for other in row.same_device_users[:12] %}
+                                            <div>
+                                                <a href="{{ url_for('admin_user_details', user_id=other.user_id) }}">{{ other.username }}</a>
+                                                {% if other.same_tournament %}
+                                                <span class="badge bg-danger">этот турнир</span>
+                                                {% endif %}
+                                                {% if other.same_ip %}
+                                                <span class="badge bg-warning text-dark">тот же IP</span>
+                                                {% endif %}
+                                            </div>
+                                            {% endfor %}
+                                            {% if row.same_device_users|length > 12 %}
+                                            <div class="small text-muted">и ещё {{ row.same_device_users|length - 12 }}</div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">нет</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.platform %}<div>{{ row.platform }}</div>{% endif %}
+                                        {% if row.screen %}<div>Экран: {{ row.screen }}</div>{% endif %}
+                                        {% if row.timezone %}<div>Часовой пояс: {{ row.timezone }}</div>{% endif %}
+                                        {% if row.languages %}<div>Языки: {{ row.languages }}</div>{% endif %}
+                                        {% if row.hardware %}<div>{{ row.hardware }}</div>{% endif %}
+                                        {% if log.accept_language %}
+                                        <div class="small text-muted text-break">Accept-Language: {{ log.accept_language }}</div>
+                                        {% endif %}
+                                        {% if log.sec_ch_ua %}
+                                        <div class="small text-muted text-break">{{ log.sec_ch_ua }}</div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Записей пока нет</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

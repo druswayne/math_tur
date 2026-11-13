@@ -606,10 +606,17 @@ start_email_worker()
 # Создаем локальное хранилище для потоков
 thread_local = threading.local()
 
+def new_db_session():
+    """Сессия для потока. В Flask-SQLAlchemy 3 отдельный create_scoped_session убран."""
+    creator = getattr(db, 'create_scoped_session', None)
+    if creator:
+        return creator()
+    return db.session
+
 def get_db():
     """Получает или создает соединение с базой данных для текущего потока"""
     if not hasattr(thread_local, 'db'):
-        thread_local.db = db.create_scoped_session()
+        thread_local.db = new_db_session()
     return thread_local.db
 
 # ===== Кеш для дипломов и сертификатов =====
@@ -801,6 +808,7 @@ def initialize_app_once():
     ensure_user_rating_points_schema()
     ensure_news_views_schema()
     ensure_active_task_schema()
+    ensure_tournament_device_log_schema()
 
     print("Создание администратора...")
     create_admin_user()
@@ -832,7 +840,7 @@ def before_request():
 
     """Инициализация перед каждым запросом"""
     # Создаем сессию базы данных для текущего потока
-    thread_local.db = db.create_scoped_session()
+    thread_local.db = new_db_session()
 
     # Сначала инициализация БД — до обращения к current_user
     initialize_app_once()
@@ -1567,6 +1575,49 @@ class SolvedTask(db.Model):
     user = db.relationship('User', backref=db.backref('solved_tasks', lazy=True, cascade='all, delete-orphan'))
     task = db.relationship('Task', backref=db.backref('solutions', lazy=True, cascade='all, delete-orphan'))
 
+class TournamentDeviceLog(db.Model):
+    """Снимок устройства и сети участника во время турнира."""
+    __tablename__ = 'tournament_device_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    tournament_id = db.Column(db.Integer, db.ForeignKey('tournament.id', ondelete='CASCADE'), nullable=False, index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='SET NULL'), nullable=True)
+    recorded_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
+    ip_address = db.Column(db.String(64), nullable=True)
+    forwarded_for = db.Column(db.String(500), nullable=True)
+    remote_addr = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.Text, nullable=True)
+    accept_language = db.Column(db.String(255), nullable=True)
+    sec_ch_ua = db.Column(db.String(300), nullable=True)
+    sec_ch_ua_mobile = db.Column(db.String(20), nullable=True)
+    sec_ch_ua_platform = db.Column(db.String(80), nullable=True)
+    os_name = db.Column(db.String(80), nullable=True)
+    browser_name = db.Column(db.String(80), nullable=True)
+    device_type = db.Column(db.String(40), nullable=True)
+    client_details = db.Column(db.Text, nullable=True)
+    device_key = db.Column(db.String(64), nullable=True, index=True)
+
+    user = db.relationship('User', backref=db.backref('tournament_device_logs', lazy=True, cascade='all, delete-orphan'))
+    tournament = db.relationship('Tournament')
+    task = db.relationship('Task')
+
+    def client_details_dict(self):
+        if not self.client_details:
+            return {}
+        try:
+            data = json.loads(self.client_details)
+        except (TypeError, ValueError):
+            return {}
+        return data if isinstance(data, dict) else {}
+
+def tournament_device_key(user_agent, client_details):
+    """Отпечаток браузера и параметров устройства. IP в него не входит."""
+    if not user_agent or not client_details:
+        return None
+    raw = f'{user_agent}\n{client_details}'.encode('utf-8')
+    return hashlib.sha256(raw).hexdigest()
+
 class ActiveTask(db.Model):
     """Модель для хранения активных задач пользователей в турнирах"""
     id = db.Column(db.Integer, primary_key=True)
@@ -1969,6 +2020,32 @@ def ensure_news_views_schema():
         db.session.execute(text('ALTER TABLE news ADD COLUMN views_count INTEGER DEFAULT 0'))
         db.session.execute(text('UPDATE news SET views_count = 0 WHERE views_count IS NULL'))
         db.session.commit()
+
+def ensure_tournament_device_log_schema():
+    """Добавляет отпечаток устройства, если таблица уже была создана без этой колонки."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if not inspector.has_table('tournament_device_log'):
+        return
+    columns = {col['name'] for col in inspector.get_columns('tournament_device_log')}
+    if 'device_key' not in columns:
+        db.session.execute(text('ALTER TABLE tournament_device_log ADD COLUMN device_key VARCHAR(64)'))
+        db.session.commit()
+    db.session.execute(text(
+        'CREATE INDEX IF NOT EXISTS ix_tournament_device_log_device_key ON tournament_device_log (device_key)'
+    ))
+    db.session.commit()
+
+    pending = TournamentDeviceLog.query.filter(
+        TournamentDeviceLog.device_key.is_(None),
+        TournamentDeviceLog.user_agent.isnot(None),
+        TournamentDeviceLog.client_details.isnot(None),
+    ).limit(5000).all()
+    if not pending:
+        return
+    for row in pending:
+        row.device_key = tournament_device_key(row.user_agent, row.client_details)
+    db.session.commit()
 
 def get_rating_display_points(user, shop_is_open):
     """Возвращает баллы для отображения в турнирной таблице."""
@@ -2968,6 +3045,382 @@ def logout():
     flash('Вы успешно вышли из системы', 'success')
     return redirect(url_for('home'))
 
+_VIOLATOR_KINDS = (
+    ('ip', 'Одинаковый IP'),
+    ('device', 'Одно устройство'),
+    ('phone', 'Телефон'),
+    ('student', 'ФИО участника'),
+    ('parent', 'ФИО родителя'),
+    ('student_parent', 'Участник и родитель'),
+    ('password', 'Одинаковый пароль'),
+    ('payment', 'Один платёж'),
+    ('prize_phone', 'Телефон в заказе'),
+    ('prize_name', 'ФИО в заказе'),
+)
+_VIOLATOR_KIND_NOTES = {
+    'ip': 'Несколько аккаунтов отвечали в турнире с одного IP-адреса. Если они были в одном турнире, это отмечено отдельно.',
+    'device': 'Совпадает браузер и параметры устройства, с которого отвечали в турнире. Одинаковые компьютеры в кабинете тоже могут совпасть. Общий IP и общий турнир усиливают совпадение.',
+    'phone': 'В профилях указан один и тот же номер телефона.',
+    'student': 'Совпадает фамилия и имя учащегося. Одинаковые имена разных людей тоже попадут в список.',
+    'parent': 'Совпадает ФИО родителя.',
+    'student_parent': 'Совпадают и ФИО участника, и ФИО родителя.',
+    'password': 'У аккаунтов одинаковый пароль. Группы с очень распространённым паролем скрыты.',
+    'payment': 'Несколько аккаунтов связаны с одним идентификатором платежа.',
+    'prize_phone': 'В заказах призов указан один и тот же телефон.',
+    'prize_name': 'В заказах призов указано одно и то же ФИО получателя.',
+}
+_VIOLATOR_PAGE_SIZE = 15
+_VIOLATOR_MAX_GROUP = {
+    'password': 8,
+    'ip': 80,
+}
+_VIOLATOR_NAME_SKIP = {
+    'нет', 'нету', 'не указано', 'не указан', 'не указана', 'тест', 'test',
+    'имя', 'фио', 'участник', 'ученик', 'родитель', 'мама', 'папа', 'parent', 'student',
+}
+
+
+def _violator_norm_name(value):
+    if not value:
+        return None
+    text = str(value).replace('ё', 'е').replace('Ё', 'е').lower()
+    text = re.sub(r'[^a-zа-я0-9]+', ' ', text)
+    text = ' '.join(text.split())
+    if text in _VIOLATOR_NAME_SKIP or len(text) < 5 or ' ' not in text:
+        return None
+    return text
+
+
+def _violator_usable_ip(value):
+    ip = str(value or '').strip()
+    if ip.lower().startswith('::ffff:'):
+        ip = ip[7:]
+    if not ip or ip.lower() in {'unknown', 'localhost', '127.0.0.1', '::1', '0.0.0.0', '::'}:
+        return None
+    if len(ip) > 64:
+        return None
+    return ip
+
+
+def _violator_norm_phone(value):
+    digits = re.sub(r'\D+', '', str(value or ''))
+    if len(digits) < 10 or len(set(digits)) <= 2:
+        return None
+    return digits
+
+
+def _violator_public_user(row):
+    return {
+        'id': row.id,
+        'username': row.username,
+        'email': row.email,
+        'phone': row.phone or '',
+        'student_name': row.student_name or '',
+        'parent_name': row.parent_name or '',
+        'is_blocked': bool(row.is_blocked),
+        'category': row.category or '',
+    }
+
+
+def _violator_users():
+    rows = db.session.query(
+        User.id,
+        User.username,
+        User.email,
+        User.phone,
+        User.student_name,
+        User.parent_name,
+        User.hashed_password,
+        User.is_blocked,
+        User.is_admin,
+        User.category,
+    ).order_by(User.id).all()
+    users = []
+    for row in rows:
+        if row.is_admin:
+            continue
+        item = _violator_public_user(row)
+        item['password_key'] = row.hashed_password or ''
+        users.append(item)
+    return users
+
+
+def _violator_finish_groups(buckets, max_size):
+    groups = []
+    hidden = 0
+    for bucket in buckets.values():
+        members = list(bucket['users'].values())
+        if len(members) < 2:
+            continue
+        if len(members) > max_size:
+            hidden += 1
+            continue
+        members.sort(key=lambda item: item['username'].lower())
+        groups.append({
+            'label': bucket['label'],
+            'users': members,
+            'shared_tournaments': bucket.get('shared_tournaments') or [],
+            'common_ips': bucket.get('common_ips') or [],
+        })
+    groups.sort(key=lambda item: (
+        0 if item['shared_tournaments'] else 1,
+        len(item['users']),
+        item['label'].lower(),
+    ))
+    return groups, hidden
+
+
+def _violator_profile_groups(kind, users):
+    buckets = {}
+    for user in users:
+        if kind == 'phone':
+            key = _violator_norm_phone(user['phone'])
+            label = user['phone'] or key
+        elif kind == 'student':
+            key = _violator_norm_name(user['student_name'])
+            label = user['student_name']
+        elif kind == 'parent':
+            key = _violator_norm_name(user['parent_name'])
+            label = user['parent_name']
+        elif kind == 'student_parent':
+            student = _violator_norm_name(user['student_name'])
+            parent = _violator_norm_name(user['parent_name'])
+            key = f'{student}|{parent}' if student and parent else None
+            label = f'{user["student_name"]} / {user["parent_name"]}'
+        elif kind == 'password':
+            key = user['password_key'] if len(user['password_key']) >= 20 else None
+            label = 'Пароль совпадает'
+        else:
+            key = None
+            label = ''
+        if not key:
+            continue
+        bucket = buckets.setdefault(key, {'label': label, 'users': {}})
+        bucket['users'][user['id']] = user
+    max_size = _VIOLATOR_MAX_GROUP.get(kind, 40)
+    return _violator_finish_groups(buckets, max_size)
+
+
+def _violator_device_groups(user_by_id):
+    logs = db.session.query(
+        TournamentDeviceLog.device_key,
+        TournamentDeviceLog.user_id,
+        TournamentDeviceLog.tournament_id,
+        TournamentDeviceLog.ip_address,
+        TournamentDeviceLog.os_name,
+        TournamentDeviceLog.browser_name,
+        TournamentDeviceLog.device_type,
+    ).filter(TournamentDeviceLog.device_key.isnot(None)).all()
+    buckets = {}
+    for log in logs:
+        user = user_by_id.get(log.user_id)
+        if not user:
+            continue
+        bucket = buckets.setdefault(log.device_key, {
+            'label': ', '.join(part for part in (log.os_name, log.browser_name, log.device_type) if part) or 'Устройство',
+            'users': {},
+            'ips_by_user': {},
+            'tournaments': {},
+        })
+        bucket['users'][user['id']] = user
+        if log.ip_address:
+            bucket['ips_by_user'].setdefault(user['id'], set()).add(log.ip_address)
+        bucket['tournaments'].setdefault(log.tournament_id, set()).add(user['id'])
+
+    tournament_ids = set()
+    prepared = {}
+    for key, bucket in buckets.items():
+        if len(bucket['users']) < 2:
+            continue
+        shared_ids = [tid for tid, ids in bucket['tournaments'].items() if len(ids) >= 2]
+        tournament_ids.update(shared_ids)
+        ip_sets = [ips for ips in bucket['ips_by_user'].values() if ips]
+        common_ips = set.intersection(*ip_sets) if len(ip_sets) == len(bucket['users']) and ip_sets else set()
+        prepared[key] = (bucket, shared_ids, sorted(common_ips))
+
+    titles = {}
+    if tournament_ids:
+        for tournament in Tournament.query.filter(Tournament.id.in_(tournament_ids)).all():
+            titles[tournament.id] = tournament.title
+
+    finished = {}
+    for key, (bucket, shared_ids, common_ips) in prepared.items():
+        bucket['shared_tournaments'] = [
+            {'id': tid, 'title': titles.get(tid) or f'Турнир {tid}'}
+            for tid in sorted(shared_ids)
+        ]
+        bucket['common_ips'] = common_ips
+        finished[key] = bucket
+    return _violator_finish_groups(finished, 40)
+
+
+def _violator_ip_groups(user_by_id):
+    logs = db.session.query(
+        TournamentDeviceLog.user_id,
+        TournamentDeviceLog.tournament_id,
+        TournamentDeviceLog.ip_address,
+    ).filter(
+        TournamentDeviceLog.ip_address.isnot(None),
+        TournamentDeviceLog.ip_address != '',
+    ).all()
+    buckets = {}
+    for log in logs:
+        ip = _violator_usable_ip(log.ip_address)
+        user = user_by_id.get(log.user_id)
+        if not ip or not user:
+            continue
+        bucket = buckets.setdefault(ip, {
+            'label': ip,
+            'users': {},
+            'tournaments': {},
+        })
+        bucket['users'][user['id']] = user
+        bucket['tournaments'].setdefault(log.tournament_id, set()).add(user['id'])
+
+    tournament_ids = set()
+    shared_by_ip = {}
+    for ip, bucket in buckets.items():
+        if len(bucket['users']) < 2:
+            continue
+        shared_ids = [tid for tid, ids in bucket['tournaments'].items() if len(ids) >= 2]
+        tournament_ids.update(shared_ids)
+        shared_by_ip[ip] = shared_ids
+
+    titles = {}
+    if tournament_ids:
+        for tournament in Tournament.query.filter(Tournament.id.in_(tournament_ids)).all():
+            titles[tournament.id] = tournament.title
+
+    for ip, shared_ids in shared_by_ip.items():
+        buckets[ip]['shared_tournaments'] = [
+            {'id': tid, 'title': titles.get(tid) or f'Турнир {tid}'}
+            for tid in sorted(shared_ids)
+        ]
+    return _violator_finish_groups(buckets, _VIOLATOR_MAX_GROUP['ip'])
+
+
+def _violator_payment_groups(user_by_id):
+    rows = db.session.query(
+        TicketPurchase.payment_id,
+        TicketPurchase.user_id,
+    ).filter(
+        TicketPurchase.payment_id.isnot(None),
+        TicketPurchase.payment_id != '',
+    ).all()
+    buckets = {}
+    for row in rows:
+        payment_id = (row.payment_id or '').strip()
+        user = user_by_id.get(row.user_id)
+        if not user or len(payment_id) < 4:
+            continue
+        bucket = buckets.setdefault(payment_id, {'label': payment_id, 'users': {}})
+        bucket['users'][user['id']] = user
+    return _violator_finish_groups(buckets, 40)
+
+
+def _violator_prize_groups(kind, user_by_id):
+    rows = db.session.query(
+        PrizePurchase.user_id,
+        PrizePurchase.phone,
+        PrizePurchase.full_name,
+    ).all()
+    buckets = {}
+    for row in rows:
+        user = user_by_id.get(row.user_id)
+        if not user:
+            continue
+        if kind == 'prize_phone':
+            key = _violator_norm_phone(row.phone)
+            label = row.phone or ''
+        else:
+            key = _violator_norm_name(row.full_name)
+            label = row.full_name or ''
+        if not key:
+            continue
+        bucket = buckets.setdefault(key, {'label': label, 'users': {}})
+        bucket['users'][user['id']] = user
+    return _violator_finish_groups(buckets, 40)
+
+
+def _violator_collect(kind):
+    users = _violator_users()
+    user_by_id = {user['id']: user for user in users}
+    counts = {}
+    hidden = 0
+    groups = []
+    builders = {
+        'phone': lambda: _violator_profile_groups('phone', users),
+        'student': lambda: _violator_profile_groups('student', users),
+        'parent': lambda: _violator_profile_groups('parent', users),
+        'student_parent': lambda: _violator_profile_groups('student_parent', users),
+        'password': lambda: _violator_profile_groups('password', users),
+        'payment': lambda: _violator_payment_groups(user_by_id),
+        'prize_phone': lambda: _violator_prize_groups('prize_phone', user_by_id),
+        'prize_name': lambda: _violator_prize_groups('prize_name', user_by_id),
+    }
+    try:
+        device_groups, device_hidden = _violator_device_groups(user_by_id)
+    except Exception as error:
+        db.session.rollback()
+        print(f'Не удалось собрать совпадения устройств: {error}')
+        device_groups, device_hidden = [], 0
+    counts['device'] = len(device_groups)
+    if kind == 'device':
+        groups, hidden = device_groups, device_hidden
+    try:
+        ip_groups, ip_hidden = _violator_ip_groups(user_by_id)
+    except Exception as error:
+        db.session.rollback()
+        print(f'Не удалось собрать совпадения IP: {error}')
+        ip_groups, ip_hidden = [], 0
+    counts['ip'] = len(ip_groups)
+    if kind == 'ip':
+        groups, hidden = ip_groups, ip_hidden
+    for key, builder in builders.items():
+        try:
+            built, built_hidden = builder()
+        except Exception as error:
+            db.session.rollback()
+            print(f'Не удалось собрать совпадения {key}: {error}')
+            built, built_hidden = [], 0
+        counts[key] = len(built)
+        if key == kind:
+            groups, hidden = built, built_hidden
+    for user in users:
+        user.pop('password_key', None)
+    return groups, counts, hidden
+
+
+@app.route('/admin/violators')
+@login_required
+def admin_violators():
+    if not hasattr(current_user, 'is_admin') or not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+
+    kind = request.args.get('kind', 'ip')
+    if kind not in dict(_VIOLATOR_KINDS):
+        kind = 'ip'
+    page = request.args.get('page', 1, type=int) or 1
+    groups, counts, hidden_groups = _violator_collect(kind)
+    total = len(groups)
+    pages = max(1, (total + _VIOLATOR_PAGE_SIZE - 1) // _VIOLATOR_PAGE_SIZE)
+    page = min(max(page, 1), pages)
+    start = (page - 1) * _VIOLATOR_PAGE_SIZE
+    return render_template(
+        'admin/violators.html',
+        title='Потенциальные нарушители',
+        kinds=_VIOLATOR_KINDS,
+        kind=kind,
+        note=_VIOLATOR_KIND_NOTES.get(kind, ''),
+        groups=groups[start:start + _VIOLATOR_PAGE_SIZE],
+        counts=counts,
+        hidden_groups=hidden_groups,
+        page=page,
+        pages=pages,
+        total_groups=total,
+    )
+
 @app.route('/admin')
 @login_required
 def admin_dashboard():
@@ -2980,6 +3433,220 @@ def admin_dashboard():
     return render_template('admin/dashboard.html', 
                          title='Панель администратора',
                          users_count=users_count)
+
+
+def _admin_gate():
+    if not hasattr(current_user, 'is_admin') or not current_user.is_admin:
+        flash('Недостаточно прав', 'error')
+        return redirect(url_for('home'))
+    return None
+
+
+def _task_condition_preview(description, limit=160):
+    from html import unescape
+    plain = re.sub(r'<[^>]+>', ' ', description or '')
+    plain = unescape(plain)
+    plain = re.sub(r'\s+', ' ', plain).strip()
+    if not plain:
+        return 'Условие не заполнено'
+    if len(plain) <= limit:
+        return plain
+    return plain[:limit].rstrip() + '…'
+
+
+def _search_participants(raw_query, limit=40):
+    term = (raw_query or '').strip()
+    if len(term) > 100:
+        term = term[:100]
+    if len(term) < 2:
+        return term, [], False
+    needle = term.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_').lower()
+    pattern = f'%{needle}%'
+    matches = (
+        User.query.filter(
+            db.or_(
+                func.lower(User.username).like(pattern, escape='\\'),
+                func.lower(User.email).like(pattern, escape='\\'),
+                func.lower(func.coalesce(User.student_name, '')).like(pattern, escape='\\'),
+            )
+        )
+        .order_by(User.username.asc())
+        .limit(limit + 1)
+        .all()
+    )
+    truncated = len(matches) > limit
+    return term, matches[:limit], truncated
+
+
+def _participant_tournaments(user_id):
+    by_id = {}
+    participations = TournamentParticipation.query.filter_by(user_id=user_id).all()
+    for participation in participations:
+        if participation.tournament:
+            by_id[participation.tournament.id] = participation.tournament
+    answered_ids = (
+        db.session.query(Task.tournament_id)
+        .join(SolvedTask, SolvedTask.task_id == Task.id)
+        .filter(SolvedTask.user_id == user_id)
+        .distinct()
+        .all()
+    )
+    missing = [tournament_id for (tournament_id,) in answered_ids if tournament_id not in by_id]
+    if missing:
+        for tournament in Tournament.query.filter(Tournament.id.in_(missing)).all():
+            by_id[tournament.id] = tournament
+    return sorted(
+        by_id.values(),
+        key=lambda tournament: tournament.start_date or datetime.min,
+        reverse=True,
+    )
+
+
+def _apply_answer_verdict(user, solved, make_correct):
+    """Меняет статус ответа и баллы участника. Возвращает (сообщение, категория)."""
+    task = solved.task
+    if bool(solved.is_correct) == bool(make_correct):
+        state = 'уже засчитан' if make_correct else 'уже неверный'
+        return f'Ответ {state}, баллы не менялись', 'warning'
+
+    points = int(task.points or 0)
+    delta = points if make_correct else -points
+    balance_before = user.balance or 0
+    user.balance = max(0, balance_before + delta)
+    balance_delta = (user.balance or 0) - balance_before
+    solved.is_correct = bool(make_correct)
+
+    participation = TournamentParticipation.query.filter_by(
+        user_id=user.id,
+        tournament_id=task.tournament_id,
+    ).with_for_update().first()
+    if participation:
+        participation.score = max(0, (participation.score or 0) + delta)
+
+    db.session.commit()
+
+    if make_correct:
+        return f'Ответ засчитан. Участнику начислено {points} баллов', 'success'
+
+    if abs(balance_delta) < points:
+        return (
+            f'Результат аннулирован. С баланса списано {abs(balance_delta)} из {points} баллов: '
+            f'остальные уже потрачены. Баллы турнира обновлены',
+            'success',
+        )
+    return f'Результат аннулирован. Снято {points} баллов', 'success'
+
+
+@app.route('/admin/tournament-results')
+@login_required
+def admin_tournament_results():
+    denied = _admin_gate()
+    if denied:
+        return denied
+
+    raw_query = request.args.get('q', '')
+    search_query, participants, search_truncated = _search_participants(raw_query)
+    selected_user = None
+    tournaments = []
+    selected_tournament = None
+    participation = None
+    answers = []
+
+    user_id = request.args.get('user_id', type=int)
+    if user_id:
+        selected_user = User.query.get(user_id)
+        if not selected_user:
+            flash('Участник не найден', 'warning')
+        else:
+            tournaments = _participant_tournaments(selected_user.id)
+            tournament_id = request.args.get('tournament_id', type=int)
+            if tournament_id:
+                selected_tournament = next((item for item in tournaments if item.id == tournament_id), None)
+                if not selected_tournament:
+                    flash('У этого участника нет такого турнира', 'warning')
+                else:
+                    participation = TournamentParticipation.query.filter_by(
+                        user_id=selected_user.id,
+                        tournament_id=selected_tournament.id,
+                    ).first()
+                    rows = (
+                        db.session.query(SolvedTask, Task)
+                        .join(Task, Task.id == SolvedTask.task_id)
+                        .filter(
+                            SolvedTask.user_id == selected_user.id,
+                            Task.tournament_id == selected_tournament.id,
+                        )
+                        .order_by(Task.id.asc())
+                        .all()
+                    )
+                    for solved, task in rows:
+                        answers.append({
+                            'solved': solved,
+                            'task': task,
+                            'preview': _task_condition_preview(task.description),
+                            'image_url': get_s3_url(task.image, 'tasks') if task.image else None,
+                        })
+
+    earned_points = sum(item['task'].points or 0 for item in answers if item['solved'].is_correct)
+    return render_template(
+        'admin/tournament_results.html',
+        title='Результаты турнира',
+        search_query=search_query,
+        participants=participants,
+        search_truncated=search_truncated,
+        selected_user=selected_user,
+        tournaments=tournaments,
+        selected_tournament=selected_tournament,
+        participation=participation,
+        answers=answers,
+        earned_points=earned_points,
+    )
+
+
+@app.route('/admin/tournament-results/verdict', methods=['POST'])
+@login_required
+def admin_tournament_results_verdict():
+    denied = _admin_gate()
+    if denied:
+        return denied
+
+    user_id = request.form.get('user_id', type=int)
+    tournament_id = request.form.get('tournament_id', type=int)
+    solved_id = request.form.get('solved_id', type=int)
+    action = (request.form.get('action') or '').strip()
+    search_query = (request.form.get('q') or '').strip()[:100]
+    redirect_args = {}
+    if search_query:
+        redirect_args['q'] = search_query
+    if user_id:
+        redirect_args['user_id'] = user_id
+    if tournament_id:
+        redirect_args['tournament_id'] = tournament_id
+    back = redirect(url_for('admin_tournament_results', **redirect_args))
+
+    if action not in ('credit', 'annul') or not user_id or not tournament_id or not solved_id:
+        flash('Некорректное действие', 'danger')
+        return back
+
+    user = User.query.filter_by(id=user_id).with_for_update().first()
+    solved = SolvedTask.query.filter_by(id=solved_id, user_id=user_id).with_for_update().first()
+    if (
+        not user
+        or not solved
+        or not solved.task
+        or solved.task.tournament_id != tournament_id
+    ):
+        flash('Ответ участника не найден', 'danger')
+        return back
+
+    try:
+        message, category = _apply_answer_verdict(user, solved, action == 'credit')
+        flash(message, category)
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Не удалось изменить результат турнира')
+        flash('Не удалось изменить результат. Попробуйте ещё раз', 'danger')
+    return back
 
 @app.route('/admin/users')
 @login_required
@@ -3050,6 +3717,7 @@ def admin_users():
     # Преобразуем в список словарей для JSON-сериализации
     teachers = [{'id': t.id, 'full_name': t.full_name, 'username': t.username} for t in teachers_list]
     unconfirmed_count = User.query.filter_by(is_active=False).count()
+    stale_unconfirmed_count = stale_unconfirmed_users_query().count()
     
     return render_template('admin/users.html', 
                          users=users.items,
@@ -3058,7 +3726,8 @@ def admin_users():
                          search_type=search_type,
                          teachers=teachers,
                          teachers_list=teachers_list,  # Передаем и список объектов для шаблона
-                         unconfirmed_count=unconfirmed_count)
+                         unconfirmed_count=unconfirmed_count,
+                         stale_unconfirmed_count=stale_unconfirmed_count)
 
 @app.route('/admin/users/add', methods=['POST'])
 @login_required
@@ -3420,6 +4089,64 @@ def admin_confirm_unconfirmed_users():
         flash(f'Подтверждено аккаунтов: {confirmed}.', 'success')
     else:
         flash('Не удалось подтвердить аккаунты', 'danger')
+    return redirect(url_for('admin_users'))
+
+def stale_unconfirmed_users_query():
+    """Неактивированные аккаунты старше недели. Администраторов не затрагивает."""
+    cutoff = datetime.now() - timedelta(days=7)
+    return User.query.filter(
+        User.is_active == False,
+        User.is_admin == False,
+        User.created_at < cutoff,
+    )
+
+def delete_users_and_related(user_ids):
+    """Удаляет пользователей и связанные записи. Возвращает число удалённых аккаунтов."""
+    deleted = 0
+    for offset in range(0, len(user_ids), 500):
+        chunk = user_ids[offset:offset + 500]
+        CartItem.query.filter(CartItem.user_id.in_(chunk)).delete(synchronize_session=False)
+        TicketPurchase.query.filter(TicketPurchase.user_id.in_(chunk)).delete(synchronize_session=False)
+        PrizePurchase.query.filter(PrizePurchase.user_id.in_(chunk)).delete(synchronize_session=False)
+        Referral.query.filter(Referral.referred_id.in_(chunk)).delete(synchronize_session=False)
+        Referral.query.filter(Referral.referrer_id.in_(chunk)).delete(synchronize_session=False)
+        ReferralLink.query.filter(ReferralLink.user_id.in_(chunk)).delete(synchronize_session=False)
+        TeacherStudentTransfer.query.filter(TeacherStudentTransfer.student_id.in_(chunk)).delete(synchronize_session=False)
+        TeacherReferral.query.filter(TeacherReferral.student_id.in_(chunk)).delete(synchronize_session=False)
+        UserSession.query.filter(
+            UserSession.user_id.in_(chunk),
+            UserSession.user_type == 'user',
+        ).delete(synchronize_session=False)
+        TournamentParticipation.query.filter(TournamentParticipation.user_id.in_(chunk)).delete(synchronize_session=False)
+        SolvedTask.query.filter(SolvedTask.user_id.in_(chunk)).delete(synchronize_session=False)
+        ActiveTask.query.filter(ActiveTask.user_id.in_(chunk)).delete(synchronize_session=False)
+        TournamentDeviceLog.query.filter(TournamentDeviceLog.user_id.in_(chunk)).delete(synchronize_session=False)
+        deleted += User.query.filter(User.id.in_(chunk)).delete(synchronize_session=False) or 0
+    db.session.commit()
+    return deleted
+
+@app.route('/admin/users/delete-stale-unconfirmed', methods=['POST'])
+@login_required
+def admin_delete_stale_unconfirmed_users():
+    if not current_user.is_admin:
+        flash('У вас нет доступа к этой странице', 'danger')
+        return redirect(url_for('home'))
+
+    pending_ids = [
+        row[0] for row in stale_unconfirmed_users_query().with_entities(User.id).all()
+        if row[0] != current_user.id
+    ]
+    if not pending_ids:
+        flash('Нет неподтверждённых аккаунтов старше 1 недели', 'info')
+        return redirect(url_for('admin_users'))
+
+    try:
+        deleted = delete_users_and_related(pending_ids)
+        flash(f'Удалено неподтверждённых аккаунтов старше 1 недели: {deleted}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при удалении неподтверждённых аккаунтов: {e}")
+        flash('Произошла ошибка при удалении неподтверждённых аккаунтов', 'danger')
     return redirect(url_for('admin_users'))
 
 @app.route('/admin/users/mass-email', methods=['POST'])
@@ -7517,6 +8244,20 @@ def admin_user_details(user_id):
     # Получаем историю покупок и участия в турнирах
     ticket_purchases = TicketPurchase.query.filter_by(user_id=user.id).order_by(TicketPurchase.purchase_date.desc()).all()
     tournament_participations = TournamentParticipation.query.filter_by(user_id=user.id).order_by(TournamentParticipation.participation_date.desc()).all()
+    device_logs = (
+        TournamentDeviceLog.query.filter_by(user_id=user.id)
+        .order_by(TournamentDeviceLog.recorded_at.desc())
+        .limit(80)
+        .all()
+    )
+    shared_by_log = same_device_accounts(user.id, device_logs)
+    device_log_rows = []
+    for log in device_logs:
+        tournament = Tournament.query.get(log.tournament_id)
+        row = describe_tournament_device_log(log)
+        row['tournament_title'] = tournament.title if tournament else f'Турнир {log.tournament_id}'
+        row['same_device_users'] = shared_by_log.get(log.id, [])
+        device_log_rows.append(row)
     
     return render_template('admin/user_details.html',
                          user=user,
@@ -7525,7 +8266,8 @@ def admin_user_details(user_id):
                          total_tournaments_won=total_tournaments_won,
                          average_tournament_score=round(average_tournament_score, 2),
                          ticket_purchases=ticket_purchases,
-                         tournament_participations=tournament_participations)
+                         tournament_participations=tournament_participations,
+                         device_log_rows=device_log_rows)
 
 def restore_scheduler_jobs():
     """Восстанавливает задачи планировщика из БД при запуске приложения"""
@@ -7912,6 +8654,259 @@ def get_active_tasks_stats():
         print(f"Ошибка при получении статистики активных задач: {e}")
         return {'total': 0, 'valid': 0, 'expired': 0}
 
+def _clip_text(value, limit):
+    if value is None:
+        return None
+    text = str(value).replace('\x00', '').strip()
+    if not text:
+        return None
+    return text[:limit]
+
+
+def _bounded_number(value, low, high, as_int=False):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if value < low or value > high:
+        return None
+    if as_int:
+        return int(value)
+    return float(value) if isinstance(value, float) else int(value)
+
+
+def normalize_client_device_payload(raw):
+    """Оставляет только ожидаемые поля снимка устройства из браузера."""
+    if not raw or not isinstance(raw, str):
+        return None
+    try:
+        data = json.loads(raw[:8000])
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    clean = {}
+    for key, limit in (
+        ('platform', 120),
+        ('language', 40),
+        ('timezone', 80),
+        ('vendor', 80),
+    ):
+        text = _clip_text(data.get(key), limit)
+        if text:
+            clean[key] = text
+
+    languages = data.get('languages')
+    if isinstance(languages, list):
+        cleaned_languages = []
+        for item in languages[:8]:
+            text = _clip_text(item, 40)
+            if text:
+                cleaned_languages.append(text)
+        if cleaned_languages:
+            clean['languages'] = cleaned_languages
+
+    for key, low, high in (
+        ('screen_width', 1, 20000),
+        ('screen_height', 1, 20000),
+        ('avail_width', 1, 20000),
+        ('avail_height', 1, 20000),
+        ('color_depth', 1, 64),
+        ('hardware_concurrency', 1, 256),
+        ('max_touch_points', 0, 64),
+    ):
+        number = _bounded_number(data.get(key), low, high, as_int=True)
+        if number is not None:
+            clean[key] = number
+
+    pixel_ratio = _bounded_number(data.get('pixel_ratio'), 0.1, 20)
+    if pixel_ratio is not None:
+        clean['pixel_ratio'] = pixel_ratio
+    memory = _bounded_number(data.get('device_memory_gb'), 0.25, 1024)
+    if memory is not None:
+        clean['device_memory_gb'] = memory
+    offset = _bounded_number(data.get('timezone_offset_min'), -24 * 60, 24 * 60, as_int=True)
+    if offset is not None:
+        clean['timezone_offset_min'] = offset
+
+    for key in ('cookie_enabled', 'webdriver'):
+        if isinstance(data.get(key), bool):
+            clean[key] = data[key]
+
+    if not clean:
+        return None
+    return json.dumps(clean, ensure_ascii=False, separators=(',', ':'))
+
+
+def record_tournament_device(user_id, tournament_id, task_id=None):
+    """
+    Сохраняет IP и сведения об устройстве участника.
+    Повтор с тем же IP, браузером и снимком в этом турнире не создаёт новую строку.
+    Пишется отдельной сессией: сбой записи не отменяет сохранение ответа.
+    """
+    extra = None
+    try:
+        user_agent = _clip_text(request.headers.get('User-Agent'), 4000)
+        client_details = normalize_client_device_payload(request.form.get('device_info'))
+        ip_address = _clip_text(get_real_ip(), 64)
+        forwarded_for = _clip_text(request.headers.get('X-Forwarded-For'), 500)
+        remote_addr = _clip_text(request.remote_addr, 64)
+        accept_language = _clip_text(request.headers.get('Accept-Language'), 255)
+        sec_ch_ua = _clip_text(request.headers.get('Sec-CH-UA'), 300)
+        sec_ch_ua_mobile = _clip_text(request.headers.get('Sec-CH-UA-Mobile'), 20)
+        platform_hint = _clip_text(request.headers.get('Sec-CH-UA-Platform'), 80)
+        if platform_hint and len(platform_hint) >= 2 and platform_hint[0] == '"' and platform_hint[-1] == '"':
+            platform_hint = platform_hint[1:-1] or None
+        parsed = parse_user_agent(user_agent or '')
+
+        extra = db.session.session_factory()
+        last = (
+            extra.query(TournamentDeviceLog)
+            .filter_by(user_id=user_id, tournament_id=tournament_id)
+            .order_by(TournamentDeviceLog.id.desc())
+            .first()
+        )
+        if (
+            last
+            and last.ip_address == ip_address
+            and last.user_agent == user_agent
+            and last.client_details == client_details
+        ):
+            return
+
+        extra.add(TournamentDeviceLog(
+            user_id=user_id,
+            tournament_id=tournament_id,
+            task_id=task_id,
+            ip_address=ip_address,
+            forwarded_for=forwarded_for,
+            remote_addr=remote_addr,
+            user_agent=user_agent,
+            accept_language=accept_language,
+            sec_ch_ua=sec_ch_ua,
+            sec_ch_ua_mobile=sec_ch_ua_mobile,
+            sec_ch_ua_platform=platform_hint,
+            os_name=_clip_text(parsed.get('os'), 80),
+            browser_name=_clip_text(parsed.get('browser'), 80),
+            device_type=_clip_text(parsed.get('device_type'), 40),
+            client_details=client_details,
+            device_key=tournament_device_key(user_agent, client_details),
+        ))
+        extra.commit()
+    except Exception as e:
+        if extra is not None:
+            try:
+                extra.rollback()
+            except Exception:
+                pass
+        print(f"Не удалось записать устройство участника {user_id} в турнире {tournament_id}: {e}")
+    finally:
+        if extra is not None:
+            extra.close()
+
+
+def describe_tournament_device_log(log):
+    """Короткие подписи снимка для карточки участника."""
+    details = log.client_details_dict()
+    screen = ''
+    width = details.get('screen_width')
+    height = details.get('screen_height')
+    if width and height:
+        screen = f'{width}×{height}'
+        if details.get('pixel_ratio'):
+            screen += f', плотность {details["pixel_ratio"]}'
+        if details.get('color_depth'):
+            screen += f', {details["color_depth"]} бит'
+
+    timezone = details.get('timezone') or ''
+    offset = details.get('timezone_offset_min')
+    if isinstance(offset, int):
+        total = -offset
+        sign = '+' if total >= 0 else '-'
+        hours, minutes = divmod(abs(total), 60)
+        utc_label = f'UTC{sign}{hours}'
+        if minutes:
+            utc_label += f':{minutes:02d}'
+        timezone = f'{timezone} ({utc_label})' if timezone else utc_label
+
+    languages = details.get('languages') or []
+    if not languages and details.get('language'):
+        languages = [details['language']]
+
+    hardware_parts = []
+    if details.get('hardware_concurrency'):
+        hardware_parts.append(f'{details["hardware_concurrency"]} ядер')
+    if details.get('device_memory_gb'):
+        hardware_parts.append(f'{details["device_memory_gb"]} ГБ')
+    if details.get('max_touch_points'):
+        hardware_parts.append(f'касаний: {details["max_touch_points"]}')
+
+    network_notes = []
+    if log.forwarded_for and log.forwarded_for != log.ip_address:
+        network_notes.append(log.forwarded_for)
+    if log.remote_addr and log.remote_addr != log.ip_address:
+        network_notes.append(f'сокет {log.remote_addr}')
+
+    return {
+        'log': log,
+        'screen': screen,
+        'timezone': timezone,
+        'platform': details.get('platform') or log.sec_ch_ua_platform or '',
+        'languages': ', '.join(languages),
+        'hardware': ', '.join(hardware_parts),
+        'webdriver': bool(details.get('webdriver')),
+        'network_notes': network_notes,
+    }
+
+
+def same_device_accounts(user_id, logs):
+    """Другие аккаунты с тем же браузером и тем же снимком устройства."""
+    keys = {log.device_key for log in logs if log.device_key}
+    if not keys:
+        return {}
+    others = (
+        TournamentDeviceLog.query
+        .filter(TournamentDeviceLog.user_id != user_id)
+        .filter(TournamentDeviceLog.device_key.in_(keys))
+        .all()
+    )
+    names = {}
+    other_ids = {row.user_id for row in others}
+    if other_ids:
+        names = {
+            item.id: item.username
+            for item in User.query.filter(User.id.in_(other_ids)).all()
+        }
+    grouped = {}
+    for row in others:
+        grouped.setdefault(row.device_key, []).append(row)
+
+    result = {}
+    for log in logs:
+        seen = {}
+        for row in grouped.get(log.device_key, []):
+            item = seen.get(row.user_id)
+            if item is None:
+                item = {
+                    'user_id': row.user_id,
+                    'username': names.get(row.user_id) or str(row.user_id),
+                    'same_ip': False,
+                    'same_tournament': False,
+                }
+                seen[row.user_id] = item
+            if log.ip_address and row.ip_address == log.ip_address:
+                item['same_ip'] = True
+            if row.tournament_id == log.tournament_id:
+                item['same_tournament'] = True
+        accounts = list(seen.values())
+        accounts.sort(key=lambda item: (
+            not item['same_tournament'],
+            not item['same_ip'],
+            item['username'].lower(),
+        ))
+        result[log.id] = accounts
+    return result
+
+
 # Функции для отлова перезагрузки страницы и обработки брошенных задач
 def detect_page_reload(request):
     """Определяет, является ли запрос перезагрузкой страницы"""
@@ -7974,6 +8969,7 @@ def handle_abandoned_task(user_id, tournament_id, reason="page_reload"):
             user_answer=f"ABANDONED_{reason.upper()}"  # Специальная метка для брошенных задач
         )
         db.session.add(abandoned_solution)
+        record_tournament_device(user_id, tournament_id, active_task.task_id)
         
         # Удаляем активную задачу
         db.session.delete(active_task)
@@ -8180,6 +9176,7 @@ def tournament_task(tournament_id):
                          solved_tasks_count=state['solved_tasks_count'],
                          total_tasks=state['total_tasks'],
                          participation=participation))
+    response.headers['Accept-CH'] = 'Sec-CH-UA-Platform, Sec-CH-UA-Platform-Version, Sec-CH-UA-Mobile'
     if request.cookies.get('task_submit'):
         response.delete_cookie('task_submit', path='/')
     return response
@@ -8258,13 +9255,24 @@ def mark_task_submitting(tournament_id, task_id):
 
 def normalize_tournament_user_answer(s):
     """Убирает пробелы по краям и завершающие точки (и пробелы перед ними)."""
-    s = s.strip()
+    s = (s or '').strip()
     while True:
         t = s.rstrip()
         if t.endswith('.'):
             s = t[:-1]
         else:
             return t
+
+def tournament_answer_key(s):
+    """Ключ сверки: без регистра и без любых пробельных символов.
+
+    Краевые пробелы и точки в конце снимает normalize_tournament_user_answer
+    до вызова сверки. Здесь они не трогаются, чтобы точка в эталоне оставалась значимой.
+    """
+    return ''.join(ch for ch in (s or '') if not ch.isspace()).lower()
+
+def tournament_answers_match(user_answer, correct_answer):
+    return tournament_answer_key(user_answer) == tournament_answer_key(correct_answer)
 
 @app.route('/tournament/<int:tournament_id>/task/<int:task_id>/submit', methods=['POST'])
 @login_required
@@ -8361,7 +9369,7 @@ def submit_task_answer(tournament_id, task_id):
         is_correct = False
     else:
         user_answer = normalize_tournament_user_answer(raw_answer)
-        is_correct = user_answer.lower() == task.correct_answer.lower()
+        is_correct = tournament_answers_match(user_answer, task.correct_answer)
     
     # Сохраняем результат только если записи еще нет.
     # Повтор той же отправки подтверждает уже записанный ответ и не начисляет баллы снова.
@@ -8382,6 +9390,7 @@ def submit_task_answer(tournament_id, task_id):
         user_answer=user_answer
     )
     db.session.add(solution)
+    record_tournament_device(current_user.id, tournament_id, task_id)
     
     # Обновляем время окончания участия в турнире
     if participation:
@@ -11587,8 +12596,7 @@ def demo_tournament_task():
 
         task = tasks[current_index]
         user_answer = normalize_tournament_user_answer(request.form.get('answer', '').strip())
-        normalized_answer = user_answer.lower()
-        is_correct = normalized_answer == task['correct_answer'].lower()
+        is_correct = tournament_answers_match(user_answer, task['correct_answer'])
 
         answers = state.get('answers', {})
         answers[str(task['id'])] = {
@@ -13693,7 +14701,7 @@ if __name__ == '__main__':
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
 
-    update_category_ranks()
+    #update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8001, debug=True)

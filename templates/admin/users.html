@@ -17,6 +17,14 @@
                         <i class="bi bi-check2-all"></i> Подтвердить все{% if unconfirmed_count %} ({{ unconfirmed_count }}){% endif %}
                     </button>
                 </form>
+                <form action="{{ url_for('admin_delete_stale_unconfirmed_users') }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger ms-2"
+                            {% if not stale_unconfirmed_count %}disabled{% endif %}
+                            title="Удалить неподтверждённые аккаунты, зарегистрированные больше недели назад"
+                            onclick="return confirm('Удалить неподтверждённые аккаунты старше 1 недели ({{ stale_unconfirmed_count }})? Это действие нельзя отменить.');">
+                        <i class="bi bi-trash"></i> Удалить неподтвержденные{% if stale_unconfirmed_count %} ({{ stale_unconfirmed_count }}){% endif %}
+                    </button>
+                </form>
                 <button type="button" class="btn btn-secondary ms-2" data-bs-toggle="modal" data-bs-target="#clearDataModal">
                     <i class="bi bi-gear"></i>
                 </button>

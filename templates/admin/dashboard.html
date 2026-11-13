@@ -62,6 +62,16 @@
                 <div class="col-md-4 mb-4">
                     <div class="card admin-card">
                         <div class="card-body text-center">
+                            <i class="bi bi-clipboard-check fs-1 mb-3"></i>
+                            <h3 class="card-title">Результаты турнира</h3>
+                            <p class="card-text">Ответы участника: засчитать или аннулировать</p>
+                            <a href="{{ url_for('admin_tournament_results') }}" class="btn btn-primary">Перейти</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card admin-card">
+                        <div class="card-body text-center">
                             <i class="bi bi-shop fs-1 mb-3"></i>
                             <h3 class="card-title">Лавка призов</h3>
                             <p class="card-text">Управление призами и товарами</p>
@@ -136,6 +146,16 @@
                             <h3 class="card-title">Доступ в БД</h3>
                             <p class="card-text">Просмотр и редактирование таблиц базы данных</p>
                             <a href="{{ url_for('db_admin.index') }}" class="btn btn-primary">Перейти</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card admin-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-shield-exclamation fs-1 mb-3"></i>
+                            <h3 class="card-title">Нарушители</h3>
+                            <p class="card-text">Одинаковый IP, одно устройство и совпадающие данные</p>
+                            <a href="{{ url_for('admin_violators') }}" class="btn btn-primary">Перейти</a>
                         </div>
                     </div>
                 </div>

@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Результаты турнира{% endblock %}
+
+{% block styles %}
+<style>
+    .answer-card {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 0.75rem;
+    }
+    .answer-meta {
+        display: grid;
+        grid-template-columns: 7.5rem 1fr;
+        gap: 0.35rem 0.75rem;
+    }
+    .answer-meta dt {
+        margin: 0;
+        color: #6c757d;
+        font-weight: 600;
+    }
+    .answer-meta dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
+    .condition-preview {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .results-table td,
+    .results-table th {
+        vertical-align: top;
+    }
+    .condition-modal-body img,
+    .condition-modal-body .task-image {
+        max-width: 100%;
+        height: auto;
+    }
+    @media (max-width: 991.98px) {
+        .page-heading {
+            align-items: stretch !important;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .page-heading .btn {
+            width: 100%;
+        }
+    }
+    @media (max-width: 575.98px) {
+        #verdictModal .modal-footer {
+            align-items: stretch;
+        }
+        #verdictModal .modal-footer .btn {
+            width: 100%;
+            margin: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 page-heading">
+        <h1 class="mb-0 h3">Результаты турнира</h1>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> В панель
+        </a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" action="{{ url_for('admin_tournament_results') }}" class="row g-2">
+                <div class="col-12 col-md-9">
+                    <label for="participantSearch" class="form-label">Участник</label>
+                    <input id="participantSearch" class="form-control" type="search" name="q"
+                           value="{{ search_query }}" autocomplete="off"
+                           placeholder="Имя, email или логин" maxlength="100">
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label d-none d-md-block" aria-hidden="true">&nbsp;</label>
+                    <button class="btn btn-primary w-100" type="submit">Найти</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-text">Поиск без учёта регистра, минимум 2 символа.</div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if search_query and search_query|length < 2 %}
+        <div class="alert alert-warning">Введите хотя бы 2 символа.</div>
+    {% elif search_query %}
+        <div class="card mb-4">
+            <div class="card-header">
+                Найдено: {{ participants|length }}{% if search_truncated %}+{% endif %}
+            </div>
+            {% if participants %}
+                <div class="list-group list-group-flush">
+                    {% for user in participants %}
+                    <a class="list-group-item list-group-item-action {% if selected_user and selected_user.id == user.id %}active{% endif %}"
+                       href="{{ url_for('admin_tournament_results', q=search_query, user_id=user.id) }}">
+                        <div class="fw-semibold">{{ user.student_name or 'Имя не указано' }}</div>
+                        <div class="small {% if selected_user and selected_user.id == user.id %}text-white-50{% else %}text-muted{% endif %} text-break">
+                            {{ user.username }} · {{ user.email }}
+                            {% if user.category %} · {{ user.category }} класс{% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% if search_truncated %}
+                <div class="card-footer text-muted">Показаны первые {{ participants|length }}. Уточните запрос.</div>
+                {% endif %}
+            {% else %}
+                <div class="card-body text-muted">Никого не нашли. Проверьте имя, email или логин.</div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if selected_user %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-1">{{ selected_user.student_name or selected_user.username }}</h2>
+            <p class="text-muted mb-3 text-break">
+                {{ selected_user.username }} · {{ selected_user.email }}
+                · баланс {{ selected_user.balance or 0 }}
+            </p>
+            {% if tournaments %}
+            <label for="tournamentSelect" class="form-label">Турнир</label>
+            <select id="tournamentSelect" class="form-select">
+                <option value="">Выберите турнир</option>
+                {% for tournament in tournaments %}
+                <option value="{{ url_for('admin_tournament_results', q=search_query, user_id=selected_user.id, tournament_id=tournament.id) }}"
+                        {% if selected_tournament and selected_tournament.id == tournament.id %}selected{% endif %}>
+                    {{ tournament.title }}{% if tournament.start_date %} · {{ tournament.start_date.strftime('%d.%m.%Y') }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <div class="alert alert-secondary mb-0">Участник ещё не был в турнирах и не оставлял ответов.</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if selected_tournament %}
+    <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+        <div>
+            <h2 class="h5 mb-1">{{ selected_tournament.title }}</h2>
+            <p class="text-muted mb-0">
+                Ответов: {{ answers|length }} · зачтено баллов: {{ earned_points }}
+                {% if participation %}
+                · счёт турнира: {{ participation.score or 0 }}
+                {% if participation.place %} · место: {{ participation.place }}{% endif %}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    {% if answers %}
+    <div class="table-responsive d-none d-lg-block">
+        <table class="table table-bordered align-top results-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Задача</th>
+                    <th>Условие</th>
+                    <th>Баллы</th>
+                    <th>Правильный ответ</th>
+                    <th>Ответ участника</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in answers %}
+                <tr>
+                    <td>{{ item.task.id }}</td>
+                    <td>{{ item.task.title }}</td>
+                    <td>
+                        <div class="condition-preview">{{ item.preview }}</div>
+                        <button type="button" class="btn btn-link btn-sm px-0 condition-open"
+                                data-title="{{ item.task.title }}"
+                                data-target="condition-{{ item.task.id }}">
+                            Всё условие
+                        </button>
+                    </td>
+                    <td>{{ item.task.points }}</td>
+                    <td class="text-break">{{ item.task.correct_answer }}</td>
+                    <td class="text-break">
+                        {{ item.solved.user_answer or '—' }}
+                        <div class="mt-1">
+                            {% if item.solved.is_correct %}
+                            <span class="badge bg-success">верно</span>
+                            {% else %}
+                            <span class="badge bg-danger">неверно</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="min-width: 11rem;">
+                        {% if item.solved.is_correct %}
+                        <button type="button" class="btn btn-outline-danger w-100 verdict-open"
+                                data-action="annul"
+                                data-solved="{{ item.solved.id }}"
+                                data-title="Аннулировать результат"
+                                data-detail="Задача «{{ item.task.title }}». Статус станет неверным. Из баланса и счёта турнира вычтется {{ item.task.points }}.">
+                            Аннулировать результат
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-success w-100 verdict-open"
+                                data-action="credit"
+                                data-solved="{{ item.solved.id }}"
+                                data-title="Засчитать ответ"
+                                data-detail="Задача «{{ item.task.title }}». Статус станет верным. К балансу и счёту турнира добавится {{ item.task.points }}.">
+                            Засчитать
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="d-lg-none">
+        {% for item in answers %}
+        <article class="card answer-card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between gap-2 mb-2">
+                    <h3 class="h6 mb-0">{{ item.task.title }}</h3>
+                    {% if item.solved.is_correct %}
+                    <span class="badge bg-success align-self-start">верно</span>
+                    {% else %}
+                    <span class="badge bg-danger align-self-start">неверно</span>
+                    {% endif %}
+                </div>
+                <dl class="answer-meta mb-3">
+                    <dt>ID</dt>
+                    <dd>{{ item.task.id }}</dd>
+                    <dt>Условие</dt>
+                    <dd>
+                        <div class="condition-preview">{{ item.preview }}</div>
+                        <button type="button" class="btn btn-link btn-sm px-0 condition-open"
+                                data-title="{{ item.task.title }}"
+                                data-target="condition-{{ item.task.id }}">
+                            Всё условие
+                        </button>
+                    </dd>
+                    <dt>Баллы</dt>
+                    <dd>{{ item.task.points }}</dd>
+                    <dt>Верный ответ</dt>
+                    <dd>{{ item.task.correct_answer }}</dd>
+                    <dt>Ответ</dt>
+                    <dd>{{ item.solved.user_answer or '—' }}</dd>
+                </dl>
+                {% if item.solved.is_correct %}
+                <button type="button" class="btn btn-outline-danger w-100 verdict-open"
+                        data-action="annul"
+                        data-solved="{{ item.solved.id }}"
+                        data-title="Аннулировать результат"
+                        data-detail="Задача «{{ item.task.title }}». Статус станет неверным. Из баланса и счёта турнира вычтется {{ item.task.points }}.">
+                    Аннулировать результат
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-success w-100 verdict-open"
+                        data-action="credit"
+                        data-solved="{{ item.solved.id }}"
+                        data-title="Засчитать ответ"
+                        data-detail="Задача «{{ item.task.title }}». Статус станет верным. К балансу и счёту турнира добавится {{ item.task.points }}.">
+                    Засчитать
+                </button>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% for item in answers %}
+    <div id="condition-{{ item.task.id }}" class="d-none">
+        <div class="task-description-formatted">{{ item.task.description|nl2br }}</div>
+        {% if item.image_url %}
+        <div class="text-center mt-3">
+            <img src="{{ item.image_url }}" class="img-fluid task-image" alt="Изображение к задаче">
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="alert alert-secondary">В этом турнире участник не давал ответов.</div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<div class="modal fade" id="conditionModal" tabindex="-1" aria-labelledby="conditionModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="conditionModalTitle">Условие</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body condition-modal-body" id="conditionModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="verdictModal" tabindex="-1" aria-labelledby="verdictModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('admin_tournament_results_verdict') }}" id="verdictForm">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="verdictModalTitle">Подтверждение</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0" id="verdictModalDetail"></p>
+                </div>
+                <div class="modal-footer flex-column flex-sm-row gap-2">
+                    <input type="hidden" name="user_id" value="{{ selected_user.id if selected_user else '' }}">
+                    <input type="hidden" name="tournament_id" value="{{ selected_tournament.id if selected_tournament else '' }}">
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                    <input type="hidden" name="solved_id" id="verdictSolvedId" value="">
+                    <input type="hidden" name="action" id="verdictAction" value="">
+                    <button type="button" class="btn btn-secondary w-100 w-sm-auto" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary w-100 w-sm-auto" id="verdictConfirm">Подтвердить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.condition-open').forEach(function (button) {
+    button.addEventListener('click', function () {
+        var source = document.getElementById(button.getAttribute('data-target'));
+        document.getElementById('conditionModalTitle').textContent = button.getAttribute('data-title') || 'Условие';
+        document.getElementById('conditionModalBody').innerHTML = source ? source.innerHTML : '';
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('conditionModal')).show();
+    });
+});
+
+var tournamentSelect = document.getElementById('tournamentSelect');
+if (tournamentSelect) {
+    tournamentSelect.addEventListener('change', function () {
+        if (tournamentSelect.value) {
+            window.location = tournamentSelect.value;
+        }
+    });
+}
+
+var verdictModal = document.getElementById('verdictModal');
+if (verdictModal) {
+    document.querySelectorAll('.verdict-open').forEach(function (button) {
+        button.addEventListener('click', function () {
+            document.getElementById('verdictModalTitle').textContent = button.getAttribute('data-title') || 'Подтверждение';
+            document.getElementById('verdictModalDetail').textContent = button.getAttribute('data-detail') || '';
+            document.getElementById('verdictSolvedId').value = button.getAttribute('data-solved') || '';
+            document.getElementById('verdictAction').value = button.getAttribute('data-action') || '';
+            var confirmButton = document.getElementById('verdictConfirm');
+            confirmButton.disabled = false;
+            confirmButton.className = 'btn ' + (button.getAttribute('data-action') === 'annul' ? 'btn-danger' : 'btn-success');
+            bootstrap.Modal.getOrCreateInstance(verdictModal).show();
+        });
+    });
+    document.getElementById('verdictForm').addEventListener('submit', function () {
+        document.getElementById('verdictConfirm').disabled = true;
+    });
+}
+</script>
+{% endblock %}
