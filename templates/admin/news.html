@@ -16,6 +16,40 @@
         </a>
     </div>
 
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h4 class="mb-0">Главная страница</h4>
+                <span class="fs-4 text-nowrap">
+                    <i class="bi bi-eye me-1 text-muted"></i>{{ home_views or 0 }}
+                </span>
+            </div>
+            <p class="text-muted small mb-3">Источник определяется по заголовку Referer. Заходы администратора не считаются. Обновление страницы обычно попадает в «Сайт».</p>
+            {% if home_sources %}
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Откуда перешли</th>
+                            <th class="text-end">Просмотры</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in home_sources %}
+                        <tr>
+                            <td>{{ item.source }}</td>
+                            <td class="text-end">{{ item.views }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="mb-0 text-muted">Просмотров пока нет.</p>
+            {% endif %}
+        </div>
+    </div>
+
     {% if news_list %}
     <div class="card">
         <div class="card-body">
@@ -51,9 +85,14 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <span class="text-nowrap">
+                                <button type="button"
+                                        class="btn btn-link btn-sm p-0 text-nowrap text-decoration-none view-source-btn"
+                                        title="Показать, откуда перешли"
+                                        data-news-id="{{ news.id }}"
+                                        data-news-title="{{ news.title }}"
+                                        onclick="showNewsSources(this)">
                                     <i class="bi bi-eye me-1 text-muted"></i>{{ news.views_count or 0 }}
-                                </span>
+                                </button>
                             </td>
                             <td>{{ news.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
                             <td>
@@ -113,11 +152,70 @@
     </div>
 </div>
 
+<div class="modal fade" id="sourcesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sourcesModalTitle">Источники просмотров</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="sourcesModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="news-sources-data">{{ news_sources|tojson }}</script>
 <script>
 function confirmDelete(newsId, newsTitle) {
     document.getElementById('newsTitle').textContent = newsTitle;
     document.getElementById('deleteForm').action = `/admin/news/${newsId}/delete`;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function showNewsSources(button) {
+    const payload = JSON.parse(document.getElementById('news-sources-data').textContent || '{}');
+    const sources = payload[button.getAttribute('data-news-id')] || [];
+    document.getElementById('sourcesModalTitle').textContent = button.getAttribute('data-news-title') || 'Источники просмотров';
+    const body = document.getElementById('sourcesModalBody');
+    body.replaceChildren();
+
+    if (!sources.length) {
+        const empty = document.createElement('p');
+        empty.className = 'text-muted mb-0';
+        empty.textContent = 'Просмотров пока нет.';
+        body.appendChild(empty);
+    } else {
+        const table = document.createElement('table');
+        table.className = 'table table-sm mb-0';
+        const thead = document.createElement('thead');
+        const headRow = document.createElement('tr');
+        ['Откуда перешли', 'Просмотры'].forEach(function (label, index) {
+            const cell = document.createElement('th');
+            if (index === 1) {
+                cell.className = 'text-end';
+            }
+            cell.textContent = label;
+            headRow.appendChild(cell);
+        });
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        sources.forEach(function (item) {
+            const row = document.createElement('tr');
+            const sourceCell = document.createElement('td');
+            sourceCell.textContent = item.source;
+            const countCell = document.createElement('td');
+            countCell.className = 'text-end';
+            countCell.textContent = item.views;
+            row.appendChild(sourceCell);
+            row.appendChild(countCell);
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+        body.appendChild(table);
+    }
+
+    new bootstrap.Modal(document.getElementById('sourcesModal')).show();
 }
 </script>
 
@@ -133,6 +231,11 @@ function confirmDelete(newsId, newsTitle) {
 
 .badge {
     font-size: 0.75rem;
+}
+
+.view-source-btn {
+    color: inherit;
+    cursor: pointer;
 }
 
 @media (max-width: 768px) {

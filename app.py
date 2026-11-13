@@ -807,6 +807,7 @@ def initialize_app_once():
     ensure_prize_schema()
     ensure_user_rating_points_schema()
     ensure_news_views_schema()
+    ensure_page_view_sources_schema()
     ensure_active_task_schema()
     ensure_tournament_device_log_schema()
 
@@ -2021,6 +2022,134 @@ def ensure_news_views_schema():
         db.session.execute(text('UPDATE news SET views_count = 0 WHERE views_count IS NULL'))
         db.session.commit()
 
+def ensure_page_view_sources_schema():
+    """Таблица источников просмотров главной страницы и новостей."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if inspector.has_table('page_view_sources'):
+        constraints = inspector.get_unique_constraints('page_view_sources')
+        has_unique = any(
+            set(item.get('column_names') or []) == {'page_type', 'news_id', 'source'}
+            for item in constraints
+        )
+        if not has_unique:
+            db.session.execute(text(
+                'ALTER TABLE page_view_sources '
+                'ADD CONSTRAINT uq_page_view_source UNIQUE (page_type, news_id, source)'
+            ))
+            db.session.commit()
+        return
+    db.session.execute(text('''
+        CREATE TABLE page_view_sources (
+            id SERIAL PRIMARY KEY,
+            page_type VARCHAR(20) NOT NULL,
+            news_id INTEGER NOT NULL DEFAULT 0,
+            source VARCHAR(200) NOT NULL,
+            view_count INTEGER NOT NULL DEFAULT 0,
+            CONSTRAINT uq_page_view_source UNIQUE (page_type, news_id, source)
+        )
+    '''))
+    db.session.execute(text(
+        'CREATE INDEX IF NOT EXISTS ix_page_view_sources_page_type ON page_view_sources (page_type)'
+    ))
+    db.session.execute(text(
+        'CREATE INDEX IF NOT EXISTS ix_page_view_sources_news_id ON page_view_sources (news_id)'
+    ))
+    db.session.commit()
+
+_VIEW_SOURCE_RULES = (
+    ('google.', 'Google'),
+    ('yandex.', 'Яндекс'),
+    ('ya.ru', 'Яндекс'),
+    ('bing.com', 'Bing'),
+    ('duckduckgo.com', 'DuckDuckGo'),
+    ('mail.ru', 'Mail.ru'),
+    ('vk.com', 'ВКонтакте'),
+    ('vk.ru', 'ВКонтакте'),
+    ('t.me', 'Telegram'),
+    ('telegram.org', 'Telegram'),
+    ('telegram.me', 'Telegram'),
+    ('ok.ru', 'Одноклассники'),
+    ('facebook.com', 'Facebook'),
+    ('fb.com', 'Facebook'),
+    ('instagram.com', 'Instagram'),
+    ('youtube.com', 'YouTube'),
+    ('youtu.be', 'YouTube'),
+    ('tiktok.com', 'TikTok'),
+    ('twitter.com', 'X'),
+    ('x.com', 'X'),
+    ('dzen.ru', 'Дзен'),
+    ('whatsapp.com', 'WhatsApp'),
+    ('wa.me', 'WhatsApp'),
+    ('viber.com', 'Viber'),
+    ('linkedin.com', 'LinkedIn'),
+)
+
+def _view_source_host(url):
+    from urllib.parse import urlparse
+    if not url:
+        return ''
+    try:
+        host = (urlparse(url).hostname or '').strip().lower().rstrip('.')
+    except Exception:
+        return ''
+    if host.startswith('www.'):
+        host = host[4:]
+    try:
+        host = host.encode('ascii').decode('idna')
+    except Exception:
+        pass
+    return host
+
+def _view_source_host_matches(host, pattern):
+    if pattern.endswith('.'):
+        return host.startswith(pattern) or f'.{pattern}' in f'.{host}'
+    return host == pattern or host.endswith('.' + pattern)
+
+def classify_view_source(referer, site_url=None):
+    """Короткое имя источника перехода по заголовку Referer."""
+    host = _view_source_host(referer)
+    if not host:
+        return 'Прямой заход'
+    site_host = _view_source_host(site_url if site_url is not None else request.host_url)
+    if site_host and (host == site_host or host.endswith('.' + site_host)):
+        return 'Сайт'
+    for pattern, label in _VIEW_SOURCE_RULES:
+        if _view_source_host_matches(host, pattern):
+            return label
+    return host[:200]
+
+def record_page_view(page_type, news_id=None):
+    """Увеличивает счётчик просмотра и статистику источника. Заходы администратора не учитываются."""
+    try:
+        if current_user.is_authenticated and getattr(current_user, 'is_admin', False):
+            return
+        source = classify_view_source(request.referrer)
+        stored_news_id = int(news_id) if page_type == 'news' and news_id else 0
+        from sqlalchemy import text
+        db.session.execute(
+            text('''
+                INSERT INTO page_view_sources (page_type, news_id, source, view_count)
+                VALUES (:page_type, :news_id, :source, 1)
+                ON CONFLICT (page_type, news_id, source)
+                DO UPDATE SET view_count = page_view_sources.view_count + 1
+            '''),
+            {
+                'page_type': page_type,
+                'news_id': stored_news_id,
+                'source': source,
+            },
+        )
+        if page_type == 'news' and stored_news_id:
+            db.session.execute(
+                text('UPDATE news SET views_count = COALESCE(views_count, 0) + 1 WHERE id = :news_id'),
+                {'news_id': stored_news_id},
+            )
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"Ошибка при подсчёте просмотра {page_type} {news_id}: {e}")
+
 def ensure_tournament_device_log_schema():
     """Добавляет отпечаток устройства, если таблица уже была создана без этой колонки."""
     from sqlalchemy import inspect, text
@@ -2706,6 +2835,8 @@ def home():
         except Exception as e:
             # Логируем ошибку, но не прерываем работу сайта
             print(f"Ошибка при отслеживании перехода: {e}")
+
+    record_page_view('home')
     
     settings = TournamentSettings.get_settings()
     if settings.is_season_active:
@@ -2849,19 +2980,7 @@ def news_detail(news_id):
     # Получаем конкретную новость по ID
     news_item = News.query.filter_by(id=news_id, is_published=True).first_or_404()
 
-    # Считаем просмотр страницы. Заходы администратора не учитываем.
-    is_admin_view = current_user.is_authenticated and getattr(current_user, 'is_admin', False)
-    if not is_admin_view:
-        try:
-            from sqlalchemy import text
-            db.session.execute(
-                text('UPDATE news SET views_count = COALESCE(views_count, 0) + 1 WHERE id = :news_id'),
-                {'news_id': news_id},
-            )
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            print(f"Ошибка при подсчёте просмотра новости {news_id}: {e}")
+    record_page_view('news', news_id)
     
     # Получаем список других новостей для боковой панели
     other_news = News.query.filter(
@@ -11058,7 +11177,49 @@ def admin_news():
         return redirect(url_for('home'))
     
     news_list = News.query.order_by(News.created_at.desc()).all()
-    return render_template('admin/news.html', news_list=news_list)
+    home_sources, news_sources = _admin_news_view_sources(news_list)
+    home_views = sum(item['views'] for item in home_sources)
+    return render_template(
+        'admin/news.html',
+        news_list=news_list,
+        home_views=home_views,
+        home_sources=home_sources,
+        news_sources=news_sources,
+    )
+
+def _sorted_view_sources(items):
+    return sorted(
+        items,
+        key=lambda item: (
+            item['source'] == 'До включения статистики',
+            -item['views'],
+            item['source'],
+        ),
+    )
+
+def _admin_news_view_sources(news_list):
+    """Источники просмотров главной и каждой новости для страницы администратора."""
+    home_sources = []
+    by_news = {}
+    for row in PageViewSource.query.all():
+        item = {'source': row.source, 'views': row.view_count}
+        if row.page_type == 'home':
+            home_sources.append(item)
+        elif row.page_type == 'news' and row.news_id:
+            by_news.setdefault(row.news_id, []).append(item)
+
+    news_sources = {}
+    for news in news_list:
+        items = list(by_news.get(news.id, []))
+        tracked = sum(item['views'] for item in items)
+        total = news.views_count or 0
+        if total > tracked:
+            items.append({
+                'source': 'До включения статистики',
+                'views': total - tracked,
+            })
+        news_sources[news.id] = _sorted_view_sources(items)
+    return _sorted_view_sources(home_sources), news_sources
 
 @app.route('/admin/news/add', methods=['GET', 'POST'])
 @login_required
@@ -11352,7 +11513,8 @@ def admin_delete_news(news_id):
     # Удаляем главное изображение из S3 (для обратной совместимости)
     if news.image:
         delete_file_from_s3(news.image, 'news')
-    
+
+    PageViewSource.query.filter_by(page_type='news', news_id=news_id).delete(synchronize_session=False)
     db.session.delete(news)
     db.session.commit()
     
@@ -12977,6 +13139,20 @@ class News(db.Model):
     
     # Связь с файлами
     files = db.relationship('NewsFile', backref='news', lazy=True, cascade='all, delete-orphan')
+
+class PageViewSource(db.Model):
+    """Сколько раз главную или новость открыли с конкретного источника."""
+    __tablename__ = 'page_view_sources'
+
+    id = db.Column(db.Integer, primary_key=True)
+    page_type = db.Column(db.String(20), nullable=False, index=True)
+    news_id = db.Column(db.Integer, nullable=False, default=0, server_default='0', index=True)
+    source = db.Column(db.String(200), nullable=False)
+    view_count = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+
+    __table_args__ = (
+        db.UniqueConstraint('page_type', 'news_id', 'source', name='uq_page_view_source'),
+    )
 
 class NewsImage(db.Model):
     __tablename__ = "news_images"
