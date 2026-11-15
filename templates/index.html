@@ -204,9 +204,15 @@
         </div>
     </div>
     {% else %}
-    <div class="alert alert-info">
-        <h4 class="alert-heading">Нет активных турниров</h4>
-        <p>В данный момент нет запланированных турниров. Следите за обновлениями!</p>
+    <div class="card index-timer-card mb-0">
+        <div class="card-body">
+            <div class="text-center">
+                <h3 class="card-title mb-4">Готовим новый турнир</h3>
+                <div class="tournament-description mb-0">
+                    <p class="mb-0">Скоро объявим дату и тему. Следите за обновлениями — будет, за что побороться.</p>
+                </div>
+            </div>
+        </div>
     </div>
     {% endif %}
         </div>
@@ -292,7 +298,6 @@
                         {% endif %}
                     </span>
                     <span class="index-prize-card__name">{{ prize.name }}</span>
-                    <span class="index-prize-card__cost">{{ prize.points_cost }} баллов</span>
                 </a>
                 {% endfor %}
             </div>
@@ -396,7 +401,6 @@
                             {% endif %}
                         </span>
                         <span class="index-prize-card__name">{{ prize.name }}</span>
-                        <span class="index-prize-card__cost">{{ prize.points_cost }} баллов</span>
                     </a>
                     {% endfor %}
                 </div>
@@ -789,10 +793,6 @@ document.addEventListener('DOMContentLoaded', function() {
     -webkit-line-clamp: 1;
 }
 
-.index-side .index-prize-card__cost {
-    font-size: 0.7rem;
-}
-
 .index-demo-board {
     padding: 0.75rem 0.7rem 0.65rem;
     border-radius: 12px;
@@ -1133,12 +1133,6 @@ document.addEventListener('DOMContentLoaded', function() {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-}
-
-.index-prize-card__cost {
-    color: #c56a00;
-    font-size: 0.82rem;
-    font-weight: 600;
 }
 
 .index-prize-window__nav {
