@@ -26,6 +26,19 @@
                 </div>
 
                 <div class="mb-4">
+                    <label for="opens_at" class="form-label">
+                        <h5 class="mb-1">Дата и время открытия лавки</h5>
+                    </label>
+                    <small class="text-muted d-block mb-2">
+                        Если указать дату и время, на главной странице появится таймер до открытия лавки.
+                        Оставьте поле пустым, чтобы таймер не показывался.
+                    </small>
+                    <input type="datetime-local" class="form-control" id="opens_at" name="opens_at"
+                           style="max-width: 320px;"
+                           value="{% if settings.opens_at %}{{ settings.opens_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                </div>
+
+                <div class="mb-4">
                     <h5>Баллы для турнирной таблицы</h5>
                     <small class="text-muted d-block mb-3">
                         Сохраните текущие баллы пользователей перед открытием лавки. В рейтинге при открытой лавке
@@ -183,6 +196,13 @@
                                 Лавка призов открыта
                             {% else %}
                                 Лавка призов закрыта
+                            {% endif %}
+                        </li>
+                        <li>
+                            {% if settings.opens_at %}
+                                Открытие лавки: {{ settings.opens_at.strftime('%d.%m.%Y в %H:%M') }}
+                            {% else %}
+                                Дата открытия лавки не задана
                             {% endif %}
                         </li>
                         <li>

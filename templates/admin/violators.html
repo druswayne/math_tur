@@ -51,6 +51,7 @@
                                 <th>Родитель</th>
                                 <th>Телефон</th>
                                 <th>Группа</th>
+                                <th>Счёт</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -68,6 +69,7 @@
                                 <td>{{ user.parent_name or '—' }}</td>
                                 <td>{{ user.phone or '—' }}</td>
                                 <td>{{ user.category or '—' }}</td>
+                                <td>{{ user.balance }}</td>
                                 <td>
                                     <a class="btn btn-sm btn-info" href="{{ url_for('admin_user_details', user_id=user.id) }}">Карточка</a>
                                 </td>

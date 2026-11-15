@@ -805,6 +805,7 @@ def initialize_app_once():
     db.create_all()
     ensure_shop_settings_schema()
     ensure_prize_schema()
+    ensure_tournament_participation_schema()
     ensure_user_rating_points_schema()
     ensure_news_views_schema()
     ensure_page_view_sources_schema()
@@ -945,6 +946,66 @@ def update_global_ranks():
     except Exception as e:
         db.session.rollback()
 
+def recalculate_tournament_time():
+    """Записывает total_tournament_time как сумму времени участия в завершённых турнирах.
+
+    Повторный запуск заменяет значение, а не прибавляет его. Время берётся только у тех,
+    кто отправил хотя бы один ответ: так же считает завершение турнира.
+    """
+    from sqlalchemy import text
+
+    db.session.execute(text("""
+        UPDATE tournament_participation AS tp
+        SET end_time = answers.last_solved
+        FROM (
+            SELECT st.user_id,
+                   tk.tournament_id,
+                   MAX(st.solved_at) AS last_solved
+            FROM solved_task AS st
+            JOIN task AS tk ON tk.id = st.task_id
+            JOIN tournament AS tr ON tr.id = tk.tournament_id
+            WHERE tr.status = 'finished'
+            GROUP BY st.user_id, tk.tournament_id
+        ) AS answers
+        WHERE tp.user_id = answers.user_id
+          AND tp.tournament_id = answers.tournament_id
+          AND tp.end_time IS NULL
+          AND answers.last_solved IS NOT NULL
+    """))
+    result = db.session.execute(text("""
+        UPDATE "user" AS u
+        SET total_tournament_time = sums.seconds,
+            updated_at = :updated_at
+        FROM (
+            SELECT tp.user_id,
+                   SUM(
+                       GREATEST(
+                           0,
+                           EXTRACT(EPOCH FROM (tp.end_time - tp.start_time))
+                       )
+                   )::integer AS seconds
+            FROM tournament_participation AS tp
+            JOIN tournament AS tr ON tr.id = tp.tournament_id
+            WHERE tr.status = 'finished'
+              AND tp.start_time IS NOT NULL
+              AND tp.end_time IS NOT NULL
+              AND EXISTS (
+                  SELECT 1
+                  FROM solved_task AS st
+                  JOIN task AS tk ON tk.id = st.task_id
+                  WHERE st.user_id = tp.user_id
+                    AND tk.tournament_id = tp.tournament_id
+              )
+            GROUP BY tp.user_id
+        ) AS sums
+        WHERE u.id = sums.user_id
+          AND u.total_tournament_time IS DISTINCT FROM sums.seconds
+    """), {'updated_at': datetime.now()})
+    db.session.commit()
+    print(f'Время участия пересчитано: {result.rowcount} участников', flush=True)
+    return result.rowcount
+
+
 def end_tournament_job(tournament_id, max_retries=3):
     """
     Завершает турнир с защитой от deadlock.
@@ -975,56 +1036,20 @@ def end_tournament_job(tournament_id, max_retries=3):
                     tournament.is_active = False
                     
                     participations = TournamentParticipation.query.filter_by(tournament_id=tournament_id).all()
-                    
-                    # Словарь для накопления изменений времени участия пользователей
-                    # Ключ: user_id, значение: время для добавления
-                    user_time_updates = {}
-                    
                     for participation in participations:
                         solved_tasks = SolvedTask.query.filter_by(
                             user_id=participation.user_id
                         ).join(Task).filter(
                             Task.tournament_id == tournament_id
                         ).all()
-                        if solved_tasks:
-                            if not participation.end_time:
-                                last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
+                        if solved_tasks and not participation.end_time:
+                            last_solved_task = max(solved_tasks, key=lambda x: x.solved_at)
+                            if last_solved_task.solved_at:
                                 participation.end_time = last_solved_task.solved_at
-                            if participation.start_time and participation.end_time:
-                                time_spent_this_tournament = int(
-                                    (participation.end_time - participation.start_time).total_seconds()
-                                )
-                                user_id = participation.user_id
-                                if user_id not in user_time_updates:
-                                    user_time_updates[user_id] = 0
-                                user_time_updates[user_id] += time_spent_this_tournament
-                    
-                    # Коммитим end_time участников
+
                     db.session.commit()
-                    
-                    # Обновляем время участия пользователей в отсортированном порядке (по ID)
-                    # Это гарантирует, что все процессы блокируют пользователей в одном порядке
-                    if user_time_updates:
-                        # Сортируем user_id для консистентного порядка блокировок
-                        sorted_user_ids = sorted(user_time_updates.keys())
-                        
-                        # Обновляем пользователей по одному в отсортированном порядке
-                        for user_id in sorted_user_ids:
-                            time_to_add = user_time_updates[user_id]
-                            
-                            # Блокируем пользователя для обновления (в отсортированном порядке)
-                            user = User.query.with_for_update(nowait=False).filter_by(id=user_id).first()
-                            if user:
-                                if user.total_tournament_time is None:
-                                    user.total_tournament_time = 0
-                                user.total_tournament_time += time_to_add
-                        
-                        # Коммитим изменения времени участия
-                        db.session.commit()
-                    
-                    # Обновляем рейтинги в категориях в отдельной транзакции
-                    # Это уменьшает длительность основной транзакции
-                    update_category_ranks()
+                    recalculate_tournament_time()
+                    update_category_ranks(tournament_id)
                     
                     # Очищаем кэш задач турнира
                     print(f"🏁 [ПЛАНИРОВЩИК] Очищаем кэш задач турнира {tournament_id}")
@@ -1553,6 +1578,7 @@ class TournamentParticipation(db.Model):
     participation_date = db.Column(db.DateTime, default=datetime.now)
     start_time = db.Column(db.DateTime, default=datetime.now)  # Время начала участия в турнире
     end_time = db.Column(db.DateTime, nullable=True)  # Время окончания участия в турнире
+    counted_seconds = db.Column(db.Integer, nullable=False, default=0)  # Секунды, уже добавленные в total_tournament_time
     solving_start_time = db.Column(db.DateTime, nullable=True)  # Время начала решения задач участником
     
     user = db.relationship('User', 
@@ -1741,6 +1767,9 @@ class ShopSettings(db.Model):
     # - percentage: доступ по процентам лучших пользователей в каждой категории
     # - fixed_top_3: фиксированный доступ для топ-3 пользователей в каждой категории
     access_mode = db.Column(db.String(20), default='percentage')
+    # Дата и время открытия лавки. Если заданы и ещё не наступили,
+    # на главной показывается таймер обратного отсчёта.
+    opens_at = db.Column(db.DateTime, nullable=True)
     # Процент лучших пользователей для каждой категории
     top_users_percentage_1_2 = db.Column(db.Integer, default=100)  # 1-2 классы
     top_users_percentage_3 = db.Column(db.Integer, default=100)    # 3 класс
@@ -1947,6 +1976,11 @@ def ensure_shop_settings_schema():
         db.session.execute(text("ALTER TABLE shop_settings ADD COLUMN access_mode VARCHAR(20)"))
         db.session.execute(text("UPDATE shop_settings SET access_mode='percentage' WHERE access_mode IS NULL"))
         db.session.commit()
+    if 'opens_at' not in columns:
+        dialect = db.engine.dialect.name
+        col_type = 'TIMESTAMP' if dialect == 'postgresql' else 'DATETIME'
+        db.session.execute(text(f"ALTER TABLE shop_settings ADD COLUMN opens_at {col_type}"))
+        db.session.commit()
 
 def ensure_prize_schema():
     """
@@ -1974,6 +2008,24 @@ def ensure_prize_schema():
         schema_changed = True
 
     if schema_changed:
+        db.session.commit()
+
+def ensure_tournament_participation_schema():
+    """Добавляет counted_seconds, чтобы повторное подведение итогов не удваивало время."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    table_name = None
+    for name in ('tournament_participation', 'tournamentparticipation'):
+        if inspector.has_table(name):
+            table_name = name
+            break
+    if not table_name:
+        return
+    columns = {col['name'] for col in inspector.get_columns(table_name)}
+    if 'counted_seconds' not in columns:
+        db.session.execute(text(
+            f'ALTER TABLE {table_name} ADD COLUMN counted_seconds INTEGER NOT NULL DEFAULT 0'
+        ))
         db.session.commit()
 
 def ensure_user_rating_points_schema():
@@ -2837,11 +2889,12 @@ def home():
             print(f"Ошибка при отслеживании перехода: {e}")
 
     record_page_view('home')
+
+    current_time = datetime.now()
+    shop_opens_at = ShopSettings.get_settings().opens_at
     
     settings = TournamentSettings.get_settings()
     if settings.is_season_active:
-        # Получаем текущее время
-        current_time = datetime.now()
         
         # Сначала ищем текущий активный турнир
         active_tournaments = Tournament.query.filter(
@@ -2928,9 +2981,16 @@ def home():
                              avg_tournament_score=round(avg_tournament_score, 1),
                              max_tournament_score=max_tournament_score,
                              total_solved_tasks=total_solved_tasks,
-                             show_partners=True)
+                             show_partners=True,
+                             shop_opens_at=shop_opens_at)
     else:
-        return render_template('index_close.html', message=settings.closed_season_message, show_partners=True)
+        return render_template(
+            'index_close.html',
+            message=settings.closed_season_message,
+            show_partners=True,
+            now=current_time,
+            shop_opens_at=shop_opens_at,
+        )
 
 @app.route('/about')
 def about():
@@ -3238,6 +3298,7 @@ def _violator_public_user(row):
         'parent_name': row.parent_name or '',
         'is_blocked': bool(row.is_blocked),
         'category': row.category or '',
+        'balance': row.balance or 0,
     }
 
 
@@ -3253,10 +3314,11 @@ def _violator_users():
         User.is_blocked,
         User.is_admin,
         User.category,
+        User.balance,
     ).order_by(User.id).all()
     users = []
     for row in rows:
-        if row.is_admin:
+        if row.is_admin or not row.balance:
             continue
         item = _violator_public_user(row)
         item['password_key'] = row.hashed_password or ''
@@ -10113,10 +10175,6 @@ def rating():
             user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
             user.is_current_user = False  # По умолчанию не текущий пользователь
             
-            # Защита от None для полей статистики турниров
-            user.tournaments_count = user.tournaments_count or 0
-            user.total_tournament_time = user.total_tournament_time or 0
-            
             # Определяем страну по номеру телефона
             if user.phone:
                 if user.phone.startswith('+7'):
@@ -10155,10 +10213,6 @@ def rating():
                     user.solved_tasks_count = correct_tasks_count or 0
                     user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
                     user.is_current_user = True  # Флаг для выделения текущего пользователя
-                    
-                    # Защита от None для полей статистики турниров
-                    user.tournaments_count = user.tournaments_count or 0
-                    user.total_tournament_time = user.total_tournament_time or 0
                     
                     # Определяем страну по номеру телефона
                     if user.phone:
@@ -10203,7 +10257,7 @@ def rating():
                 'balance': getattr(user, 'display_balance', get_rating_display_points(user, shop_is_open)),
                 'total_tournament_time': user.total_tournament_time or 0,
                 'solved_tasks_count': user.solved_tasks_count,
-                'tournaments_count': user.tournaments_count,
+                'tournaments_count': user.tournaments_count or 0,
                 'success_rate': user.success_rate,
                 'category_rank': user.category_rank,
                 'is_current_user': getattr(user, 'is_current_user', False)
@@ -10241,6 +10295,7 @@ def school_rating():
         .join(User, User.educational_institution_id == EducationalInstitution.id)
         .join(TournamentParticipation, TournamentParticipation.user_id == User.id)
         .filter(User.is_admin == False)
+        .filter(func.length(EducationalInstitution.name) >= 5)
         .group_by(EducationalInstitution.id, EducationalInstitution.name)
         .order_by(
             func.count(func.distinct(User.id)).desc(),
@@ -11094,6 +11149,21 @@ def admin_update_shop_settings():
     
     # Обновляем настройки
     settings.is_open = 'is_open' in request.form
+
+    opens_at_raw = (request.form.get('opens_at') or '').strip()
+    if opens_at_raw:
+        parsed_opens_at = None
+        for opens_at_format in ('%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S'):
+            try:
+                parsed_opens_at = datetime.strptime(opens_at_raw, opens_at_format)
+                break
+            except ValueError:
+                continue
+        if parsed_opens_at is None:
+            return jsonify({'success': False, 'message': 'Некорректные дата и время открытия лавки'})
+        settings.opens_at = parsed_opens_at
+    else:
+        settings.opens_at = None
 
     access_mode = (request.form.get('access_mode') or 'percentage').strip().lower()
     if access_mode not in {'percentage', 'fixed_top_3'}:
@@ -12189,12 +12259,15 @@ def update_tournament_places(tournament_id=None):
     Участник без баллов и без времени остаётся без места.
     """
     from collections import defaultdict
+    from sqlalchemy.orm import joinedload
 
     query = Tournament.query.filter_by(status='finished')
     if tournament_id is not None:
         query = query.filter_by(id=tournament_id)
 
-    for tournament in query.all():
+    tournaments = query.all()
+    print(f'Места турниров: {len(tournaments)}', flush=True)
+    for tournament in tournaments:
         points_rows = (
             db.session.query(
                 SolvedTask.user_id,
@@ -12211,13 +12284,20 @@ def update_tournament_places(tournament_id=None):
         points_by_user = {user_id: int(points or 0) for user_id, points in points_rows}
 
         participations_by_category = defaultdict(list)
-        participations = TournamentParticipation.query.filter_by(tournament_id=tournament.id).all()
+        participations = (
+            TournamentParticipation.query
+            .options(joinedload(TournamentParticipation.user))
+            .filter_by(tournament_id=tournament.id)
+            .all()
+        )
         for participation in participations:
             earned = points_by_user.get(participation.user_id, 0)
-            participation.score = earned
+            if participation.score != earned:
+                participation.score = earned
             user = participation.user
             if not user or not user.category:
-                participation.place = None
+                if participation.place is not None:
+                    participation.place = None
                 continue
             participations_by_category[user.category].append(participation)
 
@@ -12227,7 +12307,8 @@ def update_tournament_places(tournament_id=None):
                 earned = participation.score or 0
                 spent = _participation_tournament_time_seconds(participation)
                 if earned == 0 and spent == 0:
-                    participation.place = None
+                    if participation.place is not None:
+                        participation.place = None
                 else:
                     ranked.append((participation, earned, spent))
 
@@ -12242,52 +12323,55 @@ def update_tournament_places(tournament_id=None):
                     current_rank += same_rank_count
                     same_rank_count = 0
                     current_key = key
-                participation.place = current_rank
+                if participation.place != current_rank:
+                    participation.place = current_rank
                 same_rank_count += 1
 
+        db.session.commit()
+        print(f'  турнир {tournament.id}: места записаны', flush=True)
 
-def update_category_ranks():
-    """Обновляет глобальный рейтинг и места в завершённых турнирах."""
-    # Используем те же категории, что и в интерфейсе рейтинга
+
+def update_category_ranks(tournament_id=None):
+    """Пересчитывает места в категориях одним UPDATE и места указанного турнира.
+
+    Раньше каждый участник загружался в сессию и помечался изменённым. Следующий
+    запрос сбрасывал это тысячами отдельных UPDATE и держал блокировку строк,
+    пока update_tournament_places обходил все завершённые турниры.
+    """
+    ensure_tournament_participation_schema()
+    from sqlalchemy import text
+
     categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
-    
-    for category in categories:
-        # Получаем всех пользователей данной категории, отсортированных по балансу и времени
-        # Исключаем пользователей с нулевыми показателями
-        users = User.query.filter_by(category=category)\
-            .filter(db.or_(User.balance > 0, User.total_tournament_time > 0))\
-            .order_by(User.balance.desc(), User.total_tournament_time.asc())\
-            .all()
-        
-        # Обновляем рейтинг для каждого пользователя
-        current_rank = 1
-        current_balance = None
-        current_time = None
-        same_rank_count = 0
-        
-        for user in users:
-            # Если баланс и время отличаются от предыдущего пользователя
-            if current_balance != user.balance or current_time != user.total_tournament_time:
-                current_rank += same_rank_count
-                same_rank_count = 0
-                current_balance = user.balance
-                current_time = user.total_tournament_time
-            
-            user.category_rank = current_rank
-            same_rank_count += 1
-        
-        # Сбрасываем место только у тех, у кого оно ещё стоит.
-        # Не загружаем всех участников с нулевым балансом: в крупных категориях
-        # такой SELECT не укладывается в statement_timeout.
-        User.query.filter(
-            User.category == category,
-            User.balance == 0,
-            User.total_tournament_time == 0,
-            User.category_rank.isnot(None),
-        ).update({User.category_rank: None}, synchronize_session=False)
-
-    update_tournament_places()
+    rank_sql = text("""
+        UPDATE "user" AS u
+        SET category_rank = ranked.place,
+            updated_at = :updated_at
+        FROM (
+            SELECT id,
+                   CASE
+                       WHEN balance > 0 OR total_tournament_time > 0
+                       THEN RANK() OVER (
+                           PARTITION BY CASE
+                               WHEN balance > 0 OR total_tournament_time > 0 THEN 1
+                               ELSE 0
+                           END
+                           ORDER BY balance DESC, total_tournament_time ASC
+                       )
+                   END AS place
+            FROM "user"
+            WHERE category = :category
+        ) AS ranked
+        WHERE u.id = ranked.id
+          AND u.category_rank IS DISTINCT FROM ranked.place
+    """)
+    now = datetime.now()
+    with db.session.no_autoflush:
+        for category in categories:
+            result = db.session.execute(rank_sql, {'category': category, 'updated_at': now})
+            print(f'Категория {category}: изменено мест {result.rowcount}', flush=True)
     db.session.commit()
+    print('Места в категориях записаны', flush=True)
+    update_tournament_places(tournament_id)
 
 # Рейтинг обновляется только после завершения турниров
 # При покупке призов рейтинг остается зафиксированным, чтобы не менять топ % во время работы лавки
@@ -13863,13 +13947,6 @@ def rating_search():
         user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
         user.is_current_user = False
         
-        # Ранг пользователя уже есть в поле category_rank
-        # user.category_rank уже содержит актуальное значение
-        
-        # Используем поля из модели User для статистики турниров
-        user.tournaments_count = user.tournaments_count or 0
-        user.total_tournament_time = user.total_tournament_time or 0
-        
         # Определяем страну по номеру телефона
         if user.phone:
             if user.phone.startswith('+7'):
@@ -13890,8 +13967,8 @@ def rating_search():
             'solved_tasks_count': user.solved_tasks_count,
             'success_rate': user.success_rate,
             'category_rank': user.category_rank,
-            'tournaments_count': user.tournaments_count,
-            'total_tournament_time': user.total_tournament_time,
+            'tournaments_count': user.tournaments_count or 0,
+            'total_tournament_time': user.total_tournament_time or 0,
             'is_current_user': user.id == current_user.id if current_user.is_authenticated else False,
             'country_flag': country_flag
         })
@@ -14871,13 +14948,13 @@ def debug_ip():
     return jsonify(debug_info)
 
 if __name__ == '__main__':
-    #logging.basicConfig(filename='err.log', level=logging.DEBUG)
+    logging.basicConfig(filename='err.log', level=logging.DEBUG)
     #logging.basicConfig(level=logging.DEBUG)
 
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
 
-    #update_category_ranks()
+    update_category_ranks()
     #  c
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8001, debug=True)

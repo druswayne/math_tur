@@ -129,7 +129,7 @@
                                     <td>{{ user.display_balance }}</td>
                                     <td>{{ "%02d:%02d:%02d"|format(((user.total_tournament_time or 0) // 3600)|int, (((user.total_tournament_time or 0) % 3600) // 60)|int, ((user.total_tournament_time or 0) % 60)|int) }}</td>
                                     <td>{{ user.solved_tasks_count }}</td>
-                                    <td>{{ user.tournaments_count }}</td>
+                                    <td>{{ user.tournaments_count or 0 }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

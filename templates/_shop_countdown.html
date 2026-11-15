@@ -1,0 +1,68 @@
+{% if shop_opens_at and now and shop_opens_at > now %}
+<div class="card index-timer-card mb-3">
+    <div class="card-body">
+        <div class="text-center">
+            <h3 class="card-title mb-4">Лавка призов</h3>
+            <p class="text-muted mb-3" id="shopCountdownLabel">До открытия лавки осталось:</p>
+            <div class="countdown-timer mb-4">
+                <div class="countdown-items">
+                    <div class="countdown-item">
+                        <div class="countdown-number" id="shopDays">00</div>
+                        <div class="countdown-label">дней</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-number" id="shopHours">00</div>
+                        <div class="countdown-label">часов</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-number" id="shopMinutes">00</div>
+                        <div class="countdown-label">минут</div>
+                    </div>
+                    <div class="countdown-item">
+                        <div class="countdown-number" id="shopSeconds">00</div>
+                        <div class="countdown-label">секунд</div>
+                    </div>
+                </div>
+            </div>
+            <div class="alert alert-info mb-0">
+                Лавка откроется {{ shop_opens_at.strftime('%d.%m.%Y в %H:%M') }}
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    let shopServerTimeOffset = 0;
+    const shopOpensAt = new Date("{{ shop_opens_at.isoformat() }}");
+
+    function updateShopCountdown() {
+        const serverNow = new Date(Date.now() + shopServerTimeOffset);
+        const diff = shopOpensAt - serverNow;
+
+        if (diff <= 0) {
+            setTimeout(function() {
+                location.reload();
+            }, 100);
+            return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        document.getElementById('shopDays').textContent = String(days).padStart(2, '0');
+        document.getElementById('shopHours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('shopMinutes').textContent = String(minutes).padStart(2, '0');
+        document.getElementById('shopSeconds').textContent = String(seconds).padStart(2, '0');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const serverNow = new Date("{{ now.isoformat() }}");
+        shopServerTimeOffset = serverNow.getTime() - Date.now();
+        updateShopCountdown();
+        setInterval(updateShopCountdown, 1000);
+    });
+})();
+</script>
+{% endif %}
