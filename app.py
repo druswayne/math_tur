@@ -14954,7 +14954,7 @@ if __name__ == '__main__':
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
 
-    update_category_ranks()
-    #  c
+    #update_category_ranks()
+    #  python force_end_tournament.py <tournament_id>
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8001, debug=True)
