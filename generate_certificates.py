@@ -903,6 +903,8 @@ class CertificateGenerator:
                 SELECT
                     t.id,
                     t.full_name,
+                    t.phone,
+                    t.email,
                     COUNT(u.id)::int AS active_students
                 FROM teachers t
                 JOIN "user" u ON u.teacher_id = t.id
@@ -910,7 +912,7 @@ class CertificateGenerator:
                   AND u.is_admin = FALSE
                   AND t.full_name IS NOT NULL
                   AND btrim(t.full_name) <> ''
-                GROUP BY t.id, t.full_name
+                GROUP BY t.id
                 ORDER BY t.full_name
             """)
             return cursor.fetchall()
@@ -921,18 +923,18 @@ class CertificateGenerator:
             conn.close()
 
     def generate_teacher_letter(self, teacher_id, full_name, output_path):
-        """Благодарность учителю: на бланк ставится только ФИО."""
+        """Благодарность учителю: на бланк ставится только ФИО. True, если файл есть."""
         try:
             if os.path.exists(output_path) and not self.overwrite:
                 print(f"⚠️  Файл уже существует: {output_path}")
                 response = input("Перезаписать? (y/N): ").strip().lower()
                 if response != 'y':
                     print(f"Пропускаем благодарность для {full_name}")
-                    return
+                    return True
 
             if not os.path.exists(self.teacher_template):
                 print(f"Шаблон благодарности не найден: {self.teacher_template}")
-                return
+                return False
 
             image = Image.open(self.teacher_template)
             draw = ImageDraw.Draw(image)
@@ -956,8 +958,23 @@ class CertificateGenerator:
             image_resized = image.resize(new_size, Image.Resampling.LANCZOS)
             image_resized.save(output_path, 'JPEG', quality=self.quality, optimize=True, progressive=True)
             print(f"Благодарность создана: {output_path}")
+            return True
         except Exception as e:
             print(f"Ошибка при создании благодарности для {full_name}: {e}")
+            return False
+
+    def write_teacher_contacts(self, teacher_path, teachers):
+        """TXT со списком учителей, для которых создана благодарность."""
+        list_path = os.path.join(teacher_path, "teachers.txt")
+        lines = ["ФИО\tТелефон\tEmail"]
+        for full_name, phone, email in teachers:
+            phone_text = (phone or "").strip() or "—"
+            email_text = (email or "").strip() or "—"
+            lines.append(f"{full_name}\t{phone_text}\t{email_text}")
+        with open(list_path, "w", encoding="utf-8-sig", newline="\n") as handle:
+            handle.write("\n".join(lines) + "\n")
+        print(f"Список учителей сохранён: {list_path}")
+        return list_path
 
     def generate_teacher_letters(self, tournament_name):
         """Благодарности учителям с хотя бы одним активным учеником."""
@@ -966,12 +983,15 @@ class CertificateGenerator:
         os.makedirs(teacher_path, exist_ok=True)
 
         print(f"\nБлагодарностей учителям: {len(teachers)}")
-        for teacher_id, full_name, active_students in teachers:
+        created = []
+        for teacher_id, full_name, phone, email, active_students in teachers:
             output_path = f"{teacher_path}/{teacher_id}.jpg"
-            self.generate_teacher_letter(teacher_id, full_name, output_path)
+            if self.generate_teacher_letter(teacher_id, full_name, output_path):
+                created.append((full_name, phone, email))
 
+        self.write_teacher_contacts(teacher_path, created)
         print(f"Благодарности сохранены в: {teacher_path}")
-        return teacher_path, len(teachers)
+        return teacher_path, len(created)
 
     def create_directories(self, tournament_name):
         """Создание необходимых папок"""
@@ -1167,10 +1187,11 @@ class CertificateGenerator:
             print("-" * 70)
             print(f"{'Тип':<16} {'ID':<6} {'ФИО':<30} {'Активных':<10}")
             print("-" * 70)
-            for teacher_id, full_name, active_students in teachers:
+            for teacher_id, full_name, phone, email, active_students in teachers:
                 print(f"{'БЛАГОДАРНОСТЬ':<16} {teacher_id:<6} {full_name[:28]:<30} {active_students:<10}")
             print("-" * 70)
         print(f"  - doc/tournament/{tournament_name}/teacher/")
+        print(f"  - doc/tournament/{tournament_name}/teacher/teachers.txt")
 
     def _dry_run_participants(self, participants, tournament_name, tournament_id=None):
         print(f"Всего участников с рейтингом (участвовали в турнирах): {len(participants)}")
