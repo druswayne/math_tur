@@ -1,6 +1,6 @@
 import psutil
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, send_from_directory, abort
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from functools import wraps
 import PyPDF2
 from reportlab.pdfgen import canvas
@@ -2991,6 +2991,92 @@ def home():
             now=current_time,
             shop_opens_at=shop_opens_at,
         )
+
+_FAQ_TOPICS = {
+    'Сертификаты, дипломы и призы': ('certificates', 'fa-award'),
+    'Регистрация и вход': ('registration', 'fa-user'),
+    'Жетон и участие': ('tokens', 'fa-ticket-alt'),
+    'Проверка заданий': ('answers', 'fa-check-circle'),
+    'Смена класса': ('class', 'fa-graduation-cap'),
+}
+_FAQ_SENTENCE_RE = re.compile(r'(?<=[.!?])\s+')
+_FAQ_PLACE_RE = re.compile(r'«([^»]+)»')
+
+
+def _faq_question_label(count):
+    n10 = count % 10
+    n100 = count % 100
+    if n10 == 1 and n100 != 11:
+        word = 'вопрос'
+    elif 2 <= n10 <= 4 and not 12 <= n100 <= 14:
+        word = 'вопроса'
+    else:
+        word = 'вопросов'
+    return f'{count} {word}'
+
+
+def _faq_sentences(answer):
+    """Делит ответ на отдельные фразы и выделяет названия разделов сайта."""
+    sentences = []
+    for sentence in _FAQ_SENTENCE_RE.split((answer or '').strip()):
+        if not sentence:
+            continue
+        pieces = []
+        cursor = 0
+        for match in _FAQ_PLACE_RE.finditer(sentence):
+            pieces.append(escape(sentence[cursor:match.start()]))
+            pieces.append(Markup('«<span class="faq-place">'))
+            pieces.append(escape(match.group(1)))
+            pieces.append(Markup('</span>»'))
+            cursor = match.end()
+        pieces.append(escape(sentence[cursor:]))
+        sentences.append(Markup('').join(pieces))
+    return sentences
+
+
+def _load_popular_faq():
+    """Читает popular_faq.json и добавляет устойчивые якоря для ссылок."""
+    path = os.path.join(app.root_path, 'popular_faq.json')
+    with open(path, encoding='utf-8') as faq_file:
+        data = json.load(faq_file)
+
+    questions = []
+    for index, category in enumerate(data.get('categories', []), start=1):
+        slug, icon = _FAQ_TOPICS.get(category.get('title'), (f'topic-{index}', 'fa-question-circle'))
+        items = category.get('items', [])
+        category['slug'] = slug
+        category['icon'] = icon
+        category['question_label'] = _faq_question_label(len(items))
+        for item_index, item in enumerate(items, start=1):
+            item['slug'] = f'{slug}-{item_index}'
+            item['sentences'] = _faq_sentences(item.get('answer', ''))
+            questions.append({
+                '@type': 'Question',
+                'name': item.get('question', ''),
+                'acceptedAnswer': {
+                    '@type': 'Answer',
+                    'text': item.get('answer', ''),
+                },
+            })
+
+    data['schema'] = {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        'mainEntity': questions,
+    }
+    return data
+
+
+@app.route('/faq')
+def faq():
+    """Популярные вопросы по обращениям в поддержку."""
+    try:
+        data = _load_popular_faq()
+    except (OSError, json.JSONDecodeError):
+        app.logger.exception('Не удалось загрузить popular_faq.json')
+        data = {'categories': [], 'schema': None}
+    return render_template('faq.html', title='Популярные вопросы', faq=data, show_partners=True)
+
 
 @app.route('/about')
 def about():

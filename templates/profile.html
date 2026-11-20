@@ -270,9 +270,10 @@
                             <option value="10" {% if current_user.category == '10' %}selected{% endif %}>10 класс</option>
                             <option value="11" {% if current_user.category == '11' %}selected{% endif %}>11 класс</option>
                         </select>
-                        {% if not settings.allow_category_change %}
-                        <small class="form-text text-muted">Изменение группы временно недоступно</small>
-                        {% endif %}
+                        <small class="form-text text-muted d-block">
+                            {% if not settings.allow_category_change %}Изменение группы временно недоступно. {% endif %}
+                            <a href="{{ url_for('faq') }}#class">Как сменить класс</a>
+                        </small>
                     </div>
                     <div class="mb-3">
                         <label for="educational_institution_name">Учреждение образования</label>

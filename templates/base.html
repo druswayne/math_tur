@@ -1166,6 +1166,11 @@
                                 </a>
                             </li>
                             <li>
+                                <a class="dropdown-item" href="{{ url_for('faq') }}">
+                                    <i class="fas fa-question-circle me-2"></i>Популярные вопросы
+                                </a>
+                            </li>
+                            <li>
                                 <a class="dropdown-item" href="#footer" onclick="scrollToFooter()">
                                     <i class="fas fa-phone me-2"></i>Контакты
                                 </a>
@@ -1292,6 +1297,11 @@
                     <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">ООО "Лига Знатоков"</p>
                     <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">Юридический адрес: 231761 г. Скидель, ул. Зелёная, д. 67</p>
                     <p class="mb-1" style="color: #bdbdbd; font-size: 1rem;">УНП 591054732</p>
+                    <p class="mb-1 mt-2">
+                        <a href="{{ url_for('faq') }}" style="color: #FF8C00; text-decoration: none; font-size: 1rem;">
+                            Популярные вопросы
+                        </a>
+                    </p>
                     <p class="mb-1 mt-2">
                         <a href="{{ url_for('tournament_tour') }}#pokupka-zhetonov" style="color: #FF8C00; text-decoration: none; font-size: 1rem;">
                             Как произвести оплату
@@ -1702,6 +1712,9 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body py-3">
+                    <p class="small mb-3">
+                        Ответ может уже быть в <a href="{{ url_for('faq') }}">популярных вопросах</a>: дипломы, вход, жетоны, проверка заданий.
+                    </p>
                     <form id="feedbackForm" class="feedback-form">
                                                    <div class="mb-2">
                                <label for="feedbackName" class="form-label small mb-1">Имя *</label>

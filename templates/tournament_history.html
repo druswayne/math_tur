@@ -81,7 +81,7 @@
 }
 </style>
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
         <h2>История турниров</h2>
         <div class="d-flex gap-2">
             <a href="{{ url_for('my_achievements') }}" class="btn btn-success d-none d-md-inline-flex">
@@ -98,6 +98,10 @@
             </a>
         </div>
     </div>
+    <p class="text-muted mb-4">
+        Диплом и сертификат появляются после публикации итоговой таблицы.
+        <a href="{{ url_for('faq') }}#certificates">Когда именно</a>
+    </p>
     
     {% if tournaments %}
     <!-- Десктопная версия -->

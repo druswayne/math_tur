@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Скрипт для генерации сертификатов и дипломов участников турнира
+Скрипт для генерации сертификатов и дипломов участников турнира.
+
+Диплом с местом — 1–3 место в группе.
+Диплом без места — набран максимальный возможный балл турнира, но место ниже 3.
+Сертификат — все остальные участники с рейтингом.
+Благодарность — учитель, у которого есть хотя бы один активный ученик
+(ученик участвовал хотя бы в одном турнире).
 """
 
 import os
@@ -60,6 +66,15 @@ class CertificateGenerator:
         # Пути к шаблонам
         self.certificate_template = 'doc/sertificat.jpg'
         self.diploma_template = 'doc/diplom.jpg'
+        self.diploma_no_grade_template = 'doc/diplom no grade.jpg'
+        self.teacher_template = 'doc/teacher.jpg'
+        
+        # ФИО учителя на благодарности: линия от левой до правой границы
+        self.teacher_name_coords = {
+            'start': (270, 438),
+            'end': (656, 438),
+            'max_height': 42,
+        }
         
         # Координаты для сертификата
         self.cert_name_coords = {
@@ -341,6 +356,116 @@ class CertificateGenerator:
         
         return diploma_recipients
 
+    @staticmethod
+    def _normalize_label(value):
+        """Нормализация названия для сопоставления папки и турнира."""
+        text = (value or "").lower().replace("ё", "е")
+        text = text.replace("«", " ").replace("»", " ").replace('"', " ")
+        text = re.sub(r"[^\w\s\-]", " ", text, flags=re.UNICODE)
+        return re.sub(r"\s+", " ", text).strip()
+
+    @staticmethod
+    def _pick_tournament(tournaments, tournament_id=None, folder_name=None):
+        """Выбор турнира: явный id, совпадение с названием папки, иначе последний завершённый."""
+        if tournament_id:
+            for tid, title, status in tournaments:
+                if tid == tournament_id:
+                    return tid, title
+            print(f"Турнир с ID={tournament_id} не найден")
+            return None
+
+        folder_key = CertificateGenerator._normalize_label(folder_name)
+        if folder_key:
+            for tid, title, status in tournaments:
+                title_key = CertificateGenerator._normalize_label(title)
+                if not title_key:
+                    continue
+                if folder_key == title_key:
+                    return tid, title
+                if len(folder_key) >= 8 and (folder_key in title_key or title_key in folder_key):
+                    return tid, title
+
+        for tid, title, status in tournaments:
+            if status == "finished":
+                return tid, title
+        if tournaments:
+            return tournaments[0][0], tournaments[0][1]
+        return None
+
+    def load_tournament_scores(self, tournament_id=None, folder_name=None):
+        """
+        Максимальный возможный балл по группам и набранные баллы участия.
+        Возвращает (tournament_id, title, {category: max_points}, {user_id: score}).
+        """
+        conn = self.get_db_connection()
+        if not conn:
+            return None, None, {}, {}
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, title, status
+                FROM tournament
+                ORDER BY start_date DESC NULLS LAST, id DESC
+            """)
+            tournaments = cursor.fetchall()
+            chosen = self._pick_tournament(tournaments, tournament_id, folder_name)
+            if not chosen:
+                print("Турнир для расчёта максимального балла не найден")
+                return None, None, {}, {}
+
+            resolved_id, title = chosen
+            cursor.execute("""
+                SELECT category, COALESCE(SUM(points), 0)::int
+                FROM task
+                WHERE tournament_id = %s
+                GROUP BY category
+            """, (resolved_id,))
+            max_points = {row[0]: row[1] for row in cursor.fetchall()}
+
+            cursor.execute("""
+                SELECT user_id, COALESCE(score, 0)::int
+                FROM tournament_participation
+                WHERE tournament_id = %s
+            """, (resolved_id,))
+            scores = {row[0]: row[1] for row in cursor.fetchall()}
+            return resolved_id, title, max_points, scores
+        except Exception as e:
+            print(f"Ошибка при расчёте максимального балла: {e}")
+            return None, None, {}, {}
+        finally:
+            conn.close()
+
+    def prepare_document_sets(self, participants, tournament_id=None, folder_name=None):
+        """
+        Делит участников на дипломы 1–3 места и дипломы за максимальный балл.
+        Максимальный балл группы — сумма баллов задач этой группы в турнире.
+        """
+        diploma_recipients = self.calculate_diploma_recipients(participants)
+        resolved_id, title, max_points, scores = self.load_tournament_scores(
+            tournament_id, folder_name
+        )
+        max_score_recipients = set()
+
+        if not resolved_id:
+            print("Дипломы без места не создаются: турнир не найден")
+            return diploma_recipients, max_score_recipients
+
+        print(f"Максимальный балл по турниру ID={resolved_id}: {title}")
+        for category in sorted(max_points, key=lambda item: str(item)):
+            print(f"  группа {category}: {max_points[category]} баллов")
+
+        for participant in participants:
+            user_id, student_name, category, place, score, school_name = participant
+            if user_id in diploma_recipients:
+                continue
+            cap = max_points.get(category) or 0
+            earned = scores.get(user_id)
+            if cap > 0 and earned is not None and earned >= cap:
+                max_score_recipients.add(user_id)
+
+        return diploma_recipients, max_score_recipients
+
     def get_font_for_text(self, text, max_width, max_height, font_size=50):
         """Получение подходящего шрифта для текста"""
         try:
@@ -563,8 +688,8 @@ class CertificateGenerator:
         except Exception as e:
             print(f"Ошибка при создании сертификата для {student_name}: {e}")
 
-    def generate_diploma(self, user_id, student_name, place, category, school_name, score, output_path):
-        """Генерация диплома для призера"""
+    def generate_diploma(self, user_id, student_name, place, category, school_name, score, output_path, include_place=True):
+        """Генерация диплома. include_place=False — диплом за максимальный балл, без номера места."""
         try:
             # Проверяем, существует ли уже файл
             if os.path.exists(output_path) and not self.overwrite:
@@ -573,9 +698,15 @@ class CertificateGenerator:
                 if response != 'y':
                     print(f"Пропускаем создание диплома для {student_name}")
                     return
+
+            template_path = self.diploma_template if include_place else self.diploma_no_grade_template
+            if not os.path.exists(template_path):
+                kind = "диплома" if include_place else "диплома без места"
+                print(f"Шаблон {kind} не найден: {template_path}")
+                return
             
             # Открываем шаблон
-            image = Image.open(self.diploma_template)
+            image = Image.open(template_path)
             draw = ImageDraw.Draw(image)
             
             # Получаем шрифт для остальных полей (обычный)
@@ -632,13 +763,7 @@ class CertificateGenerator:
             if not name_font:
                 name_font = ImageFont.load_default()
             
-            # 0. Место (1–3) вверху диплома
-            place_text = str(place) if place else "-"
-            place_start = self.diploma_coords['place']['start']
-            place_end = self.diploma_coords['place']['end']
-            place_width = place_end[0] - place_start[0]
-            
-            # Получаем шрифт размером 20 для баллов и места
+            # Получаем шрифт размером 20 для баллов
             small_font = None
             for font_name in ['arial.ttf', 'calibri.ttf', 'times.ttf', 'DejaVuSans.ttf']:
                 try:
@@ -649,25 +774,31 @@ class CertificateGenerator:
             
             if not small_font:
                 small_font = ImageFont.load_default()
-            
-            # Рисуем место вверху (крупнее)
-            place_font_size = 36
-            place_font = None
-            for fp in font_paths:
-                if os.path.exists(fp):
-                    try:
-                        place_font = ImageFont.truetype(fp, place_font_size)
-                        break
-                    except Exception:
-                        continue
-            if not place_font:
-                place_font = small_font
-            bbox = place_font.getbbox(place_text)
-            place_text_width = bbox[2] - bbox[0]
-            place_text_height = bbox[3] - bbox[1]
-            place_x = place_start[0] + (place_width - place_text_width) // 2
-            place_y = place_start[1] - place_text_height - 5
-            draw.text((place_x, self.apply_text_y_offset(place_y)), place_text, fill='black', font=place_font)
+
+            # 0. Место (1–3) вверху диплома. На дипломе за максимальный балл место не пишем.
+            if include_place:
+                place_text = str(place) if place else "-"
+                place_start = self.diploma_coords['place']['start']
+                place_end = self.diploma_coords['place']['end']
+                place_width = place_end[0] - place_start[0]
+
+                place_font_size = 36
+                place_font = None
+                for fp in font_paths:
+                    if os.path.exists(fp):
+                        try:
+                            place_font = ImageFont.truetype(fp, place_font_size)
+                            break
+                        except Exception:
+                            continue
+                if not place_font:
+                    place_font = small_font
+                bbox = place_font.getbbox(place_text)
+                place_text_width = bbox[2] - bbox[0]
+                place_text_height = bbox[3] - bbox[1]
+                place_x = place_start[0] + (place_width - place_text_width) // 2
+                place_y = place_start[1] - place_text_height - 5
+                draw.text((place_x, self.apply_text_y_offset(place_y)), place_text, fill='black', font=place_font)
             
             # 1. ФИО (жирным и на 50% больше); отчество (3-е слово) на диплом не выводим
             name_parts = (student_name or "").split()
@@ -752,10 +883,95 @@ class CertificateGenerator:
             
             # Сохраняем изображение со сжатием
             image_resized.save(output_path, 'JPEG', quality=self.quality, optimize=True, progressive=True)
-            print(f"Диплом создан: {output_path}")
+            if include_place:
+                print(f"Диплом создан: {output_path}")
+            else:
+                print(f"Диплом без места создан: {output_path}")
             
         except Exception as e:
             print(f"Ошибка при создании диплома для {student_name}: {e}")
+
+    def get_teachers_with_active_students(self):
+        """Учителя, у которых есть хотя бы один ученик с участием в турнире."""
+        conn = self.get_db_connection()
+        if not conn:
+            return []
+
+        try:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    t.id,
+                    t.full_name,
+                    COUNT(u.id)::int AS active_students
+                FROM teachers t
+                JOIN "user" u ON u.teacher_id = t.id
+                WHERE COALESCE(u.tournaments_count, 0) > 0
+                  AND u.is_admin = FALSE
+                  AND t.full_name IS NOT NULL
+                  AND btrim(t.full_name) <> ''
+                GROUP BY t.id, t.full_name
+                ORDER BY t.full_name
+            """)
+            return cursor.fetchall()
+        except Exception as e:
+            print(f"Ошибка при получении учителей: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def generate_teacher_letter(self, teacher_id, full_name, output_path):
+        """Благодарность учителю: на бланк ставится только ФИО."""
+        try:
+            if os.path.exists(output_path) and not self.overwrite:
+                print(f"⚠️  Файл уже существует: {output_path}")
+                response = input("Перезаписать? (y/N): ").strip().lower()
+                if response != 'y':
+                    print(f"Пропускаем благодарность для {full_name}")
+                    return
+
+            if not os.path.exists(self.teacher_template):
+                print(f"Шаблон благодарности не найден: {self.teacher_template}")
+                return
+
+            image = Image.open(self.teacher_template)
+            draw = ImageDraw.Draw(image)
+
+            start_x, start_y = self.teacher_name_coords['start']
+            end_x, end_y = self.teacher_name_coords['end']
+            available_width = end_x - start_x
+            max_height = self.teacher_name_coords['max_height']
+
+            font, text_width, text_height = self.get_font_for_text(
+                full_name, available_width, max_height, font_size=28
+            )
+            text_x = start_x + (available_width - text_width) // 2
+            # Координата y — линия подписи, текст ставим над ней
+            text_y = start_y - text_height - 2
+            draw.text((text_x, text_y), full_name, fill='black', font=font)
+
+            original_size = image.size
+            scale = self.get_compression_scale(self.compression_mode or '1', is_certificate=False)
+            new_size = (int(original_size[0] * scale), int(original_size[1] * scale))
+            image_resized = image.resize(new_size, Image.Resampling.LANCZOS)
+            image_resized.save(output_path, 'JPEG', quality=self.quality, optimize=True, progressive=True)
+            print(f"Благодарность создана: {output_path}")
+        except Exception as e:
+            print(f"Ошибка при создании благодарности для {full_name}: {e}")
+
+    def generate_teacher_letters(self, tournament_name):
+        """Благодарности учителям с хотя бы одним активным учеником."""
+        teachers = self.get_teachers_with_active_students()
+        teacher_path = f"doc/tournament/{tournament_name}/teacher"
+        os.makedirs(teacher_path, exist_ok=True)
+
+        print(f"\nБлагодарностей учителям: {len(teachers)}")
+        for teacher_id, full_name, active_students in teachers:
+            output_path = f"{teacher_path}/{teacher_id}.jpg"
+            self.generate_teacher_letter(teacher_id, full_name, output_path)
+
+        print(f"Благодарности сохранены в: {teacher_path}")
+        return teacher_path, len(teachers)
 
     def create_directories(self, tournament_name):
         """Создание необходимых папок"""
@@ -768,7 +984,7 @@ class CertificateGenerator:
         
         return certificate_path, diploma_path
 
-    def generate_certificates_and_diplomas(self, tournament_name):
+    def generate_certificates_and_diplomas(self, tournament_name, tournament_id=None):
         """Основная функция генерации сертификатов и дипломов"""
         print(f"Начинаем генерацию сертификатов и дипломов")
         print(f"Название папки: {tournament_name}")
@@ -778,20 +994,28 @@ class CertificateGenerator:
         
         if not participants:
             print("Участники с рейтингом не найдены")
-            return
-        
+        else:
+            self._generate_participant_documents(tournament_name, participants, tournament_id)
+
+        self.generate_teacher_letters(tournament_name)
+
+    def _generate_participant_documents(self, tournament_name, participants, tournament_id=None):
+        """Сертификаты и дипломы участников."""
         # Создаем папки
         certificate_path, diploma_path = self.create_directories(tournament_name)
         
-        # Вычисляем список участников, которые получат дипломы (по категориям, как в лавке призов)
-        diploma_recipients = self.calculate_diploma_recipients(participants)
+        diploma_recipients, max_score_recipients = self.prepare_document_sets(
+            participants, tournament_id=tournament_id, folder_name=tournament_name
+        )
         
         total_participants = len(participants)
         diplomas_count = len(diploma_recipients)
-        certificates_count = total_participants - diplomas_count
+        max_score_count = len(max_score_recipients)
+        certificates_count = total_participants - diplomas_count - max_score_count
         
         print(f"\nВсего участников: {total_participants}")
-        print(f"Дипломов будет создано: {diplomas_count}")
+        print(f"Дипломов 1–3 место: {diplomas_count}")
+        print(f"Дипломов за максимальный балл (без места): {max_score_count}")
         print(f"Сертификатов будет создано: {certificates_count}\n")
         
         # Обрабатываем каждого участника
@@ -802,94 +1026,83 @@ class CertificateGenerator:
                 print(f"Пропускаем пользователя {user_id}: нет ФИО")
                 continue
             
-            # Определяем тип документа (используем логику лавки призов)
             if user_id in diploma_recipients:
-                # Диплом для топ участников категории
                 output_path = f"{diploma_path}/{user_id}.jpg"
                 self.generate_diploma(user_id, student_name, place, category, school_name, score, output_path)
+            elif user_id in max_score_recipients:
+                output_path = f"{diploma_path}/{user_id}.jpg"
+                self.generate_diploma(
+                    user_id, student_name, place, category, school_name, score, output_path,
+                    include_place=False,
+                )
             else:
-                # Сертификат для остальных участников
                 output_path = f"{certificate_path}/{user_id}.jpg"
                 self.generate_certificate(user_id, student_name, score, place, output_path)
         
-        print(f"\nГенерация завершена!")
+        print(f"\nСертификаты и дипломы готовы")
         print(f"Сертификаты сохранены в: {certificate_path}")
         print(f"Дипломы сохранены в: {diploma_path}")
 
-    def list_available_tournaments(self):
-        """Показать статистику участников с рейтингом по категориям (дипломы только 1–3 место в группе)"""
+    def list_available_tournaments(self, tournament_id=None):
+        """Показать статистику: дипломы 1–3, дипломы за максимальный балл и сертификаты."""
+        participants, _ = self.get_tournament_participants("")
+        if not participants:
+            print("Участники с рейтингом не найдены")
+            return
+
+        diploma_recipients, max_score_recipients = self.prepare_document_sets(
+            participants, tournament_id=tournament_id
+        )
+
+        by_category = {}
+        for participant in participants:
+            user_id, student_name, category, place, score, school_name = participant
+            bucket = by_category.setdefault(category, {"participants": 0, "diplomas": 0, "max_score": 0})
+            bucket["participants"] += 1
+            if user_id in diploma_recipients:
+                bucket["diplomas"] += 1
+            elif user_id in max_score_recipients:
+                bucket["max_score"] += 1
+
+        print("\nСтатистика участников с рейтингом. Диплом с местом — 1–3 место, диплом без места — максимальный балл.")
+        print("=" * 110)
+        print(f"{'Категория':<12} {'Участников':<12} {'Дипломов (1-3)':<16} {'Дипломов (макс.)':<18} {'Сертификатов':<15}")
+        print("-" * 110)
+
+        total = 0
+        total_diplomas = 0
+        total_max_score = 0
+        total_certificates = 0
+        categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
+        ordered = [c for c in categories if c in by_category]
+        ordered.extend(c for c in by_category if c not in ordered)
+
+        for category in ordered:
+            bucket = by_category[category]
+            certificates_count = bucket["participants"] - bucket["diplomas"] - bucket["max_score"]
+            total += bucket["participants"]
+            total_diplomas += bucket["diplomas"]
+            total_max_score += bucket["max_score"]
+            total_certificates += certificates_count
+            label = category or "—"
+            print(
+                f"{label:<12} {bucket['participants']:<12} {bucket['diplomas']:<16} "
+                f"{bucket['max_score']:<18} {certificates_count:<15}"
+            )
+
+        print("-" * 110)
+        print(f"{'ИТОГО':<12} {total:<12} {total_diplomas:<16} {total_max_score:<18} {total_certificates:<15}")
+        print("=" * 110)
+
+        teachers = self.get_teachers_with_active_students()
+        print(f"Благодарностей учителям (есть активный ученик): {len(teachers)}")
+
         conn = self.get_db_connection()
         if not conn:
             return
-        
+
         try:
             cursor = conn.cursor()
-            
-            # Получаем общую статистику (только участники турниров)
-            cursor.execute("""
-                SELECT 
-                    COUNT(*) as total_participants
-                FROM "user" u
-                WHERE u.category_rank IS NOT NULL
-                AND u.student_name IS NOT NULL
-                AND u.student_name != ''
-                AND u.is_admin = FALSE
-                AND EXISTS (
-                    SELECT 1 FROM tournament_participation tp 
-                    WHERE tp.user_id = u.id
-                )
-            """)
-            
-            total_result = cursor.fetchone()
-            total = total_result[0] if total_result and total_result[0] else 0
-            
-            if total == 0:
-                print("Участники с рейтингом не найдены")
-                return
-            
-            print("\nСтатистика участников с рейтингом (участвовали в турнирах). Дипломы: только 1–3 место в каждой группе.")
-            print("=" * 100)
-            print(f"{'Категория':<12} {'Участников':<12} {'Дипломов (1-3)':<15} {'Сертификатов':<15}")
-            print("-" * 100)
-            
-            total_diplomas = 0
-            total_certificates = 0
-            
-            categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
-            
-            for category in categories:
-                cursor.execute("""
-                    SELECT COUNT(*)
-                    FROM "user" u
-                    WHERE u.category = %s
-                    AND u.category_rank IS NOT NULL
-                    AND u.student_name IS NOT NULL
-                    AND u.student_name != ''
-                    AND u.is_admin = FALSE
-                    AND EXISTS (
-                        SELECT 1 FROM tournament_participation tp 
-                        WHERE tp.user_id = u.id
-                    )
-                """, (category,))
-                
-                category_count_result = cursor.fetchone()
-                category_count = category_count_result[0] if category_count_result and category_count_result[0] else 0
-                
-                if category_count == 0:
-                    continue
-                
-                # Дипломы только для 1–3 места в каждой группе
-                diplomas_count = min(3, category_count)
-                certificates_count = category_count - diplomas_count
-                
-                total_diplomas += diplomas_count
-                total_certificates += certificates_count
-                
-                print(f"{category:<12} {category_count:<12} {diplomas_count:<15} {certificates_count:<15}")
-            
-            print("-" * 100)
-            print(f"{'ИТОГО':<12} {total:<12} {total_diplomas:<15} {total_certificates:<15}")
-            print("=" * 100)
             
             # Показываем топ-10 участников
             cursor.execute("""
@@ -933,7 +1146,7 @@ class CertificateGenerator:
         finally:
             conn.close()
 
-    def dry_run_generation(self, tournament_name):
+    def dry_run_generation(self, tournament_name, tournament_id=None):
         """Показать что будет создано без фактического создания"""
         print(f"РЕЖИМ ПРЕДВАРИТЕЛЬНОГО ПРОСМОТРА")
         print(f"Название папки: {tournament_name}")
@@ -944,26 +1157,43 @@ class CertificateGenerator:
         
         if not participants:
             print("Участники с рейтингом не найдены")
-            return
-        
+        else:
+            self._dry_run_participants(participants, tournament_name, tournament_id)
+
+        teachers = self.get_teachers_with_active_students()
+        print()
+        print(f"Благодарностей учителям: {len(teachers)}")
+        if teachers:
+            print("-" * 70)
+            print(f"{'Тип':<16} {'ID':<6} {'ФИО':<30} {'Активных':<10}")
+            print("-" * 70)
+            for teacher_id, full_name, active_students in teachers:
+                print(f"{'БЛАГОДАРНОСТЬ':<16} {teacher_id:<6} {full_name[:28]:<30} {active_students:<10}")
+            print("-" * 70)
+        print(f"  - doc/tournament/{tournament_name}/teacher/")
+
+    def _dry_run_participants(self, participants, tournament_name, tournament_id=None):
         print(f"Всего участников с рейтингом (участвовали в турнирах): {len(participants)}")
         print()
         
-        # Вычисляем список участников, которые получат дипломы (по категориям, как в лавке призов)
-        diploma_recipients = self.calculate_diploma_recipients(participants)
+        diploma_recipients, max_score_recipients = self.prepare_document_sets(
+            participants, tournament_id=tournament_id, folder_name=tournament_name
+        )
         
         total_participants = len(participants)
         diplomas_count = len(diploma_recipients)
-        certificates_count = total_participants - diplomas_count
+        max_score_count = len(max_score_recipients)
+        certificates_count = total_participants - diplomas_count - max_score_count
         
-        print(f"\nДипломов будет создано: {diplomas_count}")
+        print(f"\nДипломов 1–3 место: {diplomas_count}")
+        print(f"Дипломов за максимальный балл (без места): {max_score_count}")
         print(f"Сертификатов будет создано: {certificates_count}")
         print()
         
         print("Список документов для создания:")
-        print("-" * 80)
-        print(f"{'Тип':<12} {'ID':<5} {'ФИО':<30} {'Место':<6} {'Группа':<10}")
-        print("-" * 80)
+        print("-" * 90)
+        print(f"{'Тип':<16} {'ID':<5} {'ФИО':<30} {'Место':<6} {'Баллы':<8} {'Группа':<10}")
+        print("-" * 90)
         
         for participant in participants:
             user_id, student_name, category, place, score, school_name = participant
@@ -971,17 +1201,21 @@ class CertificateGenerator:
             if not student_name:
                 continue
             
+            place_str = str(place) if place else "-"
+            score_str = str(score) if score is not None else "-"
             if user_id in diploma_recipients:
                 doc_type = "ДИПЛОМ"
-                place_str = str(place) if place else "-"
+            elif user_id in max_score_recipients:
+                doc_type = "ДИПЛОМ Б/М"
+                place_str = "—"
             else:
                 doc_type = "СЕРТИФИКАТ"
-                place_str = str(place) if place else "-"
             
-            print(f"{doc_type:<12} {user_id:<5} {student_name[:28]:<30} {place_str:<6} {category or 'Не указана':<10}")
+            print(f"{doc_type:<16} {user_id:<5} {student_name[:28]:<30} {place_str:<6} {score_str:<8} {category or 'Не указана':<10}")
         
-        print("-" * 80)
-        print(f"Дипломов будет создано: {diplomas_count}")
+        print("-" * 90)
+        print(f"Дипломов 1–3 место: {diplomas_count}")
+        print(f"Дипломов за максимальный балл (без места): {max_score_count}")
         print(f"Сертификатов будет создано: {certificates_count}")
         print()
         print("Папки для создания:")
@@ -992,6 +1226,7 @@ def main():
     """Главная функция"""
     parser = argparse.ArgumentParser(description='Генератор сертификатов и дипломов для турниров')
     parser.add_argument('--tournament', '-t', type=str, help='Название папки для сохранения документов')
+    parser.add_argument('--tournament-id', '-i', type=int, help='ID турнира, по задачам которого считается максимальный балл')
     parser.add_argument('--list-tournaments', '-l', action='store_true', help='Показать статистику участников с рейтингом')
     parser.add_argument('--dry-run', '-d', action='store_true', help='Показать что будет создано без фактического создания')
     parser.add_argument('--overwrite', '-o', action='store_true', help='Перезаписывать существующие файлы без запроса')
@@ -1008,7 +1243,7 @@ def main():
     generator = CertificateGenerator(overwrite=args.overwrite, quality=args.quality, certificate_quality=args.cert_quality)
     
     if args.list_tournaments:
-        generator.list_available_tournaments()
+        generator.list_available_tournaments(tournament_id=args.tournament_id)
         return
     
     # Получаем название папки
@@ -1031,9 +1266,9 @@ def main():
         )
     
     if args.dry_run:
-        generator.dry_run_generation(tournament_name)
+        generator.dry_run_generation(tournament_name, tournament_id=args.tournament_id)
     else:
-        generator.generate_certificates_and_diplomas(tournament_name)
+        generator.generate_certificates_and_diplomas(tournament_name, tournament_id=args.tournament_id)
 
 if __name__ == "__main__":
     main()

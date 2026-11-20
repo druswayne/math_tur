@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block title %}Популярные вопросы - Лига Знатоков{% endblock %}
+
+{% block description %}Ответы на частые вопросы участников: дипломы и сертификаты, регистрация и вход, жетоны, проверка заданий и смена класса.{% endblock %}
+
+{% block keywords %}популярные вопросы, диплом, сертификат, жетон, регистрация, проверка заданий, смена класса, лига знатоков{% endblock %}
+
+{% block og_title %}Популярные вопросы - Лига Знатоков{% endblock %}
+
+{% block og_description %}Дипломы, вход, жетоны, проверка ответов и смена класса — ответы, которые чаще всего ищут участники.{% endblock %}
+
+{% block styles %}
+<style>
+.faq-page {
+    max-width: 920px;
+}
+
+.faq-hero {
+    background: linear-gradient(90deg, #FFD700 0%, #FF8C00 100%);
+    color: #333;
+    border-radius: 16px;
+    padding: 1.75rem 1.75rem 1.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.faq-kicker {
+    margin: 0 0 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.faq-hero h1 {
+    margin: 0 0 0.4rem;
+    font-weight: 700;
+    color: #333;
+}
+
+.faq-hero p:last-child {
+    margin: 0;
+    max-width: 38rem;
+    font-size: 1.05rem;
+}
+
+.faq-search-wrap {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.faq-search-wrap > i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #FF8C00;
+    pointer-events: none;
+}
+
+.faq-search {
+    border: 1px solid #E0E0E0;
+    border-radius: 12px;
+    padding: 0.9rem 1rem 0.9rem 2.7rem;
+    font-size: 1.05rem;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.15);
+}
+
+.faq-search:focus {
+    border-color: #FF8C00;
+    box-shadow: 0 0 0 0.2rem rgba(255, 140, 0, 0.2);
+}
+
+.faq-status {
+    margin: 0 0 1rem;
+    color: #666;
+}
+
+.faq-topics {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
+.faq-topic:nth-child(-n+3) {
+    grid-column: span 2;
+}
+
+.faq-topic:nth-child(n+4) {
+    grid-column: span 3;
+}
+
+.faq-topic {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+    min-height: 100%;
+    padding: 1rem;
+    border: 1px solid #E0E0E0;
+    border-radius: 12px;
+    background: #fff;
+    color: #333;
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.12);
+}
+
+.faq-topic:hover,
+.faq-topic:focus {
+    border-color: #FF8C00;
+    color: #333;
+    box-shadow: 0 4px 16px rgba(255, 140, 0, 0.22);
+}
+
+.faq-topic-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #FFD700 0%, #FF8C00 100%);
+    color: #333;
+}
+
+.faq-topic-title {
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.faq-topic-count {
+    color: #777;
+    font-size: 0.9rem;
+}
+
+.faq-category {
+    scroll-margin-top: 5.5rem;
+    margin-bottom: 1.75rem;
+}
+
+.faq-section-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.85rem;
+}
+
+.faq-section-head h2 {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.faq-item {
+    scroll-margin-top: 5.5rem;
+    background: #fff;
+    border: 1px solid #E8E8E8;
+    border-left: 4px solid #FF8C00;
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    overflow: hidden;
+}
+
+.faq-question {
+    margin: 0;
+    font-size: inherit;
+}
+
+.faq-toggle {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 1rem 1.15rem;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-weight: 600;
+    font-size: 1.05rem;
+    line-height: 1.4;
+    color: #333;
+    cursor: pointer;
+}
+
+.faq-toggle:hover,
+.faq-item.is-open .faq-toggle {
+    background: #fff6e8;
+}
+
+.faq-toggle:focus-visible {
+    outline: 2px solid #FF8C00;
+    outline-offset: -2px;
+}
+
+.faq-chevron {
+    flex: 0 0 auto;
+    margin-top: 0.2rem;
+    color: #FF8C00;
+    transition: transform 0.2s ease;
+}
+
+.faq-item.is-open .faq-chevron {
+    transform: rotate(180deg);
+}
+
+.faq-answer {
+    display: none;
+    padding: 0 1.15rem 1rem;
+}
+
+.faq-item.is-open .faq-answer {
+    display: block;
+}
+
+.faq-answer p {
+    margin: 0 0 0.45rem;
+    color: #444;
+    line-height: 1.55;
+}
+
+.faq-answer p:first-child {
+    color: #222;
+}
+
+.faq-answer p:last-child {
+    margin-bottom: 0;
+}
+
+.faq-place {
+    background: #fff4d6;
+    border-radius: 4px;
+    padding: 0 0.2rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.faq-empty,
+.faq-help {
+    border: 1px solid #E0E0E0;
+    border-radius: 12px;
+    background: #fff;
+    padding: 1.1rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.12);
+}
+
+.faq-empty {
+    margin-bottom: 1rem;
+}
+
+.faq-help {
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+}
+
+.faq-help-icon {
+    flex: 0 0 auto;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #FFD700 0%, #FF8C00 100%);
+    color: #333;
+}
+
+.faq-help h2 {
+    margin: 0 0 0.25rem;
+    font-size: 1.15rem;
+}
+
+.faq-help p {
+    margin: 0;
+    color: #444;
+}
+
+@media (max-width: 575px) {
+    .faq-hero {
+        padding: 1.25rem 1rem;
+        border-radius: 12px;
+    }
+
+    .faq-topics {
+        grid-template-columns: 1fr;
+    }
+
+    .faq-topic {
+        grid-column: 1 / -1;
+    }
+
+    .faq-help {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mb-5 faq-page">
+    <header class="faq-hero">
+        <p class="faq-kicker">Помощь участникам</p>
+        <h1>Популярные вопросы</h1>
+        <p>Дипломы, вход, жетоны, проверка ответов и смена класса — то, о чём спрашивают чаще всего.</p>
+    </header>
+
+    <div class="faq-search-wrap">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input type="search" id="faqSearch" class="form-control faq-search" placeholder="Найдите вопрос: диплом, письмо, жетон, класс" autocomplete="off" aria-label="Поиск по вопросам">
+    </div>
+    <p class="faq-status d-none" id="faqStatus" role="status"></p>
+
+    <nav class="faq-topics" id="faqTopics" aria-label="Рубрики">
+        {% for category in faq.categories %}
+        <a class="faq-topic" href="#{{ category.slug }}">
+            <span class="faq-topic-icon" aria-hidden="true"><i class="fas {{ category.icon }}"></i></span>
+            <span class="faq-topic-title">{{ category.title }}</span>
+            <span class="faq-topic-count">{{ category.question_label }}</span>
+        </a>
+        {% endfor %}
+    </nav>
+
+    <p class="faq-empty d-none" id="faqEmpty" role="status">
+        Такого вопроса в списке нет. Напишите на <a href="mailto:info@liga-znatokov.by">info@liga-znatokov.by</a> — поддержка отвечает по будням с 9:00 до 18:00.
+    </p>
+
+    {% for category in faq.categories %}
+    <section class="faq-category" id="{{ category.slug }}" data-faq-category>
+        <div class="faq-section-head">
+            <span class="faq-topic-icon" aria-hidden="true"><i class="fas {{ category.icon }}"></i></span>
+            <h2>{{ category.title }}</h2>
+        </div>
+        {% for item in category['items'] %}
+        <article class="faq-item" id="faq-{{ item.slug }}" data-faq-item data-search="{{ item.question }} {{ item.answer }}">
+            <h3 class="faq-question">
+                <button class="faq-toggle" type="button" aria-expanded="false" aria-controls="answer-{{ item.slug }}">
+                    <span>{{ item.question }}</span>
+                    <i class="fas fa-chevron-down faq-chevron" aria-hidden="true"></i>
+                </button>
+            </h3>
+            <div class="faq-answer" id="answer-{{ item.slug }}">
+                {% for sentence in item.sentences %}
+                <p>{{ sentence }}</p>
+                {% endfor %}
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+    {% endfor %}
+
+    <aside class="faq-help">
+        <span class="faq-help-icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
+        <div>
+            <h2>Не нашли ответ</h2>
+            <p>Напишите на <a href="mailto:info@liga-znatokov.by">info@liga-znatokov.by</a> и укажите логин. Поддержка отвечает по будням с 9:00 до 18:00.</p>
+        </div>
+    </aside>
+</div>
+
+{% if faq.schema %}
+<script type="application/ld+json">{{ faq.schema | tojson }}</script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const input = document.getElementById('faqSearch');
+    const empty = document.getElementById('faqEmpty');
+    const status = document.getElementById('faqStatus');
+    const topics = document.getElementById('faqTopics');
+    const categories = Array.from(document.querySelectorAll('[data-faq-category]'));
+
+    function normalize(value) {
+        return (value || '').toLowerCase().replace(/ё/g, 'е').trim();
+    }
+
+    function questionWord(count) {
+        const n10 = count % 10;
+        const n100 = count % 100;
+        if (n10 === 1 && n100 !== 11) {
+            return 'вопрос';
+        }
+        if (n10 >= 2 && n10 <= 4 && (n100 < 12 || n100 > 14)) {
+            return 'вопроса';
+        }
+        return 'вопросов';
+    }
+
+    function setOpen(item, open) {
+        item.classList.toggle('is-open', open);
+        const button = item.querySelector('.faq-toggle');
+        if (button) {
+            button.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+    }
+
+    document.querySelectorAll('.faq-toggle').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const item = button.closest('[data-faq-item]');
+            setOpen(item, !item.classList.contains('is-open'));
+        });
+    });
+
+    function applyFilter(rawQuery) {
+        const query = normalize(rawQuery);
+        let visible = 0;
+
+        categories.forEach(function (category) {
+            let categoryVisible = 0;
+            category.querySelectorAll('[data-faq-item]').forEach(function (item) {
+                const match = !query || normalize(item.getAttribute('data-search')).indexOf(query) !== -1;
+                item.classList.toggle('d-none', !match);
+                setOpen(item, Boolean(query && match));
+                if (match) {
+                    categoryVisible += 1;
+                    visible += 1;
+                }
+            });
+            category.classList.toggle('d-none', categoryVisible === 0);
+        });
+
+        empty.classList.toggle('d-none', !query || visible !== 0);
+        topics.classList.toggle('d-none', Boolean(query));
+        if (status) {
+            status.classList.toggle('d-none', !query || visible === 0);
+            status.textContent = query && visible ? 'Нашли ' + visible + ' ' + questionWord(visible) : '';
+        }
+    }
+
+    if (input) {
+        input.addEventListener('input', function () {
+            applyFilter(input.value);
+        });
+    }
+
+    document.querySelectorAll('.faq-topic').forEach(function (topic) {
+        topic.addEventListener('click', function () {
+            if (input && input.value) {
+                input.value = '';
+                applyFilter('');
+            }
+        });
+    });
+
+    function openFromHash() {
+        const id = (location.hash || '').slice(1);
+        if (!id) {
+            return;
+        }
+        const target = document.getElementById(id);
+        if (!target) {
+            return;
+        }
+        if (input && input.value) {
+            input.value = '';
+            applyFilter('');
+        }
+        if (target.hasAttribute('data-faq-category')) {
+            target.querySelectorAll('[data-faq-item]').forEach(function (item) {
+                setOpen(item, true);
+            });
+        } else if (target.hasAttribute('data-faq-item')) {
+            setOpen(target, true);
+        }
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    window.addEventListener('hashchange', openFromHash);
+    openFromHash();
+})();
+</script>
+{% endblock %}

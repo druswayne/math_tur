@@ -153,12 +153,15 @@
 
 <div class="container mt-4">
     <!-- Заголовок с кнопкой возврата -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
         <h1 class="shop-title">Лавка призов</h1>
         <a href="{{ url_for('profile') }}" class="btn btn-secondary back-btn">
             <i class="fas fa-arrow-left me-2"></i>В личный кабинет
         </a>
     </div>
+    <p class="text-muted mb-4">
+        <a href="{{ url_for('faq') }}#certificates">Когда открывается лавка и кто получает приз</a>
+    </p>
 
     <!-- Верхняя панель с балансом и корзиной -->
     <div class="row mb-4">
