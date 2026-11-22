@@ -146,11 +146,14 @@
                         <div class="mb-3">
                             <label for="phone" class="form-label">Номер телефона <span class="text-danger">*</span></label>
                             <div class="input-group">
-                                <select class="form-select" id="phone_country" style="max-width: 120px;">
-                                    <option value="+375">🇧🇾 +375</option>
-                                    <option value="+7">🇷🇺 +7</option>
+                                <select class="form-select" id="phone_country" style="max-width: 150px;">
+                                    <option value="+375" data-digits="9" data-placeholder="291127105" selected>🇧🇾 +375</option>
+                                    <option value="+7" data-digits="10" data-placeholder="9101130533">🇷🇺 +7</option>
+                                    <option value="+7" data-digits="10" data-placeholder="7012345678">🇰🇿 +7</option>
+                                    <option value="+996" data-digits="9" data-placeholder="555123456">🇰🇬 +996</option>
+                                    <option value="+373" data-digits="8" data-placeholder="77712345">ПМР +373</option>
                                 </select>
-                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="291127105" required>
+                                <input type="tel" class="form-control" id="phone" name="phone" placeholder="291127105" maxlength="10" required>
                                 <span class="input-group-text validation-icon" id="phone-icon">
                                     <i class="fas fa-check-circle text-success" style="display: none;"></i>
                                     <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -982,20 +985,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function validatePhone(phone) {
         if (!phoneInput || !phoneCountrySelect) return;
 
-        const countryCode = phoneCountrySelect.value;
-        let phoneRegex;
-
-        if (countryCode === '+375') {
-            // Беларусь: +375 + 9 цифр
-            phoneRegex = /^[0-9]{9}$/;
-        } else if (countryCode === '+7') {
-            // Россия: +7 + 10 цифр
-            phoneRegex = /^[0-9]{10}$/;
-        } else {
-            showValidationIcon('phone', false);
-            validationState.phone = false;
-            return;
-        }
+        const option = phoneCountrySelect.options[phoneCountrySelect.selectedIndex];
+        const countryCode = option.value;
+        const digits = parseInt(option.dataset.digits, 10);
+        const phoneRegex = new RegExp('^[0-9]{' + digits + '}$');
 
         const isValid = phoneRegex.test(phone);
 
@@ -1272,15 +1265,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Функция для обновления плейсхолдера номера телефона
     function updatePhonePlaceholder() {
-        const countryCode = phoneCountrySelect.value;
+        const option = phoneCountrySelect.options[phoneCountrySelect.selectedIndex];
         const phoneInput = document.getElementById('phone');
-
-        if (countryCode === '+375') {
-            // Беларусь: 9 цифр после кода
-            phoneInput.placeholder = '291127105';
-        } else if (countryCode === '+7') {
-            // Россия: 10 цифр после кода
-            phoneInput.placeholder = '9101130533';
+        phoneInput.placeholder = option.dataset.placeholder || '';
+        const digits = parseInt(option.dataset.digits, 10);
+        if (digits) {
+            phoneInput.maxLength = digits;
         }
     }
 

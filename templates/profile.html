@@ -242,13 +242,33 @@
                         <label for="phone" class="form-label">Номер телефона</label>
                         <div class="input-group">
                             {% set phone_value = current_user.phone or '' %}
-                            <select class="form-select" id="phone_country" style="max-width: 120px;">
-                                <option value="+375" {% if phone_value.startswith('+375') or not phone_value %}selected{% endif %}>🇧🇾 +375</option>
-                                <option value="+7" {% if phone_value.startswith('+7') %}selected{% endif %}>🇷🇺 +7</option>
+                            {% set p = namespace(code='+375', local=phone_value, kz=false) %}
+                            {% if phone_value.startswith('+375') %}
+                                {% set p.code = '+375' %}
+                                {% set p.local = phone_value[4:] %}
+                            {% elif phone_value.startswith('+996') %}
+                                {% set p.code = '+996' %}
+                                {% set p.local = phone_value[4:] %}
+                            {% elif phone_value.startswith('+373') %}
+                                {% set p.code = '+373' %}
+                                {% set p.local = phone_value[4:] %}
+                            {% elif phone_value.startswith('+7') %}
+                                {% set p.code = '+7' %}
+                                {% set p.local = phone_value[2:] %}
+                                {% if p.local and p.local[0] in '67' %}
+                                    {% set p.kz = true %}
+                                {% endif %}
+                            {% endif %}
+                            <select class="form-select" id="phone_country" style="max-width: 150px;">
+                                <option value="+375" data-digits="9" data-placeholder="291127105" {% if p.code == '+375' %}selected{% endif %}>🇧🇾 +375</option>
+                                <option value="+7" data-digits="10" data-placeholder="9101130533" {% if p.code == '+7' and not p.kz %}selected{% endif %}>🇷🇺 +7</option>
+                                <option value="+7" data-digits="10" data-placeholder="7012345678" {% if p.code == '+7' and p.kz %}selected{% endif %}>🇰🇿 +7</option>
+                                <option value="+996" data-digits="9" data-placeholder="555123456" {% if p.code == '+996' %}selected{% endif %}>🇰🇬 +996</option>
+                                <option value="+373" data-digits="8" data-placeholder="77712345" {% if p.code == '+373' %}selected{% endif %}>ПМР +373</option>
                             </select>
                             <input type="tel" class="form-control" id="phone"
-                                   value="{% if phone_value.startswith('+375') %}{{ phone_value[4:] }}{% elif phone_value.startswith('+7') %}{{ phone_value[2:] }}{% else %}{{ phone_value }}{% endif %}"
-                                   placeholder="XXXXXXXXX" required>
+                                   value="{{ p.local }}"
+                                   placeholder="291127105" maxlength="10" required>
                             <span class="input-group-text validation-icon" id="phone-icon">
                                 <i class="fas fa-check text-success" style="display: none;"></i>
                                 <i class="fas fa-times text-danger" style="display: none;"></i>
@@ -813,20 +833,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function validatePhone(phone) {
         if (!phoneInput || !phoneCountrySelect) return;
         
-        const countryCode = phoneCountrySelect.value;
-        let phoneRegex;
-        
-        if (countryCode === '+375') {
-            // Беларусь: +375 + 9 цифр
-            phoneRegex = /^[0-9]{9}$/;
-        } else if (countryCode === '+7') {
-            // Россия: +7 + 10 цифр
-            phoneRegex = /^[0-9]{10}$/;
-        } else {
-            showValidationIcon('phone', false);
-            validationState.phone = false;
-            return;
-        }
+        const option = phoneCountrySelect.options[phoneCountrySelect.selectedIndex];
+        const digits = parseInt(option.dataset.digits, 10);
+        const phoneRegex = new RegExp('^[0-9]{' + digits + '}$');
         
         const isValid = phoneRegex.test(phone);
         showValidationIcon('phone', isValid);
@@ -1000,17 +1009,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Функция для обновления плейсхолдера номера телефона
     function updatePhonePlaceholder() {
-        const countryCode = phoneCountrySelect.value;
+        const option = phoneCountrySelect.options[phoneCountrySelect.selectedIndex];
         const phoneInput = document.getElementById('phone');
-        
-        if (countryCode === '+375') {
-            // Беларусь: 9 цифр после кода
-            phoneInput.placeholder = '291127105';
-        } else if (countryCode === '+7') {
-            // Россия: 10 цифр после кода
-            phoneInput.placeholder = '9101130533';
+        phoneInput.placeholder = option.dataset.placeholder || '';
+        const digits = parseInt(option.dataset.digits, 10);
+        if (digits) {
+            phoneInput.maxLength = digits;
         }
     }
+
+    updatePhonePlaceholder();
 
     if (newPasswordInput) {
         newPasswordInput.addEventListener('input', function() {

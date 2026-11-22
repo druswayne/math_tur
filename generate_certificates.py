@@ -11,6 +11,7 @@
 """
 
 import os
+import shutil
 import sys
 from PIL import Image, ImageDraw, ImageFont
 import psycopg2
@@ -23,8 +24,19 @@ from urllib.parse import urlparse
 load_dotenv()
 
 class CertificateGenerator:
-    def __init__(self, overwrite=False, quality=40, certificate_quality=15, compression_mode=None):
+    SCORE_SOURCES = {
+        'balance': ('u.balance', 'текущий баланс (user.balance)'),
+        'rating_points': ('u.rating_points', 'зафиксированные баллы таблицы (user.rating_points)'),
+    }
+
+    def __init__(self, overwrite=False, quality=40, certificate_quality=15, compression_mode=None, score_source='balance'):
         """Инициализация генератора сертификатов"""
+        if score_source not in self.SCORE_SOURCES:
+            raise ValueError(
+                f"Неизвестный источник баллов: {score_source}. "
+                f"Допустимо: {', '.join(self.SCORE_SOURCES)}"
+            )
+        self.score_source = score_source
         # Устанавливаем режим сжатия
         if compression_mode:
             quality, certificate_quality = self.get_compression_settings(compression_mode)
@@ -94,11 +106,11 @@ class CertificateGenerator:
         # Координаты для диплома
         self.diploma_coords = {
             'place': {'start': (363, 337), 'end': (401, 337)},        # степень диплома (1–3)
-            'name': {'start': (233, 607), 'end': (672, 607)},         # ФИО участника
-            'group': {'start': (489, 645), 'end': (532, 645)},        # класс
-            'school_line1': {'start': (227, 731), 'end': (675, 731)}, # первая строка школы
-            'school_line2': {'start': (227, 785), 'end': (675, 785)}, # вторая строка школы
-            'score': {'start': (484, 913), 'end': (527, 913)}         # баллы
+            'name': {'start': (233, 613), 'end': (672, 613)},         # ФИО участника
+            'group': {'start': (489, 655), 'end': (532, 655)},        # класс
+            'school_line1': {'start': (227, 736), 'end': (675, 736)}, # первая строка школы
+            'school_line2': {'start': (227, 790), 'end': (675, 790)}, # вторая строка школы
+            'score': {'start': (484, 930), 'end': (527, 930)}         # баллы
         }
         
         self.diploma_font_size = 20
@@ -189,6 +201,30 @@ class CertificateGenerator:
                 return choice
             else:
                 print("Некорректный выбор. Пожалуйста, введите 1, 2 или 3.")
+
+    @classmethod
+    def choose_score_source(cls):
+        """Интерактивный выбор поля, из которого берутся баллы на бланке."""
+        print("\nОткуда брать баллы для сертификатов и дипломов:")
+        print("1) user.balance — текущий баланс (после обмена в лавке он меньше)")
+        print("2) user.rating_points — баллы, зафиксированные для турнирной таблицы")
+
+        while True:
+            choice = input("Введите номер (1-2): ").strip()
+            if choice == '1':
+                print("Баллы берутся из user.balance\n")
+                return 'balance'
+            if choice == '2':
+                print("Баллы берутся из user.rating_points\n")
+                return 'rating_points'
+            print("Некорректный выбор. Пожалуйста, введите 1 или 2.")
+
+    def score_column_sql(self):
+        """Имя колонки баллов. Значение только из белого списка SCORE_SOURCES."""
+        return self.SCORE_SOURCES[self.score_source][0]
+
+    def score_source_label(self):
+        return self.SCORE_SOURCES[self.score_source][1]
     
     def get_db_connection(self):
         """Получение соединения с базой данных"""
@@ -214,13 +250,15 @@ class CertificateGenerator:
             
             # Получаем всех участников с установленным category_rank, которые участвовали в турнирах
             # (как в лавке призов - только те, у кого есть TournamentParticipation)
-            cursor.execute("""
+            score_sql = self.score_column_sql()
+            print(f"Баллы на документах: {self.score_source_label()}")
+            cursor.execute(f"""
                 SELECT 
                     u.id,
                     u.student_name,
                     u.category,
                     u.category_rank as place,
-                    u.balance as score,
+                    COALESCE({score_sql}, 0) as score,
                     ei.name as school_name
                 FROM "user" u
                 LEFT JOIN educational_institutions ei ON u.educational_institution_id = ei.id
@@ -436,6 +474,50 @@ class CertificateGenerator:
         finally:
             conn.close()
 
+    def get_zero_balance_full_credit_users(self, tournament_id):
+        """
+        Участники с нулём в выбранном поле баллов, у которых все задачи своей группы засчитаны.
+        Так бывает после обнуления баллов за нарушение: ответы остаются верными, диплом не выдаём.
+        """
+        conn = self.get_db_connection()
+        if not conn:
+            return set()
+
+        try:
+            cursor = conn.cursor()
+            score_sql = self.score_column_sql()
+            cursor.execute(f"""
+                SELECT u.id
+                FROM "user" u
+                WHERE COALESCE({score_sql}, 0) = 0
+                  AND u.is_admin = FALSE
+                  AND EXISTS (
+                      SELECT 1
+                      FROM task t
+                      WHERE t.tournament_id = %s
+                        AND t.category = u.category
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM task t
+                      WHERE t.tournament_id = %s
+                        AND t.category = u.category
+                        AND NOT EXISTS (
+                            SELECT 1
+                            FROM solved_task st
+                            WHERE st.task_id = t.id
+                              AND st.user_id = u.id
+                              AND st.is_correct IS TRUE
+                        )
+                  )
+            """, (tournament_id, tournament_id))
+            return {row[0] for row in cursor.fetchall()}
+        except Exception as e:
+            print(f"Ошибка при поиске обнулённых баллов: {e}")
+            return set()
+        finally:
+            conn.close()
+
     def prepare_document_sets(self, participants, tournament_id=None, folder_name=None):
         """
         Делит участников на дипломы 1–3 места и дипломы за максимальный балл.
@@ -455,14 +537,35 @@ class CertificateGenerator:
         for category in sorted(max_points, key=lambda item: str(item)):
             print(f"  группа {category}: {max_points[category]} баллов")
 
+        excluded = self.get_zero_balance_full_credit_users(resolved_id)
+        removed_places = diploma_recipients & excluded
+        diploma_recipients -= excluded
+        if removed_places:
+            print(
+                f"Диплом 1–3 места не создаётся (0 баллов, все задания засчитаны): "
+                f"{len(removed_places)}"
+            )
+
+        skipped_max = 0
         for participant in participants:
             user_id, student_name, category, place, score, school_name = participant
-            if user_id in diploma_recipients:
+            if user_id in diploma_recipients or user_id in excluded:
+                if user_id in excluded and user_id not in removed_places:
+                    cap = max_points.get(category) or 0
+                    earned = scores.get(user_id)
+                    if cap > 0 and earned is not None and earned >= cap:
+                        skipped_max += 1
                 continue
             cap = max_points.get(category) or 0
             earned = scores.get(user_id)
             if cap > 0 and earned is not None and earned >= cap:
                 max_score_recipients.add(user_id)
+
+        if skipped_max:
+            print(
+                f"Диплом за максимальный балл не создаётся (0 баллов, все задания засчитаны): "
+                f"{skipped_max}"
+            )
 
         return diploma_recipients, max_score_recipients
 
@@ -993,6 +1096,14 @@ class CertificateGenerator:
         print(f"Благодарности сохранены в: {teacher_path}")
         return teacher_path, len(created)
 
+    def copy_prize_diploma(self, source_path, prize_path, user_id):
+        """Копия диплома 1–3 места в отдельную папку призёров."""
+        if not os.path.exists(source_path):
+            return
+        os.makedirs(prize_path, exist_ok=True)
+        dest_path = os.path.join(prize_path, f"{user_id}.jpg")
+        shutil.copy2(source_path, dest_path)
+
     def create_directories(self, tournament_name):
         """Создание необходимых папок"""
         base_path = f"doc/tournament/{tournament_name}"
@@ -1023,6 +1134,7 @@ class CertificateGenerator:
         """Сертификаты и дипломы участников."""
         # Создаем папки
         certificate_path, diploma_path = self.create_directories(tournament_name)
+        prize_path = f"doc/tournament/{tournament_name}/diploma_prize"
         
         diploma_recipients, max_score_recipients = self.prepare_document_sets(
             participants, tournament_id=tournament_id, folder_name=tournament_name
@@ -1049,6 +1161,7 @@ class CertificateGenerator:
             if user_id in diploma_recipients:
                 output_path = f"{diploma_path}/{user_id}.jpg"
                 self.generate_diploma(user_id, student_name, place, category, school_name, score, output_path)
+                self.copy_prize_diploma(output_path, prize_path, user_id)
             elif user_id in max_score_recipients:
                 output_path = f"{diploma_path}/{user_id}.jpg"
                 self.generate_diploma(
@@ -1062,6 +1175,7 @@ class CertificateGenerator:
         print(f"\nСертификаты и дипломы готовы")
         print(f"Сертификаты сохранены в: {certificate_path}")
         print(f"Дипломы сохранены в: {diploma_path}")
+        print(f"Копии дипломов 1–3 места: {prize_path}")
 
     def list_available_tournaments(self, tournament_id=None):
         """Показать статистику: дипломы 1–3, дипломы за максимальный балл и сертификаты."""
@@ -1242,6 +1356,7 @@ class CertificateGenerator:
         print("Папки для создания:")
         print(f"  - doc/tournament/{tournament_name}/certificate/")
         print(f"  - doc/tournament/{tournament_name}/diploma/")
+        print(f"  - doc/tournament/{tournament_name}/diploma_prize/  (копии дипломов 1–3 места)")
 
 def main():
     """Главная функция"""
@@ -1253,6 +1368,11 @@ def main():
     parser.add_argument('--overwrite', '-o', action='store_true', help='Перезаписывать существующие файлы без запроса')
     parser.add_argument('--quality', '-q', type=int, default=40, help='Качество сжатия JPEG для дипломов (1-100, по умолчанию 40)')
     parser.add_argument('--cert-quality', '-cq', type=int, default=15, help='Качество сжатия JPEG для сертификатов (1-100, по умолчанию 15)')
+    parser.add_argument(
+        '--score-source', '-s',
+        choices=['balance', 'rating_points'],
+        help='Откуда брать баллы: balance (user.balance) или rating_points (user.rating_points). Без флага спрашивает в консоли',
+    )
     
     args = parser.parse_args()
     
@@ -1260,8 +1380,15 @@ def main():
     print("ГЕНЕРАТОР СЕРТИФИКАТОВ И ДИПЛОМОВ")
     print("=" * 60)
     
+    score_source = args.score_source or CertificateGenerator.choose_score_source()
+
     # Создаем генератор
-    generator = CertificateGenerator(overwrite=args.overwrite, quality=args.quality, certificate_quality=args.cert_quality)
+    generator = CertificateGenerator(
+        overwrite=args.overwrite,
+        quality=args.quality,
+        certificate_quality=args.cert_quality,
+        score_source=score_source,
+    )
     
     if args.list_tournaments:
         generator.list_available_tournaments(tournament_id=args.tournament_id)
@@ -1282,8 +1409,9 @@ def main():
         compression_mode = CertificateGenerator.choose_compression_mode()
         # Пересоздаем генератор с выбранным режимом сжатия
         generator = CertificateGenerator(
-            overwrite=args.overwrite, 
-            compression_mode=compression_mode
+            overwrite=args.overwrite,
+            compression_mode=compression_mode,
+            score_source=score_source,
         )
     
     if args.dry_run:

@@ -5471,6 +5471,54 @@ def validate_phone(phone):
     digits_only = re.sub(r'\D', '', phone)
     return len(digits_only) >= 9 and len(digits_only) <= 15
 
+# Код страны -> (длина номера без кода, сообщение об ошибке).
+# Россия и Казахстан используют один код +7.
+PHONE_COUNTRY_RULES = {
+    '+375': (9, 'Номер телефона Беларуси должен содержать 9 цифр'),
+    '+7': (10, 'Номер телефона России или Казахстана должен содержать 10 цифр'),
+    '+996': (9, 'Номер телефона Кыргызстана должен содержать 9 цифр'),
+    '+373': (8, 'Номер телефона Приднестровья должен содержать 8 цифр'),
+}
+_PHONE_CODES_BY_LENGTH = ('+996', '+375', '+373', '+7')
+
+
+def validate_phone_for_country(country_code, national_number):
+    """Проверяет национальную часть номера для выбранного кода страны."""
+    rule = PHONE_COUNTRY_RULES.get((country_code or '').strip())
+    if not rule:
+        return False, 'Неподдерживаемый код страны'
+    length, message = rule
+    if not re.fullmatch(rf'\d{{{length}}}', national_number or ''):
+        return False, message
+    return True, None
+
+
+def validate_full_phone(phone):
+    """Проверяет номер вместе с кодом страны."""
+    phone = (phone or '').strip()
+    for code in _PHONE_CODES_BY_LENGTH:
+        if phone.startswith(code):
+            return validate_phone_for_country(code, phone[len(code):])
+    return False, 'Неверный формат номера телефона'
+
+
+def phone_country_flag(phone):
+    """Класс флага в турнирной таблице по номеру телефона."""
+    if not phone:
+        return None
+    if phone.startswith('+375'):
+        return 'belarus'
+    if phone.startswith('+996'):
+        return 'kyrgyzstan'
+    if phone.startswith('+373'):
+        return 'transnistria'
+    if phone.startswith('+7'):
+        # В зоне +7 номера Казахстана начинаются с 6 или 7, российские — с других цифр
+        if phone[2:3] in ('6', '7'):
+            return 'kazakhstan'
+        return 'russia'
+    return None
+
 def validate_name(name, max_length=100):
     """Валидация имени (студента, родителя)"""
     if not name:
@@ -5660,10 +5708,6 @@ def register():
             flash('Имя родителя может содержать только буквы, пробелы, дефисы и точки', 'danger')
             return redirect(url_for('register'))
 
-        if not validate_phone(phone):
-            flash('Некорректный номер телефона', 'danger')
-            return redirect(url_for('register'))
-
         is_strong, message = is_password_strong(password)
         if not is_strong:
             flash(message, 'danger')
@@ -5673,25 +5717,13 @@ def register():
             flash('Пароли не совпадают', 'danger')
             return redirect(url_for('register'))
 
-        # Получаем код страны и номер телефона
         phone_country = request.form.get('phone_country', '+375')
         phone_number = phone.strip()
-        
-        # Формируем полный номер телефона
-        full_phone = phone_country + phone_number
-        
-        # Проверяем формат номера в зависимости от страны
-        if phone_country == '+375':
-            if not re.match(r'^[0-9]{9}$', phone_number):
-                flash('Номер телефона Беларуси должен содержать 9 цифр', 'danger')
-                return redirect(url_for('register'))
-        elif phone_country == '+7':
-            if not re.match(r'^[0-9]{10}$', phone_number):
-                flash('Номер телефона России должен содержать 10 цифр', 'danger')
-                return redirect(url_for('register'))
-        else:
-            flash('Неподдерживаемый код страны', 'danger')
+        phone_ok, phone_error = validate_phone_for_country(phone_country, phone_number)
+        if not phone_ok:
+            flash(phone_error, 'danger')
             return redirect(url_for('register'))
+        full_phone = phone_country + phone_number
 
         if not category or category not in ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']:
             flash('Пожалуйста, выберите группу', 'danger')
@@ -5840,10 +5872,6 @@ def teacher_register():
             flash('ФИО может содержать только буквы, пробелы, дефисы и точки', 'danger')
             return redirect(url_for('teacher_register'))
 
-        if not validate_phone(phone):
-            flash('Некорректный номер телефона', 'danger')
-            return redirect(url_for('teacher_register'))
-
         is_strong, message = is_password_strong(password)
         if not is_strong:
             flash(message, 'danger')
@@ -5853,25 +5881,13 @@ def teacher_register():
             flash('Пароли не совпадают', 'danger')
             return redirect(url_for('teacher_register'))
 
-        # Получаем код страны и номер телефона
         phone_country = request.form.get('phone_country', '+375')
         phone_number = phone.strip()
-        
-        # Формируем полный номер телефона
-        full_phone = phone_country + phone_number
-        
-        # Проверяем формат номера в зависимости от страны
-        if phone_country == '+375':
-            if not re.match(r'^[0-9]{9}$', phone_number):
-                flash('Номер телефона Беларуси должен содержать 9 цифр', 'danger')
-                return redirect(url_for('teacher_register'))
-        elif phone_country == '+7':
-            if not re.match(r'^[0-9]{10}$', phone_number):
-                flash('Номер телефона России должен содержать 10 цифр', 'danger')
-                return redirect(url_for('teacher_register'))
-        else:
-            flash('Неподдерживаемый код страны', 'danger')
+        phone_ok, phone_error = validate_phone_for_country(phone_country, phone_number)
+        if not phone_ok:
+            flash(phone_error, 'danger')
             return redirect(url_for('teacher_register'))
+        full_phone = phone_country + phone_number
 
         # Проверяем уникальность логина в обеих таблицах
         if User.query.filter(User.username.ilike(username)).first() or Teacher.query.filter(Teacher.username.ilike(username)).first():
@@ -10261,16 +10277,7 @@ def rating():
             user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
             user.is_current_user = False  # По умолчанию не текущий пользователь
             
-            # Определяем страну по номеру телефона
-            if user.phone:
-                if user.phone.startswith('+7'):
-                    user.country_flag = 'russia'
-                elif user.phone.startswith('+375'):
-                    user.country_flag = 'belarus'
-                else:
-                    user.country_flag = None
-            else:
-                user.country_flag = None
+            user.country_flag = phone_country_flag(user.phone)
             
             user.display_balance = get_rating_display_points(user, shop_is_open)
             users.append(user)
@@ -10300,16 +10307,7 @@ def rating():
                     user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
                     user.is_current_user = True  # Флаг для выделения текущего пользователя
                     
-                    # Определяем страну по номеру телефона
-                    if user.phone:
-                        if user.phone.startswith('+7'):
-                            user.country_flag = 'russia'
-                        elif user.phone.startswith('+375'):
-                            user.country_flag = 'belarus'
-                        else:
-                            user.country_flag = None
-                    else:
-                        user.country_flag = None
+                    user.country_flag = phone_country_flag(user.phone)
                     
                     user.display_balance = get_rating_display_points(user, shop_is_open)
                     users.append(user)
@@ -10346,7 +10344,8 @@ def rating():
                 'tournaments_count': user.tournaments_count or 0,
                 'success_rate': user.success_rate,
                 'category_rank': user.category_rank,
-                'is_current_user': getattr(user, 'is_current_user', False)
+                'is_current_user': getattr(user, 'is_current_user', False),
+                'country_flag': user.country_flag
             } for user in users_data['users']],
             'has_next': users_data['has_next'],
             'has_prev': users_data.get('has_prev', False),
@@ -12517,15 +12516,9 @@ def update_profile():
     if not re.match(r'^[а-яёА-ЯЁ\s]+$', parent_name):
         return jsonify({'success': False, 'message': 'ФИО законного представителя должно содержать только русские буквы'})
     
-    # Валидация телефона
-    if phone.startswith('+375'):
-        if not re.match(r'^\+375\d{9}$', phone):
-            return jsonify({'success': False, 'message': 'Неверный формат номера телефона для Беларуси (+375XXXXXXXXX)'})
-    elif phone.startswith('+7'):
-        if not re.match(r'^\+7\d{10}$', phone):
-            return jsonify({'success': False, 'message': 'Неверный формат номера телефона для России (+7XXXXXXXXXX)'})
-    else:
-        return jsonify({'success': False, 'message': 'Неверный формат номера телефона'})
+    phone_ok, phone_error = validate_full_phone(phone)
+    if not phone_ok:
+        return jsonify({'success': False, 'message': phone_error})
     
     # Проверяем категорию
     valid_categories = ['1-2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
@@ -14033,16 +14026,7 @@ def rating_search():
         user.success_rate = round((correct_tasks_count / solved_tasks_count * 100) if solved_tasks_count else 0, 1)
         user.is_current_user = False
         
-        # Определяем страну по номеру телефона
-        if user.phone:
-            if user.phone.startswith('+7'):
-                country_flag = 'russia'
-            elif user.phone.startswith('+375'):
-                country_flag = 'belarus'
-            else:
-                country_flag = None
-        else:
-            country_flag = None
+        country_flag = phone_country_flag(user.phone)
         
         users.append({
             'id': user.id,
@@ -15040,7 +15024,7 @@ if __name__ == '__main__':
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
 
-    #update_category_ranks()
+    update_category_ranks()
     #  python force_end_tournament.py <tournament_id>
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8001, debug=True)
