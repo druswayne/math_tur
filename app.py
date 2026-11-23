@@ -9573,25 +9573,22 @@ def submit_task_answer(tournament_id, task_id):
         flash(message, category)
         return redirect(url_for(endpoint, **kwargs))
 
-    def result_message(saved_correct, saved_answer):
+    def result_message(saved_answer):
         saved_answer = saved_answer or ''
         is_marker = (
             saved_answer.startswith('wrong_answer_due_to_')
             or saved_answer.startswith('ABANDONED_')
         )
-        if saved_correct:
-            return f'Правильный ответ! +{task.points} баллов', 'success'
         if is_marker:
             return None, None
-        return 'Неправильный ответ', 'danger'
+        return 'Ваш ответ принят', 'info'
 
     def respond_already_saved(prior):
-        message, category = result_message(prior.is_correct, prior.user_answer)
+        message, category = result_message(prior.user_answer)
         if fetch_mode:
             return json_no_store({
                 'ok': True,
                 'already_saved': True,
-                'correct': bool(prior.is_correct),
                 'message': message,
                 'category': category,
             })
@@ -9732,12 +9729,8 @@ def submit_task_answer(tournament_id, task_id):
                 })
             return redirect(url_for('login'))
         
-        if not fetch_mode:
-            flash(f'Правильный ответ! +{task.points} баллов', 'success')
-    else:
-        # Показываем сообщение только для обычных неправильных ответов
-        if not is_special_answer and not fetch_mode:
-            flash('Неправильный ответ', 'danger')
+    if not is_special_answer and not fetch_mode:
+        flash('Ваш ответ принят', 'info')
     
     try:
         db.session.commit()
@@ -9757,11 +9750,10 @@ def submit_task_answer(tournament_id, task_id):
     clear_current_task_from_db(current_user.id, tournament_id)
 
     if fetch_mode:
-        message, category = result_message(is_correct, user_answer)
+        message, category = result_message(user_answer)
         return json_no_store({
             'ok': True,
             'already_saved': False,
-            'correct': is_correct,
             'message': message,
             'category': category,
         })
@@ -15024,7 +15016,7 @@ if __name__ == '__main__':
     # Запускаем поток очистки памяти только один раз при старте приложения
     start_memory_cleanup_once()
 
-    update_category_ranks()
+    #update_category_ranks()
     #  python force_end_tournament.py <tournament_id>
     #  h eck_and_pay_teacher_referral_bonuses()
     app.run(host='127.0.0.1', port=8001, debug=True)

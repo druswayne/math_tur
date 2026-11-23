@@ -124,7 +124,7 @@
                 <tr>
                                             <td>{{ tournament.start_date.strftime('%d.%m.%Y') }}</td>
                         <td>{{ tournament.name }}</td>
-                        <td>{{ tournament.earned_points }}</td>
+                        <td>{{ tournament.score }}</td>
                         <td>
                             {% if tournament.time_spent is not none %}
                                 {% if tournament.time_spent.total_seconds > 0 %}
@@ -199,7 +199,7 @@
                                 <div class="tournament-stats-grid">
                         <div class="tournament-stat-item">
                             <div class="tournament-stat-label">Заработано баллов</div>
-                            <div class="tournament-stat-value">{{ tournament.earned_points }}</div>
+                            <div class="tournament-stat-value">{{ tournament.score }}</div>
                         </div>
                         <div class="tournament-stat-item">
                             <div class="tournament-stat-label">Время участия</div>
