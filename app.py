@@ -810,6 +810,7 @@ def initialize_app_once():
     ensure_news_views_schema()
     ensure_page_view_sources_schema()
     ensure_active_task_schema()
+    ensure_solved_task_timing_schema()
     ensure_tournament_device_log_schema()
 
     print("Создание администратора...")
@@ -1595,6 +1596,8 @@ class SolvedTask(db.Model):
     solved_at = db.Column(db.DateTime, default=datetime.now)
     is_correct = db.Column(db.Boolean, default=False)
     user_answer = db.Column(db.String(200), nullable=True)  # Ответ пользователя
+    # Секунды от реального показа условия до сохранения ответа. Считает сервер.
+    shown_seconds = db.Column(db.Integer, nullable=True)
     
     # Уникальное ограничение для комбинации user_id и task_id
     __table_args__ = (db.UniqueConstraint('user_id', 'task_id', name='unique_user_task'),)
@@ -2059,6 +2062,29 @@ def ensure_active_task_schema():
     if 'submit_started_at' not in columns:
         db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN submit_started_at TIMESTAMP'))
         changed = True
+    if changed:
+        db.session.commit()
+
+def ensure_solved_task_timing_schema():
+    """Хранит, сколько секунд условие было на экране до ответа."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    table_name = None
+    for name in ('solved_task', 'solvedtask'):
+        if inspector.has_table(name):
+            table_name = name
+            break
+    if not table_name:
+        return
+    columns = {col['name'] for col in inspector.get_columns(table_name)}
+    changed = False
+    if 'shown_seconds' not in columns:
+        db.session.execute(text(f'ALTER TABLE {table_name} ADD COLUMN shown_seconds INTEGER'))
+        changed = True
+    for column in ('idle_ms', 'typing_ms', 'paste_count', 'hidden_ms'):
+        if column in columns:
+            db.session.execute(text(f'ALTER TABLE {table_name} DROP COLUMN {column}'))
+            changed = True
     if changed:
         db.session.commit()
 
@@ -9220,6 +9246,24 @@ def detect_page_reload(request):
     
     return False
 
+def attach_answer_timing(solution, tournament_id, task_id):
+    """Секунды от показа условия до записи ответа. Считает сервер по seen_at.
+
+    ActiveTask к этому моменту ещё не удалена.
+    """
+    active_task = ActiveTask.query.filter_by(
+        user_id=solution.user_id,
+        tournament_id=tournament_id,
+        task_id=task_id,
+    ).first()
+    if not active_task or not active_task.seen_at:
+        return
+    delta = (datetime.utcnow() - active_task.seen_at).total_seconds()
+    if delta < 0:
+        delta = 0
+    solution.shown_seconds = min(int(delta), 24 * 3600)
+
+
 def handle_abandoned_task(user_id, tournament_id, reason="page_reload"):
     """Обрабатывает брошенную задачу - помечает как решенную неверно"""
     try:
@@ -9251,6 +9295,7 @@ def handle_abandoned_task(user_id, tournament_id, reason="page_reload"):
             is_correct=False,
             user_answer=f"ABANDONED_{reason.upper()}"  # Специальная метка для брошенных задач
         )
+        attach_answer_timing(abandoned_solution, tournament_id, active_task.task_id)
         db.session.add(abandoned_solution)
         record_tournament_device(user_id, tournament_id, active_task.task_id)
         
@@ -9669,6 +9714,7 @@ def submit_task_answer(tournament_id, task_id):
         is_correct=is_correct,
         user_answer=user_answer
     )
+    attach_answer_timing(solution, tournament_id, task_id)
     db.session.add(solution)
     record_tournament_device(current_user.id, tournament_id, task_id)
     

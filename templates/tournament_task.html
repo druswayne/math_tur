@@ -724,7 +724,6 @@ document.addEventListener('DOMContentLoaded', function() {
         seenUrl: "{{ url_for('mark_task_seen', tournament_id=tournament.id, task_id=task.id) }}",
         submittingUrl: "{{ url_for('mark_task_submitting', tournament_id=tournament.id, task_id=task.id) }}"
     };
-
     function collectDeviceInfo() {
         var timezone = '';
         try {
