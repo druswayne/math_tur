@@ -6529,10 +6529,11 @@ def teacher_student_tournament_results(student_id, tournament_id):
             'solved_at': solved_task.solved_at if solved_task else None
         })
     
-    # Считаем статистику
+    # Считаем статистику. Счёт берём из участия: он копится при ответах
+    # и правится при зачёте или аннулировании, а не суммируется заново.
     solved_count = len([t for t in tasks_data if t['is_solved']])
     correct_count = len([t for t in tasks_data if t['is_correct']])
-    earned_points = sum(t['task'].points for t in tasks_data if t['is_correct'])
+    earned_points = participation.score or 0
     total_points = sum(t['task'].points for t in tasks_data)
     
     # Вычисляем процент правильных ответов от решенных задач
@@ -9850,10 +9851,11 @@ def tournament_results(tournament_id):
             'solved_at': solved_task.solved_at if solved_task else None
         })
     
-    # Считаем статистику
+    # Считаем статистику. Счёт берём из участия: он копится при ответах
+    # и правится при зачёте или аннулировании, а не суммируется заново.
     solved_count = len([t for t in tasks_data if t['is_solved']])
     correct_count = len([t for t in tasks_data if t['is_correct']])
-    earned_points = sum(t['task'].points for t in tasks_data if t['is_correct'])
+    earned_points = participation.score or 0
     total_points = sum(t['task'].points for t in tasks_data)
     
     # Вычисляем процент правильных ответов от решенных задач
